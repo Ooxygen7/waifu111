@@ -1,8 +1,7 @@
 # callback.py
 import importlib
 import inspect,asyncio
-import logging
-import os
+import os,time
 from typing import Dict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -531,6 +530,7 @@ class DirectorCallback(BaseCallback):
         """
         处理导演模式菜单回调，解析回调数据并执行对应逻辑。
         """
+
         query = update.callback_query
         await query.answer()
         user_id = update.effective_user.id
@@ -546,8 +546,11 @@ class DirectorCallback(BaseCallback):
                 await self._send_menu(context, user_id, menu_id, query=query)
             elif data.startswith("act_"):
                 # 执行功能
+                stime = time.time()
                 action_data = data.replace("act_", "")
                 await self._handle_action(action_data, context, user_id, query,update)
+                etime = time.time()
+                print(f'执行{data}耗时{etime - stime}秒')
             else:
                 logger.warning(f"未知的导演模式回调数据: {data}, user_id: {user_id}")
                 await context.bot.send_message(user_id, "未知的操作，请返回主菜单。")
@@ -569,6 +572,8 @@ class DirectorCallback(BaseCallback):
                 await query.edit_message_text(description_text, reply_markup=reply_markup)
             else:
                 await context.bot.send_message(user_id, description_text, reply_markup=reply_markup)
+                etime = time.time()
+
         except BadRequest as e:
             logger.warning(f"编辑消息失败: {str(e)}, user_id: {user_id}")
             await context.bot.send_message(user_id, description_text, reply_markup=reply_markup)
@@ -594,11 +599,9 @@ class DirectorCallback(BaseCallback):
             msg_list = db.conversation_latest_message_id_get(info['conv_id'])
             print(msg_list)
             await context.bot.delete_messages(info['user_id'], msg_list)
-            #await context.bot.delete_message(info['user_id'], update.message.id)
-            mark = db.conversation_delete_messages(info['conv_id'], msg_list[0]) and db.conversation_delete_messages(
-                info['conv_id'], msg_list[1])
-            if mark:
-                await context.bot.send_message(info.get('user_id'),f"撤回成功！")
+            db.conversation_delete_messages(info['conv_id'], msg_list[0])
+            db.conversation_delete_messages(info['conv_id'], msg_list[1])
+
         elif action_data == "regen":
             _placeholder_message = await context.bot.send_message(user_id, "执行重新生成操作。")
             try:
@@ -608,11 +611,8 @@ class DirectorCallback(BaseCallback):
                 #raise e
             async def _regen(placeholder_message):
                 try:
-                    print('准备生成')
                     conversation.set_send_msg_id(placeholder_message.message_id)
-                    print('已设置发送消息id')
                     await conversation.regenerate_response()
-                    print('已获取回复')
                     await placeholder_message.edit_text(conversation.cleared_response_text)
                     conversation.save_to_db('assistant')
                 except Exception as e:
@@ -620,7 +620,7 @@ class DirectorCallback(BaseCallback):
 
             _task = asyncio.create_task(_regen(_placeholder_message))
         else:
-            _placeholder_message = await context.bot.send_message(user_id, f"执行操作: {action_data}")
+            _placeholder_message = await context.bot.send_message(user_id, f"正在生成: {action_data}...")
             async def _gen(placeholder_message):
                 try:
                     await conversation.set_director_control(long_data,True if not action_data.startswith('camera') else False)
