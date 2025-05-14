@@ -19,6 +19,7 @@ config/
 characters/
 bot_core/
 prompts/
+.idea/
 lib64/
 parts/
 sdist/
