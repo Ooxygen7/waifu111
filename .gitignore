@@ -3,4 +3,4 @@ characters/
 config/
 data/
 prompts/
-bot_log.py
+bot.log
