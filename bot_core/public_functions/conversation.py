@@ -1,7 +1,7 @@
-import logging
+
 import random
 
-from bot_core.public_functions.update_parse import logger
+from bot_core.public_functions.logging import logger
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt
 
 
@@ -39,7 +39,7 @@ class Conversation():
         self.latest_message_id = db.conversation_latest_message_id_get(self.id) or [0]
         self.received_text = info.get("message_text") or None
         self.cleared_received_text = txt.extract_special_control(self.received_text)[0] or self.received_text
-        logging.info(self.cleared_received_text)
+        logger.info(self.cleared_received_text)
         if self.type == GROUP or self.type == 'once':
             self._build_group_prompt()
         else:
@@ -88,7 +88,7 @@ class Conversation():
         """
         self.response_text = text
         self.cleared_response_text = txt.extract_tag_content(text, 'content')
-        logging.info(self.cleared_response_text)
+        logger.info(self.cleared_response_text)
 
     def set_once_type(self):
         self.type = 'once'

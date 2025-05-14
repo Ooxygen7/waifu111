@@ -1,4 +1,3 @@
-# bot_run.py
 import importlib
 import inspect
 import telegram
