@@ -15,6 +15,10 @@ downloads/
 eggs/
 .eggs/
 lib/
+config/
+characters/
+bot_core/
+prompts/
 lib64/
 parts/
 sdist/
