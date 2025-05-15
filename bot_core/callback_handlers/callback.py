@@ -572,7 +572,6 @@ class DirectorCallback(BaseCallback):
                 await query.edit_message_text(description_text, reply_markup=reply_markup)
             else:
                 await context.bot.send_message(user_id, description_text, reply_markup=reply_markup)
-                etime = time.time()
 
         except BadRequest as e:
             logger.warning(f"编辑消息失败: {str(e)}, user_id: {user_id}")

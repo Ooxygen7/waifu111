@@ -168,16 +168,16 @@ def user_api_get(userid: int) -> str:
     return result[0][0] if result else ''
 
 
-def user_stream_get(userid: int) -> Optional[str]:
+def user_stream_get(userid: int) -> Optional[bool]:
     """获取用户是否开启流式传输 ('yes'/'no')。如果未找到配置，返回None。"""
     command = "SELECT stream FROM user_config WHERE uid = ?"
     result = query_db(command, (userid,))
-    return result[0][0] if result else None
+    return True if result[0][0] == 'yes' else False
 
 
 def user_stream_switch(userid: int) -> bool:
     """切换用户的流式传输设置 ('yes' <-> 'no')。返回操作是否成功。"""
-    if user_stream_get(userid) == 'yes':
+    if user_stream_get(userid):
         command = "UPDATE  user_config set stream = 'no' WHERE uid = ?"
     else:
         command = "UPDATE  user_config set stream = 'yes' WHERE uid = ?"

@@ -1,10 +1,10 @@
-
+import asyncio
 import random
-
+from telegram import Update
+from telegram.ext import ContextTypes
 from bot_core.public_functions.logging import logger
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt
-
-
+import telegram
 # 定义常量
 PRIVATE = 'private'
 GROUP = 'group'
@@ -13,6 +13,64 @@ ASSISTANT = 'assistant'
 REPLY = 'reply'
 KEYWORD = 'keyword'
 RANDOM = 'random'
+
+
+class User():
+    def __init__(self, user_id):
+        self.id = user_id
+        self.nick = db.user_info_get(user_id).get('user_nick')
+
+class Message():
+
+    def __init__(self,id,text,mark):
+        self.id = id
+        self.text_raw = text
+        if mark == 'input':
+            self.text_processed = txt.extract_special_control(text)
+        elif mark == 'output':
+            self.text_processed = txt.extract_tag_content(text,'content')
+        else:
+            self.text_processed = text
+
+"""
+实现update解析用户信息(如果没有配置，则创建)
+实现流式/非流式传输
+实现撤回/重新生成
+实现保存/删除
+"""
+
+
+class PrivateConversationHandler():
+
+    def __init__(self, update: Update,context:ContextTypes.DEFAULT_TYPE):
+        self.context = context
+        self.input = None
+        self.prompt = None
+
+        if update.message:
+            self.user = User(update.message.chat.id)
+        else:
+            self.user = User(update.callback_query.from_user.id)
+        self.id = db.user_conv_id_get(self.user.id)
+        self.char, self.preset = db.conversation_private_get(self.id)
+        self.api = db.user_api_get(self.id)
+        self.stream = db.user_stream_get(self.id)
+        self.input = Message(update.message.message_id, update.message.text, 'input') or None
+        self.prompt = prompt.build_prompts(self.char,self.input.text_processed,self.preset) or None
+        self.output = None
+    async def send_non_stream(self):
+        placeholder_msg = await self.context.bot.send_message("思考中...")
+        async def _(placeholder:telegram.Message):
+            self.output = Message(placeholder.message_id,await llm.get_response_no_stream(self.prompt,self.id,'private',self.api),'output')
+            await placeholder.edit_text(self.output.text_processed)
+        _task = asyncio.create_task(_(placeholder_msg))
+
+
+
+
+
+
+
 
 class Conversation():
     """会话类，用于管理和处理用户与机器人的交互信息。"""
@@ -150,27 +208,19 @@ class Conversation():
 
     async def regenerate_response(self):
         last_input = db.dialog_last_input_get(self.id)
-        #print(f'已获取上一条输入：{last_input}')
         self.received_text = last_input
-        #print(f"已设置用户输入")
         self.cleared_received_text = txt.extract_special_control(self.received_text)[0] or self.received_text
-        #print(f"已设置用户输入(cleared)")
         self.prompt = prompt.build_prompts(self.char, self.received_text, self.preset)
-        #print(f"已设置用户prompt")
         self._insert_user_nick()
-        #print(f"已插入用户昵称")
         token = llm.calculate_token_count(str(llm.get_full_msg(self.id, self.type, self.prompt)))
-        #print(f"用户token{token}")
         db.conversation_delete_messages(self.id, self.latest_message_id[0])
-        #print(f"已删除消息记录(用户)")
         db.conversation_delete_messages(self.id, self.latest_message_id[1])
-        #print(f"已删除消息记录(AI)")
         self.turn -= 2
         self._save_user_usage_info(token, USER)
         self.save_to_db(USER, self.latest_message_id[1])
         await self.get_response()
 
-    async def set_director_control(self,text,save=False):
+    async def set_director_control(self, text, save=False):
         self.received_text = text
         self.cleared_received_text = text
         self.prompt = prompt.build_prompts(self.char, self.received_text, self.preset)
@@ -180,6 +230,7 @@ class Conversation():
         if save:
             self.save_to_db(USER, 0)
         await self.get_response()
+
     def _save_user_usage_info(self, token, role):
         db.user_info_update(self.info.get('user_id'), 'input_tokens' if role == USER else 'output_tokens', token,
                             True)
@@ -192,7 +243,8 @@ class Conversation():
         print(f"trigger is {self.trigger},role is {role},saving")
         if role == ASSISTANT:
 
-            db.group_dialog_update(self.info.get('message_id'), 'raw_response', self.response_text, self.info.get('group_id'))
+            db.group_dialog_update(self.info.get('message_id'), 'raw_response', self.response_text,
+                                   self.info.get('group_id'))
             db.group_dialog_update(self.info.get('message_id'), 'processed_response', self.cleared_response_text,
                                    self.info.get('group_id'))
             db.group_dialog_update(self.info.get('message_id'), 'trigger_type', self.trigger, self.info.get('group_id'))
@@ -203,7 +255,8 @@ class Conversation():
                 db.conversation_group_update(self.info.get('group_id'), self.info.get('user_id'), 'turns', 1)
                 db.group_dialog_update(self.id, 'trigger_type', REPLY, self.info.get('group_id'))
                 db.group_dialog_update(self.id, 'raw_response', self.response_text, self.info.get('group_id'))
-                db.group_dialog_update(self.id, 'processed_response', self.cleared_response_text, self.info.get('group_id'))
+                db.group_dialog_update(self.id, 'processed_response', self.cleared_response_text,
+                                       self.info.get('group_id'))
 
     def _build_group_prompt(self):
         self.prompt = prompt.insert_text(self.prompt,
