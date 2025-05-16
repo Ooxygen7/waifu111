@@ -182,7 +182,7 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if random.random() < rate:
                 logger.info(f"触发随机回复, group_name: {group_name}, user_name: {user_name}")
                 return 'random'
-        logger.info(f"未触发任何条件, group_name: {group_name}, user_name: {user_name}")
+        #logger.info(f"未触发任何条件, group_name: {group_name}, user_name: {user_name}")
         return False
     except Exception as e:
         logger.error(f"检查群聊消息是否需要回复失败, group_id: {group_id}, 错误: {str(e)}")
