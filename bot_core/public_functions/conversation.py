@@ -5,7 +5,6 @@ from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 from bot_core.public_functions.logging import logger
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
-import telegram
 
 # 定义常量
 PRIVATE = 'private'
@@ -45,47 +44,77 @@ class Config:
         self.multiple = file.get_api_multiple(self.api)
 
 
-"""
-实现update解析用户信息
-实现流式/非流式传输
-实现撤回/重新生成
-实现保存/删除
-"""
 
 
 class PrivateConv:
-
+    """
+    处理私聊场景下的对话逻辑.
+    该类负责管理用户的对话状态,包括构建提示(prompt),调用语言模型(LLM)生成回复,
+    以及保存对话记录到数据库. 它支持流式和非流式两种回复模式,并提供撤销(undo),
+    重生成(regen)等功能.
+    Attributes:
+        update (Update): Telegram API 传递的更新对象, 包含了用户发送的消息或回调查询.
+        context (ContextTypes.DEFAULT_TYPE): Telegram Bot 的上下文对象, 用于与 Telegram API 交互.
+        placeholder: 用于存储占位消息的对象, 在等待 LLM 回复时显示.
+        user (User): 用户对象, 包含用户的 ID 等信息.
+        input (Message): 用户输入的消息对象.
+        output (Message): LLM 生成的回复消息对象.
+        prompt (str): 用于传递给 LLM 的提示字符串.
+        config (Config): 配置对象, 包含与用户相关的配置信息, 如角色,预设等.
+        id (int): 会话 ID, 用于在数据库中标识会话.
+    """
     def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        self.placeholder = None
+        """
+        初始化 PrivateConv 对象.
+        根据传入的 update 对象判断用户发送的是消息还是回调查询,
+        并初始化相应的属性,包括用户对象,输入消息,配置信息和会话 ID.
+        如果会话 ID 不存在,则创建一个新的会话.
+        Args:
+            update (Update): Telegram API 传递的更新对象.
+            context (ContextTypes.DEFAULT_TYPE): Telegram Bot 的上下文对象.
+        """
+        self.placeholder = None  # 用于存储占位消息
         self.context = context
         self.update = update
         self.input = None
         self.output = None
         self.prompt = None
         self.config = None
+        # 根据 update 类型初始化用户和输入消息
         if update.message:
             self.user = User(update.message.chat.id)
-            self.input = Message(update.message.message_id, update.message.text, 'input') or None
+            self.input = Message(update.message.message_id, update.message.text, 'input') or None  # 消息内容
         else:
             self.user = User(update.callback_query.from_user.id)
+        # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
         self.config = Config(self.user.id)
         if not self.id:
             self.new()
-
+        # 构建 prompt
         if self.input:
             self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
         else:
             self.prompt = None
-
     async def response(self, save=True):
+        """
+        生成并发送 LLM 的回复.
+        该方法首先发送一个占位消息,然后根据配置选择流式或非流式回复模式,
+        并创建一个异步任务来处理 LLM 的回复.
+        Args:
+            save (bool, optional): 是否保存对话记录到数据库. 默认为 True.
+        """
         self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
         if self.config.stream:
             _task = asyncio.create_task(self._response_stream(save))
         else:
             _task = asyncio.create_task(self._response_non_stream(save))
-
     async def regen(self):
+        """
+        重新生成 LLM 的回复.
+        该方法首先获取最后一条消息的 ID,然后从数据库中删除该消息及其回复,
+        并重新构建 prompt,最后调用 response 方法生成新的回复.
+        """
         last_msg_id_list = db.conversation_latest_message_id_get(self.id)
         last_input = db.dialog_last_input_get(self.id)
         db.conversation_delete_messages(self.id, last_msg_id_list[0])
@@ -94,8 +123,12 @@ class PrivateConv:
         self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
         await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
         await self.response()
-
     async def undo(self):
+        """
+        撤销最后一次对话.
+        该方法首先获取最后两条消息的 ID,然后从 Telegram 中删除这些消息,
+        并从数据库中删除相应的对话记录. 如果删除消息失败,会尝试逐个删除.
+        """
         msg_list = db.conversation_latest_message_id_get(self.id)
         msg_list = [msg_id for msg_id in msg_list if msg_id is not None]  # 过滤掉 None 值
         try:
@@ -108,7 +141,6 @@ class PrivateConv:
                     try:
                         await self.context.bot.delete_message(self.user.id, msg_id)
                     except Exception as e2:
-                        success = False  # 只要有一个消息删除失败，就标记为失败
                         logger.error(f"删除消息 {msg_id} 失败: {str(e2)}")
                 else:
                     logger.warning("尝试删除空消息 ID，已跳过")
@@ -118,12 +150,12 @@ class PrivateConv:
             db.conversation_delete_messages(self.id, msg_list[1])
         else:
             logger.warning(f"msg_list 长度不足 (len={len(msg_list)})，无法删除数据库记录")
-
-
-
-
-
     def new(self):
+        """
+        创建一个新的会话.
+        该方法生成一个随机的会话 ID,并在数据库中创建新的会话记录.
+        如果创建失败,会尝试多次,直到成功或达到最大尝试次数.
+        """
         max_attempts = 5  # 限制尝试次数，避免无限循环
         for _ in range(max_attempts):
             new_conv_id = random.randint(10000000, 99999999)
@@ -134,24 +166,46 @@ class PrivateConv:
                 self.id = new_conv_id
                 return
         raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")
-
     def save(self):
+        """
+        保存对话记录到数据库.
+        该方法首先检查 LLM 的回复是否出错,如果没有出错,则将对话内容保存到数据库,
+        并更新用户的使用信息.
+        """
         if not self.output.text_raw.startswith('API调用失败'):
             self._save_turn_content_to_db()
             self._update_usage_info()
-
     def set_callback_data(self, data):
+        """
+        设置回调数据.
+        该方法用于处理回调查询,将回调数据设置为输入消息,并重新构建 prompt.
+        Args:
+            data (str): 回调数据.
+        """
         self.input = Message(0, data, 'callback')
         self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
-
     async def _response_non_stream(self, save):
+        """
+        以非流式方式生成 LLM 的回复.
+        该方法调用 llm.get_response_no_stream 方法获取 LLM 的回复,
+        然后将回复更新到占位消息中.
+        Args:
+            save (bool): 是否保存对话记录到数据库.
+        """
         response = await llm.get_response_no_stream(self.prompt, self.id, 'private', self.config.api)
         self.output = Message(self.placeholder.message_id, response, 'output')
         await self.placeholder.edit_text(self.output.text_processed)
         if save:
             self.save()
-
     async def _response_stream(self, save):
+        """
+        以流式方式生成 LLM 的回复.
+        该方法调用 llm.get_response_stream 方法获取 LLM 的回复,
+        然后逐步更新占位消息的内容. 为了避免频繁更新消息,
+        只有在内容显著变化或经过一定时间后才会更新消息.
+        Args:
+            save (bool): 是否保存对话记录到数据库.
+        """
         # print("流式回复")
         last_update_time = asyncio.get_event_loop().time()
         last_updated_content = "..."
@@ -171,16 +225,24 @@ class PrivateConv:
         await _finalize_message(self.placeholder, self.output.text_processed)
         if save:
             self.save()
-
     def _save_turn_content_to_db(self):
+        """
+        将一次对话的内容保存到数据库.
+        该方法首先获取当前对话的轮次,然后将用户输入和 LLM 的回复
+        分别保存到数据库中.
+        """
         turn = db.dialog_turn_get(self.id, 'private')
         db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed, self.input.id,
                               PRIVATE)
         db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
                               self.output.id,
                               PRIVATE)
-
     def _update_usage_info(self):
+        """
+        更新用户的使用信息.
+        该方法计算输入和输出的 token 数量,并更新数据库中用户的
+        token 数量,对话轮次和剩余频率.
+        """
         input_tokens = llm.calculate_token_count(str(llm.get_full_msg(self.id, 'private', self.prompt)))  # 计算输入tokens
         db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
         output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens

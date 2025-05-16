@@ -4,7 +4,7 @@ import os
 import re
 from pathlib import Path
 
-from telegram import Update,InlineKeyboardButton,InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot_core.public_functions.conversation import PrivateConv
@@ -44,8 +44,9 @@ class UndoCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        conversation = PrivateConv(update,context)
+        conversation = PrivateConv(update, context)
         await conversation.undo()
+        await context.bot.delete_message(conversation.user.id,conversation.input.id)
 
 
 class StreamCommand(BaseCommand):
@@ -98,7 +99,7 @@ class NewCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        conversation = PrivateConv(update,context)
+        conversation = PrivateConv(update, context)
         conversation.new()
         await update.message.reply_text(f"创建成功！", parse_mode='MarkDown')
         preset_markup = Inline.print_preset_list()
@@ -152,9 +153,8 @@ class RegenCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        conversation = PrivateConv(update,context)
+        conversation = PrivateConv(update, context)
         await conversation.regen()
-
 
 
 class StatusCommand(BaseCommand):
@@ -184,7 +184,7 @@ class CharCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        conversation = PrivateConv(update,context)
+        conversation = PrivateConv(update, context)
         conversation.new()
         markup = Inline.print_char_list('load', 'private', conversation.user.id)
         if markup == "没有可操作的角色。":
@@ -408,6 +408,7 @@ class SettingCommand(BaseCommand):
         show_in_menu=True,
         menu_weight=0
     )
+
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
         处理设置命令，显示设置菜单。
@@ -421,7 +422,6 @@ class SettingCommand(BaseCommand):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("请选择要管理的选项：", reply_markup=reply_markup)
-
 
 
 class DirectorCommand(BaseCommand):
