@@ -203,7 +203,7 @@
           "Content_format",
           "Word_count_short"
         ],
-        "Sample": ["emoji"],
+        "Sample": [],
         "Function": [],
         "Jailbreak": [],
         "Others": []
@@ -255,8 +255,7 @@
           "NSFW抗黑化",
           "Erotic"
         ],
-        "Sample": [
-          "Emoji"
+        "Sample": [0
         ],
         "Function": [],
         "Jailbreak": [

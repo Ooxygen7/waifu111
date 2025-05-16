@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
-from bot_core.public_functions.conversation import Conversation
+from bot_core.public_functions.conversation import Conversation,PrivateConversationHandler
 import bot_core.public_functions.update_parse as public
 from bot_core.public_functions.decorators import Decorators
 from utils import LLM_utils as llm
@@ -37,7 +37,9 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
         # 处理普通私聊消息
-        await private_reply(update, context)
+        userconv = PrivateConversationHandler(update,context)
+        _task = asyncio.create_task(userconv.response_non_stream())
+       # await private_reply(update, context)
     except Exception as e:
         logger.error(f"处理私聊消息时出错: {str(e)}，用户ID: {user_id}", exc_info=True)
 

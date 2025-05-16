@@ -3,8 +3,9 @@ import random
 from telegram import Update
 from telegram.ext import ContextTypes
 from bot_core.public_functions.logging import logger
-from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt
+from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
 import telegram
+
 # 定义常量
 PRIVATE = 'private'
 GROUP = 'group'
@@ -20,56 +21,77 @@ class User():
         self.id = user_id
         self.nick = db.user_info_get(user_id).get('user_nick')
 
-class Message():
 
-    def __init__(self,id,text,mark):
+class Message():
+    def __init__(self, id, text, mark):
+        # print(text)
         self.id = id
         self.text_raw = text
         if mark == 'input':
-            self.text_processed = txt.extract_special_control(text)
+            self.text_processed = txt.extract_special_control(text)[0] or text
         elif mark == 'output':
-            self.text_processed = txt.extract_tag_content(text,'content')
+            self.text_processed = txt.extract_tag_content(text, 'content')
         else:
             self.text_processed = text
 
+
+class Config:
+    def __init__(self, user_id, conv_id):
+        self.api = db.user_api_get(user_id)
+        self.char, self.preset = db.conversation_private_get(conv_id)
+        self.stream = db.user_stream_get(user_id)
+        self.multiple = file.get_api_multiple(self.api)
+
+
 """
-实现update解析用户信息(如果没有配置，则创建)
+实现update解析用户信息
 实现流式/非流式传输
 实现撤回/重新生成
 实现保存/删除
 """
 
 
-class PrivateConversationHandler():
+class PrivateConversationHandler:
 
-    def __init__(self, update: Update,context:ContextTypes.DEFAULT_TYPE):
+    def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         self.context = context
         self.input = None
+        self.output = None
         self.prompt = None
-
+        self.config = None
         if update.message:
             self.user = User(update.message.chat.id)
+            self.input = Message(update.message.message_id, update.message.text, 'input') or None
         else:
             self.user = User(update.callback_query.from_user.id)
         self.id = db.user_conv_id_get(self.user.id)
-        self.char, self.preset = db.conversation_private_get(self.id)
-        self.api = db.user_api_get(self.id)
-        self.stream = db.user_stream_get(self.id)
-        self.input = Message(update.message.message_id, update.message.text, 'input') or None
-        self.prompt = prompt.build_prompts(self.char,self.input.text_processed,self.preset) or None
-        self.output = None
-    async def send_non_stream(self):
-        placeholder_msg = await self.context.bot.send_message("思考中...")
-        async def _(placeholder:telegram.Message):
-            self.output = Message(placeholder.message_id,await llm.get_response_no_stream(self.prompt,self.id,'private',self.api),'output')
-            await placeholder.edit_text(self.output.text_processed)
-        _task = asyncio.create_task(_(placeholder_msg))
+        self.config = Config(self.user.id, self.id)
+        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset) or None
 
+    async def response_non_stream(self):
+        placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
+        response = await llm.get_response_no_stream(self.prompt, self.id, 'private', self.config.api)
+        self.output = Message(placeholder.message_id, response, 'output')
+        await placeholder.edit_text(self.output.text_processed)
+        if not self.output.text_raw.startswith('API调用失败'):
+            self._save_turn_content_to_db()
+            self._update_usage_info()
 
+    def _save_turn_content_to_db(self):
+        turn = db.dialog_turn_get(self.id, 'private')
+        db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed, self.input.id,
+                              PRIVATE)
+        db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
+                              self.output.id,
+                              PRIVATE)
 
-
-
-
+    def _update_usage_info(self):
+        input_tokens = llm.calculate_token_count(str(llm.get_full_msg(self.id, 'private', self.prompt)))  # 计算输入tokens
+        db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
+        output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
+        db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
+        db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
+        db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)  # 增加已使用计数
 
 
 class Conversation():

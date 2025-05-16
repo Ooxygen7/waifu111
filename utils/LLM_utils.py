@@ -224,7 +224,7 @@ async def get_response_no_stream(current_input: str, conv_id: int = 0, output_ty
             )
             return response.choices[0].message.content
         except Exception as e:
-            return str(RuntimeError(f"API调用失败 (no_stream): {str(e)}"))
+            return str(RuntimeError(f"API调用失败，对话未保存，请重新发送\r\n {str(e)}"))
 
 
 async def get_response_stream(current_input: str, conv_id: int = 0, output_type: str = 'once',

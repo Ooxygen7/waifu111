@@ -1,7 +1,7 @@
 import json
 import os
 
-config_path = "./config/config.json"
+config_path = "./config/config_local.json" or "./config/config.json"
 characters_path = "./characters/"
 prompt_path = "./prompts/prompts.json"
 
@@ -32,7 +32,7 @@ def load_config(config_file=config_path):
             raise ValueError("配置文件中未找到 ADMIN")
 
         # print("配置文件加载成功")
-        return {'token':TG_TOKEN,'api':API_LIST,'admin':ADMIN_LIST}
+        return {'token': TG_TOKEN, 'api': API_LIST, 'admin': ADMIN_LIST}
 
     except Exception as e:
         print(f"加载配置文件时出错: {str(e)}")
@@ -66,7 +66,7 @@ def load_char(char_file_name: str, char_dir: str = characters_path):
         if not os.path.exists(file_path):
             print(f"错误: 角色文件 {file_path} 不存在。")
             return None
-        
+
         with open(file_path, 'r', encoding='utf-8') as f:
             char_data = json.load(f)
             return char_data
@@ -90,3 +90,10 @@ def load_prompts(prompt_file: str = prompt_path):
     except Exception as e:
         print(f"读取预设文件失败: {str(e)}")
         return None
+
+
+def get_api_multiple(api_name):
+    api_list = load_config()['api']
+    for api in api_list:
+        if api['name'] == api_name:
+            return api['multiple'] or 1

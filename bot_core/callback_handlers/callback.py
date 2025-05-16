@@ -15,7 +15,7 @@ from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
 from .director_classes import DirectorMenu
 from .inline import Inline
-from ..public_functions.conversation import Conversation
+from ..public_functions.conversation import Conversation,PrivateConversationHandler
 
 from ..public_functions.logging import logger
 
