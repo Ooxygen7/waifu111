@@ -1,6 +1,7 @@
 import asyncio
 import random
 from telegram import Update
+from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 from bot_core.public_functions.logging import logger
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
@@ -22,7 +23,7 @@ class User():
         self.nick = db.user_info_get(user_id).get('user_nick')
 
 
-class Message():
+class Message:
     def __init__(self, id, text, mark):
         # print(text)
         self.id = id
@@ -36,9 +37,10 @@ class Message():
 
 
 class Config:
-    def __init__(self, user_id, conv_id):
+    def __init__(self, user_id):
         self.api = db.user_api_get(user_id)
-        self.char, self.preset = db.conversation_private_get(conv_id)
+        info = db.user_config_get(user_id)
+        self.char, self.preset = info.get('char'), info.get('preset')
         self.stream = db.user_stream_get(user_id)
         self.multiple = file.get_api_multiple(self.api)
 
@@ -51,10 +53,12 @@ class Config:
 """
 
 
-class PrivateConversationHandler:
+class PrivateConv:
 
     def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        self.placeholder = None
         self.context = context
+        self.update = update
         self.input = None
         self.output = None
         self.prompt = None
@@ -65,17 +69,108 @@ class PrivateConversationHandler:
         else:
             self.user = User(update.callback_query.from_user.id)
         self.id = db.user_conv_id_get(self.user.id)
-        self.config = Config(self.user.id, self.id)
-        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset) or None
+        self.config = Config(self.user.id)
+        if not self.id:
+            self.new()
 
-    async def response_non_stream(self):
-        placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
-        response = await llm.get_response_no_stream(self.prompt, self.id, 'private', self.config.api)
-        self.output = Message(placeholder.message_id, response, 'output')
-        await placeholder.edit_text(self.output.text_processed)
+        if self.input:
+            self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+        else:
+            self.prompt = None
+
+    async def response(self, save=True):
+        self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
+        if self.config.stream:
+            _task = asyncio.create_task(self._response_stream(save))
+        else:
+            _task = asyncio.create_task(self._response_non_stream(save))
+
+    async def regen(self):
+        last_msg_id_list = db.conversation_latest_message_id_get(self.id)
+        last_input = db.dialog_last_input_get(self.id)
+        db.conversation_delete_messages(self.id, last_msg_id_list[0])
+        db.conversation_delete_messages(self.id, last_msg_id_list[1])
+        self.input = Message(last_msg_id_list[1], last_input, 'input')
+        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+        await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
+        await self.response()
+
+    async def undo(self):
+        msg_list = db.conversation_latest_message_id_get(self.id)
+        msg_list = [msg_id for msg_id in msg_list if msg_id is not None]  # 过滤掉 None 值
+        try:
+            await self.context.bot.delete_messages(self.user.id, msg_list)
+        except Exception as e:
+            logger.warning(f"批量删除消息失败: {str(e)}, 尝试逐个删除")
+            # 尝试逐个删除消息
+            for msg_id in msg_list:
+                if msg_id:  # 检查 msg_id 是否为空
+                    try:
+                        await self.context.bot.delete_message(self.user.id, msg_id)
+                    except Exception as e2:
+                        success = False  # 只要有一个消息删除失败，就标记为失败
+                        logger.error(f"删除消息 {msg_id} 失败: {str(e2)}")
+                else:
+                    logger.warning("尝试删除空消息 ID，已跳过")
+        # 删除数据库记录
+        if len(msg_list) >= 2:  # 确保 msg_list 至少有两个元素
+            db.conversation_delete_messages(self.id, msg_list[0])
+            db.conversation_delete_messages(self.id, msg_list[1])
+        else:
+            logger.warning(f"msg_list 长度不足 (len={len(msg_list)})，无法删除数据库记录")
+
+
+
+
+
+    def new(self):
+        max_attempts = 5  # 限制尝试次数，避免无限循环
+        for _ in range(max_attempts):
+            new_conv_id = random.randint(10000000, 99999999)
+            if (db.conversation_private_create(new_conv_id, self.user.id, self.config.char,
+                                               self.config.preset) and
+                    db.user_config_arg_update(self.user.id, 'conv_id', new_conv_id)):
+                db.user_info_update(self.user.id, 'conversations', 1, True)
+                self.id = new_conv_id
+                return
+        raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")
+
+    def save(self):
         if not self.output.text_raw.startswith('API调用失败'):
             self._save_turn_content_to_db()
             self._update_usage_info()
+
+    def set_callback_data(self, data):
+        self.input = Message(0, data, 'callback')
+        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+
+    async def _response_non_stream(self, save):
+        response = await llm.get_response_no_stream(self.prompt, self.id, 'private', self.config.api)
+        self.output = Message(self.placeholder.message_id, response, 'output')
+        await self.placeholder.edit_text(self.output.text_processed)
+        if save:
+            self.save()
+
+    async def _response_stream(self, save):
+        # print("流式回复")
+        last_update_time = asyncio.get_event_loop().time()
+        last_updated_content = "..."
+        response_chunks = []
+        async for chunk in llm.get_response_stream(self.prompt, self.id, 'private', self.config.api):
+            response_chunks.append(chunk)
+            response = "".join(response_chunks)
+            current_time = asyncio.get_event_loop().time()
+            # 每 4 秒或内容显著变化时更新消息
+            if current_time - last_update_time >= 4 and response != last_updated_content:
+                await _update_message(response, self.placeholder)
+                last_updated_content = response
+                last_update_time = current_time
+            # 短暂让出事件循环控制权，避免长时间占用
+            await asyncio.sleep(0.01)
+        self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
+        await _finalize_message(self.placeholder, self.output.text_processed)
+        if save:
+            self.save()
 
     def _save_turn_content_to_db(self):
         turn = db.dialog_turn_get(self.id, 'private')
@@ -92,6 +187,66 @@ class PrivateConversationHandler:
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
         db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
         db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)  # 增加已使用计数
+        db.user_info_update(self.user.id, 'dialog_turns', 1, True)
+
+
+async def _update_message(text, placeholder):
+    try:
+        # Telegram 单条消息最大长度限制4096字符，保险起见用4000
+        MAX_LEN = 4000
+        if len(text) > MAX_LEN:
+            text = text[-MAX_LEN:]
+        await placeholder.edit_text(text, parse_mode="markdown")
+    except BadRequest as e:
+        logger.warning(f"Markdown 解析错误: {str(e)}, 禁用 Markdown 重试")
+        try:
+            await placeholder.edit_text(text, parse_mode=None)
+        except Exception as e2:
+            logger.error(f"再次尝试发送消息失败: {e2}")
+            placeholder.edit_text(f"Failed: {e2}")
+    except TelegramError as e:
+        if "Message is not modified" in str(e):
+            logger.debug(f"消息内容未变化，跳过更新: {str(e)}")
+            placeholder.edit_text(f"Failed: {e}")
+        else:
+            logger.error(f"更新消息时出错: {str(e)}")
+            placeholder.edit_text(f"Failed: {e}")
+
+
+async def _finalize_message(sent_message, cleared_response: str) -> None:
+    """
+    最终更新消息内容，确保显示最终的处理后的响应。
+    Args:
+        sent_message: 已发送的消息对象。
+        cleared_response (str): 处理后的最终响应内容。
+    """
+    max_len = 4000
+    try:
+        # Telegram 单条消息最大长度限制4096字符，保险起见用4000
+        if len(cleared_response) <= max_len:
+            await sent_message.edit_text(cleared_response, parse_mode="markdown")
+        else:
+            # 超长时分两段发送，先发前半段，再发后半段
+            await sent_message.edit_text(cleared_response[:max_len], parse_mode="markdown")
+            await sent_message.reply_text(cleared_response[max_len:], parse_mode="markdown")
+    except BadRequest as e:
+        logger.warning(f"Markdown 解析错误: {str(e)}, 禁用 Markdown 重试")
+        try:
+            if len(cleared_response) <= max_len:
+                await sent_message.edit_text(cleared_response, parse_mode=None)
+            else:
+                await sent_message.edit_text(cleared_response[:max_len], parse_mode=None)
+                await sent_message.reply_text(cleared_response[max_len:], parse_mode=None)
+        except Exception as e2:
+            logger.error(f"再次尝试发送消息失败: {e2}")
+            await sent_message.edit_text(f"Failed: {e2}")
+    except TelegramError as e:
+        if "Message is not modified" in str(e):
+            logger.debug(f"最终更新时消息内容未变化，跳过更新: {str(e)}")
+            await sent_message.edit_text(f"Failed: {e}")
+        else:
+            logger.error(f"最终更新消息时出错: {str(e)}")
+            await sent_message.edit_text(f"Failed: {e}")
 
 
 class Conversation():

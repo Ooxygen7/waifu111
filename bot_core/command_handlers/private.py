@@ -7,7 +7,7 @@ from pathlib import Path
 from telegram import Update,InlineKeyboardButton,InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from bot_core.public_functions.conversation import Conversation
+from bot_core.public_functions.conversation import PrivateConv
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
 from bot_core.public_functions.logging import logger
@@ -44,20 +44,8 @@ class UndoCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        info = public.update_info_get(update)
-        mark = False
-        try:
-            msg_list = db.conversation_latest_message_id_get(info['conv_id'])
-            print(msg_list)
-            await context.bot.delete_messages(info['user_id'], msg_list)
-            await context.bot.delete_message(info['user_id'], update.message.id)
-            mark = db.conversation_delete_messages(info['conv_id'], msg_list[0]) and db.conversation_delete_messages(
-                info['conv_id'], msg_list[1])
-            if mark:
-                await update.message.reply_text(f"撤回成功！")
-        except Exception as e:
-            if mark:
-                await update.message.reply_text(f"无法删除消息：{str(e)}\r\n实际消息记录已撤回处理")
+        conversation = PrivateConv(update,context)
+        await conversation.undo()
 
 
 class StreamCommand(BaseCommand):
@@ -110,8 +98,8 @@ class NewCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        conversation = Conversation(info)
-        conversation.new('private')
+        conversation = PrivateConv(update,context)
+        conversation.new()
         await update.message.reply_text(f"创建成功！", parse_mode='MarkDown')
         preset_markup = Inline.print_preset_list()
         if preset_markup == "没有可用的预设。":
@@ -164,28 +152,9 @@ class RegenCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        info = public.update_info_get(update)
-        conversation = Conversation(info)
-        try:
-            await context.bot.delete_message(info['user_id'], update.message.id)
-        except Exception as e:
-            print(f"Failed to delete user message: {e}")
-        try:
-            await context.bot.delete_message(info['user_id'], conversation.latest_message_id[0])
-        except Exception as e:
-            print(f"Failed to delete latest message: {e}")
-        _placeholder_message = await update.message.reply_text(f"重新生成...")
+        conversation = PrivateConv(update,context)
+        await conversation.regen()
 
-        async def _regen(placeholder_message):
-            try:
-                conversation.set_send_msg_id(placeholder_message.message_id)
-                await conversation.regenerate_response()
-                await placeholder_message.edit_text(conversation.cleared_response_text)
-                conversation.save_to_db('assistant')
-            except Exception as e:
-                await placeholder_message.edit_text(f"重新生成失败！{e}")
-
-        _task = asyncio.create_task(_regen(_placeholder_message))
 
 
 class StatusCommand(BaseCommand):
@@ -215,9 +184,9 @@ class CharCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        conversation = Conversation(public.update_info_get(update))
-        conversation.new('private')
-        markup = Inline.print_char_list('load', 'private', conversation.info['user_id'])
+        conversation = PrivateConv(update,context)
+        conversation.new()
+        markup = Inline.print_char_list('load', 'private', conversation.user.id)
         if markup == "没有可操作的角色。":
             await update.message.reply_text(markup)
         else:

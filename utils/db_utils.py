@@ -439,14 +439,29 @@ def dialog_last_input_get(conv_id) -> str:
 
 
 def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:
-    """删除指定conv_id和msg_id列表中的消息记录。
-    如果至少删除了一个记录，返回True；否则，返回False。
     """
-    # 动态生成IN子句的占位符，例如: IN (?, ?) 如果msg_ids有2个元素
-    command = f"DELETE FROM dialogs WHERE conv_id = ? AND msg_id = ?"
-    result = revise_db(command, (conv_id, msg_id))  # 执行数据库操作，revise_db返回受影响的行数
-    return result > 0  # 如果至少影响了一行，返回True；否则，返回False
-
+    删除指定 conv_id 和 msg_id 的消息记录。如果存在多个 msg_id 相同的行，只删除 id 最大的那一行。
+    如果成功删除了记录，返回 True；否则，返回 False。
+    """
+    try:
+        # 1. 获取具有相同 conv_id 和 msg_id 的所有记录，并按 id 降序排序
+        query = "SELECT id FROM dialogs WHERE conv_id = ? AND msg_id = ? ORDER BY id DESC"
+        rows = query_db(query, (conv_id, msg_id))
+        if not rows:
+            print(f"未找到 conv_id 为 {conv_id} 且 msg_id 为 {msg_id} 的消息记录")  # 添加日志
+            return False  # 没有找到匹配的记录
+        # 2. 删除 id 最大的那一条记录
+        max_id = rows[0][0]  # 从元组列表中获取 id
+        delete_command = "DELETE FROM dialogs WHERE id = ?"
+        result = revise_db(delete_command, (max_id,))  # 执行数据库删除操作，返回受影响的行数
+        if result > 0:
+            print(f"成功删除消息记录，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}")  # 添加日志
+        else:
+            print(f"删除消息记录失败，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}")  # 添加日志
+        return result > 0  # 如果影响的行数大于0，则返回 True，表示删除成功
+    except Exception as e:
+        print(f"删除消息记录时发生错误：{e}")
+        return False  # 发生错误时，返回 False
 
 def conversation_group_config_get(conv_id: int) -> Optional[Tuple[str, str]]:
     """获取指定群聊用户会话关联的群组的角色和预设。返回 (char, preset) 元组。"""

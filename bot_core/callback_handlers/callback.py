@@ -15,7 +15,7 @@ from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
 from .director_classes import DirectorMenu
 from .inline import Inline
-from ..public_functions.conversation import Conversation,PrivateConversationHandler
+from ..public_functions.conversation import PrivateConv
 
 from ..public_functions.logging import logger
 
@@ -454,8 +454,8 @@ class SettingsCallback(BaseCallback):
             await query.edit_message_text(f"您的信息：\n{result}", reply_markup=reply_markup, parse_mode='Markdown')
         elif data == 'dialogue_new':
             info = public.update_info_get(update)
-            conversation = Conversation(info)
-            conversation.new('private')
+            conversation = PrivateConv(update,context)
+            conversation.new()
             preset_markup = Inline.print_preset_list()
             char_markup = Inline.print_char_list('load', 'private', info['user_id'])
 
@@ -581,8 +581,7 @@ class DirectorCallback(BaseCallback):
         """处理功能按钮的逻辑"""
         # 获取按钮文本（从回调查询的消息中提取按钮文本可能不可靠，因此从菜单数据中查找）
         button_text = "未知按钮"
-        info = update_info_get(update)
-        conversation = Conversation(info)
+        conversation = PrivateConv(update,context)
         for menu in self.menu_manager.menus.values():
             for btn in menu.buttons:
                 if btn.btn_type == "action" and btn.target == action_data:
@@ -595,42 +594,16 @@ class DirectorCallback(BaseCallback):
         long_data = self.menu_manager.get_action_data(action_data)
         # 如果有特定逻辑，可以在这里处理
         if action_data == "undo":
-            msg_list = db.conversation_latest_message_id_get(info['conv_id'])
-            print(msg_list)
-            await context.bot.delete_messages(info['user_id'], msg_list)
-            db.conversation_delete_messages(info['conv_id'], msg_list[0])
-            db.conversation_delete_messages(info['conv_id'], msg_list[1])
+            await conversation.undo()
 
         elif action_data == "regen":
-            _placeholder_message = await context.bot.send_message(user_id, "执行重新生成操作。")
-            try:
-                await context.bot.delete_message(info['user_id'], conversation.latest_message_id[0])
-            except Exception as e:
-                print(f"Failed to delete latest message: {e}")
-                #raise e
-            async def _regen(placeholder_message):
-                try:
-                    conversation.set_send_msg_id(placeholder_message.message_id)
-                    await conversation.regenerate_response()
-                    await placeholder_message.edit_text(conversation.cleared_response_text)
-                    conversation.save_to_db('assistant')
-                except Exception as e:
-                    await placeholder_message.edit_text(f"重新生成失败！{e}")
-
-            _task = asyncio.create_task(_regen(_placeholder_message))
+            await conversation.regen()
+        elif action_data.startswith('camera'):
+            conversation.set_callback_data(long_data)
+            await conversation.response(False)
         else:
-            _placeholder_message = await context.bot.send_message(user_id, f"正在生成: {action_data}...")
-            async def _gen(placeholder_message):
-                try:
-                    await conversation.set_director_control(long_data,True if not action_data.startswith('camera') else False)
-                    await placeholder_message.edit_text(conversation.cleared_response_text)
-                    conversation.set_send_msg_id(placeholder_message.message_id)
-                    if not action_data.startswith('camera'):
-                        conversation.save_to_db('assistant')
-                except Exception as e:
-                    await placeholder_message.edit_text(f"生成失败！{e}")
-
-            _task = asyncio.create_task(_gen(_placeholder_message))
+            conversation.set_callback_data(long_data)
+            await conversation.response()
 
         # 执行完功能后，返回主菜单
         try:

@@ -22,11 +22,11 @@ class Decorators:
             try:
                 return await func(update, context, *args, **kwargs)
             except Exception as e:
-                logger.error(f"处理 /{command_name} 命令时出错: {str(e)}", exc_info=True)
+                logger.error(f"处理 {command_name} 命令时出错: {str(e)}", exc_info=True)
                 # Optionally, send a generic error message to the user here
                 # await update.message.reply_text("处理命令时发生错误，请稍后重试。")
                 # Re-raising BotRunError might be handled by a global error handler
-                raise BotError(f"处理 /{command_name} 命令失败: {str(e)}")
+                raise BotError(f"处理 {command_name} 命令失败: {str(e)}")
 
         return wrapper
 
