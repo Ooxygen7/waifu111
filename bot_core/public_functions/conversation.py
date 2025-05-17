@@ -581,7 +581,6 @@ async def _update_message(text, placeholder):
             logger.error(f"更新消息时出错: {str(e)}")
             placeholder.edit_text(f"Failed: {e}")
 
-
 async def _finalize_message(sent_message, cleared_response: str) -> None:
     """
     最终更新消息内容，确保显示最终的处理后的响应。

@@ -127,7 +127,7 @@ def load_character(filename: str) -> str:
 
 def get_prompt_content(prompts_dict: Dict, category: str, name: str) -> Optional[str]:
     """从字典中获取指定类别和名称的提示内容（名称不区分大小写）。"""
-    print(name)
+    #print(name)
     name_lower = name.lower()
     # category 键在 prompts_dict 中已经是小写
     if category in prompts_dict and name_lower in prompts_dict[category]:
