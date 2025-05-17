@@ -18,7 +18,9 @@ def load_config() -> Dict[str, Any]:
 
     for field in required_fields:
         if field not in config:
-            raise ConfigError(f"缺少必需的配置项: {field}")
+            config = file_utils.load_config("./config/config_local.json")
+            if field not in config:
+                raise ConfigError(f"缺少必需的配置项: {field}")
         if not config[field]:
             raise ConfigError(f"配置项不能为空: {field}")
 

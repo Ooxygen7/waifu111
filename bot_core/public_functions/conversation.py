@@ -16,34 +16,320 @@ KEYWORD = 'keyword'
 RANDOM = 'random'
 
 
-class User():
+class User:
+    """
+    表示一个用户的类。
+
+    该类用于存储用户的基本信息，如ID和昵称。
+    """
+
     def __init__(self, user_id):
+        """
+        初始化用户对象。
+
+        参数:
+        user_id (int or str): 用户的唯一标识符。
+
+        属性:
+        id (int or str): 用户ID。
+        nick (str): 用户昵称，从数据库中获取。
+        """
         self.id = user_id
-        self.nick = db.user_info_get(user_id).get('user_nick')
+        self.nick = db.user_info_get(user_id).get('user_nick')  # 从数据库获取用户昵称
+
+
+class GroupUser:
+    """
+    表示群组中用户的类。
+
+    该类从Telegram更新对象中提取用户信息。
+    """
+
+    def __init__(self, update: Update):
+        """
+        初始化群组用户对象。
+
+        参数:
+        update (Update): Telegram更新对象，包含用户信息。
+
+        属性:
+        id (int): 用户ID。
+        first_name (str): 用户名（如果存在，否则为空字符串）。
+        last_name (str): 用户姓氏（如果存在，否则为空字符串）。
+        username (str): 用户Telegram用户名（如果存在，否则为空字符串）。
+        user_name (str): 组合后的全名（first_name + last_name）。
+        """
+        self.id = update.message.from_user.id
+        self.first_name = update.message.from_user.first_name or ""
+        self.last_name = update.message.from_user.last_name or ""
+        self.username = update.message.from_user.username or ""
+        self.user_name = self.first_name + ' ' + self.last_name  # 组合全名
 
 
 class Message:
+    """
+    表示消息的类。
+
+    该类处理消息的原始文本和处理后的文本，根据标记类型进行特殊处理。
+    """
+
     def __init__(self, id, text, mark):
-        # print(text)
+        """
+        初始化消息对象。
+
+        参数:
+        id (int): 消息的唯一标识符。
+        text (str): 消息的原始文本。
+        mark (str): 消息类型标记，例如 'input' 或 'output'，用于确定文本处理方式。
+
+        属性:
+        id (int): 消息ID。
+        text_raw (str): 消息的原始文本。
+        text_processed (str): 处理后的文本，根据标记进行提取或转换。
+        """
+        # print(text)  # 调试语句：打印原始文本
         self.id = id
         self.text_raw = text
         if mark == 'input':
-            self.text_processed = txt.extract_special_control(text)[0] or text
+            self.text_processed = txt.extract_special_control(text)[0] or text  # 对于输入消息，提取特殊控制内容
         elif mark == 'output':
-            self.text_processed = txt.extract_tag_content(text, 'content')
+            self.text_processed = txt.extract_tag_content(text, 'content')  # 对于输出消息，提取标签内容
         else:
-            self.text_processed = text
+            self.text_processed = text  # 默认情况下，使用原始文本
 
 
 class Config:
+    """
+    表示用户配置的类。
+
+    该类从数据库中加载用户的API、字符设置、预设和流设置。
+    """
+
     def __init__(self, user_id):
+        """
+        初始化配置对象。
+
+        参数:
+        user_id (int or str): 用户的唯一标识符。
+
+        属性:
+        api (str): 用户的API配置，从数据库获取。
+        char (str): 用户的字符设置。
+        preset (str): 用户的预设配置。
+        stream (bool): 用户的流式处理设置。
+        multiple (int or bool): API的多路复用设置，从文件中获取。
+        """
         self.api = db.user_api_get(user_id)
         info = db.user_config_get(user_id)
         self.char, self.preset = info.get('char'), info.get('preset')
         self.stream = db.user_stream_get(user_id)
-        self.multiple = file.get_api_multiple(self.api)
+        self.multiple = file.get_api_multiple(self.api)  # 从文件中获取API多路复用信息
 
 
+class Group:
+    """
+    表示群组的类。
+
+    该类存储群组的基本信息，如ID和名称。
+    """
+
+    def __init__(self, group_id):
+        """
+        初始化群组对象。
+
+        参数:
+        group_id (int): 群组的唯一标识符。
+
+        属性:
+        id (int): 群组ID。
+        name (str): 群组名称，从数据库获取。
+        """
+        self.id = group_id
+        self.name = db.group_name_get(group_id)  # 从数据库获取群组名称
+
+
+class GroupConfig:
+    """
+    表示群组配置的类。
+
+    该类从数据库中加载群组的API、字符设置和预设。
+    """
+
+    def __init__(self, group_id):
+        """
+        初始化群组配置对象。
+
+        参数:
+        group_id (int): 群组的唯一标识符。
+
+        属性:
+        api (str): 群组的API配置。
+        char (str): 群组的字符设置。
+        preset (str): 群组的预设配置。
+        """
+        self.api, self.char, self.preset = db.group_config_get(group_id)  # 从数据库获取配置
+
+
+class GroupConv:
+    """
+    表示群组对话的类。
+
+    该类管理群组中的对话逻辑，包括消息处理、提示构建和响应生成。
+    """
+
+    def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        初始化群组对话对象。
+
+        参数:
+        update (Update): Telegram更新对象。
+        context (ContextTypes.DEFAULT_TYPE): Telegram上下文对象。
+
+        属性:
+        update (Update): 原始更新对象。
+        context (ContextTypes.DEFAULT_TYPE): 上下文对象。
+        group (Group): 关联的群组对象。
+        input (Message): 输入消息对象。
+        output (Message or None): 输出消息对象（初始为空）。
+        prompt (str or None): 构建的提示字符串。
+        placeholder (Message or None): 占位消息对象。
+        config (GroupConfig): 群组配置对象。
+        trigger (str or None): 触发类型。
+        user (GroupUser): 用户对象。
+        id (int or None): 会话ID，从数据库获取。
+        """
+        self.update = update
+        self.context = context
+        self.group = Group(update.message.chat.id)  # 创建关联的群组对象
+        self.input = Message(self.update.message.id, update.message.text, 'input')  # 创建输入消息对象
+        self.output = None
+        self.prompt = None
+        self.placeholder = None
+        self.config = GroupConfig(update.message.chat.id)  # 创建群组配置对象
+        self.trigger = None
+        self.user = GroupUser(update)  # 创建用户对象
+        self.id = db.conversation_group_get(self.group.id, self.user.id) or None  # 从数据库获取会话ID
+
+    def set_trigger(self, trigger):
+        """
+        设置触发类型并构建提示字符串。
+
+        参数:
+        trigger (str): 触发类型，例如 'random' 或 'keyword'。
+
+        副作用:
+        更新 self.trigger、self.prompt 属性。
+        """
+        self.trigger = trigger
+        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+        self.prompt = prompt.insert_text(self.prompt,
+                                         f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}，如果这个名字不方便称呼"
+                                         f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
+                                         '<user_input>\r\n', 'before')  # 在指定位置插入用户昵称信息
+        group_dialog = db.group_dialog_get(self.group.id, 15)  # 获取最近15条群组对话
+        insert_txt = f"<group_messages>\r\n现在是群聊模式，你需要先看看群友在聊什么，再输出内容：\r\n"
+        for dialog in group_dialog:
+            if dialog[1]:  # 假设 dialog[1] 是用户名
+                if dialog[2]:
+                    insert_txt += f"{dialog[3]}  {dialog[1]}:\r\n{dialog[0]}\r\n"  # 格式化对话内容
+                    insert_txt += f"{dialog[3]}  AI助手:\r\n{dialog[2]}\r\n"
+                else:
+                    insert_txt += f"{dialog[3]}  {dialog[1]}:\r\n{dialog[0]}\r\n"
+        insert_txt += "</group_messages>"
+        self.prompt = prompt.insert_text(self.prompt, insert_txt, '<user_input>\r\n', 'before')  # 插入群组消息
+
+    async def response(self):
+        """
+        处理响应逻辑，包括发送占位消息和异步任务。
+
+        该方法是异步的，用于Telegram机器人环境。
+
+        副作用:
+        发送占位消息并启动异步任务。
+        """
+        self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
+        if self.trigger in ['random', 'keyword']:
+            _task = asyncio.create_task(self._once_response())  # 创建一次性响应任务
+        else:
+            if not self.id:
+                self._new()  # 如果会话ID不存在，创建新会话
+            _task = asyncio.create_task(self._conv_response())  # 创建对话响应任务
+
+    async def _once_response(self):
+        """
+        处理一次性响应的异步逻辑。
+
+        该方法是异步的，用于获取AI响应并更新消息。
+
+        副作用:
+        更新 self.output 和数据库记录。
+        """
+        response = await llm.get_response_no_stream(self.prompt, 0, 'once', self.config.api)
+        self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
+        await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
+        self._update_usage_info()  # 更新使用信息
+
+    async def _conv_response(self):
+        """
+        处理对话响应的异步逻辑。
+
+        该方法是异步的，用于获取AI响应并更新对话状态。
+
+        副作用:
+        更新 self.output 和数据库记录。
+        """
+        response = await llm.get_response_no_stream(self.prompt, self.id, 'group', self.config.api)
+        self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
+        await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
+        self._update_usage_info()  # 更新使用信息
+
+    def _new(self):
+        """
+        创建一个新的会话ID。
+
+        该方法尝试多次创建唯一ID，如果失败则抛出异常。
+
+        返回值:
+        无，直接更新 self.id。
+
+        异常:
+        ValueError: 如果创建失败。
+        """
+        max_attempts = 5  # 限制尝试次数
+        for _ in range(max_attempts):
+            new_conv_id = random.randint(10000000, 99999999)  # 生成随机ID
+            if db.conversation_group_create(new_conv_id, self.user.id, self.user.user_name, self.group.id,
+                                            self.group.name):
+                self.id = new_conv_id  # 成功后更新ID
+                return
+        raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")  # 抛出异常
+
+    def _update_usage_info(self):
+        """
+        更新使用信息，包括令牌计数和数据库记录。
+
+        副作用:
+        更新数据库中的群组信息、对话内容和令牌统计。
+        """
+        print("正在保存群聊记录")  # 打印日志
+        db.group_info_update(self.group.id, 'call_count', 1, True)  # 更新调用计数
+        if self.trigger in ['random', 'keyword']:
+            input_token = llm.calculate_token_count(self.prompt)  # 计算输入令牌
+        else:
+            input_token = llm.calculate_token_count(str(llm.build_openai_messages(self.id, 'group')))  # 计算对话令牌
+            turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
+            db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
+                                  self.input.id, GROUP)  # 添加用户对话
+            db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
+                                  self.output.id, GROUP)  # 添加助手对话
+            db.conversation_group_update(self.group.id, self.user.id, 'turns', 1)  # 更新回合数
+        output_token = llm.calculate_token_count(self.output.text_raw)  # 计算输出令牌
+        db.group_info_update(self.group.id, 'input_token', input_token, True)  # 更新输入令牌
+        db.group_info_update(self.group.id, 'output_token', output_token, True)  # 更新输出令牌
+        db.group_dialog_update(self.input.id, 'trigger_type', self.trigger, self.group.id)  # 更新触发类型
+        db.group_dialog_update(self.input.id, 'raw_response', self.output.text_raw, self.group.id)  # 更新原始响应
+        db.group_dialog_update(self.input.id, 'processed_response', self.output.text_processed,
+                               self.group.id)  # 更新处理后响应
 
 
 class PrivateConv:
@@ -63,6 +349,7 @@ class PrivateConv:
         config (Config): 配置对象, 包含与用户相关的配置信息, 如角色,预设等.
         id (int): 会话 ID, 用于在数据库中标识会话.
     """
+
     def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         初始化 PrivateConv 对象.
@@ -94,8 +381,14 @@ class PrivateConv:
         # 构建 prompt
         if self.input:
             self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+            self.prompt = prompt.insert_text(self.prompt,
+                                             f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
+                                             f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
+                                             '<character>',
+                                             'before')
         else:
             self.prompt = None
+
     async def response(self, save=True):
         """
         生成并发送 LLM 的回复.
@@ -109,6 +402,7 @@ class PrivateConv:
             _task = asyncio.create_task(self._response_stream(save))
         else:
             _task = asyncio.create_task(self._response_non_stream(save))
+
     async def regen(self):
         """
         重新生成 LLM 的回复.
@@ -123,6 +417,7 @@ class PrivateConv:
         self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
         await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
         await self.response()
+
     async def undo(self):
         """
         撤销最后一次对话.
@@ -150,6 +445,7 @@ class PrivateConv:
             db.conversation_delete_messages(self.id, msg_list[1])
         else:
             logger.warning(f"msg_list 长度不足 (len={len(msg_list)})，无法删除数据库记录")
+
     def new(self):
         """
         创建一个新的会话.
@@ -166,7 +462,8 @@ class PrivateConv:
                 self.id = new_conv_id
                 return
         raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")
-    def save(self):
+
+    def _save(self):
         """
         保存对话记录到数据库.
         该方法首先检查 LLM 的回复是否出错,如果没有出错,则将对话内容保存到数据库,
@@ -175,6 +472,7 @@ class PrivateConv:
         if not self.output.text_raw.startswith('API调用失败'):
             self._save_turn_content_to_db()
             self._update_usage_info()
+
     def set_callback_data(self, data):
         """
         设置回调数据.
@@ -184,6 +482,12 @@ class PrivateConv:
         """
         self.input = Message(0, data, 'callback')
         self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+        self.prompt = prompt.insert_text(self.prompt,
+                                         f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
+                                         f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
+                                         '<character>',
+                                         'before')
+
     async def _response_non_stream(self, save):
         """
         以非流式方式生成 LLM 的回复.
@@ -194,9 +498,10 @@ class PrivateConv:
         """
         response = await llm.get_response_no_stream(self.prompt, self.id, 'private', self.config.api)
         self.output = Message(self.placeholder.message_id, response, 'output')
-        await self.placeholder.edit_text(self.output.text_processed)
+        await _finalize_message(self.placeholder, self.output.text_processed)
         if save:
-            self.save()
+            self._save()
+
     async def _response_stream(self, save):
         """
         以流式方式生成 LLM 的回复.
@@ -224,7 +529,8 @@ class PrivateConv:
         self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
         await _finalize_message(self.placeholder, self.output.text_processed)
         if save:
-            self.save()
+            self._save()
+
     def _save_turn_content_to_db(self):
         """
         将一次对话的内容保存到数据库.
@@ -237,6 +543,7 @@ class PrivateConv:
         db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
                               self.output.id,
                               PRIVATE)
+
     def _update_usage_info(self):
         """
         更新用户的使用信息.
@@ -309,208 +616,3 @@ async def _finalize_message(sent_message, cleared_response: str) -> None:
         else:
             logger.error(f"最终更新消息时出错: {str(e)}")
             await sent_message.edit_text(f"Failed: {e}")
-
-
-class Conversation():
-    """会话类，用于管理和处理用户与机器人的交互信息。"""
-
-    def __init__(self, info: dict):
-        """初始化会话对象。
-
-        Args:
-            info (dict): 包含会话所需信息的字典，例如用户信息、消息内容等。
-        """
-        self.info = info or None
-        self.id = info.get('conv_id')
-        self.char = info.get('char')
-        self.preset = info.get('preset')
-        self.api = info.get('api')
-        self.type = PRIVATE if info.get('chat_type') == PRIVATE else GROUP
-        self.history = llm.build_openai_messages(self.id, self.type) or None
-        self.prompt = prompt.build_prompts(self.char, info.get('message_text'), self.preset) or None
-        self.response_text = None
-        self.cleared_response_text = None
-        self.send_msg_id = None
-        self.turn = db.dialog_turn_get(self.id, self.type) or 0
-        self.trigger = None
-        self.latest_message_id = db.conversation_latest_message_id_get(self.id) or [0]
-        self.received_text = info.get("message_text") or None
-        self.cleared_received_text = txt.extract_special_control(self.received_text)[0] or self.received_text
-        logger.info(self.cleared_received_text)
-        if self.type == GROUP or self.type == 'once':
-            self._build_group_prompt()
-        else:
-            self._insert_user_nick()
-
-    def save_to_db(self, role: str, msg_id=None):
-        """将当前会话信息保存到数据库。
-        Args:
-            role (str): 当前消息的角色，'user' 或 'assistant'。
-            msg_id
-        """
-        self.turn += 1
-        token = llm.calculate_token_count(
-            str(llm.get_full_msg(self.id, self.type, self.prompt)) if role == USER else self.response_text)
-        if self.trigger not in [RANDOM, KEYWORD]:
-            db.dialog_content_add(self.id, role, self.turn,
-                                  self.received_text if role == USER else self.response_text,
-                                  self.cleared_response_text if role == ASSISTANT else self.cleared_received_text,
-                                  msg_id if msg_id else (
-                                      self.info.get('message_id') if role == USER else self.send_msg_id), self.type)
-        if self.type == PRIVATE:
-            self._save_user_usage_info(token, role)
-        else:
-            self._save_group_dialog(token, role)
-
-    def set_send_msg_id(self, msg_id: int):
-        """设置机器人发送消息的ID。
-
-        Args:
-            msg_id (int): 消息ID。
-        """
-        self.send_msg_id = msg_id
-
-    def set_trigger(self, trigger: str):
-        """设置触发回复的类型。
-
-        Args:
-            trigger (str): 触发类型，例如 'reply', '@', 'keyword', 'random'。
-        """
-        self.trigger = trigger
-
-    def set_response_text(self, text: str):
-        """设置机器人的回复文本，并提取清理后的文本内容。
-        Args:
-            text (str): 机器人的原始回复文本。
-        """
-        self.response_text = text
-        self.cleared_response_text = txt.extract_tag_content(text, 'content')
-        logger.info(self.cleared_response_text)
-
-    def set_once_type(self):
-        self.type = 'once'
-
-    def check_id(self, chat_type: str):
-        """检查会话ID是否存在，如果不存在则创建新的会话ID。
-        Args:
-            chat_type (str): 聊天类型，'private' 或 'group'。
-        Raises:
-            ValueError: 如果尝试多次后仍无法创建ID。
-        """
-        logger.info(f"检查会话ID, chat_type: {chat_type}")
-        if not self.id:  # 使用 get() 避免 KeyError
-            try:
-                if chat_type == GROUP:
-                    new_conv_id = self.new(GROUP)
-                    logger.info(
-                        f"新建群聊对话, group_name: {self.info.get('group_name')}, user_name: {self.info.get('user_name')}, conv_id: {new_conv_id}")
-                else:  # 假设为 'private'
-                    new_conv_id = self.new(PRIVATE)
-                    db.user_config_arg_update(self.info.get('user_id'), 'conv_id', new_conv_id)
-                    logger.info(f"{self.info.get('user_name')} 新建私聊对话, conv_id: {new_conv_id}")
-                self.id = new_conv_id  # 设置属性
-            except Exception as e:  # 捕获一般异常，便于调试
-                logger.error(f"创建会话ID失败: {e}")
-                raise
-
-    def new(self, conv_type: str) -> int or str:
-        """辅助方法：生成新的会话ID并创建数据库记录。
-        Args:
-            conv_type (str): 'group' 或 'private'。
-        Returns:
-            int or str: 生成的新的会话ID。
-        Raises:
-            ValueError: 如果多次尝试后失败。
-        """
-        max_attempts = 5  # 限制尝试次数，避免无限循环
-        for _ in range(max_attempts):
-
-            new_conv_id = random.randint(10000000, 99999999)
-
-            if conv_type == GROUP:
-                if db.conversation_group_check(new_conv_id):  # 假设这个函数检查ID是否可用
-                    db.conversation_group_create(new_conv_id, self.info.get('user_id'), self.info.get('user_name'),
-                                                 self.info.get('group_id'), self.info.get('group_name'))
-                    return new_conv_id
-            else:  # 'private'
-                if (db.conversation_private_create(new_conv_id, self.info.get('user_id'), self.info.get('char'),
-                                                   self.info.get('preset')) and
-                        db.user_config_arg_update(self.info.get('user_id'), 'conv_id', new_conv_id)):
-                    db.user_info_update(self.info.get('user_id'), 'conversations', 1, True)
-                    return new_conv_id
-
-        raise ValueError(f"无法创建{conv_type}会话ID，经过{max_attempts}次尝试")
-
-    async def get_response(self):
-        full_response = await llm.get_response_no_stream(self.prompt, self.id, self.type, self.api)
-        self.set_response_text(full_response)
-
-    async def regenerate_response(self):
-        last_input = db.dialog_last_input_get(self.id)
-        self.received_text = last_input
-        self.cleared_received_text = txt.extract_special_control(self.received_text)[0] or self.received_text
-        self.prompt = prompt.build_prompts(self.char, self.received_text, self.preset)
-        self._insert_user_nick()
-        token = llm.calculate_token_count(str(llm.get_full_msg(self.id, self.type, self.prompt)))
-        db.conversation_delete_messages(self.id, self.latest_message_id[0])
-        db.conversation_delete_messages(self.id, self.latest_message_id[1])
-        self.turn -= 2
-        self._save_user_usage_info(token, USER)
-        self.save_to_db(USER, self.latest_message_id[1])
-        await self.get_response()
-
-    async def set_director_control(self, text, save=False):
-        self.received_text = text
-        self.cleared_received_text = text
-        self.prompt = prompt.build_prompts(self.char, self.received_text, self.preset)
-        self._insert_user_nick()
-        token = llm.calculate_token_count(str(llm.get_full_msg(self.id, self.type, self.prompt)))
-        self._save_user_usage_info(token, USER)
-        if save:
-            self.save_to_db(USER, 0)
-        await self.get_response()
-
-    def _save_user_usage_info(self, token, role):
-        db.user_info_update(self.info.get('user_id'), 'input_tokens' if role == USER else 'output_tokens', token,
-                            True)
-        db.user_info_update(self.info.get('user_id'), 'dialog_turns', 1, True)
-        db.user_info_update(self.info.get('user_id'), 'remain_frequency', -1 if (role == ASSISTANT) and (
-            not self.cleared_response_text.startswith('API调用失败')) else 0, True)
-        db.conversation_private_arg_update(self.id, 'turns', 1, True)
-
-    def _save_group_dialog(self, token, role):
-        print(f"trigger is {self.trigger},role is {role},saving")
-        if role == ASSISTANT:
-
-            db.group_dialog_update(self.info.get('message_id'), 'raw_response', self.response_text,
-                                   self.info.get('group_id'))
-            db.group_dialog_update(self.info.get('message_id'), 'processed_response', self.cleared_response_text,
-                                   self.info.get('group_id'))
-            db.group_dialog_update(self.info.get('message_id'), 'trigger_type', self.trigger, self.info.get('group_id'))
-            if self.trigger in [RANDOM, KEYWORD]:
-                logger.info(
-                    f"一次性群聊回复完成, group_name: {self.info.get('group_name')}, user_name: {self.info.get('user_name')}, output_token: {token}")
-            else:
-                db.conversation_group_update(self.info.get('group_id'), self.info.get('user_id'), 'turns', 1)
-                db.group_dialog_update(self.id, 'trigger_type', REPLY, self.info.get('group_id'))
-                db.group_dialog_update(self.id, 'raw_response', self.response_text, self.info.get('group_id'))
-                db.group_dialog_update(self.id, 'processed_response', self.cleared_response_text,
-                                       self.info.get('group_id'))
-
-    def _build_group_prompt(self):
-        self.prompt = prompt.insert_text(self.prompt,
-                                         f"你需要回复的用户的姓名或网名是‘{self.info.get('user_name')}，以下是用户的输入’\r\n",
-                                         '<user_input>\r\n', 'before')
-        group_dialog = db.group_dialog_get(self.info.get('group_id'), 10)
-        insert_txt = f"<现在是群聊模式，你需要先看看群友在聊什么，再输出内容：\r\n"
-        for dialog in group_dialog:
-            if dialog[1]:
-                insert_txt += f"{dialog[1]}:\r\n{dialog[0]}\r\n"
-        insert_txt += ">"
-        self.prompt = prompt.insert_text(self.prompt, insert_txt, '<user_input>\r\n', 'before')
-
-    def _insert_user_nick(self):
-        self.prompt = prompt.insert_text(self.prompt,
-                                         f"用户的昵称是：{self.info.get('user_nick')}，你需要按照这个方式来称呼他"
-                                         f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n", '<character>',
-                                         'before')

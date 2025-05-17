@@ -381,11 +381,11 @@ def get_full_msg(conv_id, chat_type, prompts, split=True) -> list:
         messages.insert(0, {"role": "system", "content": prompts['system']})
         messages.append({"role": "user", "content": prompts['user']})
     # logging.info(f"最终构建结果：\r\n{messages}")
-   # for i, msg in enumerate(messages):
-        #print(f"消息 {i + 1}:")
-        #print(f"  角色: {msg['role']}")
-        #print(f"  内容: {msg['content']}")
-        #print()
+    for i, msg in enumerate(messages):
+        print(f"消息 {i + 1}:")
+        print(f"  角色: {msg['role']}")
+        print(f"  内容: {msg['content']}")
+        print()
     return messages
 
 

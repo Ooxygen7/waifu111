@@ -87,8 +87,8 @@ class Decorators:
                     else:
                         db.group_info_create(group_id)
                         api, char, preset = DEFAULT_API, DEFAULT_CHAR, DEFAULT_PRESET  # 假设这些常量已定义
-                    field_list = ['group_name', 'update_time', 'members_list', 'api', 'char', 'preset', 'rate']
-                    value_list = [group_name, current_time, str(admin_list), api, char, preset, 0.05]
+                    field_list = ['group_name', 'update_time', 'members_list', 'api', 'char', 'preset']
+                    value_list = [group_name, current_time, str(admin_list), api, char, preset]
                     for field, value in zip(field_list, value_list):
                         db.group_info_update(group_id, field, value)
                     # 更新成功，继续执行原函数

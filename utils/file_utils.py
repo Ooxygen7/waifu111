@@ -1,19 +1,22 @@
 import json
 import os
 
-config_path = "./config/config_local.json" or "./config/config.json"
+config_path = "./config/config.json"
+config_local = "./config/config_local.json"
 characters_path = "./characters/"
 prompt_path = "./prompts/prompts.json"
 
 
-def load_config(config_file=config_path):
+def load_config(config_file=config_local):
     """
     从 JSON 文件加载配置
     返回：(TG_TOKEN, API_LIST, KEYWORDS, whitelist) 或在出错时返回 None
     """
     try:
         if not os.path.exists(config_file):
-            raise FileNotFoundError(f"配置文件 {config_file} 不存在")
+            config_file = config_path
+            if not os.path.exists(config_file):
+                raise FileNotFoundError(f"配置文件 {config_file} 不存在")
 
         with open(config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)

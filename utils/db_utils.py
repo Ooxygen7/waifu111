@@ -463,6 +463,7 @@ def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:
         print(f"删除消息记录时发生错误：{e}")
         return False  # 发生错误时，返回 False
 
+
 def conversation_group_config_get(conv_id: int) -> Optional[Tuple[str, str]]:
     """获取指定群聊用户会话关联的群组的角色和预设。返回 (char, preset) 元组。"""
     command = "SELECT group_id FROM group_user_conversations WHERE conv_id = ?"
@@ -593,6 +594,12 @@ def group_config_get(group_id: int) -> Optional[Tuple[str, str, str]]:
     return result[0] if result else False
 
 
+def group_name_get(group_id: int) -> Optional[str]:
+    command = "SELECT group_name FROM groups WHERE group_id =?"
+    result = query_db(command, (group_id,))
+    return result[0][0] or ''
+
+
 def group_admin_list_get(group_id: int) -> List[str]:
     """获取指定群组的管理员列表（从JSON字符串解析）。如果解析失败或无数据，返回空列表。"""
     try:
@@ -643,6 +650,7 @@ def group_dialog_add(msg_id: int, group_id: int) -> bool:
 
 def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> bool:
     """更新 `group_dialogs` 表中指定消息的指定字段。返回操作是否成功。"""
+    #print(f"正在把群{group_id}的消息{msg_id}的{field}字段更新为{value}")
     command = f"UPDATE group_dialogs SET {field} = ? WHERE msg_id = ? AND group_id = ?"
     result = revise_db(command, (value, msg_id, group_id))
     return result > 0
@@ -650,17 +658,18 @@ def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> b
 
 def group_dialog_get(group_id: int, num: int) -> List[Tuple[Optional[str], Optional[str], Optional[str]]]:
     """获取指定 group_id 的最新 num 条群聊消息 (msg_text, msg_user_name, processed_response)，按 msg_id 降序排序。"""
-    command = "SELECT msg_text, msg_user_name, processed_response FROM group_dialogs WHERE group_id = ? ORDER BY msg_id DESC LIMIT ?"
+    command = "SELECT msg_text, msg_user_name, processed_response,create_at FROM group_dialogs WHERE group_id = ? ORDER BY msg_id  LIMIT ?"
     result = query_db(command, (group_id, num))
     return result if result else []
 
 
-def group_info_update(group_id: int, field: str, value: Any, increse=False) -> bool:
+def group_info_update(group_id: int, field: str, value: Any, increase=False) -> bool:
     """更新 `groups` 表中指定群组的指定字段。返回操作是否成功。"""
-    if not increse:
+    #print(f"正在把{group_id}的{field}修改为{value}，递增{increase}")
+    if not increase:
         command = f"UPDATE groups SET {field} = ? WHERE group_id = ?"
     else:
-        command = f"UPDATE groups SET {field} = {field}+? WHERE group_id = ?"
+        command = f"UPDATE groups SET {field} = COALESCE({field}, 0)+? WHERE group_id = ?"
     result = revise_db(command, (value, group_id))
     return result > 0
 

@@ -6,7 +6,7 @@ from typing import Union
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bot_core.public_functions.conversation import Conversation
+from bot_core.public_functions.conversation import GroupConv
 from bot_core.public_functions.decorators import Decorators
 from bot_core.public_functions.error import DatabaseError, BotError
 from bot_core.public_functions.logging import logger
@@ -62,20 +62,10 @@ async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not needs_reply:
         return
     else:
-        conversation = Conversation(info)
+        conversation = GroupConv(update,context)
         conversation.set_trigger(needs_reply)
-        if needs_reply == 'reply' or needs_reply == '@':
-            conversation.check_id('group')
-            conversation.save_to_db('user')
-        placeholder_message = await update.message.reply_text("思考中...")
-        conversation.set_send_msg_id(placeholder_message.message_id)
-    if needs_reply == 'random' or needs_reply == 'keyword':
-        _task = asyncio.create_task(_generate_message_once_background(conversation, placeholder_message))
-        return
-    if needs_reply == 'reply' or needs_reply == '@':
-        conversation.check_id('group')
-        _task = asyncio.create_task(_generate_group_message_background(conversation, placeholder_message))
-        return
+        await conversation.response()
+
 
 
 async def _generate_message_once_background(conversation, placeholder_message):
@@ -155,7 +145,7 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     group_name = info['group_name']
     user_name = info['user_name']
     keyword_list = db.group_keyword_get(group_id)
-    rate = db.group_rate_get(group_id)
+    rate = db.group_rate_get(group_id) or 0.05
     try:
         if message.reply_to_message:
             if message.reply_to_message.from_user.id == context.bot.id:
