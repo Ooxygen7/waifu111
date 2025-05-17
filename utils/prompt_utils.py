@@ -127,6 +127,7 @@ def load_character(filename: str) -> str:
 
 def get_prompt_content(prompts_dict: Dict, category: str, name: str) -> Optional[str]:
     """从字典中获取指定类别和名称的提示内容（名称不区分大小写）。"""
+    print(name)
     name_lower = name.lower()
     # category 键在 prompts_dict 中已经是小写
     if category in prompts_dict and name_lower in prompts_dict[category]:
@@ -362,6 +363,7 @@ def build_prompts(character: str, input_text: str, set_name: str) -> str:
         return ""
 
     # 构建基础提示文本并插入角色信息
+    print(set_name,data)
     prompt_text = build_prompt_set(set_name, data)
     prompt_text = insert_character_info(prompt_text, character)
     prompt_text += "<user_input>\r\n\r\n</user_input>"

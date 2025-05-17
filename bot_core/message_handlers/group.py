@@ -17,6 +17,7 @@ from .public import finalize_message
 
 
 @Decorators.ensure_group_info_updated
+@Decorators.check_message_expiration
 async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     处理群聊文本消息。

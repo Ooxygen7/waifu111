@@ -102,8 +102,18 @@ class Decorators:
         return wrapper
 
     @staticmethod
-    def ensure_user_info_updated(func):
-        """Decorator to check if the message is expired and update user info."""
+    def check_message_expiration(func):
+        """
+        装饰器，用于检查消息是否过期。
+
+        如果消息超过 30 秒，则记录日志并停止处理。
+
+        参数:
+        func (Callable): 要装饰的函数，通常是处理更新的函数。
+
+        返回:
+        Callable: 一个包装函数，如果消息不过期则调用原函数，否则返回 None。
+        """
 
         @functools.wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
@@ -114,9 +124,34 @@ class Decorators:
 
             if datetime.datetime.now(update.message.date.tzinfo) - update.message.date > datetime.timedelta(seconds=30):
                 logger.warning(f"忽略过期的{command_name}，消息ID: {update.message.message_id}")
-                return None  # Stop processing if message is expired
+                return None  # 停止处理如果消息过期
+            # 如果不过期，继续调用原函数
+            return await func(update, context, *args, **kwargs)
+
+        return wrapper
+
+    @staticmethod
+    def ensure_user_info_updated(func):
+        """
+        装饰器，用于确保用户信息的更新，同时在内部调用 check_message_expiration 装饰器。
+
+        该装饰器首先检查消息是否过期（通过调用 check_message_expiration 的逻辑），
+        如果不过期，则更新用户的信息并继续处理命令。
+
+        参数:
+        func (Callable): 要装饰的函数，通常是命令处理函数。
+
+        返回:
+        Callable: 一个包装函数，结合了消息过期检查和用户更新逻辑。
+        """
+
+        # 这里我们创建一个内部函数，并使用 check_message_expiration 装饰它
+        # 这实现了在 ensure_user_info_updated 中"调用" check_message_expiration
+        @Decorators.check_message_expiration  # 先应用 check_message_expiration 装饰器
+        @functools.wraps(func)
+        async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
             if update.message.chat.type == 'private':
-                info = update_info_get(update)
+                info = update_info_get(update)  # 假设这是获取用户信息的函数
                 if db.user_config_check(info['user_id']):
                     db.user_info_update(info['user_id'], 'first_name', info['first_name'])
                     db.user_info_update(info['user_id'], 'last_name', info['last_name'])
@@ -124,11 +159,16 @@ class Decorators:
                     current_time = str(datetime.datetime.now())
                     db.user_info_update(info['user_id'], 'update_at', current_time)
                 else:
-                    db.user_info_create(info['user_id'], info['first_name'], info['last_name'], info['user_name'])
+                    db.user_info_create(info['user_id'], info['first_name'], info['last_name'], info['username'])
 
-                # Log command processing start after checks pass
+                # 记录命令处理开始
+                if update.message.text.startswith('/'):
+                    command_name = update.message.text.split()[0]
+                else:
+                    command_name = '消息'
                 logger.info(f"处理 {command_name} ，用户名称: {info['user_name']}")
-            # Proceed to the actual command logic
+
+            # 继续调用原始函数
             return await func(update, context, *args, **kwargs)
 
-        return wrapper
+        return wrapper  # 返回最终的包装函数

@@ -35,7 +35,7 @@ class User:
         nick (str): 用户昵称，从数据库中获取。
         """
         self.id = user_id
-        self.nick = db.user_info_get(user_id).get('user_nick')  # 从数据库获取用户昵称
+        self.nick = db.user_config_get(user_id).get('user_nick')  # 从数据库获取用户昵称
 
 
 class GroupUser:
@@ -483,8 +483,8 @@ class PrivateConv:
         self.input = Message(0, data, 'callback')
         self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
         self.prompt = prompt.insert_text(self.prompt,
-                                         f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
-                                         f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
+                                         f"<user_nickname>\r\n用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
+                                         f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n</user_nickname>\r\n",
                                          '<character>',
                                          'before')
 
