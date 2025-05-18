@@ -363,14 +363,14 @@ def build_prompts(character: str, input_text: str, set_name: str) -> str:
         return ""
 
     # 构建基础提示文本并插入角色信息
-    print(set_name,data)
+    #print(set_name,data)
     prompt_text = build_prompt_set(set_name, data)
     prompt_text = insert_character_info(prompt_text, character)
     prompt_text += "<user_input>\r\n\r\n</user_input>"
 
     # 处理用户输入中的特殊控制标记
     cleaned_input, special_control = txt.extract_special_control(input_text)
-
+    #print(f"输入：{cleaned_input}，控制：{special_control}")
     # 如果存在特殊控制，添加到提示中
     if special_control:
         control_text = format_user_control(special_control)
@@ -378,6 +378,7 @@ def build_prompts(character: str, input_text: str, set_name: str) -> str:
 
     # 添加清理后的用户输入
     final_prompt = insert_text(prompt_text, cleaned_input, '\r\n</user_input>', 'before')
+    #print(f"最终prompt:{final_prompt}")
 
     return final_prompt
 

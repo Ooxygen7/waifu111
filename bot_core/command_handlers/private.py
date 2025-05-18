@@ -155,6 +155,7 @@ class RegenCommand(BaseCommand):
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         conversation = PrivateConv(update, context)
         await conversation.regen()
+        await update.message.delete()
 
 
 class StatusCommand(BaseCommand):
@@ -171,6 +172,8 @@ class StatusCommand(BaseCommand):
         info = public.update_info_get(update)
         result = f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
         await update.message.reply_text(result, parse_mode='MarkDown')
+        await update.message.delete()
+
 
 
 class CharCommand(BaseCommand):
@@ -191,6 +194,7 @@ class CharCommand(BaseCommand):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个角色：", reply_markup=markup)
+        await update.message.delete()
 
 
 class DelcharCommand(BaseCommand):
@@ -257,6 +261,7 @@ class NickCommand(BaseCommand):
             await update.message.reply_text(f"昵称已更新为：{nick_name}")
         else:
             await update.message.reply_text(f"昵称更新失败")
+        await update.message.delete()
 
 
 class DoneCommand(BaseCommand):
@@ -341,6 +346,7 @@ class ApiCommand(BaseCommand):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个api：", reply_markup=markup)
+        await update.message.delete()
 
 
 class PresetCommand(BaseCommand):
@@ -359,6 +365,7 @@ class PresetCommand(BaseCommand):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个预设：", reply_markup=markup)
+        await update.message.delete()
 
 
 class LoadCommand(BaseCommand):
@@ -378,6 +385,7 @@ class LoadCommand(BaseCommand):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个对话：", reply_markup=markup)
+        await update.message.delete()
 
 
 class DeleteCommand(BaseCommand):
@@ -397,6 +405,7 @@ class DeleteCommand(BaseCommand):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个对话：", reply_markup=markup)
+        await update.message.delete()
 
 
 class SettingCommand(BaseCommand):
@@ -452,3 +461,4 @@ class DirectorCommand(BaseCommand):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("请选择导演模式操作：", reply_markup=reply_markup)
+        await update.message.delete()

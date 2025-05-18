@@ -1,7 +1,7 @@
 import json
 import os
 
-config_path = "./config/config.json"
+config_path = "./config/config_local.json"
 config_local = "./config/config_local.json"
 characters_path = "./characters/"
 prompt_path = "./prompts/prompts.json"

@@ -221,7 +221,7 @@ class GroupConv:
         更新 self.trigger、self.prompt 属性。
         """
         self.trigger = trigger
-        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+        self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
         self.prompt = prompt.insert_text(self.prompt,
                                          f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}，如果这个名字不方便称呼"
                                          f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
@@ -380,7 +380,7 @@ class PrivateConv:
             self.new()
         # 构建 prompt
         if self.input:
-            self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+            self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
             self.prompt = prompt.insert_text(self.prompt,
                                              f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
                                              f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
@@ -398,6 +398,7 @@ class PrivateConv:
             save (bool, optional): 是否保存对话记录到数据库. 默认为 True.
         """
         self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
+        logger.info(f"输入：{self.input.text_raw}")
         if self.config.stream:
             _task = asyncio.create_task(self._response_stream(save))
         else:
@@ -414,7 +415,7 @@ class PrivateConv:
         db.conversation_delete_messages(self.id, last_msg_id_list[0])
         db.conversation_delete_messages(self.id, last_msg_id_list[1])
         self.input = Message(last_msg_id_list[1], last_input, 'input')
-        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
+        self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
         await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
         await self.response()
 
@@ -597,6 +598,7 @@ async def _finalize_message(sent_message, cleared_response: str) -> None:
             # 超长时分两段发送，先发前半段，再发后半段
             await sent_message.edit_text(cleared_response[:max_len], parse_mode="markdown")
             await sent_message.reply_text(cleared_response[max_len:], parse_mode="markdown")
+        logger.info(f"输出：\r\n{cleared_response}")
     except BadRequest as e:
         logger.warning(f"Markdown 解析错误: {str(e)}, 禁用 Markdown 重试")
         try:
@@ -605,6 +607,7 @@ async def _finalize_message(sent_message, cleared_response: str) -> None:
             else:
                 await sent_message.edit_text(cleared_response[:max_len], parse_mode=None)
                 await sent_message.reply_text(cleared_response[max_len:], parse_mode=None)
+            logger.info(f"输出：\r\n{cleared_response}")
         except Exception as e2:
             logger.error(f"再次尝试发送消息失败: {e2}")
             await sent_message.edit_text(f"Failed: {e2}")
