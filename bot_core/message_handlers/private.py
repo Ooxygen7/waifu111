@@ -4,7 +4,7 @@ from bot_core.public_functions.conversation import PrivateConv
 from bot_core.public_functions.decorators import Decorators
 from . import features
 from ..public_functions.logging import logger
-
+from utils import db_utils as db
 
 @Decorators.ensure_user_info_updated
 async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -27,10 +27,9 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.info(f"用户处于新建角色状态，用户ID: {user_id}")
             await features.private_newchar(update, newchar_state, user_id)
             return
-        # 处理普通私聊消息
         userconv = PrivateConv(update, context)
         await userconv.response()
-       # await private_reply(update, context)
+
     except Exception as e:
         logger.error(f"处理私聊消息时出错: {str(e)}，用户ID: {user_id}", exc_info=True)
 

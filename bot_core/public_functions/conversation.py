@@ -36,6 +36,8 @@ class User:
         """
         self.id = user_id
         self.nick = db.user_config_get(user_id).get('user_nick')  # 从数据库获取用户昵称
+        self.frequency = db.user_info_get(user_id).get('remain')
+        self.tmp_frequency = db.user_sign_info_get(user_id).get('frequency')
 
 
 class GroupUser:
@@ -397,12 +399,15 @@ class PrivateConv:
         Args:
             save (bool, optional): 是否保存对话记录到数据库. 默认为 True.
         """
-        self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
-        logger.info(f"输入：{self.input.text_raw}")
-        if self.config.stream:
-            _task = asyncio.create_task(self._response_stream(save))
+        if self.user.frequency > 0 or self.user.tmp_frequency > 0:
+            self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
+            logger.info(f"输入：{self.input.text_raw}")
+            if self.config.stream:
+                _task = asyncio.create_task(self._response_stream(save))
+            else:
+                _task = asyncio.create_task(self._response_non_stream(save))
         else:
-            _task = asyncio.create_task(self._response_non_stream(save))
+            await self.context.bot.send_message(self.user.id, "你的额度已用尽，联系 @xi_cuicui")
 
     async def regen(self):
         """
@@ -558,6 +563,13 @@ class PrivateConv:
         db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
         db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)  # 增加已使用计数
         db.user_info_update(self.user.id, 'dialog_turns', 1, True)
+        self._update_frenquency()
+
+    def _update_frenquency(self):
+        if self.user.tmp_frequency > 0:
+            db.user_sign_info_update(self.user.id, 'frequency', self.config.multiple * -1, True)
+        else:
+            db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)
 
 
 async def _update_message(text, placeholder):
@@ -581,6 +593,7 @@ async def _update_message(text, placeholder):
         else:
             logger.error(f"更新消息时出错: {str(e)}")
             placeholder.edit_text(f"Failed: {e}")
+
 
 async def _finalize_message(sent_message, cleared_response: str) -> None:
     """

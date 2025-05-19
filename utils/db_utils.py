@@ -690,6 +690,7 @@ def user_sign_info_get(user_id: int) -> dict:
     else:
         return {'user_id': user_id, 'last_sign': 0, 'sign_count': 0, 'frequency': 0}
 
+
 def user_sign_info_create(user_id: int) -> bool:
     """创建指定用户签到记录。返回操作是否成功。"""
     command = f"INSERT INTO user_sign (user_id,last_sign,sign_count,frequency) VALUES (?,?,?,?)"
@@ -697,12 +698,20 @@ def user_sign_info_create(user_id: int) -> bool:
     result = revise_db(command, (user_id, time, 1, 50))
     return result > 0
 
-def user_gisn(user_id:int) -> bool:
+
+def user_sign(user_id: int) -> bool:
     """用户签到"""
-    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = COALESCE(frequency, 0)+50 WHERE user_id =?"
+    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = LEAST(COALESCE(frequency, 0) + 50, 100) WHERE user_id =?"
     time = str(datetime.datetime.now())
     result = revise_db(command, (time, user_id))
     return result > 0
+
+
+def user_sign_info_update(user_id: int, field: str, value: Any, increase: bool = True) -> bool:
+    command = f"UPDATE user_sign SET {field} = COALESCE({field}, 0)+? WHERE user_id =?"
+    result = revise_db(command, (value, user_id))
+    return result > 0
+
 
 # 应用退出时关闭所有数据库连接
 def close_all_connections():
