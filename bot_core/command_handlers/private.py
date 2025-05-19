@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import re
+import datetime
 from pathlib import Path
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -46,7 +47,7 @@ class UndoCommand(BaseCommand):
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         conversation = PrivateConv(update, context)
         await conversation.undo()
-        await context.bot.delete_message(conversation.user.id,conversation.input.id)
+        await context.bot.delete_message(conversation.user.id, conversation.input.id)
 
 
 class StreamCommand(BaseCommand):
@@ -79,10 +80,12 @@ class MeCommand(BaseCommand):
         info = public.update_info_get(update)
         result = (
             f"您好，{info['user_name']}！\r\n"
-            f"您的帐户等级是：`{info['tier']}`；\r\n"
-            f"您剩余额度还有`{info['remain']}`条；\r\n"
-            f"您的余额是`{info['balance']}`。\r\n"
-            f"您的对话昵称是`{info['user_nick']}`"
+            f"您的帐户等级是`{info['tier']}`；\r\n"
+            f"您的额度还有`{info['remain']}`条；\r\n"
+            f"您的临时额度还有`{db.user_sign_info_get(info['user_id']).get('frequency')}`条(上限100)；\r\n"
+            f"您的余额是`{info['balance']}`；\r\n"
+            f"您的对话昵称是`{info['user_nick']}`。\r\n"
+
         )
         await update.message.reply_text(f"{result}", parse_mode='MarkDown')
 
@@ -173,7 +176,6 @@ class StatusCommand(BaseCommand):
         result = f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
         await update.message.reply_text(result, parse_mode='MarkDown')
         await update.message.delete()
-
 
 
 class CharCommand(BaseCommand):
@@ -462,3 +464,34 @@ class DirectorCommand(BaseCommand):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("请选择导演模式操作：", reply_markup=reply_markup)
         await update.message.delete()
+
+
+class SignCommand(BaseCommand):
+    meta = CommandMeta(
+        name='sign',
+        command_type='private',
+        trigger='sign',
+        menu_text='签到获取额度',
+        show_in_menu=True,
+        menu_weight=1
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        user_id = update.message.from_user.id
+        sign_info = db.user_sign_info_get(user_id)
+        if sign_info.get('last_sign') == 0:
+            db.user_sign_info_create(user_id)
+            sign_info = db.user_sign_info_get(user_id)
+            await update.message.reply_text(
+                f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
+        else:
+            concurrent_time = datetime.datetime.now()
+            last_sign_time = datetime.datetime.strptime(sign_info.get('last_sign'), '%Y-%m-%d %H:%M:%S.%f')
+            time_delta = concurrent_time - last_sign_time
+            if time_delta.seconds < 28800:
+                await update.message.reply_text(
+                    f"您8小时内已完成过签到，您可以在{str(8 - time_delta.seconds // 3600)}小时后再次签到。")
+            else:
+                db.user_sign(user_id)
+                await update.message.reply_text(
+                    f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")

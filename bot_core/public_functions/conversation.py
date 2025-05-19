@@ -561,7 +561,6 @@ class PrivateConv:
         output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
         db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
-        db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)  # 增加已使用计数
         db.user_info_update(self.user.id, 'dialog_turns', 1, True)
         self._update_frenquency()
 
