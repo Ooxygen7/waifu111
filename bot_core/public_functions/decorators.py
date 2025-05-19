@@ -105,23 +105,19 @@ class Decorators:
     def check_message_expiration(func):
         """
         装饰器，用于检查消息是否过期。
-
         如果消息超过 30 秒，则记录日志并停止处理。
-
         参数:
         func (Callable): 要装饰的函数，通常是处理更新的函数。
-
         返回:
         Callable: 一个包装函数，如果消息不过期则调用原函数，否则返回 None。
         """
 
         @functools.wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
-            if update.message.text.startswith('/'):
+            # 确保 update.message 和 update.message.text 存在
+            command_name = '消息'
+            if update.message and update.message.text and update.message.text.startswith('/'):
                 command_name = update.message.text.split()[0]
-            else:
-                command_name = '消息'
-
             if datetime.datetime.now(update.message.date.tzinfo) - update.message.date > datetime.timedelta(seconds=30):
                 logger.warning(f"忽略过期的{command_name}，消息ID: {update.message.message_id}")
                 return None  # 停止处理如果消息过期
@@ -134,13 +130,10 @@ class Decorators:
     def ensure_user_info_updated(func):
         """
         装饰器，用于确保用户信息的更新，同时在内部调用 check_message_expiration 装饰器。
-
         该装饰器首先检查消息是否过期（通过调用 check_message_expiration 的逻辑），
         如果不过期，则更新用户的信息并继续处理命令。
-
         参数:
         func (Callable): 要装饰的函数，通常是命令处理函数。
-
         返回:
         Callable: 一个包装函数，结合了消息过期检查和用户更新逻辑。
         """
@@ -160,14 +153,11 @@ class Decorators:
                     db.user_info_update(info['user_id'], 'update_at', current_time)
                 else:
                     db.user_info_create(info['user_id'], info['first_name'], info['last_name'], info['username'])
-
-                # 记录命令处理开始
-                if update.message.text.startswith('/'):
+                # 记录命令处理开始，确保 text 属性存在
+                command_name = '消息'
+                if update.message and update.message.text and update.message.text.startswith('/'):
                     command_name = update.message.text.split()[0]
-                else:
-                    command_name = '消息'
                 logger.info(f"处理 {command_name} ，用户名称: {info['user_name']}")
-
             # 继续调用原始函数
             return await func(update, context, *args, **kwargs)
 

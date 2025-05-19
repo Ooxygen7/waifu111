@@ -175,35 +175,26 @@ class GroupConfig:
 class GroupConv:
     """
     表示群组对话的类。
-
     该类管理群组中的对话逻辑，包括消息处理、提示构建和响应生成。
     """
 
     def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         初始化群组对话对象。
-
         参数:
         update (Update): Telegram更新对象。
         context (ContextTypes.DEFAULT_TYPE): Telegram上下文对象。
-
         属性:
-        update (Update): 原始更新对象。
-        context (ContextTypes.DEFAULT_TYPE): 上下文对象。
-        group (Group): 关联的群组对象。
-        input (Message): 输入消息对象。
-        output (Message or None): 输出消息对象（初始为空）。
-        prompt (str or None): 构建的提示字符串。
-        placeholder (Message or None): 占位消息对象。
-        config (GroupConfig): 群组配置对象。
-        trigger (str or None): 触发类型。
-        user (GroupUser): 用户对象。
-        id (int or None): 会话ID，从数据库获取。
+        ...
         """
         self.update = update
         self.context = context
         self.group = Group(update.message.chat.id)  # 创建关联的群组对象
-        self.input = Message(self.update.message.id, update.message.text, 'input')  # 创建输入消息对象
+
+        # 检查文本内容，优先检查 text，如果没有则检查 caption
+        message_text = update.message.text or update.message.caption or ""
+        self.input = Message(self.update.message.id, message_text, 'input')  # 创建输入消息对象
+
         self.output = None
         self.prompt = None
         self.placeholder = None
@@ -211,21 +202,42 @@ class GroupConv:
         self.trigger = None
         self.user = GroupUser(update)  # 创建用户对象
         self.id = db.conversation_group_get(self.group.id, self.user.id) or None  # 从数据库获取会话ID
+        self.images = self._extract_images()
+
+    def _extract_images(self) -> list:
+        """
+        从更新对象中提取图片的 file_id。
+        返回值:
+        list: 图片 file_id 列表，如果没有图片则返回空列表。
+        """
+        images = []
+        if self.update.message.photo:
+            # 获取图片，photo 是一个列表，按分辨率排序，取最高分辨率的图片
+            photo = self.update.message.photo[-1] if self.update.message.photo else None
+            if photo:
+                images.append(photo.file_id)
+        elif self.update.message.document:
+            # 检查是否为图片类型的文档
+            doc = self.update.message.document
+            if doc.mime_type and doc.mime_type.startswith('image/'):
+                images.append(doc.file_id)
+        return images
 
     def set_trigger(self, trigger):
         """
         设置触发类型并构建提示字符串。
-
         参数:
         trigger (str): 触发类型，例如 'random' 或 'keyword'。
-
         副作用:
         更新 self.trigger、self.prompt 属性。
         """
         self.trigger = trigger
+        self._build_prompts()
+
+    def _build_prompts(self):
         self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
         self.prompt = prompt.insert_text(self.prompt,
-                                         f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}，如果这个名字不方便称呼"
+                                         f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}’，如果这个名字不方便称呼"
                                          f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
                                          '<user_input>\r\n', 'before')  # 在指定位置插入用户昵称信息
         group_dialog = db.group_dialog_get(self.group.id, 15)  # 获取最近15条群组对话
@@ -240,12 +252,20 @@ class GroupConv:
         insert_txt += "</group_messages>"
         self.prompt = prompt.insert_text(self.prompt, insert_txt, '<user_input>\r\n', 'before')  # 插入群组消息
 
+        # 确保用户输入内容被嵌入到 <user_input> 标签内
+        if self.input.text_processed:
+            user_input_text = f"<user_input>\r\n{self.input.text_raw}\r\n</user_input>\r\n"
+            self.prompt = prompt.insert_text(self.prompt, user_input_text, '<user_input>\r\n', 'after')
+
+        # 如果有图片，添加图片提示
+        if self.images:
+            image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
+            self.prompt = prompt.insert_text(self.prompt, image_prompt, '<user_input>\r\n', 'after')
+
     async def response(self):
         """
         处理响应逻辑，包括发送占位消息和异步任务。
-
         该方法是异步的，用于Telegram机器人环境。
-
         副作用:
         发送占位消息并启动异步任务。
         """
@@ -260,13 +280,12 @@ class GroupConv:
     async def _once_response(self):
         """
         处理一次性响应的异步逻辑。
-
         该方法是异步的，用于获取AI响应并更新消息。
-
         副作用:
         更新 self.output 和数据库记录。
         """
-        response = await llm.get_response_no_stream(self.prompt, 0, 'once', self.config.api)
+        response = await llm.get_response_no_stream(self.prompt, 0, 'once', self.config.api, images=self.images,
+                                                    context=self.context)
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
         await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
         self._update_usage_info()  # 更新使用信息
@@ -274,13 +293,12 @@ class GroupConv:
     async def _conv_response(self):
         """
         处理对话响应的异步逻辑。
-
         该方法是异步的，用于获取AI响应并更新对话状态。
-
         副作用:
         更新 self.output 和数据库记录。
         """
-        response = await llm.get_response_no_stream(self.prompt, self.id, 'group', self.config.api)
+        response = await llm.get_response_no_stream(self.prompt, self.id, 'group', self.config.api, images=self.images,
+                                                    context=self.context)
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
         await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
         self._update_usage_info()  # 更新使用信息
@@ -288,12 +306,9 @@ class GroupConv:
     def _new(self):
         """
         创建一个新的会话ID。
-
         该方法尝试多次创建唯一ID，如果失败则抛出异常。
-
         返回值:
         无，直接更新 self.id。
-
         异常:
         ValueError: 如果创建失败。
         """
@@ -309,7 +324,6 @@ class GroupConv:
     def _update_usage_info(self):
         """
         更新使用信息，包括令牌计数和数据库记录。
-
         副作用:
         更新数据库中的群组信息、对话内容和令牌统计。
         """
@@ -469,7 +483,7 @@ class PrivateConv:
                 return
         raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")
 
-    def _save(self):
+    async def _save(self):
         """
         保存对话记录到数据库.
         该方法首先检查 LLM 的回复是否出错,如果没有出错,则将对话内容保存到数据库,
@@ -477,7 +491,7 @@ class PrivateConv:
         """
         if not self.output.text_raw.startswith('API调用失败'):
             self._save_turn_content_to_db()
-            self._update_usage_info()
+            await self._update_usage_info()
 
     def set_callback_data(self, data):
         """
@@ -506,7 +520,7 @@ class PrivateConv:
         self.output = Message(self.placeholder.message_id, response, 'output')
         await _finalize_message(self.placeholder, self.output.text_processed)
         if save:
-            self._save()
+            await self._save()
 
     async def _response_stream(self, save):
         """
@@ -535,7 +549,7 @@ class PrivateConv:
         self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
         await _finalize_message(self.placeholder, self.output.text_processed)
         if save:
-            self._save()
+            await self._save()
 
     def _save_turn_content_to_db(self):
         """
@@ -550,13 +564,14 @@ class PrivateConv:
                               self.output.id,
                               PRIVATE)
 
-    def _update_usage_info(self):
+    async def _update_usage_info(self):
         """
         更新用户的使用信息.
         该方法计算输入和输出的 token 数量,并更新数据库中用户的
         token 数量,对话轮次和剩余频率.
         """
-        input_tokens = llm.calculate_token_count(str(llm.get_full_msg(self.id, 'private', self.prompt)))  # 计算输入tokens
+        input_tokens = llm.calculate_token_count(
+            str(await llm.get_full_msg(self.id, 'private', self.prompt)))  # 计算输入tokens
         db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
         output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)

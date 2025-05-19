@@ -176,10 +176,12 @@ def setup_handlers(app: Application) -> None:
             private_handler.private_msg_handler
         ),
         MessageHandler(
-            filters.TEXT & ~filters.COMMAND & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
+            (filters.TEXT | filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND & (
+                        filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
             group_handler.group_msg_handler
         ),
     ]
+
 
     # 注册所有命令处理器
     for handler in private_handlers + group_handlers + admin_handlers:

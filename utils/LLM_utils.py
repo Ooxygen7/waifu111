@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, base64
 from typing import Dict, Tuple
 
 import httpx
@@ -191,31 +191,26 @@ async def generate_char(character_description: str) -> str:
 
 
 async def get_response_no_stream(current_input: str, conv_id: int = 0, output_type: str = 'once',
-                                 api_name: str = default_api) -> str:
+                                 api_name: str = default_api, images: list = None, context=None) -> str:
     """
-    获取非流式LLM响应
-    
+    获取非流式LLM响应，支持图片输入
+
     Args:
         current_input: 用户当前输入
         conv_id: 对话ID，默认为0(新对话)
         output_type: 输出类型('once'/'private'/'group')
         api_name: 使用的API名称
-        
+        images: 可选，图片列表（例如 Telegram file_id），用于多模态输入
+        context: 可选，Telegram 上下文对象，用于获取文件
+
     Returns:
         str: LLM生成的响应内容
-        
-    Note:
-        当API调用失败时返回错误信息字符串
     """
     async with llm_client_manager.semaphore:
         try:
-            # 获取API配置
             api_key, api_url, api_model = get_api_config(api_name)
             client, model = await build_client_managed(api_key, api_url, api_model)
-
-            # 构建完整消息
-            messages = get_full_msg(conv_id, output_type, current_input, True)
-            # 调用API
+            messages = await get_full_msg(conv_id, output_type, current_input, True, images, context)
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -228,38 +223,32 @@ async def get_response_no_stream(current_input: str, conv_id: int = 0, output_ty
 
 
 async def get_response_stream(current_input: str, conv_id: int = 0, output_type: str = 'once',
-                              api_name: str = default_api):
+                              api_name: str = default_api, images: list = None, context=None):
     """
-    获取流式LLM响应(异步生成器)
-    
-    Args:
-        current_input: 用户当前输入
-        conv_id: 对话ID，默认为0(新对话)
-        output_type: 输出类型('once'/'private'/'group')
-        api_name: 使用的API名称
-        
-    Yields:
-        str: LLM生成的响应内容块
-        
-    Raises:
-        RuntimeError: API调用失败时抛出
-    """
+            获取流式LLM响应(异步生成器)，支持图片输入
+
+            Args:
+                current_input: 用户当前输入
+                conv_id: 对话ID，默认为0(新对话)
+                output_type: 输出类型('once'/'private'/'group')
+                api_name: 使用的API名称
+                images: 可选，图片列表（例如 Telegram file_id），用于多模态输入
+                context: 可选，Telegram 上下文对象，用于获取文件
+
+            Yields:
+                str: LLM生成的响应内容块
+            """
     async with llm_client_manager.semaphore:
         try:
-            # 获取API配置
             api_key, api_url, api_model = get_api_config(api_name)
             client, model = await build_client_managed(api_key, api_url, api_model)
-
-            # 构建完整消息
-            messages = get_full_msg(conv_id, output_type, current_input, True)
-            # 调用API并流式返回结果
+            messages = await get_full_msg(conv_id, output_type, current_input, True, images, context)
             response = await client.chat.completions.create(
                 model=model,
                 messages=messages,
                 max_tokens=8000,
                 stream=True
             )
-
             async for chunk in response:
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
@@ -335,32 +324,19 @@ def calculate_token_count(text: str | None) -> int:
         return len(str(text))
 
 
-def get_full_msg(conv_id, chat_type, prompts, split=True) -> list:
+async def get_full_msg(conv_id, chat_type, prompts, split=True, images: list = None, context=None) -> list:
     """
-    构建完整的消息列表，包含对话历史和可能的附加信息
-    
-    Args:
-        conv_id: 对话ID
-        chat_type: 聊天类型('once'/'private'/'group')
-        prompts: 用户输入的提示文本
-        split: 是否拆分系统提示和用户输入
-        
-    Returns:
-        list: 完整的消息列表，包含角色和内容
+    构建完整的消息列表，包含对话历史和可能的附加信息，支持图片输入
     """
-    char = None  # Initialize char to None
+    char = None
     if chat_type == 'private':
         char, _ = db.conversation_private_get(conv_id)
     elif chat_type == 'group':
         char, _ = db.conversation_group_config_get(conv_id)
-
     if char and char == default_char:
-        # 假设 current_input 是完整的 prompt 字符串，包含系统指令和用户输入
-        # 我们需要从用户实际输入的部分提取 coin
         user_actual_input = prompts
         if '<user_input>\r\n' in prompts:
-            user_actual_input = prompts.split('<user_input>\r\n', 1)[1]
-
+            user_actual_input = prompts.split('<user_input>\r\n', 1)[1].split('\r\n</user_input>', 1)[0]
         insert_coin = market.check_coin(user_actual_input)
         if insert_coin:
             df = market.get_candlestick_data(insert_coin)
@@ -375,18 +351,75 @@ def get_full_msg(conv_id, chat_type, prompts, split=True) -> list:
     else:
         messages = build_openai_messages(conv_id, chat_type)[0:-1]
     if not split:
-        messages.append({"role": "user", "content": prompts})
+        if images and context:
+            content_list = [{"type": "text", "text": prompts}]
+            for img in images:
+                base64_img = await convert_file_id_to_base64(img, context)
+                if base64_img:
+                    content_list.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
+                        }
+                    })
+            messages.append({"role": "user", "content": content_list})
+        else:
+            messages.append({"role": "user", "content": prompts})
     else:
-        prompts = prompt.split_prompts(prompts)
-        messages.insert(0, {"role": "system", "content": prompts['system']})
-        messages.append({"role": "user", "content": prompts['user']})
-    # logging.info(f"最终构建结果：\r\n{messages}")
-    #for i, msg in enumerate(messages):
-        #print(f"消息 {i + 1}:")
-        #print(f"  角色: {msg['role']}")
-        #print(f"  内容: {msg['content']}")
-        #print()
+        split_prompts = prompt.split_prompts(prompts)
+        messages.insert(0, {"role": "system", "content": split_prompts['system']})
+        user_content = split_prompts['user']
+        if images and context:
+            content_list = [{"type": "text", "text": user_content}]
+            for img in images:
+                base64_img = await convert_file_id_to_base64(img, context)
+                if base64_img:
+                    content_list.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
+                        }
+                    })
+            messages.append({"role": "user", "content": content_list})
+        else:
+            messages.append({"role": "user", "content": user_content})
+    #print(f"messages: {messages}")
     return messages
 
 
-
+async def convert_file_id_to_base64(file_id: str, context) -> dict:
+    """
+    将 Telegram file_id 转换为 Base64 编码的图片数据
+    Args:
+        file_id: Telegram 文件ID
+        context: Telegram 上下文对象，用于获取文件
+    Returns:
+        dict: 包含 mime_type 和 data 的字典，如果失败则返回 None
+    """
+    try:
+        # 获取文件对象
+        file = await context.bot.get_file(file_id)
+        # 下载文件数据
+        file_data = await file.download_as_bytearray()
+        # 确定 MIME 类型
+        mime_type = "image/jpeg"  # 默认值
+        if file.file_path:
+            file_path_lower = file.file_path.lower()
+            if file_path_lower.endswith('.png'):
+                mime_type = "image/png"
+            elif file_path_lower.endswith('.gif'):
+                mime_type = "image/gif"
+            elif file_path_lower.endswith('.jpg') or file_path_lower.endswith('.jpeg'):
+                mime_type = "image/jpeg"
+            elif file_path_lower.endswith('.webp'):
+                mime_type = "image/webp"
+            else:
+                # 如果无法从扩展名确定 MIME 类型，可以使用文件头检测（可选）
+                from magic import from_buffer
+                mime_type = from_buffer(file_data, mime=True) or "image/jpeg"
+        # 转换为 Base64
+        base64_data = base64.b64encode(file_data).decode('utf-8')
+        return {"mime_type": mime_type, "data": base64_data}
+    except Exception as e:
+        print(f"转换 file_id 到 Base64 失败: {str(e)}")
+        return None
