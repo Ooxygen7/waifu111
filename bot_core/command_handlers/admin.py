@@ -20,15 +20,17 @@ class AddFrequencyCommand(BaseCommand):
         if len(args) < 2:
             await update.message.reply_text("请以 /addf target_user_id value 的格式输入参数。")
             return
-        target_user_id = args[0]
+        target_user = args[0]
         value = int(args[1])
-        if target_user_id == 'all':
+        if target_user == 'all':
             if db.user_frequency_free(value):
                 await update.message.reply_text(f"已为所有用户添加{value}条额度")
         else:
-            if db.user_info_update(target_user_id, 'remain_frequency', value, True):
-                await update.message.reply_text(
-                    f"已为{str(db.user_info_get(target_user_id)['user_name'])}添加{value}条额度")
+            if db.user_info_update(target_user, 'remain_frequency', value, True):
+                if not target_user.startswith('@'):
+                    await update.message.reply_text(f"已为{str(db.user_info_get(target_user)['user_name'])}添加{value}条额度")
+                else:
+                    await update.message.reply_text(f"已为{target_user}添加{value}条额度")
 
 class SetTierCommand(BaseCommand):
     meta = CommandMeta(

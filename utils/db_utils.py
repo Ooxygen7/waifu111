@@ -258,7 +258,7 @@ def user_info_create(userid: int, first_name: str, last_name: str, user_name: st
     return result > 0
 
 
-def user_info_update(userid: int, field: str, value: Any, increment: bool = False) -> bool:
+def user_info_update(userid, field: str, value: Any, increment: bool = False) -> bool:
     """
     更新用户信息
     :param userid: 用户ID
@@ -267,10 +267,17 @@ def user_info_update(userid: int, field: str, value: Any, increment: bool = Fals
     :param increment: 是否为增量更新，默认为 False（直接设置值）
     :return: 更新是否成功
     """
-    if increment:
-        command = f"UPDATE users SET {field} = COALESCE({field}, 0) + ? WHERE uid = ?"
+    if type(userid) == int:
+        if increment:
+            command = f"UPDATE users SET {field} = COALESCE({field}, 0) + ? WHERE uid = ?"
+        else:
+            command = f"UPDATE users SET {field} = ? WHERE uid = ?"
     else:
-        command = f"UPDATE users SET {field} = ? WHERE uid = ?"
+        userid = str(userid)[1:] if len(str(userid)) > 1 else ""
+        if increment:
+            command = f"UPDATE users SET {field} = COALESCE({field}, 0) +? WHERE user_name =?"
+        else:
+            command = f"UPDATE users SET {field} =? WHERE user_name =?"
     result = revise_db(command, (value, userid))
     return result > 0
 
