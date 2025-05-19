@@ -270,7 +270,7 @@ class GroupConv:
         发送占位消息并启动异步任务。
         """
         self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
-        if self.trigger in ['random', 'keyword']:
+        if self.trigger in ['random', 'keyword','@']:
             _task = asyncio.create_task(self._once_response())  # 创建一次性响应任务
         else:
             if not self.id:

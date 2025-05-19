@@ -488,10 +488,14 @@ class SignCommand(BaseCommand):
             concurrent_time = datetime.datetime.now()
             last_sign_time = datetime.datetime.strptime(sign_info.get('last_sign'), '%Y-%m-%d %H:%M:%S.%f')
             time_delta = concurrent_time - last_sign_time
-            if time_delta.seconds < 28800:
+            total_seconds = time_delta.total_seconds()  # 获取总秒数
+            print(f"time_delta: {time_delta}, total_seconds: {total_seconds}")
+            if total_seconds < 28800:  # 8小时 = 28800秒
+                remaining_hours = (28800 - total_seconds) // 3600
                 await update.message.reply_text(
-                    f"您8小时内已完成过签到，您可以在{str(8 - time_delta.seconds // 3600)}小时后再次签到。")
+                    f"您8小时内已完成过签到，您可以在{str(remaining_hours)}小时后再次签到。")
             else:
                 db.user_sign(user_id)
+                sign_info = db.user_sign_info_get(user_id)  # 更新签到信息后再获取最新的frequency
                 await update.message.reply_text(
                     f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")

@@ -141,7 +141,7 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     message = update.message
     bot_username = context.bot.username
     info = update_info_get(update)
-    message_text = info['message_text']
+    message_text = update.message.text or update.message.caption or ""
     group_id = info['group_id']
     group_name = info['group_name']
     user_name = info['user_name']
@@ -173,6 +173,7 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if random.random() < rate:
                 logger.info(f"触发随机回复, group_name: {group_name}, user_name: {user_name}")
                 return 'random'
+
         #logger.info(f"未触发任何条件, group_name: {group_name}, user_name: {user_name}")
         return False
     except Exception as e:

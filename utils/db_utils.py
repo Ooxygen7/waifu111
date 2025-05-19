@@ -708,7 +708,7 @@ def user_sign_info_create(user_id: int) -> bool:
 
 def user_sign(user_id: int) -> bool:
     """用户签到"""
-    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = LEAST(COALESCE(frequency, 0) + 50, 100) WHERE user_id =?"
+    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = MIN(COALESCE(frequency, 0) + 50, 100) WHERE user_id =?"
     time = str(datetime.datetime.now())
     result = revise_db(command, (time, user_id))
     return result > 0
