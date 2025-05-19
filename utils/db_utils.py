@@ -650,7 +650,7 @@ def group_dialog_add(msg_id: int, group_id: int) -> bool:
 
 def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> bool:
     """更新 `group_dialogs` 表中指定消息的指定字段。返回操作是否成功。"""
-    #print(f"正在把群{group_id}的消息{msg_id}的{field}字段更新为{value}")
+    # print(f"正在把群{group_id}的消息{msg_id}的{field}字段更新为{value}")
     command = f"UPDATE group_dialogs SET {field} = ? WHERE msg_id = ? AND group_id = ?"
     result = revise_db(command, (value, msg_id, group_id))
     return result > 0
@@ -665,7 +665,7 @@ def group_dialog_get(group_id: int, num: int) -> List[Tuple[Optional[str], Optio
 
 def group_info_update(group_id: int, field: str, value: Any, increase=False) -> bool:
     """更新 `groups` 表中指定群组的指定字段。返回操作是否成功。"""
-    #print(f"正在把{group_id}的{field}修改为{value}，递增{increase}")
+    # print(f"正在把{group_id}的{field}修改为{value}，递增{increase}")
     if not increase:
         command = f"UPDATE groups SET {field} = ? WHERE group_id = ?"
     else:
@@ -680,6 +680,29 @@ def group_rate_get(group_id: int) -> float:
     result = query_db(command, (group_id,))
     return result[0][0] if result and result[0] and result[0][0] is not None else 0.05
 
+
+def user_sign_info_get(user_id: int) -> dict:
+    """获取指定用户的临时额度 (temporary_frequency)。如果未设置或查询失败，返回默认值0。"""
+    command = f"SELECT user_id,last_sign,sign_count,frequency from user_sign where user_id =?"
+    result = query_db(command, (user_id,))
+    if result:
+        return dict(zip(['user_id', 'last_sign', 'sign_count', 'frequency'], result[0]))
+    else:
+        return {'user_id': user_id, 'last_sign': 0, 'sign_count': 0, 'frequency': 0}
+
+def user_sign_info_create(user_id: int) -> bool:
+    """创建指定用户签到记录。返回操作是否成功。"""
+    command = f"INSERT INTO user_sign (user_id,last_sign,sign_count,frequency) VALUES (?,?,?,?)"
+    time = str(datetime.datetime.now())
+    result = revise_db(command, (user_id, time, 1, 50))
+    return result > 0
+
+def user_gisn(user_id:int) -> bool:
+    """用户签到"""
+    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = COALESCE(frequency, 0)+50 WHERE user_id =?"
+    time = str(datetime.datetime.now())
+    result = revise_db(command, (time, user_id))
+    return result > 0
 
 # 应用退出时关闭所有数据库连接
 def close_all_connections():
