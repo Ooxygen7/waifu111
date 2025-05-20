@@ -211,7 +211,8 @@ async def generate_summary(conversation_id: int) -> str:
     async with llm_client_manager.semaphore:
         try:
             # 构建对话历史
-            client = LLM(conversation_id, 'private')
+            client = LLM(default_api,'private')
+            client.build_conv_messages(conversation_id)
             history = client.messages
             history.append({"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字\r\n"})
 
