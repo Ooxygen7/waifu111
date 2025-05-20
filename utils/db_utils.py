@@ -476,13 +476,17 @@ def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:
         return False  # 发生错误时，返回 False
 
 
-def conversation_group_config_get(conv_id: int) -> Optional[Tuple[str, str]]:
+def conversation_group_config_get(conv_id: int,group_id:int) -> Optional[Tuple[str, str]]:
     """获取指定群聊用户会话关联的群组的角色和预设。返回 (char, preset) 元组。"""
-    command = "SELECT group_id FROM group_user_conversations WHERE conv_id = ?"
-    result = query_db(command, (conv_id,))
-    group_id = result[0][0]
-    command = "SELECT char, preset FROM groups WHERE group_id = ?"
-    result = query_db(command, (group_id,))
+    if group_id:
+        command = "SELECT char, preset FROM groups WHERE group_id = ?"
+        result = query_db(command, (group_id,))
+    else:
+        command = "SELECT group_id FROM group_user_conversations WHERE conv_id = ?"
+        result = query_db(command, (conv_id,))
+        group_id = result[0][0]
+        command = "SELECT char, preset FROM groups WHERE group_id = ?"
+        result = query_db(command, (group_id,))
     return result[0] if result else None
 
 

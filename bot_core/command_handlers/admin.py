@@ -47,9 +47,8 @@ class SetTierCommand(BaseCommand):
         if len(args) < 2:
             await update.message.reply_text("请以 /sett target_user_id value 的格式输入参数。")
             return
-        target_user_id = args[0]
+        target_user_id = int(args[0])
         value = int(args[1])
 
-        if db.user_info_update(target_user_id, 'account_tier', value, False):
-            await update.message.reply_text(
-                f"{str(db.user_info_get(target_user_id)['user_name'])}账户等级现在是{value}")
+        db.user_info_update(target_user_id, 'account_tier', value, False)
+        await update.message.reply_text(f"{str(db.user_info_get(target_user_id)['user_name'])}账户等级现在是{str(db.user_info_get(target_user_id)['tier'])}")

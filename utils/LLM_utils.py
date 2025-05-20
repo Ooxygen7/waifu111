@@ -126,14 +126,13 @@ class LLM:
     def set_prompt(self, prompts):
         self.prompts = prompts
 
-    async def embedd_all_text(self, images: list = None, context=None):
+    async def embedd_all_text(self, images: list = None, context=None,group_id = None):
         char = None
         if self.chat_type == 'private':
             # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_private_get(self.conv_id)
         elif self.chat_type == 'group':
-            # print(f"正在查询{self.conv_id}")
-            char, _ = db.conversation_group_config_get(self.conv_id)
+            char, _ = db.conversation_group_config_get(self.conv_id,group_id)
         if char and char == default_char:
             user_actual_input = self.prompts
             if '<user_input>\r\n' in self.prompts:
@@ -267,6 +266,7 @@ async def generate_char(character_description: str) -> str:
                   "background": "角色的背景故事，150-200字，描述角色的出身、经历或动机",
                   "personality": "角色的性格特征，100-150字，突出角色的内在特质",
                   "appearance": "角色的外貌描述，100-150字，细致描绘外形、服饰或气质",
+                  "chain_of_think": "角色会如何思考、如何谈吐，200-250字，用于让LLM通过COT的方式更好地理解角色",
                   "nsfw_preferences": "角色的NSFW偏好，150-200字，描述角色在亲密场景中的倾向、淫语风格、互动风格或情境偏好，需符合角色性格",
                   "meeting": "角色和用户互动时发送的第一条消息，150-200字，交代时间地点场景，方便展开故事，注意是角色对用户说的话，不要以用户身份发言"
                 }

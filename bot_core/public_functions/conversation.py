@@ -1,5 +1,5 @@
 import asyncio
-import random
+import random,json
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
@@ -249,15 +249,25 @@ class GroupConv:
                                          f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
                                          '<user_input>\r\n', 'before')  # 在指定位置插入用户昵称信息
         group_dialog = db.group_dialog_get(self.group.id, 15)  # 获取最近15条群组对话
-        insert_txt = f"<group_messages>\r\n现在是群聊模式，你需要先看看群友在聊什么，再输出内容：\r\n"
+        insert_txt = "<group_messages>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
+        # 构建一个列表，用于存储对话的 JSON 结构
+        dialogs_json = []
         for dialog in group_dialog:
+            # 每个对话项作为一个字典
+            dialog_entry = {}
             if dialog[1]:  # 假设 dialog[1] 是用户名
-                if dialog[2]:
-                    insert_txt += f"{dialog[3]}  {dialog[1]}:\r\n{dialog[0]}\r\n"  # 格式化对话内容
-                    insert_txt += f"{dialog[3]}  AI助手:\r\n{dialog[2]}\r\n"
-                else:
-                    insert_txt += f"{dialog[3]}  {dialog[1]}:\r\n{dialog[0]}\r\n"
-        insert_txt += "</group_messages>"
+                dialog_entry["user_name"] = dialog[1]
+                dialog_entry["user_message"] = dialog[0]  # 假设 dialog[0] 是用户消息内容
+                dialog_entry["timestamp"] = dialog[3]  # 假设 dialog[3] 是时间
+                if dialog[2]:  # 假设 dialog[2] 是 AI 回复
+                    dialog_entry["ai_response"] = dialog[2]
+                dialogs_json.append(dialog_entry)
+        # 将 dialogs_json 转换为格式化的 JSON 字符串
+        json_str = json.dumps(dialogs_json, indent=2, ensure_ascii=False)
+        insert_txt += json_str
+        insert_txt += "\r\n</group_messages>"
+        # 输出到日志
+        logger.debug(insert_txt)
         self.prompt = prompt.insert_text(self.prompt, insert_txt, '<user_input>\r\n', 'before')  # 插入群组消息
 
         # 确保用户输入内容被嵌入到 <user_input> 标签内
@@ -279,7 +289,8 @@ class GroupConv:
         """
         self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
         if self.trigger in ['random', 'keyword','@']:
-            self.id = 0# 创建一次性响应任务
+            logger.debug(f"触发了{self.trigger}")
+            self.id = None# 创建一次性响应任务
         else:
             if not self.id:
                 self._new()  # 如果会话ID不存在，创建新会话
@@ -296,7 +307,7 @@ class GroupConv:
         """
         self.client.build_conv_messages(self.id)
         self.client.set_prompt(self.prompt)
-        await self.client.embedd_all_text(self.images,self.context)
+        await self.client.embedd_all_text(self.images,self.context,self.group.id)
         last_update_time = asyncio.get_event_loop().time()
         last_updated_content = "..."
         response_chunks = []
@@ -341,23 +352,23 @@ class GroupConv:
         """
         print("正在保存群聊记录")  # 打印日志
         db.group_info_update(self.group.id, 'call_count', 1, True)  # 更新调用计数
-        if self.trigger in ['random', 'keyword']:
-            input_token = llm.calculate_token_count(self.prompt)  # 计算输入令牌
-        else:
-            input_token = llm.calculate_token_count(str(self.client.messages))  # 计算对话令牌
-            turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
-            db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
-                                  self.input.id, GROUP)  # 添加用户对话
-            db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
-                                  self.output.id, GROUP)  # 添加助手对话
-            db.conversation_group_update(self.group.id, self.user.id, 'turns', 1)  # 更新回合数
+        input_token = llm.calculate_token_count(str(self.client.messages))
+        logger.debug(f"输入令牌:{input_token}")  # 计算对话令牌
+        turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
+        db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
+                              self.input.id, GROUP)  # 添加用户对话
+        db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
+                              self.output.id, GROUP)  # 添加助手对话
+        db.conversation_group_update(self.group.id, self.user.id, 'turns', 1)  # 更新回合数
         output_token = llm.calculate_token_count(self.output.text_raw)  # 计算输出令牌
         db.group_info_update(self.group.id, 'input_token', input_token, True)  # 更新输入令牌
         db.group_info_update(self.group.id, 'output_token', output_token, True)  # 更新输出令牌
+        logger.debug(f"输出令牌:{output_token}")
         db.group_dialog_update(self.input.id, 'trigger_type', self.trigger, self.group.id)  # 更新触发类型
         db.group_dialog_update(self.input.id, 'raw_response', self.output.text_raw, self.group.id)  # 更新原始响应
         db.group_dialog_update(self.input.id, 'processed_response', self.output.text_processed,
                                self.group.id)  # 更新处理后响应
+
 
 
 class ConvManager:
@@ -575,8 +586,10 @@ class PrivateConv:
         token 数量,对话轮次和剩余频率.
         """
         input_tokens = llm.calculate_token_count(str(self.client.messages)) # 计算输入tokens
+        logger.info(f"输入令牌：{input_tokens}")
         db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
         output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
+        logger.info(f"输出令牌：{output_tokens}")
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
         db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
         db.user_info_update(self.user.id, 'dialog_turns', 1, True)

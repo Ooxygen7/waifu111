@@ -193,7 +193,7 @@ def split_prompts(text: str) -> dict:
             - "system": 系统部分的文本（不包含用户标签内容）
             - "user": 用户部分的文本（包含用户相关标签及其内容，按原文顺序排列）
     """
-    user_msg_tags = ['<user_input>', '<plot_control>', '<format>', '<sample>', '<market>']
+    user_msg_tags = ['<user_input>', '<plot_control>', '<format>', '<sample>', '<market>','<group_messages>']
     system_content = text
     user_content = ""
 
