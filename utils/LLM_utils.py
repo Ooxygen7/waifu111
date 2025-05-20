@@ -80,11 +80,12 @@ llm_client_manager = LLMClientManager()
 
 class LLM:
     def __init__(self, api, chat_type):
-        self.key, self.base_url, self.model = get_api_config(api)
-        self.client = llm_client_manager.get_client(self.key, self.base_url, self.model)
+        self.key, self.base_url, self.model = file.get_api_config(api)
+        self.client = None
         self.messages = []
         self.chat_type = chat_type
         self.conv_id = 0
+        self.prompts = None
 
     def build_conv_messages(self, conv_id=0):
         """
@@ -97,6 +98,8 @@ class LLM:
                         list: 格式化后的消息列表，包含role和content字段
                     """
         dialog_history = db.dialog_content_load(conv_id, self.chat_type)
+        self.conv_id = conv_id
+        # print(f"对象conv_id已储存：{self.conv_id}")
         if not dialog_history:
             return None
 
@@ -108,35 +111,39 @@ class LLM:
         messages = []
         for role, turn_order, content in dialog_history:
             formatted_role = role.lower()
-            if formatted_role in ["user", "assistant", "system"] and content:
+            if formatted_role in ["user", "assistant"] and content:
                 messages.append({
                     "role": formatted_role,
                     "content": content
                 })
-        self.conv_id = conv_id
         self.messages = messages
         return None
 
-    async def embedd_input_text(self, input_text, images: list = None, context=None):
+    def set_prompt(self, prompts):
+        self.prompts = prompts
+
+    async def embedd_all_text(self, images: list = None, context=None):
         char = None
         if self.chat_type == 'private':
+            # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_private_get(self.conv_id)
         elif self.chat_type == 'group':
+            # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_group_config_get(self.conv_id)
         if char and char == default_char:
-            user_actual_input = input_text
-            if '<user_input>\r\n' in input_text:
-                user_actual_input = input_text.split('<user_input>\r\n', 1)[1].split('\r\n</user_input>', 1)[0]
+            user_actual_input = self.prompts
+            if '<user_input>\r\n' in self.prompts:
+                user_actual_input = self.prompts.split('<user_input>\r\n', 1)[1].split('\r\n</user_input>', 1)[0]
             insert_coin = market.check_coin(user_actual_input)
             if insert_coin:
                 df = market.get_candlestick_data(insert_coin)
                 if df is not None:
-                    input_text += (
+                    self.prompts += (
                         f"<market>\r\n这是{insert_coin}最近的走势，你需要详细输出具体的技术分析，需要提到其中的压力位(Supply)、支撑位("
                         f"Demand)的具体点位，并分析接下来有可能的走势：\r\n{str(df)}\r\n</market>")
                 else:
                     print(f"警告: 未能获取 {insert_coin} 的市场数据。")
-        split_prompts = prompt.split_prompts(input_text)
+        split_prompts = prompt.split_prompts(self.prompts)
         self.messages.insert(0, {"role": "system", "content": split_prompts['system']})
         user_content = split_prompts['user']
         if images and context:
@@ -153,7 +160,28 @@ class LLM:
             self.messages.append({"role": "user", "content": content_list})
         else:
             self.messages.append({"role": "user", "content": user_content})
-        return None
+
+    async def set_messages(self, messages):
+        self.messages = messages
+
+    async def response(self, stream: bool = False):
+        self.client = await llm_client_manager.get_client(self.key, self.base_url, self.model)
+        async with llm_client_manager.semaphore:
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=self.messages,
+                    max_tokens=8000,
+                    stream=stream
+                )
+                if stream:
+                    async for chunk in response:
+                        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                else:
+                    yield response.choices[0].message.content
+            except Exception as e:
+                raise RuntimeError(f"API调用失败 (stream): {str(e)}")
 
 
 async def build_client_managed(key: str, url: str, model: str) -> tuple[openai.AsyncOpenAI, str]:
@@ -178,12 +206,12 @@ async def generate_summary(conversation_id: int) -> str:
     async with llm_client_manager.semaphore:
         try:
             # 构建对话历史
-            history = build_openai_messages(conversation_id)
-            # 添加总结指令
-            history.append({"role": "user", "content": "请你总结以上对话，输出话题名称，不要超过20字"})
+            client = LLM(conversation_id, 'private')
+            history = client.messages
+            history.append({"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字\r\n"})
 
             # 获取API配置
-            api_key, api_url, api_model = get_api_config(default_api)
+            api_key, api_url, api_model = file.get_api_config(default_api)
             client, model = await build_client_managed(api_key, api_url, api_model)
 
             # 调用API生成总结
@@ -249,7 +277,7 @@ async def generate_char(character_description: str) -> str:
             ]
 
             # 获取API配置
-            api_key, api_url, api_model = get_api_config(default_api)
+            api_key, api_url, api_model = file.get_api_config(default_api)
             client, model = await build_client_managed(api_key, api_url, api_model)
             # 调用API生成角色
             response = await client.chat.completions.create(
@@ -268,122 +296,6 @@ async def generate_char(character_description: str) -> str:
             raise ValueError(f"生成角色失败: {str(e)}")
 
 
-async def get_response_no_stream(current_input: str, conv_id: int = 0, output_type: str = 'once',
-                                 api_name: str = default_api, images: list = None, context=None) -> str:
-    """
-    获取非流式LLM响应，支持图片输入
-
-    Args:
-        current_input: 用户当前输入
-        conv_id: 对话ID，默认为0(新对话)
-        output_type: 输出类型('once'/'private'/'group')
-        api_name: 使用的API名称
-        images: 可选，图片列表（例如 Telegram file_id），用于多模态输入
-        context: 可选，Telegram 上下文对象，用于获取文件
-
-    Returns:
-        str: LLM生成的响应内容
-    """
-    async with llm_client_manager.semaphore:
-        try:
-            api_key, api_url, api_model = get_api_config(api_name)
-            client, model = await build_client_managed(api_key, api_url, api_model)
-            messages = await get_full_msg(conv_id, output_type, current_input, True, images, context)
-            response = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=8000,
-                stream=False
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return str(RuntimeError(f"API调用失败，对话未保存，请重新发送\r\n {str(e)}"))
-
-
-async def get_response_stream(current_input: str, conv_id: int = 0, output_type: str = 'once',
-                              api_name: str = default_api, images: list = None, context=None):
-    """
-            获取流式LLM响应(异步生成器)，支持图片输入
-
-            Args:
-                current_input: 用户当前输入
-                conv_id: 对话ID，默认为0(新对话)
-                output_type: 输出类型('once'/'private'/'group')
-                api_name: 使用的API名称
-                images: 可选，图片列表（例如 Telegram file_id），用于多模态输入
-                context: 可选，Telegram 上下文对象，用于获取文件
-
-            Yields:
-                str: LLM生成的响应内容块
-            """
-    async with llm_client_manager.semaphore:
-        try:
-            api_key, api_url, api_model = get_api_config(api_name)
-            client, model = await build_client_managed(api_key, api_url, api_model)
-            messages = await get_full_msg(conv_id, output_type, current_input, True, images, context)
-            response = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=8000,
-                stream=True
-            )
-            async for chunk in response:
-                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-        except Exception as e:
-            raise RuntimeError(f"API调用失败 (stream): {str(e)}")
-
-
-def get_api_config(api_name: str) -> Tuple[str, str, str]:
-    """
-    根据API名称获取对应的配置信息
-    
-    Args:
-        api_name: API配置名称
-        
-    Returns:
-        Tuple[str, str, str]: 返回(api_key, base_url, model)三元组
-        
-    Raises:
-        ValueError: 当找不到对应API配置时抛出
-    """
-    api_list = file.load_config()['api']
-    for api_config_item in api_list:
-        if api_config_item['name'] == api_name:
-            return api_config_item['key'], api_config_item['url'], api_config_item['model']
-    raise ValueError(f"未找到名为 '{api_name}' 的API配置")
-
-
-def build_openai_messages(conv_id, output_type='private'):
-    """
-    构建符合OpenAI API要求的消息列表
-    Args:
-        conv_id: 对话ID
-        output_type: 输出类型('private'/'group')
-        
-    Returns:
-        list: 格式化后的消息列表，包含role和content字段
-    """
-    dialog_history = db.dialog_content_load(conv_id, output_type)
-    if not dialog_history:
-        return []
-
-    if output_type == 'group':  # 如果 type 是 'group'，限制为最近的 5 轮对话
-        dialog_history = dialog_history[-10:]
-    if output_type == 'private':
-        dialog_history = dialog_history[-70:]
-
-    messages = []
-    for role, turn_order, content in dialog_history:
-        formatted_role = role.lower()
-        if formatted_role in ["user", "assistant", "system"] and content:
-            messages.append({
-                "role": formatted_role,
-                "content": content
-            })
-    return messages
-
-
 def calculate_token_count(text: str | None) -> int:
     """
     计算文本的token数量
@@ -400,69 +312,6 @@ def calculate_token_count(text: str | None) -> int:
     except Exception as e:
         print(f"错误: 计算token时发生错误 - {e}. 输出为字符串长度。")
         return len(str(text))
-
-
-async def get_full_msg(conv_id, chat_type, prompts, split=True, images: list = None, context=None) -> list:
-    """
-    构建完整的消息列表，包含对话历史和可能的附加信息，支持图片输入
-    """
-    char = None
-    if chat_type == 'private':
-        char, _ = db.conversation_private_get(conv_id)
-    elif chat_type == 'group':
-        char, _ = db.conversation_group_config_get(conv_id)
-    if char and char == default_char:
-        user_actual_input = prompts
-        if '<user_input>\r\n' in prompts:
-            user_actual_input = prompts.split('<user_input>\r\n', 1)[1].split('\r\n</user_input>', 1)[0]
-        insert_coin = market.check_coin(user_actual_input)
-        if insert_coin:
-            df = market.get_candlestick_data(insert_coin)
-            if df is not None:
-                prompts += (
-                    f"<market>\r\n这是{insert_coin}最近的走势，你需要详细输出具体的技术分析，需要提到其中的压力位(Supply)、支撑位("
-                    f"Demand)的具体点位，并分析接下来有可能的走势：\r\n{str(df)}\r\n</market>")
-            else:
-                print(f"警告: 未能获取 {insert_coin} 的市场数据。")
-    if chat_type == 'once':
-        messages = []
-    else:
-        messages = build_openai_messages(conv_id, chat_type)[0:-1]
-    if not split:
-        if images and context:
-            content_list = [{"type": "text", "text": prompts}]
-            for img in images:
-                base64_img = await convert_file_id_to_base64(img, context)
-                if base64_img:
-                    content_list.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
-                        }
-                    })
-            messages.append({"role": "user", "content": content_list})
-        else:
-            messages.append({"role": "user", "content": prompts})
-    else:
-        split_prompts = prompt.split_prompts(prompts)
-        messages.insert(0, {"role": "system", "content": split_prompts['system']})
-        user_content = split_prompts['user']
-        if images and context:
-            content_list = [{"type": "text", "text": user_content}]
-            for img in images:
-                base64_img = await convert_file_id_to_base64(img, context)
-                if base64_img:
-                    content_list.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
-                        }
-                    })
-            messages.append({"role": "user", "content": content_list})
-        else:
-            messages.append({"role": "user", "content": user_content})
-    # print(f"messages: {messages}")
-    return messages
 
 
 async def convert_file_id_to_base64(file_id: str, context) -> dict:

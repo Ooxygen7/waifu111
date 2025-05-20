@@ -5,6 +5,7 @@ from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 from bot_core.public_functions.logging import logger
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
+from utils.LLM_utils import LLM
 
 # 定义常量
 PRIVATE = 'private'
@@ -202,7 +203,11 @@ class GroupConv:
         self.trigger = None
         self.user = GroupUser(update)  # 创建用户对象
         self.id = db.conversation_group_get(self.group.id, self.user.id) or None  # 从数据库获取会话ID
+        if not self.id:
+            self._new()
         self.images = self._extract_images()
+        self.client = LLM(self.config.api,'group')
+
 
     def _extract_images(self) -> list:
         """
@@ -271,34 +276,37 @@ class GroupConv:
         """
         self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
         if self.trigger in ['random', 'keyword','@']:
-            _task = asyncio.create_task(self._once_response())  # 创建一次性响应任务
+            self.id = 0# 创建一次性响应任务
         else:
             if not self.id:
                 self._new()  # 如果会话ID不存在，创建新会话
-            _task = asyncio.create_task(self._conv_response())  # 创建对话响应任务
+        _task = asyncio.create_task(self._response_to_user())  # 创建对话响应任务
 
-    async def _once_response(self):
-        """
-        处理一次性响应的异步逻辑。
-        该方法是异步的，用于获取AI响应并更新消息。
-        副作用:
-        更新 self.output 和数据库记录。
-        """
-        response = await llm.get_response_no_stream(self.prompt, 0, 'once', self.config.api, images=self.images,
-                                                    context=self.context)
-        self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
-        await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
-        self._update_usage_info()  # 更新使用信息
 
-    async def _conv_response(self):
+
+    async def _response_to_user(self):
         """
         处理对话响应的异步逻辑。
         该方法是异步的，用于获取AI响应并更新对话状态。
         副作用:
         更新 self.output 和数据库记录。
         """
-        response = await llm.get_response_no_stream(self.prompt, self.id, 'group', self.config.api, images=self.images,
-                                                    context=self.context)
+        self.client.build_conv_messages(self.id)
+        self.client.set_prompt(self.prompt)
+        await self.client.embedd_all_text(self.images,self.context)
+        last_update_time = asyncio.get_event_loop().time()
+        last_updated_content = "..."
+        response_chunks = []
+        response='Error：未能获取模型回复。'
+        async for chunk in self.client.response(False):
+            response_chunks.append(chunk)
+            response = "".join(response_chunks)
+            current_time = asyncio.get_event_loop().time()
+            if current_time - last_update_time >= 4.0 and response != last_updated_content:
+                await _update_message(response, self.placeholder)
+                last_updated_content = response
+                last_update_time = current_time
+            await asyncio.sleep(0.01)
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
         await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
         self._update_usage_info()  # 更新使用信息
@@ -317,7 +325,8 @@ class GroupConv:
             new_conv_id = random.randint(10000000, 99999999)  # 生成随机ID
             if db.conversation_group_create(new_conv_id, self.user.id, self.user.user_name, self.group.id,
                                             self.group.name):
-                self.id = new_conv_id  # 成功后更新ID
+                self.id = new_conv_id
+                logger.debug(f"New conversation ID: {new_conv_id}")
                 return
         raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")  # 抛出异常
 
@@ -332,7 +341,7 @@ class GroupConv:
         if self.trigger in ['random', 'keyword']:
             input_token = llm.calculate_token_count(self.prompt)  # 计算输入令牌
         else:
-            input_token = llm.calculate_token_count(str(llm.build_openai_messages(self.id, 'group')))  # 计算对话令牌
+            input_token = llm.calculate_token_count(str(self.client.messages))  # 计算对话令牌
             turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
             db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
                                   self.input.id, GROUP)  # 添加用户对话
@@ -381,8 +390,6 @@ class PrivateConv:
         self.update = update
         self.input = None
         self.output = None
-        self.prompt = None
-        self.config = None
         # 根据 update 类型初始化用户和输入消息
         if update.message:
             self.user = User(update.message.chat.id)
@@ -392,6 +399,7 @@ class PrivateConv:
         # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
         self.config = Config(self.user.id)
+        self.client = LLM(self.config.api,'private')
         if not self.id:
             self.new()
         # 构建 prompt
@@ -416,10 +424,7 @@ class PrivateConv:
         if self.user.frequency > 0 or self.user.tmp_frequency > 0:
             self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
             logger.info(f"输入：{self.input.text_raw}")
-            if self.config.stream:
-                _task = asyncio.create_task(self._response_stream(save))
-            else:
-                _task = asyncio.create_task(self._response_non_stream(save))
+            _task = asyncio.create_task(self._response_to_user(save))
         else:
             await self.context.bot.send_message(self.user.id, "你的额度已用尽，联系 @xi_cuicui")
 
@@ -508,26 +513,9 @@ class PrivateConv:
                                          '<character>',
                                          'before')
 
-    async def _response_non_stream(self, save):
-        """
-        以非流式方式生成 LLM 的回复.
-        该方法调用 llm.get_response_no_stream 方法获取 LLM 的回复,
-        然后将回复更新到占位消息中.
-        Args:
-            save (bool): 是否保存对话记录到数据库.
-        """
-        response = await llm.get_response_no_stream(self.prompt, self.id, 'private', self.config.api)
-        self.output = Message(self.placeholder.message_id, response, 'output')
-        await _finalize_message(self.placeholder, self.output.text_processed)
-        if save:
-            await self._save()
 
-    async def _response_stream(self, save):
+    async def _response_to_user(self, save):
         """
-        以流式方式生成 LLM 的回复.
-        该方法调用 llm.get_response_stream 方法获取 LLM 的回复,
-        然后逐步更新占位消息的内容. 为了避免频繁更新消息,
-        只有在内容显著变化或经过一定时间后才会更新消息.
         Args:
             save (bool): 是否保存对话记录到数据库.
         """
@@ -535,12 +523,18 @@ class PrivateConv:
         last_update_time = asyncio.get_event_loop().time()
         last_updated_content = "..."
         response_chunks = []
-        async for chunk in llm.get_response_stream(self.prompt, self.id, 'private', self.config.api):
+
+        self.client.build_conv_messages(self.id)
+        print(f"已设置{self.id}")
+        self.client.set_prompt(self.prompt)
+        await self.client.embedd_all_text()
+
+        async for chunk in self.client.response(self.config.stream):
             response_chunks.append(chunk)
             response = "".join(response_chunks)
             current_time = asyncio.get_event_loop().time()
             # 每 4 秒或内容显著变化时更新消息
-            if current_time - last_update_time >= 4 and response != last_updated_content:
+            if current_time - last_update_time >= 4.0 and response != last_updated_content:
                 await _update_message(response, self.placeholder)
                 last_updated_content = response
                 last_update_time = current_time
@@ -570,16 +564,15 @@ class PrivateConv:
         该方法计算输入和输出的 token 数量,并更新数据库中用户的
         token 数量,对话轮次和剩余频率.
         """
-        input_tokens = llm.calculate_token_count(
-            str(await llm.get_full_msg(self.id, 'private', self.prompt)))  # 计算输入tokens
+        input_tokens = llm.calculate_token_count(str(self.client.messages)) # 计算输入tokens
         db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
         output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
         db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
         db.user_info_update(self.user.id, 'dialog_turns', 1, True)
-        self._update_frenquency()
+        self._update_frequency()
 
-    def _update_frenquency(self):
+    def _update_frequency(self):
         if self.user.tmp_frequency > 0:
             db.user_sign_info_update(self.user.id, 'frequency', self.config.multiple * -1, True)
         else:

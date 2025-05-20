@@ -100,3 +100,23 @@ def get_api_multiple(api_name):
     for api in api_list:
         if api['name'] == api_name:
             return api['multiple'] or 1
+
+
+def get_api_config(api_name: str) -> tuple[str, str, str]:
+    """
+    根据API名称获取对应的配置信息
+
+    Args:
+        api_name: API配置名称
+
+    Returns:
+        Tuple[str, str, str]: 返回(api_key, base_url, model)三元组
+
+    Raises:
+        ValueError: 当找不到对应API配置时抛出
+    """
+    api_list = load_config()['api']
+    for api_config_item in api_list:
+        if api_config_item['name'] == api_name:
+            return api_config_item['key'], api_config_item['url'], api_config_item['model']
+    raise ValueError(f"未找到名为 '{api_name}' 的API配置")
