@@ -9,6 +9,10 @@ from utils import db_utils as db
 from utils import file_utils as file
 from utils import market_utils as market
 from utils import prompt_utils as prompt
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 default_api = 'gemini-2'
 default_char = 'cuicuishark_public'
@@ -160,6 +164,8 @@ class LLM:
             self.messages.append({"role": "user", "content": content_list})
         else:
             self.messages.append({"role": "user", "content": user_content})
+        for message in self.messages:
+            logger.debug(message)
 
     async def set_messages(self, messages):
         self.messages = messages

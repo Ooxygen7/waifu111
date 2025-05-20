@@ -4,9 +4,13 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot_core.callback_handlers.inline import Inline
-from bot_core.public_functions.logging import logger
 from utils import db_utils as db
 from .base import BaseCommand, CommandMeta
+
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class RemakeCommand(BaseCommand):

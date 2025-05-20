@@ -5,6 +5,11 @@ import threading
 from sqlite3 import Error
 from typing import Any, List, Optional, Tuple
 
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 # --- 默认配置项 (建议未来迁移到专门的配置文件) ---
 DEFAULT_API = 'gemini-2'  # 默认使用的LLM API
 DEFAULT_PRESET = 'Default_meeting'  # 默认预设名称
@@ -455,19 +460,19 @@ def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:
         query = "SELECT id FROM dialogs WHERE conv_id = ? AND msg_id = ? ORDER BY id DESC"
         rows = query_db(query, (conv_id, msg_id))
         if not rows:
-            print(f"未找到 conv_id 为 {conv_id} 且 msg_id 为 {msg_id} 的消息记录")  # 添加日志
+            logger.debug(f"未找到 conv_id 为 {conv_id} 且 msg_id 为 {msg_id} 的消息记录")  # 添加日志
             return False  # 没有找到匹配的记录
         # 2. 删除 id 最大的那一条记录
         max_id = rows[0][0]  # 从元组列表中获取 id
         delete_command = "DELETE FROM dialogs WHERE id = ?"
         result = revise_db(delete_command, (max_id,))  # 执行数据库删除操作，返回受影响的行数
         if result > 0:
-            print(f"成功删除消息记录，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}")  # 添加日志
+            logger.debug(f"成功删除消息记录，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}")  # 添加日志
         else:
-            print(f"删除消息记录失败，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}")  # 添加日志
+            logger.debug(f"删除消息记录失败，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}")  # 添加日志
         return result > 0  # 如果影响的行数大于0，则返回 True，表示删除成功
     except Exception as e:
-        print(f"删除消息记录时发生错误：{e}")
+        logger.error(f"删除消息记录时发生错误：{e}")
         return False  # 发生错误时，返回 False
 
 

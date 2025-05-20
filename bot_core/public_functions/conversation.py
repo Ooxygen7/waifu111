@@ -3,9 +3,12 @@ import random
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
-from bot_core.public_functions.logging import logger
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
 from utils.LLM_utils import LLM
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # 定义常量
 PRIVATE = 'private'
@@ -357,6 +360,13 @@ class GroupConv:
                                self.group.id)  # 更新处理后响应
 
 
+class ConvManager:
+    def __init__(self,chat_type):
+        self.chat_type = chat_type
+
+
+
+
 class PrivateConv:
     """
     处理私聊场景下的对话逻辑.
@@ -525,7 +535,7 @@ class PrivateConv:
         response_chunks = []
 
         self.client.build_conv_messages(self.id)
-        print(f"已设置{self.id}")
+        #print(f"已设置{self.id}")
         self.client.set_prompt(self.prompt)
         await self.client.embedd_all_text()
 
@@ -614,6 +624,7 @@ async def _finalize_message(sent_message, cleared_response: str) -> None:
         # Telegram 单条消息最大长度限制4096字符，保险起见用4000
         if len(cleared_response) <= max_len:
             await sent_message.edit_text(cleared_response, parse_mode="markdown")
+            logger.debug(f"使用了markdown")
         else:
             # 超长时分两段发送，先发前半段，再发后半段
             await sent_message.edit_text(cleared_response[:max_len], parse_mode="markdown")

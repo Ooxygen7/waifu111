@@ -10,8 +10,10 @@ from bot_core.callback_handlers.callback import create_callback_handler  # 修�
 from bot_core.command_handlers.base import BaseCommand, BotCommandData
 from bot_core.public_functions.config import BOT_TOKEN
 from bot_core.public_functions.error import BotError, ConfigError
-from bot_core.public_functions.logging import logger
-
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -83,7 +85,7 @@ class CommandHandlers:
                         instance = obj()  # 创建命令类实例
                         if hasattr(instance, 'meta') and hasattr(instance.meta, 'trigger'):  # 确保有meta和trigger属性
                             if instance.meta.enabled:  # 确保已激活
-                                print(
+                                logger.debug(
                                     f"{name}命令已加载,启用:{instance.meta.enabled},展示在目录:{instance.meta.show_in_menu}")
                                 handler = CommandHandler(instance.meta.trigger, instance.handler,
                                                          filters=filters)  # 使用预处理过的handler

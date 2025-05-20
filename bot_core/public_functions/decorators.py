@@ -6,9 +6,13 @@ from telegram.ext import ContextTypes
 
 from bot_core.public_functions.config import DEFAULT_CHAR, DEFAULT_PRESET, DEFAULT_API, ADMIN
 from bot_core.public_functions.error import BotError, DatabaseError
-from bot_core.public_functions.logging import logger
 from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
+
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class Decorators:

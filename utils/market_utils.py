@@ -1,6 +1,9 @@
 import ccxt
 import pandas as pd
-
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 def get_candlestick_data(coin, timeframe='1h', limit=40, exchange_id='binance'):
     """
@@ -180,7 +183,7 @@ def check_coin(text):
     # 将输入字符串转为小写以忽略大小写
     text_lower = text.lower()
 
-    print(f"输入:\r\n{text_lower}")
+    logger.debug(f"输入:\r\n{text_lower}")
     # 检查每个关键字组
     for group, info in keyword_mapping.items():
         if any(keyword in text_lower for keyword in info["keywords"]):
@@ -189,5 +192,3 @@ def check_coin(text):
 
     # 如果没有匹配到任何关键字组
     return False
-
-# print(check_coin("大饼"))

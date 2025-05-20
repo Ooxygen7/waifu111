@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import random
 from typing import Union
@@ -9,11 +8,14 @@ from telegram.ext import ContextTypes
 from bot_core.public_functions.conversation import GroupConv
 from bot_core.public_functions.decorators import Decorators
 from bot_core.public_functions.error import DatabaseError, BotError
-from bot_core.public_functions.logging import logger
 from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
 from . import features
-from .public import finalize_message
+
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 @Decorators.ensure_group_info_updated
@@ -67,45 +69,6 @@ async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         conversation.set_trigger(needs_reply)
         await conversation.response()
 
-
-
-async def _generate_message_once_background(conversation, placeholder_message):
-    """后台任务：为一次性群聊生成回复（例如由关键词或随机触发）。
-
-    Args:
-        conversation: 当前会话对象。
-        placeholder_message: 占位符消息对象。
-    """
-    try:
-        conversation.set_once_type()
-        await conversation.get_response()
-        await finalize_message(placeholder_message, conversation.cleared_response_text)
-        conversation.save_to_db('assistant')
-    except Exception as e:
-        logger.error(f"一次性群聊回复后台处理失败: {str(e)}", exc_info=True)
-        try:
-            await placeholder_message.edit_text(f"处理消息时出错，请稍后再试。\r\n{str(e)}")
-        except Exception as edit_e:
-            logger.error(f"编辑群聊错误消息失败: {edit_e}")
-
-
-async def _generate_group_message_background(conversation, placeholder_message):
-    """后台任务：为持续性群聊生成回复（例如回复机器人或@机器人）。
-
-    Args:
-        conversation: 当前会话对象。
-        placeholder_message: 占位符消息对象。
-    """
-    try:
-        await conversation.get_response()
-        await finalize_message(placeholder_message, conversation.cleared_response_text)  # cleared_response 确保是字符串
-        conversation.save_to_db('assistant')
-    except Exception as e:
-        logger.error(f"群聊非流式回复后台处理失败: {str(e)}", exc_info=True)
-        try:
-            await placeholder_message.edit_text("处理消息时出错，请稍后再试。")
-        except Exception as edit_e:
-            logger.error(f"编辑群聊错误消息失败: {edit_e}")
 
 def _group_dialog_add(info) -> bool:
     message_id = info['message_id']

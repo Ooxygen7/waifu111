@@ -4,8 +4,12 @@ from typing import Union
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
 from bot_core.public_functions.error import BotError
-from bot_core.public_functions.logging import logger
 from utils import file_utils as file, db_utils as db
+
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class Inline:

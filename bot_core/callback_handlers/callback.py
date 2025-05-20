@@ -1,6 +1,6 @@
 # callback.py
 import importlib
-import inspect,asyncio
+import inspect
 import os,time
 from typing import Dict
 
@@ -11,13 +11,15 @@ from telegram.ext import ContextTypes
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.base import BaseCallback, CallbackMeta
 from bot_core.public_functions.error import BotError
-from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
 from .director_classes import DirectorMenu
 from .inline import Inline
 from ..public_functions.conversation import PrivateConv
 
-from ..public_functions.logging import logger
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # 设置日志配置
 
@@ -636,7 +638,7 @@ class CallbackHandler:
         try:
             for prefix, callback in self.callback_mapping.items():
                 if data.startswith(prefix):
-                    print(f"匹配到回调处理器: {prefix}, data: {data}")  # 添加日志
+                    logger.debug(f"匹配到回调处理器: {prefix}, data: {data}")  # 添加日志
                     await callback.handle_callback(update, context, data[len(prefix):])
                     return
 
@@ -657,7 +659,7 @@ def create_callback_handler(module_names: list[str]) -> CallbackHandler:
         try:
             module = importlib.import_module(f'bot_core.callback_handlers.callback')  # 动态导入模块
         except ImportError as e:
-            print(f"Error importing module {module_name}: {e}")  # 打印导入错误，方便调试
+            logger.warning(f"Error importing module {module_name}: {e}")  # 打印导入错误，方便调试
             continue
 
         for name, obj in inspect.getmembers(module):  # 扫描模块中的所有成员
@@ -667,10 +669,10 @@ def create_callback_handler(module_names: list[str]) -> CallbackHandler:
                     if hasattr(instance, 'meta') and hasattr(instance.meta, 'trigger'):  # 确保有meta和trigger属性
                         if instance.meta.enabled:  # 确保已激活
                             callback_mapping[instance.meta.trigger] = instance  # 使用预处理过的handler
-                            print(f"注册回调处理器: {name}, trigger: {instance.meta.trigger}")  # 添加日志
+                            logger.debug(f"注册回调处理器: {name}, trigger: {instance.meta.trigger}")  # 添加日志
                     else:
                         print(f"Callback {name} 缺少 meta 或 trigger 属性")
                 except Exception as e:
-                    print(f"Error creating CallbackHandler for {name}: {e}")  # 打印创建实例或CommandHandler错误，方便调试
+                    logger.debug(f"Error creating CallbackHandler for {name}: {e}")  # 打印创建实例或CommandHandler错误，方便调试
                     continue
     return CallbackHandler(callback_mapping)

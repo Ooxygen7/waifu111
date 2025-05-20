@@ -3,8 +3,12 @@ from telegram.ext import ContextTypes
 from bot_core.public_functions.conversation import PrivateConv
 from bot_core.public_functions.decorators import Decorators
 from . import features
-from ..public_functions.logging import logger
-from utils import db_utils as db
+
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
+
 
 @Decorators.ensure_user_info_updated
 async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

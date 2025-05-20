@@ -11,9 +11,13 @@ from telegram.ext import ContextTypes
 from bot_core.public_functions.conversation import PrivateConv
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
-from bot_core.public_functions.logging import logger
 from utils import db_utils as db, LLM_utils as llm
 from .base import BaseCommand, CommandMeta
+
+import logging
+from utils.logging_utils import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class StartCommand(BaseCommand):
