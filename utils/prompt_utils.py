@@ -179,14 +179,6 @@ def insert_text(raw_text: str, insert_text: str, position: str, mode: str) -> st
     return raw_text[:index + len(position)] + insert_text + raw_text[index + len(position):]
 
 
-def calculate_token_count(text: str) -> int:
-    """计算文本的token数，使用TikToken；失败时返回字符长度。"""
-    try:
-        encoder = tiktoken.get_encoding("cl100k_base")
-        return len(encoder.encode(text))
-    except Exception as e:
-        print(f"错误: 计算token时发生错误 - {e}. 输出为字符串长度。")
-        return len(text)
 
 
 def split_prompts(text: str) -> dict:

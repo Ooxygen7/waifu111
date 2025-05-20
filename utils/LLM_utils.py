@@ -78,6 +78,84 @@ class LLMClientManager:
 llm_client_manager = LLMClientManager()
 
 
+class LLM:
+    def __init__(self, api, chat_type):
+        self.key, self.base_url, self.model = get_api_config(api)
+        self.client = llm_client_manager.get_client(self.key, self.base_url, self.model)
+        self.messages = []
+        self.chat_type = chat_type
+        self.conv_id = 0
+
+    def build_conv_messages(self, conv_id=0):
+        """
+                    构建符合OpenAI API要求的消息列表
+                    Args:
+                        conv_id: 对话ID
+                        output_type: 输出类型('private'/'group')
+
+                    Returns:
+                        list: 格式化后的消息列表，包含role和content字段
+                    """
+        dialog_history = db.dialog_content_load(conv_id, self.chat_type)
+        if not dialog_history:
+            return None
+
+        if self.chat_type == 'group':  # 如果 type 是 'group'，限制为最近的 5 轮对话
+            dialog_history = dialog_history[-10:]
+        if self.chat_type == 'private':
+            dialog_history = dialog_history[-70:]
+
+        messages = []
+        for role, turn_order, content in dialog_history:
+            formatted_role = role.lower()
+            if formatted_role in ["user", "assistant", "system"] and content:
+                messages.append({
+                    "role": formatted_role,
+                    "content": content
+                })
+        self.conv_id = conv_id
+        self.messages = messages
+        return None
+
+    async def embedd_input_text(self, input_text, images: list = None, context=None):
+        char = None
+        if self.chat_type == 'private':
+            char, _ = db.conversation_private_get(self.conv_id)
+        elif self.chat_type == 'group':
+            char, _ = db.conversation_group_config_get(self.conv_id)
+        if char and char == default_char:
+            user_actual_input = input_text
+            if '<user_input>\r\n' in input_text:
+                user_actual_input = input_text.split('<user_input>\r\n', 1)[1].split('\r\n</user_input>', 1)[0]
+            insert_coin = market.check_coin(user_actual_input)
+            if insert_coin:
+                df = market.get_candlestick_data(insert_coin)
+                if df is not None:
+                    input_text += (
+                        f"<market>\r\n这是{insert_coin}最近的走势，你需要详细输出具体的技术分析，需要提到其中的压力位(Supply)、支撑位("
+                        f"Demand)的具体点位，并分析接下来有可能的走势：\r\n{str(df)}\r\n</market>")
+                else:
+                    print(f"警告: 未能获取 {insert_coin} 的市场数据。")
+        split_prompts = prompt.split_prompts(input_text)
+        self.messages.insert(0, {"role": "system", "content": split_prompts['system']})
+        user_content = split_prompts['user']
+        if images and context:
+            content_list = [{"type": "text", "text": user_content}]
+            for img in images:
+                base64_img = await convert_file_id_to_base64(img, context)
+                if base64_img:
+                    content_list.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
+                        }
+                    })
+            self.messages.append({"role": "user", "content": content_list})
+        else:
+            self.messages.append({"role": "user", "content": user_content})
+        return None
+
+
 async def build_client_managed(key: str, url: str, model: str) -> tuple[openai.AsyncOpenAI, str]:
     """从管理器获取或构建 OpenAI 异步客户端并返回客户端和模型名称。"""
     client = await llm_client_manager.get_client(key, url, model)
@@ -383,7 +461,7 @@ async def get_full_msg(conv_id, chat_type, prompts, split=True, images: list = N
             messages.append({"role": "user", "content": content_list})
         else:
             messages.append({"role": "user", "content": user_content})
-    #print(f"messages: {messages}")
+    # print(f"messages: {messages}")
     return messages
 
 
