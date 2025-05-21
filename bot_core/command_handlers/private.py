@@ -15,6 +15,7 @@ from bot_core.public_functions.conversation import PrivateConv
 from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
+from .tools_registry import parse_and_invoke_tool, PrivateToolRegistry
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -508,3 +509,128 @@ class SignCommand(BaseCommand):
                 sign_info = db.user_sign_info_get(user_id)  # 更新签到信息后再获取最新的frequency
                 await update.message.reply_text(
                     f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
+
+
+class ToolCommand(BaseCommand):
+    meta = CommandMeta(
+        name='tool',
+        command_type='private',
+        trigger='tool',
+        menu_text='',
+        show_in_menu=False,
+        menu_weight=99
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        Handle the /tool command to interact with LLM and invoke tools based on user input.
+
+        Args:
+            update: The Telegram Update object containing the user input.
+            context: The Telegram ContextTypes object for bot interaction.
+        """
+        # 获取用户输入（去掉命令部分）
+        user_input = update.message.text.strip()
+        if len(user_input.split()) > 1:
+            user_input = " ".join(user_input.split()[1:])  # 去掉 /tool 命令本身
+        else:
+            await update.message.reply_text("请在 /tool 命令后提供具体内容，例如：/tool 我想开始使用机器人", parse_mode="Markdown")
+            return
+        # 先发送占位消息
+        placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")
+        logger.debug("已发送占位消息 '处理中...'")
+        # 将异步处理逻辑放入后台任务
+        context.application.create_task(
+            self.process_tool_request(update, context, user_input, placeholder_message),
+            update=update
+        )
+        logger.debug("已创建后台任务处理 /tool 请求")
+
+    async def process_tool_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str,
+                                   placeholder_message) -> None:
+        """
+        Process the tool request in the background and update the placeholder message with the result.
+
+        Args:
+            update: The Telegram Update object containing the user input.
+            context: The Telegram ContextTypes object for bot interaction.
+            user_input: The processed user input text.
+            placeholder_message: The placeholder message to be edited with the final result.
+        """
+        try:
+            # 初始化 LLM 客户端
+            client = llm.LLM()
+            logger.debug("LLM 客户端初始化完成")
+
+            # 构建与 LLM 交互的 messages，包含系统提示和用户输入
+            prompt_text = PrivateToolRegistry.get_prompt_text()
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        f"{prompt_text}\n\n"
+                        "你是一个智能助手，根据用户输入判断是否需要调用工具。"
+                        "如果需要调用工具，请以 JSON 格式返回工具调用信息；否则，直接用中文回复用户的请求。"
+                        "如果用户请求涉及多个步骤，可以返回多个工具调用指令，格式为 {'tool_calls': [...]}。"
+                        "工具调用结果会反馈给你，你可以基于结果进行分析或决定下一步操作。"
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"用户输入: {user_input}"
+                }
+            ]
+
+            final_result = ""
+            current_messages = messages.copy()
+            max_iterations = 5  # 防止无限循环
+            iteration = 0
+
+            while iteration < max_iterations:
+                iteration += 1
+                # 直接设置 messages
+                client.set_messages(current_messages)
+                logger.debug(f"已设置 messages: {current_messages}")
+
+                # 获取 LLM 响应
+                ai_response = await client.final_response()
+                logger.info(f"LLM 响应: {ai_response}")
+
+                # 解析 LLM 响应并调用工具
+                result, intermediate_results = await parse_and_invoke_tool(ai_response, update, context)
+                if intermediate_results:  # 如果有工具调用
+                    logger.info(f"工具调用结果: {result}")
+                    # 使用 Markdown 代码块包裹工具调用结果
+                    formatted_result = f"```\n{result}\n```"
+                    final_result += formatted_result + "\n"
+                    # 更新占位消息以显示当前进度
+                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}", parse_mode="Markdown")
+
+                    # 将工具调用结果反馈给 LLM
+                    feedback_content = "工具调用结果:\n" + "\n".join(
+                        [f"{res['tool_name']} 执行结果: {res['result']}" for res in intermediate_results]
+                    )
+                    current_messages.append({
+                        "role": "assistant",
+                        "content": ai_response
+                    })
+                    current_messages.append({
+                        "role": "user",
+                        "content": feedback_content
+                    })
+                    logger.debug(f"已将工具调用结果反馈给 LLM: {feedback_content}")
+                else:
+                    logger.info(f"未调用工具，直接回复用户: {result}")
+                    final_result += result
+                    break  # 没有工具调用，结束循环
+
+            # 编辑占位消息以显示最终结果，使用 Markdown 格式
+            await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
+            logger.debug("已编辑占位消息，显示最终结果")
+
+        except Exception as e:
+            logger.error(f"处理 /tool 命令时发生错误: {str(e)}")
+            # 编辑占位消息以显示错误信息，使用 Markdown 格式
+            error_message = f"处理请求时发生错误: `{str(e)}`"
+            await placeholder_message.edit_text(error_message, parse_mode="Markdown")
+            logger.debug("已编辑占位消息，显示错误信息")

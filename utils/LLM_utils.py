@@ -85,7 +85,7 @@ llm_client_manager = LLMClientManager()
 
 
 class LLM:
-    def __init__(self, api, chat_type):
+    def __init__(self, api=default_api, chat_type='private'):
         self.key, self.base_url, self.model = file.get_api_config(api)
         self.client = None
         self.messages = []
@@ -168,6 +168,7 @@ class LLM:
 
     def set_prompt(self, prompts):
         self.prompts = prompts
+
 
     def set_default_client(self):
         self.key, self.base_url, self.model = file.get_api_config(default_api)
