@@ -27,6 +27,7 @@ class CommandMeta:
         self.menu_weight = menu_weight
         self.enabled = enabled
 
+
 class BaseCommand(ABC):
     meta: CommandMeta
 
@@ -52,6 +53,7 @@ class BaseCommand(ABC):
     @abstractmethod
     async def handle(self, update, context: ContextTypes.DEFAULT_TYPE):
         pass
+
 
 class BotCommandData:  # 为了区分，改名为BotCommandData
     def __init__(self, command, description):

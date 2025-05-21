@@ -1,11 +1,13 @@
+import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from bot_core.public_functions.conversation import PrivateConv
 from bot_core.public_functions.decorators import Decorators
+from utils.logging_utils import setup_logging
 from . import features
 
-import logging
-from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -36,4 +38,3 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     except Exception as e:
         logger.error(f"处理私聊消息时出错: {str(e)}，用户ID: {user_id}", exc_info=True)
-

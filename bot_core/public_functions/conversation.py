@@ -1,12 +1,16 @@
 import asyncio
-import random,json
+import json
+import logging
+import random
+
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
+
 from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
 from utils.LLM_utils import LLM
-import logging
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -79,7 +83,7 @@ class Message:
     该类处理消息的原始文本和处理后的文本，根据标记类型进行特殊处理。
     """
 
-    def __init__(self, id, text, mark):
+    def __init__(self, msg_id, text, mark):
         """
         初始化消息对象。
 
@@ -94,7 +98,7 @@ class Message:
         text_processed (str): 处理后的文本，根据标记进行提取或转换。
         """
         # print(text)  # 调试语句：打印原始文本
-        self.id = id
+        self.id = msg_id
         self.text_raw = text
         if mark == 'input':
             self.text_processed = txt.extract_special_control(text)[0] or text  # 对于输入消息，提取特殊控制内容
@@ -209,8 +213,7 @@ class GroupConv:
         if not self.id:
             self._new()
         self.images = self._extract_images()
-        self.client = LLM(self.config.api,'group')
-
+        self.client = LLM(self.config.api, 'group')
 
     def _extract_images(self) -> list:
         """
@@ -288,15 +291,13 @@ class GroupConv:
         发送占位消息并启动异步任务。
         """
         self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
-        if self.trigger in ['random', 'keyword','@']:
+        if self.trigger in ['random', 'keyword', '@']:
             logger.debug(f"触发了{self.trigger}")
-            self.id = None# 创建一次性响应任务
+            self.id = None  # 创建一次性响应任务
         else:
             if not self.id:
                 self._new()  # 如果会话ID不存在，创建新会话
         _task = asyncio.create_task(self._response_to_user())  # 创建对话响应任务
-
-
 
     async def _response_to_user(self):
         """
@@ -307,20 +308,8 @@ class GroupConv:
         """
         self.client.build_conv_messages(self.id)
         self.client.set_prompt(self.prompt)
-        await self.client.embedd_all_text(self.images,self.context,self.group.id)
-        last_update_time = asyncio.get_event_loop().time()
-        last_updated_content = "..."
-        response_chunks = []
-        response='Error：未能获取模型回复。'
-        async for chunk in self.client.response(False):
-            response_chunks.append(chunk)
-            response = "".join(response_chunks)
-            current_time = asyncio.get_event_loop().time()
-            if current_time - last_update_time >= 4.0 and response != last_updated_content:
-                await _update_message(response, self.placeholder)
-                last_updated_content = response
-                last_update_time = current_time
-            await asyncio.sleep(0.01)
+        await self.client.embedd_all_text(self.images, self.context, self.group.id)
+        response = await self.client.final_response()
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
         await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
         self._update_usage_info()  # 更新使用信息
@@ -370,12 +359,9 @@ class GroupConv:
                                self.group.id)  # 更新处理后响应
 
 
-
 class ConvManager:
-    def __init__(self,chat_type):
+    def __init__(self, chat_type):
         self.chat_type = chat_type
-
-
 
 
 class PrivateConv:
@@ -420,7 +406,7 @@ class PrivateConv:
         # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
         self.config = Config(self.user.id)
-        self.client = LLM(self.config.api,'private')
+        self.client = LLM(self.config.api, 'private')
         if not self.id:
             self.new()
         # 构建 prompt
@@ -534,22 +520,18 @@ class PrivateConv:
                                          '<character>',
                                          'before')
 
-
     async def _response_to_user(self, save):
         """
         Args:
             save (bool): 是否保存对话记录到数据库.
         """
-        # print("流式回复")
         last_update_time = asyncio.get_event_loop().time()
         last_updated_content = "..."
         response_chunks = []
 
         self.client.build_conv_messages(self.id)
-        #print(f"已设置{self.id}")
         self.client.set_prompt(self.prompt)
         await self.client.embedd_all_text()
-
         async for chunk in self.client.response(self.config.stream):
             response_chunks.append(chunk)
             response = "".join(response_chunks)
@@ -585,7 +567,7 @@ class PrivateConv:
         该方法计算输入和输出的 token 数量,并更新数据库中用户的
         token 数量,对话轮次和剩余频率.
         """
-        input_tokens = llm.calculate_token_count(str(self.client.messages)) # 计算输入tokens
+        input_tokens = llm.calculate_token_count(str(self.client.messages))  # 计算输入tokens
         logger.info(f"输入令牌：{input_tokens}")
         db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
         output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
@@ -597,7 +579,7 @@ class PrivateConv:
 
     def _update_frequency(self):
         if self.user.tmp_frequency > 0:
-            db.user_sign_info_update(self.user.id, 'frequency', self.config.multiple * -1, True)
+            db.user_sign_info_update(self.user.id, 'frequency', self.config.multiple * -1)
         else:
             db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)
 
@@ -605,9 +587,9 @@ class PrivateConv:
 async def _update_message(text, placeholder):
     try:
         # Telegram 单条消息最大长度限制4096字符，保险起见用4000
-        MAX_LEN = 4000
-        if len(text) > MAX_LEN:
-            text = text[-MAX_LEN:]
+        max_len = 4000
+        if len(text) > max_len:
+            text = text[-max_len:]
         await placeholder.edit_text(text, parse_mode="markdown")
     except BadRequest as e:
         logger.warning(f"Markdown 解析错误: {str(e)}, 禁用 Markdown 重试")

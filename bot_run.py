@@ -1,5 +1,7 @@
 import importlib
 import inspect
+import logging
+
 import telegram
 from telegram import Update, BotCommand as TelegramBotCommand, BotCommandScopeDefault, BotCommandScopeAllGroupChats
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
@@ -10,10 +12,11 @@ from bot_core.callback_handlers.callback import create_callback_handler  # 修�
 from bot_core.command_handlers.base import BaseCommand, BotCommandData
 from bot_core.public_functions.config import BOT_TOKEN
 from bot_core.public_functions.error import BotError, ConfigError
-import logging
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
+
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -60,13 +63,13 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 class CommandHandlers:
 
     @staticmethod
-    def get_command_handlers(module_names, filters=None):
+    def get_command_handlers(module_names, tg_filters=None):
         """
         动态扫描指定模块，提取所有BaseCommand的子类，并生成对应的CommandHandler实例。
 
         Args:
             module_names (list): 模块名称列表.
-            filters: (telegram.ext.filters, optional): CommandHandler的过滤器。默认为None。
+            tg_filters: (telegram.ext.filters, optional): CommandHandler的过滤器。默认为None。
 
         Returns:
             list: CommandHandler实例列表。
@@ -88,7 +91,7 @@ class CommandHandlers:
                                 logger.debug(
                                     f"{name}命令已加载,启用:{instance.meta.enabled},展示在目录:{instance.meta.show_in_menu}")
                                 handler = CommandHandler(instance.meta.trigger, instance.handler,
-                                                         filters=filters)  # 使用预处理过的handler
+                                                         filters=tg_filters)  # 使用预处理过的handler
                                 command_handlers.append(handler)
                     except Exception as e:
                         logger.error(f"Error creating CommandHandler for {name}: {e}",
@@ -98,8 +101,7 @@ class CommandHandlers:
         return command_handlers
 
     @staticmethod
-    def get_command_definitions(module_names: list[str]) -> dict[
-        str, list[BotCommandData]]:  # 类型提示BotCommandData
+    def get_command_definitions(module_names: list[str]) -> dict[str, list[BotCommandData]]:  # 类型提示BotCommandData
         """
         动态扫描指定模块，提取所有BaseCommand的子类，并根据其meta属性，生成命令字典。
         Args:
@@ -145,7 +147,7 @@ class CommandHandlers:
         for command_type in command_definitions:
             command_definitions[command_type] = sorted(
                 command_definitions[command_type],
-                key=lambda cmd: next((getattr(cls, 'meta').menu_weight for name, cls in inspect.getmembers(
+                key=lambda cmd: next((getattr(cls, 'meta').menu_weight for cmd_name, cls in inspect.getmembers(
                     importlib.import_module(f'bot_core.command_handlers.{command_type}')) if
                                       inspect.isclass(cls) and issubclass(cls,
                                                                           BaseCommand) and cls != BaseCommand and getattr(
@@ -163,13 +165,12 @@ def setup_handlers(app: Application) -> None:
     """
 
     # 定义所有需要加载的命令模块
-    command_modules = ['private', 'admin', 'group']
 
     # 获取所有命令处理器
-    private_handlers = CommandHandlers.get_command_handlers(['private'], filters=filters.ChatType.PRIVATE)
-    admin_handlers = CommandHandlers.get_command_handlers(['admin'], filters=filters.ChatType.PRIVATE)
+    private_handlers = CommandHandlers.get_command_handlers(['private'], tg_filters=filters.ChatType.PRIVATE)
+    admin_handlers = CommandHandlers.get_command_handlers(['admin'], tg_filters=filters.ChatType.PRIVATE)
     group_handlers = CommandHandlers.get_command_handlers(['group'],
-                                                          filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)
+                                                          tg_filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)
 
     # 消息处理器
     message_handlers = [
@@ -179,11 +180,10 @@ def setup_handlers(app: Application) -> None:
         ),
         MessageHandler(
             (filters.TEXT | filters.PHOTO | filters.Document.ALL) & ~filters.COMMAND & (
-                        filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
+                    filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
             group_handler.group_msg_handler
         ),
     ]
-
 
     # 注册所有命令处理器
     for handler in private_handlers + group_handlers + admin_handlers:
@@ -229,7 +229,7 @@ def main() -> None:
                 # 设置私聊命令菜单
                 private_commands = [TelegramBotCommand(cmd.command, cmd.description) for cmd in
                                     command_menus['private']]  # 关键改动，使用TelegramBotCommand
-                await app_instance.bot.set_my_commands(
+                await app_instance.bot.set_my_commands( # type: ignore
                     private_commands,
                     scope=BotCommandScopeDefault()
                 )
@@ -238,13 +238,13 @@ def main() -> None:
                 # 设置群组命令菜单
                 group_commands = [TelegramBotCommand(cmd.command, cmd.description) for cmd in
                                   command_menus['group']]  # 关键改动，使用TelegramBotCommand
-                await app_instance.bot.set_my_commands(
+                await app_instance.bot.set_my_commands( # type: ignore
                     group_commands,
                     scope=BotCommandScopeAllGroupChats()
                 )
                 logger.info("群组命令菜单已设置完成")
-            except Exception as e:
-                error_msg = f"设置命令菜单失败: {str(e)}"
+            except Exception as error:
+                error_msg = f"设置命令菜单失败: {str(error)}"
                 logger.error(error_msg, exc_info=True)
                 raise BotError(error_msg)
 

@@ -15,6 +15,7 @@ class AddFrequencyCommand(BaseCommand):
         menu_weight=20,
         bot_admin_required=True
     )
+
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         args = context.args if hasattr(context, 'args') else []
         if len(args) < 2:
@@ -28,9 +29,11 @@ class AddFrequencyCommand(BaseCommand):
         else:
             if db.user_info_update(target_user, 'remain_frequency', value, True):
                 if not target_user.startswith('@'):
-                    await update.message.reply_text(f"已为{str(db.user_info_get(target_user)['user_name'])}添加{value}条额度")
+                    await update.message.reply_text(
+                        f"已为{str(db.user_info_get(target_user)['user_name'])}添加{value}条额度")
                 else:
                     await update.message.reply_text(f"已为{target_user}添加{value}条额度")
+
 
 class SetTierCommand(BaseCommand):
     meta = CommandMeta(
@@ -42,6 +45,7 @@ class SetTierCommand(BaseCommand):
         menu_weight=20,
         bot_admin_required=True,
     )
+
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         args = context.args if hasattr(context, 'args') else []
         if len(args) < 2:
@@ -51,4 +55,5 @@ class SetTierCommand(BaseCommand):
         value = int(args[1])
 
         db.user_info_update(target_user_id, 'account_tier', value, False)
-        await update.message.reply_text(f"{str(db.user_info_get(target_user_id)['user_name'])}账户等级现在是{str(db.user_info_get(target_user_id)['tier'])}")
+        await update.message.reply_text(
+            f"{str(db.user_info_get(target_user_id)['user_name'])}账户等级现在是{str(db.user_info_get(target_user_id)['tier'])}")

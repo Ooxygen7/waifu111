@@ -1,4 +1,6 @@
-import asyncio, base64
+import asyncio
+import base64
+import logging
 from typing import Dict, Tuple
 
 import httpx
@@ -9,8 +11,8 @@ from utils import db_utils as db
 from utils import file_utils as file
 from utils import market_utils as market
 from utils import prompt_utils as prompt
-import logging
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -96,8 +98,6 @@ class LLM:
                     构建符合OpenAI API要求的消息列表
                     Args:
                         conv_id: 对话ID
-                        output_type: 输出类型('private'/'group')
-
                     Returns:
                         list: 格式化后的消息列表，包含role和content字段
                     """
@@ -123,16 +123,13 @@ class LLM:
         self.messages = messages
         return None
 
-    def set_prompt(self, prompts):
-        self.prompts = prompts
-
-    async def embedd_all_text(self, images: list = None, context=None,group_id = None):
+    async def embedd_all_text(self, images: list = None, context=None, group_id=None):
         char = None
         if self.chat_type == 'private':
             # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_private_get(self.conv_id)
         elif self.chat_type == 'group':
-            char, _ = db.conversation_group_config_get(self.conv_id,group_id)
+            char, _ = db.conversation_group_config_get(self.conv_id, group_id)
         if char and char == default_char:
             user_actual_input = self.prompts
             if '<user_input>\r\n' in self.prompts:
@@ -166,8 +163,14 @@ class LLM:
         for message in self.messages:
             logger.debug(message)
 
-    async def set_messages(self, messages):
+    def set_messages(self, messages):
         self.messages = messages
+
+    def set_prompt(self, prompts):
+        self.prompts = prompts
+
+    def set_default_client(self):
+        self.key, self.base_url, self.model = file.get_api_config(default_api)
 
     async def response(self, stream: bool = False):
         self.client = await llm_client_manager.get_client(self.key, self.base_url, self.model)
@@ -187,6 +190,15 @@ class LLM:
                     yield response.choices[0].message.content
             except Exception as e:
                 raise RuntimeError(f"API调用失败 (stream): {str(e)}")
+
+    async def final_response(self):
+        response_chunks = []
+        response = ''
+        async for chunk in self.response():
+            response_chunks.append(chunk)
+            response = "".join(response_chunks)
+            await asyncio.sleep(0.01)
+        return response
 
 
 async def build_client_managed(key: str, url: str, model: str) -> tuple[openai.AsyncOpenAI, str]:
@@ -211,23 +223,12 @@ async def generate_summary(conversation_id: int) -> str:
     async with llm_client_manager.semaphore:
         try:
             # 构建对话历史
-            client = LLM(default_api,'private')
+            client = LLM(default_api, 'private')
             client.build_conv_messages(conversation_id)
-            history = client.messages
-            history.append({"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字\r\n"})
+            client.messages.append(
+                {"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字\r\n"})
+            return await client.final_response()
 
-            # 获取API配置
-            api_key, api_url, api_model = file.get_api_config(default_api)
-            client, model = await build_client_managed(api_key, api_url, api_model)
-
-            # 调用API生成总结
-            response = await client.chat.completions.create(
-                model=model,
-                messages=history,
-                max_tokens=8000,
-                stream=False
-            )
-            return response.choices[0].message.content
         except Exception as e:
             raise ValueError(f"生成总结失败: {str(e)}")
 
@@ -282,21 +283,11 @@ async def generate_char(character_description: str) -> str:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": character_description}
             ]
-
-            # 获取API配置
-            api_key, api_url, api_model = file.get_api_config(default_api)
-            client, model = await build_client_managed(api_key, api_url, api_model)
-            # 调用API生成角色
-            response = await client.chat.completions.create(
-                model=model,
-                messages=history,
-                max_tokens=8000,
-                stream=False
-            )
-
-            # 打印并返回结果
-            result = response.choices[0].message.content
-            print(f"LLM输出角色\r\n{result}\r\n")
+            client = LLM(default_api, 'private')
+            client.set_messages(history)
+            client.set_default_client()
+            result = await client.final_response()
+            logger.debug(f"LLM输出角色\r\n{result}\r\n")
             return result
 
         except Exception as e:
@@ -332,13 +323,13 @@ async def convert_file_id_to_base64(file_id: str, context) -> dict:
     """
     try:
         # 获取文件对象
-        file = await context.bot.get_file(file_id)
+        cfg_file = await context.bot.get_file(file_id)
         # 下载文件数据
-        file_data = await file.download_as_bytearray()
+        file_data = await cfg_file.download_as_bytearray()
         # 确定 MIME 类型
         mime_type = "image/jpeg"  # 默认值
-        if file.file_path:
-            file_path_lower = file.file_path.lower()
+        if cfg_file.file_path:
+            file_path_lower = cfg_file.file_path.lower()
             if file_path_lower.endswith('.png'):
                 mime_type = "image/png"
             elif file_path_lower.endswith('.gif'):
@@ -356,4 +347,4 @@ async def convert_file_id_to_base64(file_id: str, context) -> dict:
         return {"mime_type": mime_type, "data": base64_data}
     except Exception as e:
         print(f"转换 file_id 到 Base64 失败: {str(e)}")
-        return None
+        return {}

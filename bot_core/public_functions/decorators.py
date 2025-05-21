@@ -1,5 +1,6 @@
 import datetime
 import functools
+import logging
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -8,9 +9,8 @@ from bot_core.public_functions.config import DEFAULT_CHAR, DEFAULT_PRESET, DEFAU
 from bot_core.public_functions.error import BotError, DatabaseError
 from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
-
-import logging
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class Decorators:
                     await update.message.reply_text("仅管理员可操作此命令。")
                 elif hasattr(update, 'callback_query') and update.callback_query:
                     await update.callback_query.answer("仅管理员可操作。", show_alert=True)
-                return
+                return None
             return await func(update, context, *args, **kwargs)
 
         return wrapper
@@ -65,7 +65,7 @@ class Decorators:
                 if hasattr(update, 'message') and update.message:
                     await update.message.reply_text("无权限操作，仅管理员可用。")
                 # 如果是其他类型（如回调查询），可以扩展逻辑
-                return  # 停止执行
+                return None  # 停止执行
             return await func(update, context, *args, **kwargs)
 
         return wrapper

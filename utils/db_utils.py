@@ -1,12 +1,13 @@
 import datetime
 import json
+import logging
 import sqlite3
 import threading
 from sqlite3 import Error
 from typing import Any, List, Optional, Tuple
 
-import logging
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class DatabaseConnectionPool:
 db_pool = DatabaseConnectionPool()
 
 
-def create_connection(db_file: str = "./data/data.db") -> Optional[sqlite3.Connection]:
+def create_connection() -> Optional[sqlite3.Connection]:
     """获取一个数据库连接（主要为兼容旧代码，推荐直接使用连接池）。"""
     conn, _ = db_pool.get_connection()
     return conn
@@ -272,7 +273,7 @@ def user_info_update(userid, field: str, value: Any, increment: bool = False) ->
     :param increment: 是否为增量更新，默认为 False（直接设置值）
     :return: 更新是否成功
     """
-    if type(userid) == int:
+    if type(userid) is int:
         if increment:
             command = f"UPDATE users SET {field} = COALESCE({field}, 0) + ? WHERE uid = ?"
         else:
@@ -476,7 +477,7 @@ def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:
         return False  # 发生错误时，返回 False
 
 
-def conversation_group_config_get(conv_id: int,group_id:int) -> Optional[Tuple[str, str]]:
+def conversation_group_config_get(conv_id: int, group_id: int) -> Optional[Tuple[str, str]]:
     """获取指定群聊用户会话关联的群组的角色和预设。返回 (char, preset) 元组。"""
     if group_id:
         command = "SELECT char, preset FROM groups WHERE group_id = ?"
@@ -723,7 +724,7 @@ def user_sign(user_id: int) -> bool:
     return result > 0
 
 
-def user_sign_info_update(user_id: int, field: str, value: Any, increase: bool = True) -> bool:
+def user_sign_info_update(user_id: int, field: str, value: Any) -> bool:
     command = f"UPDATE user_sign SET {field} = COALESCE({field}, 0)+? WHERE user_id =?"
     result = revise_db(command, (value, user_id))
     return result > 0

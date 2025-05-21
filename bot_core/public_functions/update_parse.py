@@ -1,15 +1,16 @@
+import logging
+
 from telegram import Update
 
 from bot_core.public_functions.error import BotError, DatabaseError
 from utils import db_utils as db
-
-import logging
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def update_info_get(update: Update) -> dict:
+def update_info_get(update: Update) -> dict | None:
     """从Telegram的Update对象中提取并整合有用的信息。
     Args:
         update (Update): Telegram的Update对象。
@@ -23,6 +24,7 @@ def update_info_get(update: Update) -> dict:
             return _process_message(update.message)
         elif update.callback_query:
             return _process_callback_query(update.callback_query)
+        return None
     except Exception as e:
         logger.error(f"解析update信息错误: {str(e)}")
         raise BotError(f"解析update信息错误: {str(e)}")

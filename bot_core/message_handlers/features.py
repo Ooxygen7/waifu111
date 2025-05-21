@@ -34,6 +34,7 @@ async def private_newchar(update, newchar_state, user_id):
         await update.message.reply_text("文本已接收，可继续发送文本或文件，发送 /done 完成。")
         return
 
+
 async def group_keyword_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'keyword_action' not in context.user_data or context.user_data['keyword_action'] != 'add':
         return

@@ -4,8 +4,6 @@ import os  # 用于文件路径和文件操作
 import time  # 用于缓存过期时间
 from typing import Dict, List, Optional, Tuple  # 用于类型提示
 
-import tiktoken  # 用于计算token数
-
 from utils import text_utils as txt
 
 """

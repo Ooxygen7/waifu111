@@ -1,14 +1,13 @@
-
+import logging
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db
+from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
 
-import logging
-from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,7 @@ class KeywordCommand(BaseCommand):
         group_admin_required=True
     )
 
-    async def handle(self,update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         keywords = db.group_keyword_get(update.message.chat.id)
         if not keywords:
             keywords_text = "当前群组没有设置关键词。"

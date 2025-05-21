@@ -29,6 +29,7 @@ class CommandMeta:
         self.menu_weight = menu_weight
         self.enabled = enabled
 
+
 class CallbackMeta:
     def __init__(self,
                  name: str,
@@ -41,6 +42,7 @@ class CallbackMeta:
         self.group_admin_required = group_admin_required
         self.trigger = trigger
         self.enabled = enabled
+
 
 class BaseCallback(ABC):
     meta: CallbackMeta

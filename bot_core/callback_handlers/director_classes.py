@@ -1,4 +1,5 @@
 from typing import Dict, List
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
@@ -35,6 +36,7 @@ class MenuElement:
 
 # 导演菜单管理类
 class DirectorMenu:
+    # noinspection SpellCheckingInspection
     def __init__(self):
         # 映射 target 到真实的长字符串数据
         self.data_mapping = {

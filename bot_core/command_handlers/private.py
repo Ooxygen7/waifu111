@@ -1,21 +1,21 @@
 import asyncio
+import datetime
 import json
+import logging
 import os
 import re
-import datetime
 from pathlib import Path
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from bot_core.public_functions.conversation import PrivateConv
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
+from bot_core.public_functions.conversation import PrivateConv
 from utils import db_utils as db, LLM_utils as llm
+from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
 
-import logging
-from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -137,15 +137,19 @@ class SaveCommand(BaseCommand):
                                           config['preset']) and db.conversation_private_save(config['conv_id']):
             placeholder_message = await update.message.reply_text("保存中...")
 
-            async def create_summary(conv_id, placeholder_message):
+            async def create_summary(conv_id, placeholder):
                 summary = await llm.generate_summary(conv_id)
                 if db.conversation_private_summary_add(conv_id, summary):
                     logger.info(f"保存对话并生成总结, conv_id: {conv_id}, summary: {summary}")
-                    await placeholder_message.edit_text(f"保存成功，对话总结:`{summary}`")
+                    try:
+                        await placeholder.edit_text(f"保存成功，对话总结:`{summary}`", parse_mode='MarkDown')
+                    except Exception as e:
+                        logger.warning(e)
+                        await placeholder.edit_text(f"保存成功，对话总结:`{summary}`")
                 else:
-                    await placeholder_message.edit_text("保存失败")
+                    await placeholder.edit_text("保存失败")
 
-            task = asyncio.create_task(create_summary(config['conv_id'], placeholder_message))
+            _task = asyncio.create_task(create_summary(config['conv_id'], placeholder_message))
             return
 
 
@@ -299,38 +303,39 @@ class DoneCommand(BaseCommand):
         try:
             placeholder_message = await update.message.reply_text(f"正在生成...")
 
-            async def _generate_char(placeholder_message, desc, save_dir, char_name, user_id, context):
+            async def _generate_char(placeholder, char_description, save_to, name_char, uid, tg_context):
                 generated_content = None
                 try:
-                    generated_content = await llm.generate_char(desc)
+                    generated_content = await llm.generate_char(char_description)
                     json_pattern = r'```json\s*([\s\S]*?)\s*```|```([\s\S]*?)\s*```|\{[\s\S]*\}'
                     match = re.search(json_pattern, generated_content)
                     if match:
                         json_str = next(group for group in match.groups() if group)
                         char_data = json.loads(json_str)
-                        save_path = os.path.join(save_dir, f"{char_name}_{user_id}.json")
-                        with open(save_path, 'w', encoding='utf-8') as f:
+                        save_to = os.path.join(save_to, f"{name_char}_{uid}.json")
+                        with open(save_to, 'w', encoding='utf-8') as f:
                             json.dump(char_data, f, ensure_ascii=False, indent=2)
-                        await placeholder_message.edit_text(f"角色 {char_name} 已保存到 {save_path}")
+                        await placeholder.edit_text(f"角色 {name_char} 已保存到 {save_to}")
                     else:
-                        save_path = os.path.join(save_dir, f"{char_name}_{user_id}.txt")
-                        with open(save_path, 'w', encoding='utf-8') as f:
+                        save_to = os.path.join(save_to, f"{name_char}_{uid}.txt")
+                        with open(save_to, 'w', encoding='utf-8') as f:
                             f.write(generated_content)
-                        await placeholder_message.edit_text(
+                        await placeholder.edit_text(
                             "警告：未能从生成内容中提取 JSON 数据，保存原始内容到 {save_path}。")
-                except json.JSONDecodeError as e:
-                    save_path = os.path.join(save_dir, f"{char_name}_{user_id}.txt")
-                    with open(save_path, 'w', encoding='utf-8') as f:
+                except json.JSONDecodeError as error:
+                    save_to = os.path.join(save_to, f"{name_char}_{uid}.txt")
+                    with open(save_to, 'w', encoding='utf-8') as f:
                         f.write(generated_content)
-                    await placeholder_message.edit_text(
-                        f"错误：无法解析生成的 JSON 内容，保存为原始文本到 {save_path}。错误信息：{str(e)}")
-                except Exception as e:
-                    await placeholder_message.edit_text(f"保存角色 {char_name} 时发生错误：{str(e)}")
+                    await placeholder.edit_text(
+                        f"错误：无法解析生成的 JSON 内容，保存为原始文本到 {save_to}。错误信息：{str(error)}")
+                except Exception as error:
+                    await placeholder.edit_text(f"保存角色 {name_char} 时发生错误：{str(error)}")
                 finally:
-                    if user_id in context.bot_data.get('newchar_state', {}):
-                        del context.bot_data['newchar_state'][user_id]
+                    if uid in tg_context.bot_data.get('newchar_state', {}):
+                        del tg_context.bot_data['newchar_state'][uid]
 
-            task = asyncio.create_task(_generate_char(placeholder_message, desc, save_dir, char_name, user_id, context))
+            _task = asyncio.create_task(
+                _generate_char(placeholder_message, desc, save_dir, char_name, user_id, context))
         except Exception as e:
             await update.message.reply_text(f"初始化保存过程时发生错误：{str(e)}")
 

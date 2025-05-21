@@ -1,7 +1,10 @@
+import logging
+
 import ccxt
 import pandas as pd
-import logging
+
 from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 

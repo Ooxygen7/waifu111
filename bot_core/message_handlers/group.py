@@ -1,4 +1,5 @@
 import datetime
+import logging
 import random
 from typing import Union
 
@@ -10,10 +11,9 @@ from bot_core.public_functions.decorators import Decorators
 from bot_core.public_functions.error import DatabaseError, BotError
 from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
+from utils.logging_utils import setup_logging
 from . import features
 
-import logging
-from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,7 @@ async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if not needs_reply:
         return
     else:
-        conversation = GroupConv(update,context)
+        conversation = GroupConv(update, context)
         conversation.set_trigger(needs_reply)
         await conversation.response()
 
@@ -89,6 +89,7 @@ def _group_dialog_add(info) -> bool:
     except Exception as e:
         logger.error(f"添加群聊对话记录失败, group_id: {info['group_id']}, 错误: {str(e)}")
         raise DatabaseError(f"添加群聊对话记录失败: {str(e)}")
+
 
 def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, bool]:
     """
@@ -115,17 +116,6 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if message.reply_to_message.from_user.id == context.bot.id:
                 logger.info(f"触发回复Bot, group_name: {group_name}, user_name: {user_name}")
                 return 'reply'
-            else:
-                if message_text:
-                    if f"@{bot_username}" in message_text:
-                        logger.info(f"触发@Bot, group_name: {group_name}, user_name: {user_name}")
-                        return '@'
-                    if keyword_list and any(keyword in message_text for keyword in keyword_list):
-                        logger.info(f"触发关键词, group_name: {group_name}, user_name: {user_name}")
-                        return 'keyword'
-                    if random.random() < rate:
-                        logger.info(f"触发随机回复, group_name: {group_name}, user_name: {user_name}")
-                        return 'random'
         if message_text:
             if f"@{bot_username}" in message_text:
                 logger.info(f"触发@Bot, group_name: {group_name}, user_name: {user_name}")
@@ -137,7 +127,7 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 logger.info(f"触发随机回复, group_name: {group_name}, user_name: {user_name}")
                 return 'random'
 
-        #logger.info(f"未触发任何条件, group_name: {group_name}, user_name: {user_name}")
+        # logger.info(f"未触发任何条件, group_name: {group_name}, user_name: {user_name}")
         return False
     except Exception as e:
         logger.error(f"检查群聊消息是否需要回复失败, group_id: {group_id}, 错误: {str(e)}")

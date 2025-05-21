@@ -1,7 +1,9 @@
 # callback.py
 import importlib
 import inspect
-import os,time
+import logging
+import os
+import time
 from typing import Dict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,12 +14,11 @@ import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.base import BaseCallback, CallbackMeta
 from bot_core.public_functions.error import BotError
 from utils import db_utils as db
+from utils.logging_utils import setup_logging
 from .director_classes import DirectorMenu
 from .inline import Inline
 from ..public_functions.conversation import PrivateConv
 
-import logging
-from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,7 @@ class SetConversationCallback(BaseCallback):
         try:
             info = public.update_info_get(update)
             if db.user_config_arg_update(info['user_id'], 'conv_id', data):
-                char, preset = db.conversation_private_get(data)
+                char, preset = db.conversation_private_get(int(data))
                 if db.user_config_arg_update(info['user_id'], 'preset', preset) and db.user_config_arg_update(
                         info['user_id'], 'char', char):
                     await update.callback_query.message.edit_text(f"加载对话成功！当前对话: {data}。")
@@ -181,7 +182,7 @@ class DelConversationCallback(BaseCallback):
         """
         处理对话删除回调。
         """
-        db.conversation_private_delete(data)
+        db.conversation_private_delete(int(data))
         await update.callback_query.message.edit_text(f"删除对话成功！删除了对话: {data}。")
 
 
@@ -217,13 +218,13 @@ class GroupKeywordCancelCallback(BaseCallback):
         group_admin_required=True
     )
 
-    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data=None) -> None:
         """
         处理关键词取消回调
         """
         query = update.callback_query
         await query.answer()
-        group_id = int(query.data.split('_')[-1])
+        # group_id = int(query.data.split('_')[-1])
         original_message_id = context.user_data.get('original_message_id')
         if original_message_id:
             try:
@@ -456,7 +457,7 @@ class SettingsCallback(BaseCallback):
             await query.edit_message_text(f"您的信息：\n{result}", reply_markup=reply_markup, parse_mode='Markdown')
         elif data == 'dialogue_new':
             info = public.update_info_get(update)
-            conversation = PrivateConv(update,context)
+            conversation = PrivateConv(update, context)
             conversation.new()
             preset_markup = Inline.print_preset_list()
             char_markup = Inline.print_char_list('load', 'private', info['user_id'])
@@ -526,6 +527,7 @@ class DirectorCallback(BaseCallback):
     )
 
     def __init__(self):
+        super().__init__()
         self.menu_manager = DirectorMenu()  # 初始化菜单管理器
 
     async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = None) -> None:
@@ -550,7 +552,7 @@ class DirectorCallback(BaseCallback):
                 # 执行功能
                 stime = time.time()
                 action_data = data.replace("act_", "")
-                await self._handle_action(action_data, context, user_id, query,update)
+                await self._handle_action(action_data, context, user_id, query, update)
                 etime = time.time()
                 print(f'执行{data}耗时{etime - stime}秒')
             else:
@@ -565,7 +567,7 @@ class DirectorCallback(BaseCallback):
             logger.warning(f"未知的菜单ID: {menu_id}, user_id: {user_id}")
             await context.bot.send_message(user_id, "菜单未找到，返回主菜单。")
             menu_id = self.menu_manager.get_main_menu_id()
-            menu_meta = self.menu_manager.get_menu_meta(menu_id)
+            # menu_meta = self.menu_manager.get_menu_meta(menu_id)
 
         reply_markup = self.menu_manager.get_menu_keyboard(menu_id)
         description_text = self.menu_manager.get_menu_description_text(menu_id)
@@ -579,11 +581,12 @@ class DirectorCallback(BaseCallback):
             logger.warning(f"编辑消息失败: {str(e)}, user_id: {user_id}")
             await context.bot.send_message(user_id, description_text, reply_markup=reply_markup)
 
-    async def _handle_action(self, action_data: str, context: ContextTypes.DEFAULT_TYPE, user_id: int, query,update = None):
+    async def _handle_action(self, action_data: str, context: ContextTypes.DEFAULT_TYPE, user_id: int, query,
+                             update=None):
         """处理功能按钮的逻辑"""
         # 获取按钮文本（从回调查询的消息中提取按钮文本可能不可靠，因此从菜单数据中查找）
         button_text = "未知按钮"
-        conversation = PrivateConv(update,context)
+        conversation = PrivateConv(update, context)
         for menu in self.menu_manager.menus.values():
             for btn in menu.buttons:
                 if btn.btn_type == "action" and btn.target == action_data:
@@ -613,6 +616,7 @@ class DirectorCallback(BaseCallback):
         except BadRequest as e:
             logger.warning(f"删除消息失败: {str(e)}, user_id: {user_id} - 可能消息已删除或不可删除。")
         await self._send_menu(context, user_id, self.menu_manager.get_main_menu_id())
+
 
 class CallbackHandler:
     """
