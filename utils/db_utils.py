@@ -411,6 +411,10 @@ def dialog_content_load(conv_id: int, chat_type: str = 'private') -> Optional[Li
     result = query_db(command, (conv_id,))
     return result if result else None
 
+def dialog_last_input_get(conv_id) -> str:
+    command = "SELECT raw_content FROM dialogs WHERE conv_id = ? ORDER BY turn_order DESC LIMIT 2;"
+    result = query_db(command, (conv_id,))
+    return result[1][0] if result else ''
 
 def conversation_private_create(conv_id: int, userid: int, character: str, preset: str) -> bool:
     """创建一条新的私聊对话记录，并更新用户的 `update_at` 时间。返回操作是否成功。"""
@@ -445,10 +449,6 @@ def conversation_latest_message_id_get(conv_id: int) -> list:
         return []
 
 
-def dialog_last_input_get(conv_id) -> str:
-    command = "SELECT raw_content FROM dialogs WHERE conv_id = ? ORDER BY turn_order DESC LIMIT 2;"
-    result = query_db(command, (conv_id,))
-    return result[1][0] if result else ''
 
 
 def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:

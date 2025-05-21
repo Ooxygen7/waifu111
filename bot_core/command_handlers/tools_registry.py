@@ -39,14 +39,6 @@ class PrivateToolRegistry:
             "example": {"tool_name": "me", "parameters": {}},
             "return_value": "User information string (e.g., '用户名: user, 账户等级: 1, ...')"
         },
-        "new": {
-            "description": "Create a new conversation and prompt the user to select a preset and character.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that a new conversation has been created and selections prompted.",
-            "example": {"tool_name": "new", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'New conversation created, preset and character selection prompted.')"
-        },
         "status": {
             "description": "Display the current settings, including character, API, preset, and streaming status.",
             "type": "query",
@@ -54,22 +46,6 @@ class PrivateToolRegistry:
             "output_format": "A string containing current settings.",
             "example": {"tool_name": "status", "parameters": {}},
             "return_value": "Settings information string (e.g., '当前角色: char, 当前接口: api, ...')"
-        },
-        "char": {
-            "description": "Prompt the user to select a character for the conversation.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that character selection has been prompted.",
-            "example": {"tool_name": "char", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'Character selection prompted.')"
-        },
-        "delchar": {
-            "description": "Prompt the user to select a character to delete.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that character deletion selection has been prompted.",
-            "example": {"tool_name": "delchar", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'Character deletion selection prompted.')"
         },
         "newchar": {
             "description": "Start the creation of a new character with a specified name.",
@@ -96,38 +72,6 @@ class PrivateToolRegistry:
             "output_format": "A string confirming the nickname update or indicating failure.",
             "example": {"tool_name": "nick", "parameters": {"nickname": "CrispShark"}},
             "return_value": "Confirmation or error message (e.g., 'Nickname updated to CrispShark.')"
-        },
-        "api": {
-            "description": "Prompt the user to select an API based on their account tier.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that API selection has been prompted.",
-            "example": {"tool_name": "api", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'API selection prompted.')"
-        },
-        "preset": {
-            "description": "Prompt the user to select a preset for the conversation.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that preset selection has been prompted.",
-            "example": {"tool_name": "preset", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'Preset selection prompted.')"
-        },
-        "load": {
-            "description": "Prompt the user to load a saved conversation.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that conversation load selection has been prompted.",
-            "example": {"tool_name": "load", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'Conversation load selection prompted.')"
-        },
-        "delete": {
-            "description": "Prompt the user to delete a saved conversation.",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string confirming that conversation deletion selection has been prompted.",
-            "example": {"tool_name": "delete", "parameters": {}},
-            "return_value": "Confirmation message (e.g., 'Conversation deletion selection prompted.')"
         },
         "sign": {
             "description": "Perform a daily check-in to gain temporary quota (limited to once every 8 hours).",

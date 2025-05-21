@@ -23,6 +23,7 @@ from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+
 class PrivateTools:
     """A collection of tools for private commands that can be invoked by an LLM."""
 
@@ -66,33 +67,6 @@ class PrivateTools:
         return result
 
     @staticmethod
-    async def new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-        """
-        Create a new conversation and prompt the user to select a preset and character.
-
-        Description: Initializes a new conversation session and prompts user for configuration.
-        Type: Operation
-        Parameters: None
-        Return Value: A string confirming that a new conversation has been created and selections prompted.
-        Invocation: {"tool_name": "new", "parameters": {}}
-        """
-        info = public.update_info_get(update)
-        conversation = PrivateConv(update, context)
-        conversation.new()
-        await update.message.reply_text(f"创建成功！", parse_mode='Markdown')
-        preset_markup = Inline.print_preset_list()
-        if preset_markup == "没有可用的预设。":
-            await update.message.reply_text(preset_markup)
-        else:
-            await update.message.reply_text("请为新对话选择一个预设：", reply_markup=preset_markup)
-        char_markup = Inline.print_char_list('load', 'private', info['user_id'])
-        if char_markup == "没有可操作的角色。":
-            await update.message.reply_text(char_markup)
-        else:
-            await update.message.reply_text("请为新对话选择一个角色：", reply_markup=char_markup)
-        return "New conversation created, preset and character selection prompted."
-
-    @staticmethod
     async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
         """
         Display the current settings, including character, API, preset, and streaming status.
@@ -111,46 +85,6 @@ class PrivateTools:
             f"流式传输: {info['stream']}"
         )
         return result
-
-    @staticmethod
-    async def char(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-        """
-        Prompt the user to select a character for the conversation.
-
-        Description: Displays a list of available characters for the user to choose from.
-        Type: Operation
-        Parameters: None
-        Return Value: A string confirming that character selection has been prompted.
-        Invocation: {"tool_name": "char", "parameters": {}}
-        """
-        conversation = PrivateConv(update, context)
-        conversation.new()
-        markup = Inline.print_char_list('load', 'private', conversation.user.id)
-        if markup == "没有可操作的角色。":
-            await update.message.reply_text(markup)
-        else:
-            await update.message.reply_text("请选择一个角色：", reply_markup=markup)
-        await update.message.delete()
-        return "Character selection prompted."
-
-    @staticmethod
-    async def delchar(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-        """
-        Prompt the user to select a character to delete.
-
-        Description: Displays a list of characters for the user to choose one for deletion.
-        Type: Operation
-        Parameters: None
-        Return Value: A string confirming that character deletion selection has been prompted.
-        Invocation: {"tool_name": "delchar", "parameters": {}}
-        """
-        info = public.update_info_get(update)
-        markup = Inline.print_char_list('del', 'private', info['user_id'])
-        if markup == "没有可操作的角色。":
-            await update.message.reply_text(markup)
-        else:
-            await update.message.reply_text("请选择一个角色：", reply_markup=markup)
-        return "Character deletion selection prompted."
 
     @staticmethod
     async def newchar(update: Update, context: ContextTypes.DEFAULT_TYPE, char_name: Optional[str] = None) -> str:
@@ -196,70 +130,11 @@ class PrivateTools:
             return "Nickname required."
         nick_name = nickname or args[0].strip()
         if db.user_config_arg_update(info['user_id'], 'nick', nick_name):
-            #await update.message.reply_text(f"昵称已更新为：{nick_name}")
+            # await update.message.reply_text(f"昵称已更新为：{nick_name}")
             return f"Nickname updated to {nick_name}."
         else:
-            #await update.message.reply_text(f"昵称更新失败")
+            # await update.message.reply_text(f"昵称更新失败")
             return "Failed to update nickname."
-
-    @staticmethod
-    async def api(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-        """
-        Prompt the user to select an API based on their account tier.
-
-        Description: Displays a list of available APIs for the user to choose from, based on their tier.
-        Type: Operation
-        Parameters: None
-        Return Value: A string confirming that API selection has been prompted.
-        Invocation: {"tool_name": "api", "parameters": {}}
-        """
-        info = public.update_info_get(update)
-        markup = Inline.print_api_list(info['tier'])
-        if markup == "没有可用的api。" or markup == "没有符合您账户等级的可用api。":
-            await update.message.reply_text(markup)
-        else:
-            await update.message.reply_text("请选择一个api：", reply_markup=markup)
-        await update.message.delete()
-        return "API selection prompted."
-
-    @staticmethod
-    async def preset(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-        """
-        Prompt the user to select a preset for the conversation.
-
-        Description: Displays a list of available presets for the user to configure the conversation.
-        Type: Operation
-        Parameters: None
-        Return Value: A string confirming that preset selection has been prompted.
-        Invocation: {"tool_name": "preset", "parameters": {}}
-        """
-        markup = Inline.print_preset_list()
-        if markup == "没有可用的预设。":
-            await update.message.reply_text(markup)
-        else:
-            await update.message.reply_text("请选择一个预设：", reply_markup=markup)
-        await update.message.delete()
-        return "Preset selection prompted."
-
-    @staticmethod
-    async def load(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
-        """
-        Prompt the user to load a saved conversation.
-
-        Description: Displays a list of saved conversations for the user to load.
-        Type: Operation
-        Parameters: None
-        Return Value: A string confirming that conversation load selection has been prompted.
-        Invocation: {"tool_name": "load", "parameters": {}}
-        """
-        info = public.update_info_get(update)
-        markup = Inline.print_conversations(info['user_id'])
-        if markup == "没有可用的对话。":
-            await update.message.reply_text(markup)
-        else:
-            await update.message.reply_text("请选择一个对话：", reply_markup=markup)
-        await update.message.delete()
-        return "Conversation load selection prompted."
 
     @staticmethod
     async def delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
@@ -297,8 +172,8 @@ class PrivateTools:
         if sign_info.get('last_sign') == 0:
             db.user_sign_info_create(user_id)
             sign_info = db.user_sign_info_get(user_id)
-            #await update.message.reply_text(
-                #f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
+            # await update.message.reply_text(
+            # f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
             return "Check-in successful, temporary quota increased by 50."
         else:
             concurrent_time = datetime.datetime.now()
@@ -307,28 +182,29 @@ class PrivateTools:
             total_seconds = time_delta.total_seconds()
             if total_seconds < 28800:  # 8 hours = 28800 seconds
                 remaining_hours = (28800 - total_seconds) // 3600
-                #await update.message.reply_text(
-                    #f"您8小时内已完成过签到，您可以在{str(remaining_hours)}小时后再次签到。")
+                # await update.message.reply_text(
+                # f"您8小时内已完成过签到，您可以在{str(remaining_hours)}小时后再次签到。")
                 return f"Check-in already done within 8 hours, retry after {remaining_hours} hours."
             else:
                 db.user_sign(user_id)
                 sign_info = db.user_sign_info_get(user_id)
-                #await update.message.reply_text(
-                    #f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
+                # await update.message.reply_text(
+                # f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
                 return "Check-in successful, temporary quota increased by 50."
+
+    @staticmethod
+    async def conv_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+        info = public.update_info_get(update)
+
+
 
 # Tool mapping for LLM invocation
 TOOLS_MAPPING = {
     "stream": PrivateTools.stream,
     "me": PrivateTools.me,
-    "new": PrivateTools.new,
     "status": PrivateTools.status,
-    "char": PrivateTools.char,
-    "delchar": PrivateTools.delchar,
     "newchar": PrivateTools.newchar,
     "nick": PrivateTools.nick,
-    "api": PrivateTools.api,
-    "preset": PrivateTools.preset,
     "load": PrivateTools.load,
     "delete": PrivateTools.delete,
     "sign": PrivateTools.sign,
