@@ -730,6 +730,8 @@ def user_sign_info_update(user_id: int, field: str, value: Any) -> bool:
     return result > 0
 
 
+
+
 # 应用退出时关闭所有数据库连接
 def close_all_connections():
     """关闭连接池中的所有数据库连接。应在应用退出时调用。"""

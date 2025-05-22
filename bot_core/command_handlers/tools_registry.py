@@ -6,17 +6,21 @@ output formats, and a parser to handle tool invocation requests from an LLM.
 """
 
 from typing import Dict, Any, Optional, Callable
-import json
 from telegram import Update
 from telegram.ext import ContextTypes
 import logging
 from utils.logging_utils import setup_logging
+import json
+import re
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 # 导入之前定义的工具
-from bot_core.command_handlers.tools import PrivateTools, TOOLS_MAPPING
+from bot_core.command_handlers.tools import PRIVATETOOLS
+from bot_core.command_handlers.tools import MARKETTOOLS
+
+
 
 
 class PrivateToolRegistry:
@@ -32,7 +36,7 @@ class PrivateToolRegistry:
             "return_value": "Success or failure message (e.g., 'Streaming mode toggled successfully.')"
         },
         "me": {
-            "description": "Display the user's personal information, including account tier, quota, and balance.",
+            "description": "Display the user's personal information, including username, nickname, account tier, remain frequency, and balance.",
             "type": "query",  # 查询类工具，返回信息
             "parameters": {},
             "output_format": "A string containing user information.",
@@ -86,7 +90,7 @@ class PrivateToolRegistry:
     @staticmethod
     def get_tool(tool_name: str) -> Optional[Callable]:
         """Get the tool function by name from TOOLS_MAPPING."""
-        return TOOLS_MAPPING.get(tool_name)
+        return PRIVATETOOLS.get(tool_name)
 
     @staticmethod
     def get_prompt_text() -> str:
@@ -104,7 +108,8 @@ class PrivateToolRegistry:
                     params_str += f"\n      - {param_name}: {param_info['type']} - {param_info['description']}"
             prompt_lines.append(f"- {tool_name}:")
             prompt_lines.append(f"  Description: {tool_info['description']}")
-            prompt_lines.append(f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs an action)")
+            prompt_lines.append(
+                f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs an action)")
             prompt_lines.append(f"  {params_str}")
             prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
             prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
@@ -138,12 +143,378 @@ class PrivateToolRegistry:
         return "\n".join(prompt_lines)
 
 
-import json
-import re
+class MarketToolRegistry:
+    """A registry for market analysis tools with descriptions, output formats, and metadata for LLM interaction."""
+    TOOLS: Dict[str, Dict[str, Any]] = {
+        "get_price": {
+            "description": "Fetch the current price of a cryptocurrency pair from a specified exchange.",
+            "type": "query",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string containing the current price of the specified trading pair.",
+            "example": {"tool_name": "get_price", "parameters": {"symbol": "BTC/USDT", "exchange": "binance"}},
+            "return_value": "Price information string (e.g., 'Current price of BTC/USDT on binance: 50000 USDT.')"
+        },
+        "get_historical_data": {
+            "description": "Fetch historical OHLCV (Open, High, Low, Close, Volume) data for a cryptocurrency pair.",
+            "type": "query",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for candles (e.g., 1m, 5m, 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of candles to fetch (default: 100)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the historical data with key statistics.",
+            "example": {"tool_name": "get_historical_data",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 100, "exchange": "binance"}},
+            "return_value": "Historical data summary (e.g., 'Historical data for BTC/USDT on binance...')"
+        },
+        "get_order_book": {
+            "description": "Fetch the current order book for a cryptocurrency pair.",
+            "type": "query",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of bid/ask entries to fetch (default: 10)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the top bids and asks from the order book.",
+            "example": {"tool_name": "get_order_book",
+                        "parameters": {"symbol": "BTC/USDT", "limit": 10, "exchange": "binance"}},
+            "return_value": "Order book summary (e.g., 'Order book for BTC/USDT on binance...')"
+        },
+        "get_market_trends": {
+            "description": "Analyze market trends for a cryptocurrency pair based on historical data.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 30)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the market trend analysis.",
+            "example": {"tool_name": "get_market_trends",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1d", "limit": 30, "exchange": "binance"}},
+            "return_value": "Trend analysis summary (e.g., 'Market trend analysis for BTC/USDT on binance...')"
+        },
+        "get_volume_analysis": {
+            "description": "Analyze trading volume for a cryptocurrency pair based on historical data.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 50)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the volume analysis.",
+            "example": {"tool_name": "get_volume_analysis",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
+            "return_value": "Volume analysis summary (e.g., 'Volume analysis for BTC/USDT on binance...')"
+        },
+        "get_rsi": {
+            "description": "Calculate the Relative Strength Index (RSI) for a cryptocurrency pair.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 50)."
+                },
+                "period": {
+                    "type": "integer",
+                    "description": "Period for RSI calculation (default: 14)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the RSI value and interpretation.",
+            "example": {"tool_name": "get_rsi",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period": 14,
+                                       "exchange": "binance"}},
+            "return_value": "RSI analysis result (e.g., 'RSI for BTC/USDT on binance: 65.32 (Neutral)')"
+        },
+        "get_moving_average": {
+            "description": "Calculate the Simple Moving Average (SMA) for a cryptocurrency pair.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 50)."
+                },
+                "period": {
+                    "type": "integer",
+                    "description": "Period for SMA calculation (default: 20)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the SMA value and trend direction.",
+            "example": {"tool_name": "get_moving_average",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period": 20,
+                                       "exchange": "binance"}},
+            "return_value": "SMA analysis result (e.g., 'SMA (20) for BTC/USDT on binance: 48000.00 USDT, current price is above SMA (bullish signal)')"
+        },
+        "get_macd": {
+            "description": "Calculate the Moving Average Convergence Divergence (MACD) for a cryptocurrency pair.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 50)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the MACD value and signal interpretation.",
+            "example": {"tool_name": "get_macd",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
+            "return_value": "MACD analysis result (e.g., 'MACD for BTC/USDT on binance: MACD=120.45, Signal=100.32 (Bullish crossover)')"
+        },
+        "get_support_resistance": {
+            "description": "Identify support and resistance levels for a cryptocurrency pair.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 100)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the identified support and resistance levels.",
+            "example": {"tool_name": "get_support_resistance",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 100, "exchange": "binance"}},
+            "return_value": "Support and resistance levels (e.g., 'Support: 45000.00 USDT, Resistance: 52000.00 USDT')"
+        },
+        "get_top_movers": {
+            "description": "Fetch the top movers (biggest price changes) on a specified exchange.",
+            "type": "query",
+            "parameters": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of top movers to fetch (default: 5)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the top movers with their percentage changes.",
+            "example": {"tool_name": "get_top_movers", "parameters": {"limit": 5, "exchange": "binance"}},
+            "return_value": "Top movers summary (e.g., 'Top 5 movers on binance: BTC/USDT: +5.2%...')"
+        },
+        "get_funding_rate": {
+            "description": "Fetch the current funding rate for a cryptocurrency futures pair.",
+            "type": "query",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the funding rate and its implication.",
+            "example": {"tool_name": "get_funding_rate", "parameters": {"symbol": "BTC/USDT", "exchange": "binance"}},
+            "return_value": "Funding rate summary (e.g., 'Funding rate for BTC/USDT on binance: 0.0001 (Bullish)')"
+        },
+        "get_volatility": {
+            "description": "Calculate price volatility for a cryptocurrency pair based on historical data.",
+            "type": "analysis",
+            "parameters": {
+                "symbol": {
+                    "type": "string",
+                    "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 50)."
+                },
+                "exchange": {
+                    "type": "string",
+                    "description": "The exchange to query (default: binance)."
+                }
+            },
+            "output_format": "A string summarizing the volatility level.",
+            "example": {"tool_name": "get_volatility",
+                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
+            "return_value": "Volatility analysis result (e.g., 'Volatility for BTC/USDT on binance: 2.5% (High)')"
+        }
+    }
 
-async def parse_and_invoke_tool(ai_response: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> tuple[str, list]:
+    @staticmethod
+    def get_tool(tool_name: str) -> Optional[Callable]:
+        """Get the tool function by name from MARKETTOOLS."""
+        return MARKETTOOLS.get(tool_name)
+
+    @staticmethod
+    def get_prompt_text() -> str:
+        """Generate a formatted text of tool descriptions and output formats for embedding in LLM prompts."""
+        prompt_lines = [
+            "You are an assistant integrated with the CyberWaifu bot system for cryptocurrency market analysis. You can invoke specific tools to fetch data and analyze markets. Below is a list of available market analysis tools with their descriptions, types, parameters, output formats, return values, and invocation examples. When invoking a tool, format your response as a JSON object with 'tool_name' and 'parameters'. If no tool is needed, respond with plain text.\n",
+            "Available Market Analysis Tools:"
+        ]
+        for tool_name, tool_info in MarketToolRegistry.TOOLS.items():
+            params_str = "None"
+            if tool_info["parameters"]:
+                params_str = "\n    Parameters:"
+                for param_name, param_info in tool_info["parameters"].items():
+                    params_str += f"\n      - {param_name}: {param_info['type']} - {param_info['description']}"
+            prompt_lines.append(f"- {tool_name}:")
+            prompt_lines.append(f"  Description: {tool_info['description']}")
+            prompt_lines.append(
+                f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs analysis)")
+            prompt_lines.append(f"  {params_str}")
+            prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
+            prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
+            prompt_lines.append(f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}")
+        prompt_lines.append("""\nInstruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
+    {
+      "tool_calls": [
+        {
+          "tool_name": "tool_name_1",
+          "parameters": {
+            "param1": "value1"
+          }
+        },
+        {
+          "tool_name": "tool_name_2",
+          "parameters": {
+            "param2": "value2"
+          }
+        }
+      ]
+    }
+    For single tool invocation, use this format, ensuring parameters are nested under 'parameters':
+    {
+      "tool_name": "tool_name",
+      "parameters": {
+        "param1": "value1"
+      }
+    }
+    Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text.""")
+        return "\n".join(prompt_lines)
+
+ALL_TOOLS: Dict[str, Callable] = {}
+# 从 PrivateToolRegistry 添加工具
+for tool_name in PrivateToolRegistry.TOOLS.keys():
+    tool_func = PrivateToolRegistry.get_tool(tool_name)
+    if tool_func:
+        if tool_name in ALL_TOOLS:
+            logger.warning(f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 PrivateToolRegistry 覆盖")
+        ALL_TOOLS[tool_name] = tool_func
+# 从 MarketToolRegistry 添加工具
+for tool_name in MarketToolRegistry.TOOLS.keys():
+    tool_func = MarketToolRegistry.get_tool(tool_name)
+    if tool_func:
+        if tool_name in ALL_TOOLS:
+            logger.warning(f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 MarketToolRegistry 覆盖")
+        ALL_TOOLS[tool_name] = tool_func
+logger.info(f"统一工具池初始化完成，包含工具: {list(ALL_TOOLS.keys())}")
+
+
+async def parse_and_invoke_tool(ai_response: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> tuple[
+    str, list]:
     """
     Parse the AI response and invoke tools if necessary. Returns the final response and intermediate results.
+    This function extracts JSON content from the response (ignoring surrounding text) and processes tool calls.
     Args:
         ai_response: The raw response from the LLM.
         update: The Telegram Update object.
@@ -154,16 +525,26 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
         - intermediate_results: List of results from tool calls for feedback to LLM.
     """
     try:
-        # 尝试提取 Markdown 代码块中的内容
+        # 尝试提取可能的 JSON 内容（包括 Markdown 代码块和纯文本中的 JSON）
+        json_candidate = None
+        # 匹配 Markdown 代码块中的内容
         code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', ai_response)
         if code_block_match:
-            ai_response = code_block_match.group(1).strip()
-            logger.debug(f"从 Markdown 代码块中提取 JSON 内容: {ai_response}")
-
-        # 尝试解析 JSON 响应
-        response_data = json.loads(ai_response)
+            json_candidate = code_block_match.group(1).strip()
+            logger.debug(f"从 Markdown 代码块中提取内容: {json_candidate}")
+        else:
+            # 如果没有代码块，尝试直接提取纯文本中的 JSON 格式
+            # 使用更复杂的正则表达式支持嵌套花括号
+            json_match = re.search(r'\{(?:[^\{\}]|\{(?:[^\{\}]|\{[^ \{\}]*\})*\})*\}', ai_response)
+            if json_match:
+                json_candidate = json_match.group(0).strip()
+                logger.debug(f"从纯文本中提取 JSON 内容: {json_candidate}")
+            else:
+                logger.debug("未找到 JSON 内容，直接返回原始文本")
+                return ai_response, []
+        # 尝试解析提取的 JSON 内容
+        response_data = json.loads(json_candidate)
         tool_calls = []
-
         # 检查是否为多工具调用格式 {"tool_calls": [...]}
         if "tool_calls" in response_data and isinstance(response_data["tool_calls"], list):
             tool_calls = response_data["tool_calls"]
@@ -171,7 +552,6 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
         elif "tool_name" in response_data:
             parameters = response_data.get("parameters", {})
             tool_calls = [{"tool_name": response_data["tool_name"], "parameters": parameters}]
-
         if tool_calls:
             results = []
             intermediate_results = []
@@ -179,8 +559,9 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
                 tool_name = tool_call.get("tool_name")
                 parameters = tool_call.get("parameters", {})
                 logger.info(f"调用工具 {i + 1}/{len(tool_calls)}: {tool_name}，参数: {parameters}")
-                # 获取并执行工具
-                tool_func = PrivateToolRegistry.get_tool(tool_name)
+                # 直接从统一工具池 ALL_TOOLS 获取工具
+                tool_func = ALL_TOOLS.get(tool_name)
+
                 if tool_func:
                     try:
                         # 解包 parameters 字典，将其内容作为关键字参数传递给工具函数
@@ -213,8 +594,8 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
             # 汇总所有工具调用的结果
             return "\n".join(results), intermediate_results
     except json.JSONDecodeError as jde:
-        # 如果无法解析为 JSON，说明不是工具调用，直接返回原始响应
-        logger.debug(f"AI 响应不是有效 JSON 格式，直接返回原始文本: {str(jde)}")
+        # 如果无法解析为 JSON，说明提取的内容不是有效 JSON，直接返回原始响应
+        logger.debug(f"提取的内容不是有效 JSON 格式，直接返回原始文本: {str(jde)}")
         return ai_response, []
     except Exception as e:
         logger.error(f"解析或调用工具时发生错误: {str(e)}")

@@ -16,7 +16,6 @@ from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
 from .tools_registry import parse_and_invoke_tool, PrivateToolRegistry
-
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -534,7 +533,8 @@ class ToolCommand(BaseCommand):
         if len(user_input.split()) > 1:
             user_input = " ".join(user_input.split()[1:])  # 去掉 /tool 命令本身
         else:
-            await update.message.reply_text("请在 /tool 命令后提供具体内容，例如：/tool 我想开始使用机器人", parse_mode="Markdown")
+            await update.message.reply_text("请在 /tool 命令后提供具体内容，例如：/tool 我想开始使用机器人",
+                                            parse_mode="Markdown")
             return
         # 先发送占位消息
         placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")
@@ -604,7 +604,8 @@ class ToolCommand(BaseCommand):
                     formatted_result = f"```\n{result}\n```"
                     final_result += formatted_result + "\n"
                     # 更新占位消息以显示当前进度
-                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}", parse_mode="Markdown")
+                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}",
+                                                        parse_mode="Markdown")
 
                     # 将工具调用结果反馈给 LLM
                     feedback_content = "工具调用结果:\n" + "\n".join(
@@ -634,3 +635,5 @@ class ToolCommand(BaseCommand):
             error_message = f"处理请求时发生错误: `{str(e)}`"
             await placeholder_message.edit_text(error_message, parse_mode="Markdown")
             logger.debug("已编辑占位消息，显示错误信息")
+
+
