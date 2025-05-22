@@ -675,16 +675,17 @@ def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> b
 
 def group_dialog_get(group_id: int, num: int) -> List[Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]]:
     """获取指定 group_id 的最新 num 条群聊消息 (msg_text, msg_user_name, processed_response)，按 msg_id 降序排序。"""
-    command = """SELECT msg_text, msg_user_name, processed_response, create_at 
-FROM (
-    SELECT msg_text, msg_user_name, processed_response, create_at, msg_id
-    FROM group_dialogs 
-    WHERE group_id = ? 
-    ORDER BY msg_id DESC 
-    LIMIT 10
-) AS subquery 
-ORDER BY msg_id ASC"""
+    command = """
+              SELECT msg_text, msg_user_name, processed_response, create_at
+              FROM (SELECT msg_text, msg_user_name, processed_response, create_at, msg_id \
+                    FROM group_dialogs \
+                    WHERE group_id = ? \
+                    ORDER BY msg_id DESC \
+                    LIMIT ?) sub
+              ORDER BY msg_id ASC \
+              """
     result = query_db(command, (group_id, num))
+    print(f"Querying with group_id={group_id}, num={num}, result={result}")  # 调试日志
     return result if result else []
 
 
