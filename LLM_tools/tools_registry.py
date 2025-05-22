@@ -17,8 +17,8 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 # 导入之前定义的工具
-from bot_core.command_handlers.tools import PRIVATETOOLS
-from bot_core.command_handlers.tools import MARKETTOOLS
+from LLM_tools.tools import PRIVATETOOLS
+from LLM_tools.tools import MARKETTOOLS
 
 
 

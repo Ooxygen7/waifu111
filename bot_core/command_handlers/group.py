@@ -7,7 +7,7 @@ from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db,LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
-from .tools_registry import parse_and_invoke_tool,MarketToolRegistry
+from LLM_tools.tools_registry import parse_and_invoke_tool,MarketToolRegistry
 setup_logging()
 logger = logging.getLogger(__name__)
 
