@@ -121,7 +121,7 @@ class CryptoCommand(BaseCommand):
             await update.message.reply_text("请在 /cc 命令后提供具体内容，例如：/cc 分析下大饼", parse_mode="Markdown")
             return
         # 先发送占位消息
-        placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")
+        placeholder_message = await update.message.reply_text("处理中...")
         logger.debug("已发送占位消息 '处理中...'")
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
@@ -262,7 +262,10 @@ class CryptoCommand(BaseCommand):
                     break  # 没有工具调用，结束循环
 
             # 编辑占位消息以显示最终结果，使用 Markdown 格式
-            await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
+            try:
+                await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
+            except Exception as err:
+                await placeholder_message.edit_text(final_result.strip())
             logger.debug("已编辑占位消息，显示最终结果")
 
         except Exception as e:
