@@ -1,19 +1,13 @@
-"""
-toolsprivate.py - Private command tools for LLM interaction.
-
-This module provides a set of tools that can be invoked by an LLM to interact with
-the CyberWaifu bot system. Each tool corresponds to a private command that can be
-executed in a user's private chat context.
-"""
-
 import datetime
-import os
 import logging
 from typing import Optional
 
+import ccxt.async_support as ccxt  # 使用异步支持以兼容 Telegram 机器人
+import numpy as np  # 用于数值计算
+import pandas as pd  # 用于数据处理和技术指标计算
 from telegram import Update
 from telegram.ext import ContextTypes
-
+from collections import Counter
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db
@@ -206,32 +200,14 @@ PRIVATETOOLS = {
     "delete": PrivateTools.delete,
     "sign": PrivateTools.sign,
 }
-"""
-tools_market.py - Market analysis tools for LLM interaction.
-
-This module provides a set of tools that can be invoked by an LLM to perform cryptocurrency market analysis
-using the CCXT library. These tools allow fetching market data, historical prices, technical indicators, and more.
-"""
-
-import logging
-from typing import Optional, Dict, Any, List
-import ccxt.async_support as ccxt  # 使用异步支持以兼容 Telegram 机器人
-import pandas as pd  # 用于数据处理和技术指标计算
-import numpy as np  # 用于数值计算
-from telegram import Update
-from telegram.ext import ContextTypes
-from utils.logging_utils import setup_logging
-import datetime
-
-setup_logging()
-logger = logging.getLogger(__name__)
 
 
 class MarketTools:
     """A collection of tools for cryptocurrency market analysis that can be invoked by an LLM."""
 
     @staticmethod
-    async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", exchange: str = "binance") -> str:
+    async def get_price(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                        exchange: str = "binance") -> str:
         """
         Fetch the current price of a cryptocurrency pair from a specified exchange.
 
@@ -258,7 +234,8 @@ class MarketTools:
             return f"Failed to fetch price for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_historical_data(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
+    async def get_historical_data(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                                  timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
         """
         Fetch historical OHLCV (Open, High, Low, Close, Volume) data for a cryptocurrency pair.
 
@@ -296,7 +273,8 @@ class MarketTools:
             return f"Failed to fetch historical data for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_order_book(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", limit: int = 10, exchange: str = "binance") -> str:
+    async def get_order_book(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                             limit: int = 10, exchange: str = "binance") -> str:
         """
         Fetch the current order book for a cryptocurrency pair.
 
@@ -318,8 +296,10 @@ class MarketTools:
             bids = order_book.get('bids', [])[:5]
             asks = order_book.get('asks', [])[:5]
             await exchange_instance.close()
-            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in bids]) if bids else "No bids available."
-            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in asks]) if asks else "No asks available."
+            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in
+                                 bids]) if bids else "No bids available."
+            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in
+                                 asks]) if asks else "No asks available."
             return (
                 f"Order book for {symbol} on {exchange} (top entries):\n"
                 f"Bids (Buy Orders):\n{bid_str}\n"
@@ -330,7 +310,8 @@ class MarketTools:
             return f"Failed to fetch order book for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_market_trends(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1d", limit: int = 30, exchange: str = "binance") -> str:
+    async def get_market_trends(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                                timeframe: str = "1d", limit: int = 30, exchange: str = "binance") -> str:
         """
         Analyze market trends for a cryptocurrency pair based on historical data.
 
@@ -372,7 +353,8 @@ class MarketTools:
             return f"Failed to analyze market trends for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_volume_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
+    async def get_volume_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                                  timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
         """
         Analyze trading volume for a cryptocurrency pair based on historical data.
 
@@ -413,7 +395,8 @@ class MarketTools:
             return f"Failed to analyze volume for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_rsi(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 50, period: int = 14, exchange: str = "binance") -> str:
+    async def get_rsi(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                      timeframe: str = "1h", limit: int = 50, period: int = 14, exchange: str = "binance") -> str:
         """
         Calculate the Relative Strength Index (RSI) for a cryptocurrency pair.
 
@@ -469,7 +452,9 @@ class MarketTools:
             return f"Failed to calculate RSI for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_moving_average(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 50, period: int = 20, exchange: str = "binance") -> str:
+    async def get_moving_average(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                                 timeframe: str = "1h", limit: int = 50, period: int = 20,
+                                 exchange: str = "binance") -> str:
         """
         Calculate the Simple Moving Average (SMA) for a cryptocurrency pair.
 
@@ -503,7 +488,8 @@ class MarketTools:
             return f"Failed to calculate SMA for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_macd(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
+    async def get_macd(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                       timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
         """
         Calculate the Moving Average Convergence Divergence (MACD) for a cryptocurrency pair.
 
@@ -544,7 +530,8 @@ class MarketTools:
             return f"Failed to calculate MACD for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_support_resistance(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
+    async def get_support_resistance(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                                     timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
         """
         Identify support and resistance levels for a cryptocurrency pair.
 
@@ -567,7 +554,7 @@ class MarketTools:
             if not ohlcv:
                 return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
             highs = [candle[2] for candle in ohlcv]  # High prices
-            lows = [candle[3] for candle in ohlcv]   # Low prices
+            lows = [candle[3] for candle in ohlcv]  # Low prices
             # 简单估计：支持位取最低价前5%的平均值，阻力位取最高价前5%的平均值
             sorted_lows = sorted(lows)
             sorted_highs = sorted(highs, reverse=True)
@@ -584,7 +571,8 @@ class MarketTools:
             return f"Failed to calculate support/resistance for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_top_movers(update: Update, context: ContextTypes.DEFAULT_TYPE, limit: int = 5, exchange: str = "binance") -> str:
+    async def get_top_movers(update: Update, context: ContextTypes.DEFAULT_TYPE, limit: int = 5,
+                             exchange: str = "binance") -> str:
         """
         Fetch the top movers (biggest price changes) on a specified exchange.
 
@@ -603,7 +591,8 @@ class MarketTools:
             exchange_instance = exchange_class({'enableRateLimit': True})
             tickers = await exchange_instance.fetch_tickers()
             movers = sorted(
-                [(symbol, data['percentage']) for symbol, data in tickers.items() if 'percentage' in data and data['percentage'] is not None],
+                [(symbol, data['percentage']) for symbol, data in tickers.items() if
+                 'percentage' in data and data['percentage'] is not None],
                 key=lambda x: abs(x[1]),
                 reverse=True
             )[:limit]
@@ -615,7 +604,8 @@ class MarketTools:
             return f"Failed to fetch top movers on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_funding_rate(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", exchange: str = "binance") -> str:
+    async def get_funding_rate(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                               exchange: str = "binance") -> str:
         """
         Fetch the current funding rate for a cryptocurrency futures pair.
 
@@ -646,7 +636,8 @@ class MarketTools:
             return f"Failed to fetch funding rate for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_volatility(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT", timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
+    async def get_volatility(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                             timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
         """
         Calculate price volatility for a cryptocurrency pair based on historical data.
 
@@ -670,14 +661,14 @@ class MarketTools:
                 return f"Insufficient historical data for {symbol} on {exchange} to calculate volatility."
             closes = np.array([candle[4] for candle in ohlcv])
             returns = np.diff(closes) / closes[:-1]
-            volatility = np.std(returns) * np.sqrt(24 * 365) if timeframe == "1h" else np.std(returns) * np.sqrt(365) if timeframe == "1d" else np.std(returns)
+            volatility = np.std(returns) * np.sqrt(24 * 365) if timeframe == "1h" else np.std(returns) * np.sqrt(
+                365) if timeframe == "1d" else np.std(returns)
             level = "High" if volatility > 0.5 else "Moderate" if volatility > 0.2 else "Low"
             await exchange_instance.close()
             return f"Volatility for {symbol} on {exchange} (timeframe: {timeframe}, annualized): {volatility:.2%} ({level})"
         except Exception as e:
             logger.error(f"Error calculating volatility for {symbol} on {exchange}: {str(e)}")
             return f"Failed to calculate volatility for {symbol} on {exchange}: {str(e)}"
-
 
 # Tool mapping for LLM invocation
 MARKETTOOLS = {
@@ -693,4 +684,293 @@ MARKETTOOLS = {
     "get_top_movers": MarketTools.get_top_movers,
     "get_funding_rate": MarketTools.get_funding_rate,
     "get_volatility": MarketTools.get_volatility,
+}
+
+
+class DatabaseTools:
+    """A collection of tools for administrators to analyze database data via LLM."""
+
+    @staticmethod
+    async def get_user_list() -> str:
+        """
+        Retrieve a list of all users with basic information.
+        Description: Fetches a list of all users including their ID, username, and account tier.
+        Type: Query
+        Parameters: None
+        Return Value: A string summarizing the list of users.
+        Invocation: {"tool_name": "get_user_list", "parameters": {}}
+        """
+        query = "SELECT uid, user_name, account_tier FROM users"
+        result = db.query_db(query)
+        if not result:
+            return "No users found in the database."
+        user_summary = "\n".join([f"ID: {row[0]}, Username: {row[1]}, Tier: {row[2]}" for row in result])
+        return f"User List:\n{user_summary}"
+
+    @staticmethod
+    async def get_user_details(user_id: int) -> str:
+        """
+        Retrieve detailed information about a specific user.
+        Description: Fetches detailed information for a specific user including quotas, balance, and activity.
+        Type: Query
+        Parameters:
+            - user_id (int): The ID of the user to query.
+        Return Value: A string with detailed user information.
+        Invocation: {"tool_name": "get_user_details", "parameters": {"user_id": 123}}
+        """
+        query = "SELECT * FROM users WHERE uid = ?"
+        result = db.query_db(query, (user_id,))
+        if not result:
+            return f"No user found with ID {user_id}."
+        user = result[0]
+        return (f"User Details for ID {user_id}:\n"
+                f"Username: {user[1]} {user[2]}\n"
+                f"Account Tier: {user[10]}\n"
+                f"Remaining Frequency: {user[11]}\n"
+                f"Balance: {user[12]}\n"
+                f"Conversations: {user[5]}\n"
+                f"Dialog Turns: {user[6]}\n"
+                f"Input Tokens: {user[8]}\n"
+                f"Output Tokens: {user[9]}\n"
+                f"Created At: {user[4]}\n"
+                f"Updated At: {user[7]}")
+
+    @staticmethod
+    async def get_user_conversations(user_id: int) -> str:
+        """
+        Retrieve a list of conversation IDs for a specific user.
+        Description: Fetches all conversation IDs associated with a user.
+        Type: Query
+        Parameters:
+            - user_id (int): The ID of the user to query.
+        Return Value: A string listing the user's conversation IDs.
+        Invocation: {"tool_name": "get_user_conversations", "parameters": {"user_id": 123}}
+        """
+        query = "SELECT turns, conv_id, character, create_at,delete_mark FROM conversations WHERE user_id = ? "
+        result = db.query_db(query, (user_id,))
+        if not result:
+            return f"No conversations found for user ID {user_id}."
+        conv_summary = "\n".join(
+            [f"Turn Order: {row[0]}, Conv ID: {row[1]}, Character: {row[2]}, Created At: {row[3]},Delete Mark: {row[4]}" for row in result])
+        return f"Conversations for User ID {user_id}:\n{conv_summary}"
+
+    @staticmethod
+    async def get_conversation_details(conv_id: int) -> str:
+        """
+        Retrieve detailed content of a specific conversation.
+        Description: Fetches all dialog entries for a given conversation ID.
+        Type: Query
+        Parameters:
+            - conv_id (int): The conversation ID to query.
+        Return Value: A string summarizing the conversation content.
+        Invocation: {"tool_name": "get_conversation_details", "parameters": {"conv_id": 456}}
+        """
+        query = "SELECT role, processed_content, turn_order, created_at FROM dialogs WHERE conv_id = ? ORDER BY turn_order"
+        result = db.query_db(query, (conv_id,))
+        if not result:
+            return f"No dialogs found for conversation ID {conv_id}."
+        dialog_summary = "\n".join([f"Turn {row[2]} ({row[3]}): {row[0]}: {row[1]}" for row in result])
+        return f"Conversation Details for Conv ID {conv_id}:\n{dialog_summary}"
+
+    @staticmethod
+    async def analyze_user_activity(user_id: int, days: int = 7) -> str:
+        """
+        Analyze a user's activity over the past specified days.
+        Description: Analyzes the user's conversation frequency and token usage over a specified period.
+        Type: Analysis
+        Parameters:
+            - user_id (int): The ID of the user to analyze.
+            - days (int, optional): Number of days to look back. Defaults to 7.
+        Return Value: A string summarizing the user's activity.
+        Invocation: {"tool_name": "analyze_user_activity", "parameters": {"user_id": 123, "days": 7}}
+        """
+        cutoff_time = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S.%f')
+        conv_query = "SELECT COUNT(*) FROM conversations WHERE user_id = ? AND create_at >= ?"
+        conv_count = db.query_db(conv_query, (user_id, cutoff_time))[0][0]
+        token_query = "SELECT SUM(input_tokens), SUM(output_tokens) FROM users WHERE uid = ?"
+        token_data = db.query_db(token_query, (user_id,))[0]
+        return (f"Activity Analysis for User ID {user_id} (Last {days} Days):\n"
+                f"New Conversations: {conv_count}\n"
+                f"Total Input Tokens (All Time): {token_data[0]}\n"
+                f"Total Output Tokens (All Time): {token_data[1]}")
+
+    @staticmethod
+    async def get_user_sign_history(user_id: int) -> str:
+        """
+        Retrieve the sign-in history and frequency for a specific user.
+        Description: Fetches the user's check-in history and temporary quota information.
+        Type: Query
+        Parameters:
+            - user_id (int): The ID of the user to query.
+        Return Value: A string summarizing the user's sign-in history.
+        Invocation: {"tool_name": "get_user_sign_history", "parameters": {"user_id": 123}}
+        """
+        query = "SELECT last_sign, sign_count, frequency FROM user_sign WHERE user_id = ?"
+        result = db.query_db(query, (user_id,))
+        if not result:
+            return f"No sign-in history found for user ID {user_id}."
+        sign_data = result[0]
+        return (f"Sign-in History for User ID {user_id}:\n"
+                f"Last Sign-in: {sign_data[0]}\n"
+                f"Total Sign-ins: {sign_data[1]}\n"
+                f"Current Temporary Quota: {sign_data[2]}")
+
+    @staticmethod
+    async def get_top_active_users(limit: int = 10) -> str:
+        """
+        Retrieve the most active users based on conversation count or token usage.
+        Description: Fetches a list of top users by activity metrics.
+        Type: Analysis
+        Parameters:
+            - limit (int, optional): Number of top users to return. Defaults to 10.
+        Return Value: A string summarizing the top active users.
+        Invocation: {"tool_name": "get_top_active_users", "parameters": {"limit": 10}}
+        """
+        query = """
+                SELECT uid, user_name, conversations, dialog_turns, input_tokens, output_tokens
+                FROM users
+                ORDER BY conversations DESC, dialog_turns DESC
+                LIMIT ? \
+                """
+        result = db.query_db(query, (limit,))
+        if not result:
+            return "No user activity data found."
+        summary = "\n".join([f"ID: {row[0]}, Username: {row[1]}, Conversations: {row[2]}, Turns: {row[3]}, "
+                             f"Input Tokens: {row[4]}, Output Tokens: {row[5]}" for row in result])
+        return f"Top {limit} Active Users:\n{summary}"
+
+    @staticmethod
+    async def analyze_conversation_topics(user_id: int, limit: int = 5) -> str:
+        """
+        Analyze common topics or keywords in a user's conversations.
+        Description: Extracts frequent words or phrases from a user's recent dialogs (basic analysis).
+        Type: Analysis
+        Parameters:
+            - user_id (int): The ID of the user to analyze.
+            - limit (int, optional): Number of recent conversations to analyze. Defaults to 5.
+        Return Value: A string summarizing frequent topics or keywords.
+        Invocation: {"tool_name": "analyze_conversation_topics", "parameters": {"user_id": 123, "limit": 5}}
+        """
+        conv_query = "SELECT conv_id FROM conversations WHERE user_id = ? ORDER BY update_at DESC LIMIT ?"
+        conv_ids = db.query_db(conv_query, (user_id, limit))
+        if not conv_ids:
+            return f"No conversations found for user ID {user_id}."
+
+        all_content = []
+        for conv_id in conv_ids:
+            dialog_query = "SELECT processed_content FROM dialogs WHERE conv_id = ?"
+            dialogs = db.query_db(dialog_query, (conv_id[0],))
+            all_content.extend([row[0] for row in dialogs if row[0]])
+
+        # 简单关键词提取（示例：统计单词频率）
+        text = " ".join(all_content).lower()
+        words = text.split()
+        common_words = Counter(words).most_common(10)
+        summary = "\n".join([f"{word}: {count} times" for word, count in common_words if len(word) > 3])
+        return f"Common Topics/Keywords for User ID {user_id} (Top 10):\n{summary}"
+
+    @staticmethod
+    async def get_group_activity(group_id: int) -> str:
+        """
+        Retrieve activity data for a specific group.
+        Description: Fetches activity statistics for a specific group.
+        Type: Query
+        Parameters:
+            - group_id (int): The ID of the group to query.
+        Return Value: A string summarizing group activity.
+        Invocation: {"tool_name": "get_group_activity", "parameters": {"group_id": 789}}
+        """
+        query = "SELECT group_name, call_count, input_token, output_token, update_time FROM groups WHERE group_id = ?"
+        result = db.query_db(query, (group_id,))
+        if not result:
+            return f"No group found with ID {group_id}."
+        group = result[0]
+        return (f"Group Activity for ID {group_id}:\n"
+                f"Group Name: {group[0]}\n"
+                f"Call Count: {group[1]}\n"
+                f"Input Tokens: {group[2]}\n"
+                f"Output Tokens: {group[3]}\n"
+                f"Last Updated: {group[4]}")
+
+    @staticmethod
+    async def get_system_stats() -> str:
+        """
+        Retrieve overall system statistics.
+        Description: Fetches system-wide metrics like total users, conversations, and token usage.
+        Type: Analysis
+        Parameters: None
+        Return Value: A string summarizing system statistics.
+        Invocation: {"tool_name": "get_system_stats", "parameters": {}}
+        """
+        user_count = db.query_db("SELECT COUNT(*) FROM users")[0][0]
+        conv_count = db.query_db("SELECT COUNT(*) FROM conversations")[0][0]
+        dialog_count = db.query_db("SELECT COUNT(*) FROM dialogs")[0][0]
+        total_input_tokens = db.query_db("SELECT SUM(input_tokens) FROM users")[0][0] or 0
+        total_output_tokens = db.query_db("SELECT SUM(output_tokens) FROM users")[0][0] or 0
+        return (f"System Statistics:\n"
+                f"Total Users: {user_count}\n"
+                f"Total Conversations: {conv_count}\n"
+                f"Total Dialogs: {dialog_count}\n"
+                f"Total Input Tokens: {total_input_tokens}\n"
+                f"Total Output Tokens: {total_output_tokens}")
+
+    @staticmethod
+    async def get_recent_user_conversation_summary(user_id: int) -> str:
+        """
+        Summarize the most recent conversation of a user for quick insight.
+        Description: Fetches and summarizes the latest conversation content for a user.
+        Type: Analysis
+        Parameters:
+            - user_id (int): The ID of the user to analyze.
+        Return Value: A string summarizing the latest conversation.
+        Invocation: {"tool_name": "get_recent_user_conversation_summary", "parameters": {"user_id": 123}}
+        """
+        conv_query = "SELECT conv_id FROM conversations WHERE user_id = ? ORDER BY update_at DESC LIMIT 1"
+        conv_result = db.query_db(conv_query, (user_id,))
+        if not conv_result:
+            return f"No conversations found for user ID {user_id}."
+        conv_id = conv_result[0][0]
+        dialog_query = "SELECT role, raw_content, created_at FROM dialogs WHERE conv_id = ? ORDER BY turn_order LIMIT 5"
+        dialogs = db.query_db(dialog_query, (conv_id,))
+        summary = "\n".join([f"{row[0]} ({row[2]}): {row[1][:100]}..." for row in dialogs])
+        return f"Recent Conversation Summary for User ID {user_id} (Conv ID: {conv_id}):\n{summary}"
+
+    @staticmethod
+    async def get_user_config(user_id: int) -> str:
+        """
+        Retrieve the configuration settings for a specific user.
+        Description: Fetches the user's current character, API, preset, and streaming settings.
+        Type: Query
+        Parameters:
+            - user_id (int): The ID of the user to query.
+        Return Value: A string summarizing the user's configuration.
+        Invocation: {"tool_name": "get_user_config", "parameters": {"user_id": 123}}
+        """
+        query = "SELECT char, api, preset, stream, nick FROM user_config WHERE uid = ?"
+        result = db.query_db(query, (user_id,))
+        if not result:
+            return f"No configuration found for user ID {user_id}."
+        config = result[0]
+        return (f"Configuration for User ID {user_id}:\n"
+                f"Character: {config[0]}\n"
+                f"API: {config[1]}\n"
+                f"Preset: {config[2]}\n"
+                f"Streaming: {config[3]}\n"
+                f"Nickname: {config[4]}")
+
+
+# Tool mapping for LLM invocation
+DATABASE_TOOLS = {
+    "get_user_list": DatabaseTools.get_user_list,
+    "get_user_details": DatabaseTools.get_user_details,
+    "get_user_conversations": DatabaseTools.get_user_conversations,
+    "get_conversation_details": DatabaseTools.get_conversation_details,
+    "analyze_user_activity": DatabaseTools.analyze_user_activity,
+    "get_user_sign_history": DatabaseTools.get_user_sign_history,
+    "get_top_active_users": DatabaseTools.get_top_active_users,
+    "analyze_conversation_topics": DatabaseTools.analyze_conversation_topics,
+    "get_group_activity": DatabaseTools.get_group_activity,
+    "get_system_stats": DatabaseTools.get_system_stats,
+    "get_recent_user_conversation_summary": DatabaseTools.get_recent_user_conversation_summary,
+    "get_user_config": DatabaseTools.get_user_config,
 }

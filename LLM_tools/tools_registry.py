@@ -19,8 +19,217 @@ logger = logging.getLogger(__name__)
 # 导入之前定义的工具
 from LLM_tools.tools import PRIVATETOOLS
 from LLM_tools.tools import MARKETTOOLS
+from LLM_tools.tools import DATABASE_TOOLS
 
-
+class DatabaseToolRegistry:
+    """A registry for database analysis tools with descriptions, output formats, and metadata for LLM interaction."""
+    TOOLS: Dict[str, Dict[str, Any]] = {
+        "get_user_list": {
+            "description": "Retrieve a list of all users with basic information.",
+            "type": "query",
+            "parameters": {},
+            "output_format": "A string summarizing the list of users with their ID, username, and account tier.",
+            "example": {"tool_name": "get_user_list", "parameters": {}},
+            "return_value": "User list summary (e.g., 'User List:\nID: 123, Username: user123, Tier: 1\n...')"
+        },
+        "get_user_details": {
+            "description": "Retrieve detailed information about a specific user.",
+            "type": "query",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to query."
+                }
+            },
+            "output_format": "A string with detailed user information including quotas, balance, and activity.",
+            "example": {"tool_name": "get_user_details", "parameters": {"user_id": 123}},
+            "return_value": "User details summary (e.g., 'User Details for ID 123:\nUsername: user123\n...')"
+        },
+        "get_user_conversations": {
+            "description": "Retrieve a list of conversation IDs for a specific user.",
+            "type": "query",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to query."
+                }
+            },
+            "output_format": "A string listing the user's conversation IDs with associated metadata.",
+            "example": {"tool_name": "get_user_conversations", "parameters": {"user_id": 123}},
+            "return_value": "Conversation list summary (e.g., 'Conversations for User ID 123:\nID: 456, Conv ID: conv_456, ...')"
+        },
+        "get_conversation_details": {
+            "description": "Retrieve detailed content of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.",
+            "type": "query",
+            "parameters": {
+                "conv_id": {
+                    "type": "integer",
+                    "description": "The conversation ID to query."
+                }
+            },
+            "output_format": "A string summarizing the conversation content with dialog entries.",
+            "example": {"tool_name": "get_conversation_details", "parameters": {"conv_id": 456}},
+            "return_value": "Conversation content summary (e.g., 'Conversation Details for Conv ID 456:\nTurn 1: user: Hello\n...')"
+        },
+        "analyze_user_activity": {
+            "description": "Analyze a user's activity over the past specified days.",
+            "type": "analysis",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to analyze."
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Number of days to look back (default: 7)."
+                }
+            },
+            "output_format": "A string summarizing the user's activity including conversation frequency and token usage.",
+            "example": {"tool_name": "analyze_user_activity", "parameters": {"user_id": 123, "days": 7}},
+            "return_value": "Activity analysis summary (e.g., 'Activity Analysis for User ID 123 (Last 7 Days):\nNew Conversations: 5\n...')"
+        },
+        "get_user_sign_history": {
+            "description": "Retrieve the sign-in history and frequency for a specific user.",
+            "type": "query",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to query."
+                }
+            },
+            "output_format": "A string summarizing the user's sign-in history and temporary quota.",
+            "example": {"tool_name": "get_user_sign_history", "parameters": {"user_id": 123}},
+            "return_value": "Sign-in history summary (e.g., 'Sign-in History for User ID 123:\nLast Sign-in: 2023-10-01 10:00:00\n...')"
+        },
+        "get_top_active_users": {
+            "description": "Retrieve the most active users based on conversation count or token usage.",
+            "type": "analysis",
+            "parameters": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of top users to return (default: 10)."
+                }
+            },
+            "output_format": "A string summarizing the top active users with their activity metrics.",
+            "example": {"tool_name": "get_top_active_users", "parameters": {"limit": 10}},
+            "return_value": "Top active users summary (e.g., 'Top 10 Active Users:\nID: 123, Username: user123, Conversations: 50\n...')"
+        },
+        "analyze_conversation_topics": {
+            "description": "Analyze common topics or keywords in a user's conversations.",
+            "type": "analysis",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to analyze."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of recent conversations to analyze (default: 5)."
+                }
+            },
+            "output_format": "A string summarizing frequent topics or keywords in the user's conversations.",
+            "example": {"tool_name": "analyze_conversation_topics", "parameters": {"user_id": 123, "limit": 5}},
+            "return_value": "Topics analysis summary (e.g., 'Common Topics/Keywords for User ID 123 (Top 10):\nkeyword1: 15 times\n...')"
+        },
+        "get_group_activity": {
+            "description": "Retrieve activity data for a specific group.",
+            "type": "query",
+            "parameters": {
+                "group_id": {
+                    "type": "integer",
+                    "description": "The ID of the group to query."
+                }
+            },
+            "output_format": "A string summarizing group activity including call count and token usage.",
+            "example": {"tool_name": "get_group_activity", "parameters": {"group_id": 789}},
+            "return_value": "Group activity summary (e.g., 'Group Activity for ID 789:\nGroup Name: group789\nCall Count: 100\n...')"
+        },
+        "get_system_stats": {
+            "description": "Retrieve overall system statistics.",
+            "type": "analysis",
+            "parameters": {},
+            "output_format": "A string summarizing system-wide metrics like total users and conversations.",
+            "example": {"tool_name": "get_system_stats", "parameters": {}},
+            "return_value": "System stats summary (e.g., 'System Statistics:\nTotal Users: 1000\nTotal Conversations: 5000\n...')"
+        },
+        "get_recent_user_conversation_summary": {
+            "description": "Summarize the most recent conversation of a user for quick insight.",
+            "type": "analysis",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to analyze."
+                }
+            },
+            "output_format": "A string summarizing the latest conversation content for the user.",
+            "example": {"tool_name": "get_recent_user_conversation_summary", "parameters": {"user_id": 123}},
+            "return_value": "Recent conversation summary (e.g., 'Recent Conversation Summary for User ID 123 (Conv ID: 456):\nuser: Hello\n...')"
+        },
+        "get_user_config": {
+            "description": "Retrieve the configuration settings for a specific user.",
+            "type": "query",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user to query."
+                }
+            },
+            "output_format": "A string summarizing the user's configuration settings.",
+            "example": {"tool_name": "get_user_config", "parameters": {"user_id": 123}},
+            "return_value": "User configuration summary (e.g., 'Configuration for User ID 123:\nCharacter: char1\nAPI: api1\n...')"
+        }
+    }
+    @staticmethod
+    def get_tool(tool_name: str) -> Optional[Callable]:
+        """Get the tool function by name from DATABASE_TOOLS."""
+        return DATABASE_TOOLS.get(tool_name)
+    @staticmethod
+    def get_prompt_text() -> str:
+        """Generate a formatted text of tool descriptions and output formats for embedding in LLM prompts."""
+        prompt_lines = [
+            "You are an assistant integrated with the CyberWaifu bot system for database analysis. You can invoke specific tools to fetch and analyze user data. Below is a list of available database analysis tools with their descriptions, types, parameters, output formats, return values, and invocation examples. When invoking a tool, format your response as a JSON object with 'tool_name' and 'parameters'. If no tool is needed, respond with plain text.\n",
+            "Available Database Analysis Tools:"
+        ]
+        for tool_name, tool_info in DatabaseToolRegistry.TOOLS.items():
+            params_str = "None"
+            if tool_info["parameters"]:
+                params_str = "\n    Parameters:"
+                for param_name, param_info in tool_info["parameters"].items():
+                    params_str += f"\n      - {param_name}: {param_info['type']} - {param_info['description']}"
+            prompt_lines.append(f"- {tool_name}:")
+            prompt_lines.append(f"  Description: {tool_info['description']}")
+            prompt_lines.append(
+                f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs analysis)")
+            prompt_lines.append(f"  {params_str}")
+            prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
+            prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
+            prompt_lines.append(f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}")
+        prompt_lines.append("""\nInstruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
+    {
+      "tool_calls": [
+        {
+          "tool_name": "tool_name_1",
+          "parameters": {
+            "param1": "value1"
+          }
+        },
+        {
+          "tool_name": "tool_name_2",
+          "parameters": {
+            "param2": "value2"
+          }
+        }
+      ]
+    }
+    For single tool invocation, use this format, ensuring parameters are nested under 'parameters':
+    {
+      "tool_name": "tool_name",
+      "parameters": {
+        "param1": "value1"
+      }
+    }
+    Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text.""")
+        return "\n".join(prompt_lines)
 
 
 class PrivateToolRegistry:
@@ -507,6 +716,13 @@ for tool_name in MarketToolRegistry.TOOLS.keys():
         if tool_name in ALL_TOOLS:
             logger.warning(f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 MarketToolRegistry 覆盖")
         ALL_TOOLS[tool_name] = tool_func
+
+for tool_name in DatabaseToolRegistry.TOOLS.keys():
+    tool_func = DatabaseToolRegistry.get_tool(tool_name)
+    if tool_func:
+        if tool_name in ALL_TOOLS:
+            logger.warning(f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 DatabaseToolRegistry 覆盖")
+        ALL_TOOLS[tool_name] = tool_func
 logger.info(f"统一工具池初始化完成，包含工具: {list(ALL_TOOLS.keys())}")
 
 
@@ -602,3 +818,4 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
         return f"处理工具调用时发生错误: {str(e)}", []
     # 如果没有工具调用，直接返回原始响应
     return ai_response, []
+
