@@ -154,7 +154,9 @@ class DatabaseCommand(BaseCommand):
                 result, intermediate_results = await parse_and_invoke_tool(ai_response, update, context)
                 if intermediate_results:  # 如果有工具调用
                     logger.info(f"工具调用结果: {result}")
-                    # 修剪工具调用结果，每个工具结果最多 50 个字符
+                    # 记录完整结果用于日志和 LLM 反馈
+                    logger.debug(f"完整工具调用结果: {intermediate_results}")
+                    # 修剪工具调用结果用于 Telegram 消息展示，每个工具结果最多 80 个字符
                     trimmed_results = []
                     for res in intermediate_results:
                         tool_name = res['tool_name']
@@ -163,16 +165,17 @@ class DatabaseCommand(BaseCommand):
                             trimmed_result = tool_result[:80] + "..."
                         else:
                             trimmed_result = tool_result
-                        trimmed_results.append(f"{tool_name} 执行结果: {result}")
-
-                    # 使用 Markdown 代码块包裹修剪后的工具调用结果
-                    formatted_result = f"```\n{trimmed_result}\n```" or f"```\n{result}\n```"
+                        trimmed_results.append(f"{tool_name} 执行结果: {trimmed_result}")
+                    # 使用 Markdown 代码块包裹修剪后的工具调用结果，确保每个工具都展示
+                    formatted_result = "```\n" + "\n".join(trimmed_results) + "\n```"
                     final_result += formatted_result + "\n"
                     # 添加时间戳以确保内容变化
                     import time
                     await placeholder_message.edit_text(
-                        f"处理中...\n当前结果:\n{formatted_result}\n更新时间: {time.time()}"
+                        f"处理中...\n当前结果:\n{formatted_result}\n更新时间: {time.time()}",
+                        parse_mode="Markdown"
                     )
+                    # 完整结果反馈给 LLM，不修剪
                     feedback_content = "工具调用结果:\n" + "\n".join(
                         [f"{res['tool_name']} 执行结果: {res['result']}" for res in intermediate_results]
                     )
@@ -184,21 +187,32 @@ class DatabaseCommand(BaseCommand):
                         "role": "user",
                         "content": feedback_content
                     })
-                    logger.debug(f"已将工具调用结果反馈给 LLM: {feedback_content}")
+                    logger.debug(f"已将完整工具调用结果反馈给 LLM: {feedback_content}")
                 else:
                     logger.info(f"未调用工具，直接回复用户: {result}")
                     final_result += result
                     break  # 没有工具调用，结束循环
+            # 检查最终结果长度是否超过 Telegram 限制（4096 字符）
+            TELEGRAM_MESSAGE_LIMIT = 4096
+            if len(final_result) > TELEGRAM_MESSAGE_LIMIT:
+                final_result = final_result[:TELEGRAM_MESSAGE_LIMIT - 30] + "..."
+                final_result += "\n\n注意：结果过长，已被截断。"
             # 编辑占位消息以显示最终结果，使用 Markdown 格式
-            await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
+            try:
+                await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
+            except Exception as error:
+                logger.warning(f"发送消息失败，尝试禁用md: {error}")
+                await placeholder_message.edit_text(final_result.strip())
             logger.debug("已编辑占位消息，显示最终结果")
         except Exception as e:
             logger.error(f"处理 /database 命令时发生错误: {str(e)}")
-            # 编辑占位消息以显示错误信息，使用 Markdown 格式
-            error_message = f"处理请求时发生错误: `{str(e)}`"
+            # 编辑占位消息以显示错误信息，使用 Markdown 格式，并限制错误信息长度
+            error_message = str(e)
+            if len(error_message) > 100:
+                error_message = error_message[:100] + "..."
+            error_message = f"处理请求时发生错误: `{error_message}`"
             await placeholder_message.edit_text(error_message, parse_mode="Markdown")
             logger.debug("已编辑占位消息，显示错误信息")
-
 
 async def parse_and_invoke_tool(ai_response: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> tuple[
     str, list]:
