@@ -604,7 +604,7 @@ class MarketToolRegistry:
             "return_value": "Top movers summary (e.g., 'Top 5 movers on binance: BTC/USDT: +5.2%...')"
         },
         "get_funding_rate": {
-            "description": "Fetch the current funding rate for a cryptocurrency futures pair.",
+            "description": "Fetch the current funding rate for a cryptocurrency futures pair(Only contracts,no swap).",
             "type": "query",
             "parameters": {
                 "symbol": {

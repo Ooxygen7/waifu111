@@ -9,7 +9,6 @@ import tiktoken
 
 from utils import db_utils as db
 from utils import file_utils as file
-from utils import market_utils as market
 from utils import prompt_utils as prompt
 from utils.logging_utils import setup_logging
 
@@ -124,25 +123,11 @@ class LLM:
         return None
 
     async def embedd_all_text(self, images: list = None, context=None, group_id=None):
-        char = None
         if self.chat_type == 'private':
             # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_private_get(self.conv_id)
         elif self.chat_type == 'group':
             char, _ = db.conversation_group_config_get(self.conv_id, group_id)
-        if char and char == default_char:
-            user_actual_input = self.prompts
-            if '<user_input>\r\n' in self.prompts:
-                user_actual_input = self.prompts.split('<user_input>\r\n', 1)[1].split('\r\n</user_input>', 1)[0]
-            insert_coin = market.check_coin(user_actual_input)
-            if insert_coin:
-                df = market.get_candlestick_data(insert_coin)
-                if df is not None:
-                    self.prompts += (
-                        f"<market>\r\n这是{insert_coin}最近的走势，你需要详细输出具体的技术分析，需要提到其中的压力位(Supply)、支撑位("
-                        f"Demand)的具体点位，并分析接下来有可能的走势：\r\n{str(df)}\r\n</market>")
-                else:
-                    print(f"警告: 未能获取 {insert_coin} 的市场数据。")
         split_prompts = prompt.split_prompts(self.prompts)
         self.messages.insert(0, {"role": "system", "content": split_prompts['system']})
         user_content = split_prompts['user']

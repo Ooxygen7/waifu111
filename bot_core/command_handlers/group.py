@@ -100,8 +100,8 @@ class CryptoCommand(BaseCommand):
         name='crypto',
         command_type='private',
         trigger='cc',
-        menu_text='',
-        show_in_menu=False,
+        menu_text='分析加密货币实时行情',
+        show_in_menu=True,
         menu_weight=99
     )
 
@@ -219,7 +219,7 @@ class CryptoCommand(BaseCommand):
 
             final_result = ""
             current_messages = messages.copy()
-            max_iterations = 5  # 防止无限循环
+            max_iterations = 7  # 防止无限循环
             iteration = 0
 
             while iteration < max_iterations:
