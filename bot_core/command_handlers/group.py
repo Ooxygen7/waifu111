@@ -4,10 +4,11 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot_core.callback_handlers.inline import Inline
-from utils import db_utils as db,LLM_utils as llm
+from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
-from LLM_tools.tools_registry import parse_and_invoke_tool,MarketToolRegistry
+from LLM_tools.tools_registry import parse_and_invoke_tool, MarketToolRegistry
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ class KeywordCommand(BaseCommand):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(keywords_text, reply_markup=reply_markup, parse_mode='Markdown')
 
+
 class CryptoCommand(BaseCommand):
     meta = CommandMeta(
         name='crypto',
@@ -104,6 +106,7 @@ class CryptoCommand(BaseCommand):
         show_in_menu=True,
         menu_weight=99
     )
+
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
         Handle the /cc command to interact with LLM and invoke tools based on user input.
@@ -127,6 +130,7 @@ class CryptoCommand(BaseCommand):
             update=update
         )
         logger.debug("已创建后台任务处理 /tool 请求")
+
     async def process_tool_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str,
                                    placeholder_message) -> None:
         """
@@ -224,10 +228,12 @@ class CryptoCommand(BaseCommand):
                         truncated_result = (tool_result[:150] + '...' if len(tool_result) > 150 else tool_result)
                         truncated_results.append(f"{tool_name} 执行结果:\n{truncated_result}")
                     # 使用 Markdown 代码块包裹截断后的工具调用结果
-                    formatted_result = f"```\n{'\n\n'.join(truncated_results)}\n```"
+                    truncated_results_str = '\n\n'.join(truncated_results)
+                    formatted_result = f"```\n{truncated_results_str}\n```"
                     final_result += formatted_result + "\n"
                     # 更新占位消息以显示当前进度
-                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}", parse_mode="Markdown")
+                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}",
+                                                        parse_mode="Markdown")
                     # 将工具调用结果反馈给 LLM（完整结果，不截断）
                     feedback_content = "工具调用结果:\n" + "\n".join(
                         [f"{res['tool_name']} 执行结果: {res['result']}" for res in intermediate_results]
