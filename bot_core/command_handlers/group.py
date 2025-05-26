@@ -100,7 +100,7 @@ class KeywordCommand(BaseCommand):
 class CryptoCommand(BaseCommand):
     meta = CommandMeta(
         name='crypto',
-        command_type='private',
+        command_type='group',
         trigger='cc',
         menu_text='分析加密货币实时行情',
         show_in_menu=True,
