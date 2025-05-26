@@ -560,32 +560,6 @@ class MarketToolRegistry:
                         "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
             "return_value": "MACD analysis result (e.g., 'MACD for BTC/USDT on binance: MACD=120.45, Signal=100.32 (Bullish crossover)')"
         },
-        "get_support_resistance": {
-            "description": "Identify support and resistance levels for a cryptocurrency pair.",
-            "type": "analysis",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "timeframe": {
-                    "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 100)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the identified support and resistance levels.",
-            "example": {"tool_name": "get_support_resistance",
-                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 100, "exchange": "binance"}},
-            "return_value": "Support and resistance levels (e.g., 'Support: 45000.00 USDT, Resistance: 52000.00 USDT')"
-        },
         "get_top_movers": {
             "description": "Fetch the top movers (biggest price changes) on a specified exchange.",
             "type": "query",
@@ -603,26 +577,9 @@ class MarketToolRegistry:
             "example": {"tool_name": "get_top_movers", "parameters": {"limit": 5, "exchange": "binance"}},
             "return_value": "Top movers summary (e.g., 'Top 5 movers on binance: BTC/USDT: +5.2%...')"
         },
-        "get_funding_rate": {
-            "description": "Fetch the current funding rate for a cryptocurrency futures pair(Only contracts,no swap).",
+        "get_candlestick_data": {
+            "description": "Fetch raw candlestick (OHLCV) data for a cryptocurrency pair, suitable for charting or custom analysis.",
             "type": "query",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the funding rate and its implication.",
-            "example": {"tool_name": "get_funding_rate", "parameters": {"symbol": "BTC/USDT", "exchange": "binance"}},
-            "return_value": "Funding rate summary (e.g., 'Funding rate for BTC/USDT on binance: 0.0001 (Bullish)')"
-        },
-        "get_volatility": {
-            "description": "Calculate price volatility for a cryptocurrency pair based on historical data.",
-            "type": "analysis",
             "parameters": {
                 "symbol": {
                     "type": "string",
@@ -630,21 +587,21 @@ class MarketToolRegistry:
                 },
                 "timeframe": {
                     "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                    "description": "The timeframe for candles (e.g., 1m, 5m, 1h, 1d)."
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 50)."
+                    "description": "Number of candles to fetch (default: 50)."
                 },
                 "exchange": {
                     "type": "string",
                     "description": "The exchange to query (default: binance)."
                 }
             },
-            "output_format": "A string summarizing the volatility level.",
-            "example": {"tool_name": "get_volatility",
+            "output_format": "A string summarizing the candlestick data in a structured format.",
+            "example": {"tool_name": "get_candlestick_data",
                         "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
-            "return_value": "Volatility analysis result (e.g., 'Volatility for BTC/USDT on binance: 2.5% (High)')"
+            "return_value": "Candlestick data summary (e.g., 'Candlestick data for BTC/USDT on binance...')"
         }
     }
 
@@ -674,7 +631,7 @@ class MarketToolRegistry:
             prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
             prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
             prompt_lines.append(f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}")
-        prompt_lines.append("""\nInstruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
+        prompt_lines.append("""\nImportant Analysis Guideline: For every market analysis request, you MUST include the 'get_candlestick_data' tool as the foundation for visualizing or understanding price movements. Additionally, combine it with 2-3 other relevant tools (e.g., 'get_rsi', 'get_moving_average', 'get_macd', 'get_market_trends', or 'get_volume_analysis') to provide a comprehensive analysis. Ensure that the tools selected are complementary and cover different aspects of the market (e.g., trend, momentum, volume). If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
     {
       "tool_calls": [
         {
@@ -700,6 +657,7 @@ class MarketToolRegistry:
     }
     Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text.""")
         return "\n".join(prompt_lines)
+
 
 ALL_TOOLS: Dict[str, Callable] = {}
 # 从 PrivateToolRegistry 添加工具

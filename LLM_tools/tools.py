@@ -210,7 +210,6 @@ class MarketTools:
                         exchange: str = "binance") -> str:
         """
         Fetch the current price of a cryptocurrency pair from a specified exchange.
-
         Description: Retrieves the latest price for a given trading pair (e.g., BTC/USDT) from the specified exchange.
         Type: Query
         Parameters:
@@ -238,7 +237,6 @@ class MarketTools:
                                   timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
         """
         Fetch historical OHLCV (Open, High, Low, Close, Volume) data for a cryptocurrency pair.
-
         Description: Retrieves historical price data for a given trading pair over a specified timeframe and limit.
         Type: Query
         Parameters:
@@ -277,7 +275,6 @@ class MarketTools:
                              limit: int = 10, exchange: str = "binance") -> str:
         """
         Fetch the current order book for a cryptocurrency pair.
-
         Description: Retrieves the bid and ask data from the order book of a specified trading pair.
         Type: Query
         Parameters:
@@ -296,10 +293,8 @@ class MarketTools:
             bids = order_book.get('bids', [])[:5]
             asks = order_book.get('asks', [])[:5]
             await exchange_instance.close()
-            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in
-                                 bids]) if bids else "No bids available."
-            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in
-                                 asks]) if asks else "No asks available."
+            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in bids]) if bids else "No bids available."
+            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in asks]) if asks else "No asks available."
             return (
                 f"Order book for {symbol} on {exchange} (top entries):\n"
                 f"Bids (Buy Orders):\n{bid_str}\n"
@@ -314,7 +309,6 @@ class MarketTools:
                                 timeframe: str = "1d", limit: int = 30, exchange: str = "binance") -> str:
         """
         Analyze market trends for a cryptocurrency pair based on historical data.
-
         Description: Analyzes historical data to provide insights on price trends (e.g., bullish, bearish, or neutral).
         Type: Analysis
         Parameters:
@@ -357,7 +351,6 @@ class MarketTools:
                                   timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
         """
         Analyze trading volume for a cryptocurrency pair based on historical data.
-
         Description: Analyzes historical volume data to identify spikes or trends in trading activity.
         Type: Analysis
         Parameters:
@@ -399,7 +392,6 @@ class MarketTools:
                       timeframe: str = "1h", limit: int = 50, period: int = 14, exchange: str = "binance") -> str:
         """
         Calculate the Relative Strength Index (RSI) for a cryptocurrency pair.
-
         Description: Computes the RSI based on historical data to identify overbought or oversold conditions.
         Type: Analysis
         Parameters:
@@ -457,7 +449,6 @@ class MarketTools:
                                  exchange: str = "binance") -> str:
         """
         Calculate the Simple Moving Average (SMA) for a cryptocurrency pair.
-
         Description: Computes the SMA based on historical data to identify price trends.
         Type: Analysis
         Parameters:
@@ -492,7 +483,6 @@ class MarketTools:
                        timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
         """
         Calculate the Moving Average Convergence Divergence (MACD) for a cryptocurrency pair.
-
         Description: Computes the MACD to identify momentum and potential buy/sell signals.
         Type: Analysis
         Parameters:
@@ -530,52 +520,10 @@ class MarketTools:
             return f"Failed to calculate MACD for {symbol} on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_support_resistance(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
-                                     timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
-        """
-        Identify support and resistance levels for a cryptocurrency pair.
-
-        Description: Analyzes historical data to estimate key support and resistance price levels.
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 100).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the identified support and resistance levels.
-        Invocation: {"tool_name": "get_support_resistance", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 100, "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv:
-                return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
-            highs = [candle[2] for candle in ohlcv]  # High prices
-            lows = [candle[3] for candle in ohlcv]  # Low prices
-            # 简单估计：支持位取最低价前5%的平均值，阻力位取最高价前5%的平均值
-            sorted_lows = sorted(lows)
-            sorted_highs = sorted(highs, reverse=True)
-            support = sum(sorted_lows[:int(len(sorted_lows) * 0.05)]) / (int(len(sorted_lows) * 0.05) or 1)
-            resistance = sum(sorted_highs[:int(len(sorted_highs) * 0.05)]) / (int(len(sorted_highs) * 0.05) or 1)
-            await exchange_instance.close()
-            return (
-                f"Support and Resistance levels for {symbol} on {exchange} (timeframe: {timeframe}):\n"
-                f"- Estimated Support: {support:.2f} USDT\n"
-                f"- Estimated Resistance: {resistance:.2f} USDT"
-            )
-        except Exception as e:
-            logger.error(f"Error calculating support/resistance for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to calculate support/resistance for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
     async def get_top_movers(update: Update, context: ContextTypes.DEFAULT_TYPE, limit: int = 5,
                              exchange: str = "binance") -> str:
         """
         Fetch the top movers (biggest price changes) on a specified exchange.
-
         Description: Retrieves a list of trading pairs with the highest percentage price changes over the last 24 hours.
         Type: Query
         Parameters:
@@ -604,52 +552,19 @@ class MarketTools:
             return f"Failed to fetch top movers on {exchange}: {str(e)}"
 
     @staticmethod
-    async def get_funding_rate(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
-                               exchange: str = "binance") -> str:
+    async def get_candlestick_data(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
+                                   timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
         """
-        Fetch the current funding rate for a cryptocurrency futures pair.
-
-        Description: Retrieves the funding rate for perpetual futures contracts, indicating market sentiment.
+        Fetch raw candlestick (OHLCV) data for a cryptocurrency pair.
+        Description: Retrieves raw Open, High, Low, Close, and Volume data for a given trading pair, suitable for charting or custom analysis.
         Type: Query
         Parameters:
             - symbol (string): The trading pair symbol (e.g., BTC/USDT).
+            - timeframe (string): The timeframe for candles (e.g., 1m, 5m, 1h, 1d).
+            - limit (integer): Number of candles to fetch (default: 50).
             - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the funding rate and its implication.
-        Invocation: {"tool_name": "get_funding_rate", "parameters": {"symbol": "BTC/USDT", "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            funding_rate = await exchange_instance.fetch_funding_rate(symbol)
-            rate = funding_rate.get('fundingRate', 0)
-            sentiment = (
-                "Bullish (longs pay shorts)" if rate > 0 else
-                "Bearish (shorts pay longs)" if rate < 0 else
-                "Neutral"
-            )
-            await exchange_instance.close()
-            return f"Funding rate for {symbol} on {exchange}: {rate:.4f} ({sentiment})"
-        except Exception as e:
-            logger.error(f"Error fetching funding rate for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to fetch funding rate for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
-    async def get_volatility(update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str = "BTC/USDT",
-                             timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
-        """
-        Calculate price volatility for a cryptocurrency pair based on historical data.
-
-        Description: Computes the standard deviation of price returns to measure market volatility.
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 50).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the volatility level.
-        Invocation: {"tool_name": "get_volatility", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}}
+        Return Value: A string summarizing the candlestick data in a structured format.
+        Invocation: {"tool_name": "get_candlestick_data", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}}
         """
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
@@ -657,18 +572,22 @@ class MarketTools:
                 return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
             ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv or len(ohlcv) < 2:
-                return f"Insufficient historical data for {symbol} on {exchange} to calculate volatility."
-            closes = np.array([candle[4] for candle in ohlcv])
-            returns = np.diff(closes) / closes[:-1]
-            volatility = np.std(returns) * np.sqrt(24 * 365) if timeframe == "1h" else np.std(returns) * np.sqrt(
-                365) if timeframe == "1d" else np.std(returns)
-            level = "High" if volatility > 0.5 else "Moderate" if volatility > 0.2 else "Low"
+            if not ohlcv:
+                return f"No candlestick data found for {symbol} on {exchange} with timeframe {timeframe}."
+            # 限制返回的条目数，避免输出过长，仅展示最新的几条数据
+            display_limit = min(5, len(ohlcv))
+            candlestick_str = "\n".join([
+                f"  - Time: {candle[0]}, Open: {candle[1]:.2f}, High: {candle[2]:.2f}, Low: {candle[3]:.2f}, Close: {candle[4]:.2f}, Volume: {candle[5]:.2f}"
+                for candle in ohlcv[-display_limit:]
+            ])
             await exchange_instance.close()
-            return f"Volatility for {symbol} on {exchange} (timeframe: {timeframe}, annualized): {volatility:.2%} ({level})"
+            return (
+                f"Candlestick data for {symbol} on {exchange} (timeframe: {timeframe}, showing last {display_limit} of {len(ohlcv)} candles):\n"
+                f"{candlestick_str}"
+            )
         except Exception as e:
-            logger.error(f"Error calculating volatility for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to calculate volatility for {symbol} on {exchange}: {str(e)}"
+            logger.error(f"Error fetching candlestick data for {symbol} on {exchange}: {str(e)}")
+            return f"Failed to fetch candlestick data for {symbol} on {exchange}: {str(e)}"
 
 # Tool mapping for LLM invocation
 MARKETTOOLS = {
@@ -680,11 +599,10 @@ MARKETTOOLS = {
     "get_rsi": MarketTools.get_rsi,
     "get_moving_average": MarketTools.get_moving_average,
     "get_macd": MarketTools.get_macd,
-    "get_support_resistance": MarketTools.get_support_resistance,
     "get_top_movers": MarketTools.get_top_movers,
-    "get_funding_rate": MarketTools.get_funding_rate,
-    "get_volatility": MarketTools.get_volatility,
+    "get_candlestick_data": MarketTools.get_candlestick_data,
 }
+
 
 
 class DatabaseTools:
