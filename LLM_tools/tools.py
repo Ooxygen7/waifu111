@@ -575,7 +575,7 @@ class MarketTools:
             if not ohlcv:
                 return f"No candlestick data found for {symbol} on {exchange} with timeframe {timeframe}."
             # 限制返回的条目数，避免输出过长，仅展示最新的几条数据
-            display_limit = min(5, len(ohlcv))
+            display_limit = min(40, len(ohlcv))
             candlestick_str = "\n".join([
                 f"  - Time: {candle[0]}, Open: {candle[1]:.2f}, High: {candle[2]:.2f}, Low: {candle[3]:.2f}, Close: {candle[4]:.2f}, Volume: {candle[5]:.2f}"
                 for candle in ohlcv[-display_limit:]
