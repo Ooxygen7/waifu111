@@ -293,8 +293,10 @@ class MarketTools:
             bids = order_book.get('bids', [])[:5]
             asks = order_book.get('asks', [])[:5]
             await exchange_instance.close()
-            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in bids]) if bids else "No bids available."
-            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in asks]) if asks else "No asks available."
+            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in
+                                 bids]) if bids else "No bids available."
+            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in
+                                 asks]) if asks else "No asks available."
             return (
                 f"Order book for {symbol} on {exchange} (top entries):\n"
                 f"Bids (Buy Orders):\n{bid_str}\n"
@@ -589,6 +591,7 @@ class MarketTools:
             logger.error(f"Error fetching candlestick data for {symbol} on {exchange}: {str(e)}")
             return f"Failed to fetch candlestick data for {symbol} on {exchange}: {str(e)}"
 
+
 # Tool mapping for LLM invocation
 MARKETTOOLS = {
     "get_price": MarketTools.get_price,
@@ -602,7 +605,6 @@ MARKETTOOLS = {
     "get_top_movers": MarketTools.get_top_movers,
     "get_candlestick_data": MarketTools.get_candlestick_data,
 }
-
 
 
 class DatabaseTools:
@@ -629,7 +631,7 @@ class DatabaseTools:
                 FROM users u \
                          LEFT JOIN \
                      user_config uc ON u.uid = uc.uid
-                ORDER BY u.uid; -- 增加排序以保持结果的稳定性 \
+                ORDER BY u.uid; -- 增加排序以保持结果的稳定性  \
                 """
         result = db.query_db(query)
         if not result:
@@ -686,11 +688,12 @@ class DatabaseTools:
         if not result:
             return f"No conversations found for user ID {user_id}."
         conv_summary = "\n".join(
-            [f"Turn Order: {row[0]}, Conv ID: {row[1]}, Character: {row[2]}, Created At: {row[3]},Delete Mark: {row[4]}" for row in result])
+            [f"Turn Order: {row[0]}, Conv ID: {row[1]}, Character: {row[2]}, Created At: {row[3]},Delete Mark: {row[4]}"
+             for row in result])
         return f"Conversations for User ID {user_id}:\n{conv_summary}"
 
     @staticmethod
-    async def get_conversation_dialog(conv_id: int) -> str:
+    async def get_conversation_dialog(conv_id: int, limit = 10) -> str:
         """
         Retrieve detailed content of a specific conversation.
         Description: Fetches dialog entries for a given conversation ID,
@@ -708,15 +711,13 @@ class DatabaseTools:
 
         if not result:
             return f"No dialogs found for conversation ID {conv_id}."
-        latest_50_dialogs = result[-50:]
+        latest_50_dialogs = result[-1 * limit:]
         dialog_summary = "\n".join([
             f"Turn {row[2]}: {row[0]}: {row[1]}"  # 移除了 {row[3]} (created_at)
             for row in latest_50_dialogs
         ])
 
         return f"Conversation Details for Conv ID {conv_id} (latest {len(latest_50_dialogs)} turns):\n{dialog_summary}"
-
-
 
     @staticmethod
     async def analyze_user_activity(user_id: int, days: int = 7) -> str:
@@ -784,8 +785,6 @@ class DatabaseTools:
         summary = "\n".join([f"ID: {row[0]}, Username: {row[1]}, Conversations: {row[2]}, Turns: {row[3]}, "
                              f"Input Tokens: {row[4]}, Output Tokens: {row[5]}" for row in result])
         return f"Top {limit} Active Users:\n{summary}"
-
-
 
     @staticmethod
     async def get_group_activity(group_id: int) -> str:

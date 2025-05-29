@@ -59,16 +59,20 @@ class DatabaseToolRegistry:
             "return_value": "Conversation list summary (e.g., 'Conversations for User ID 123:\nID: 456, Conv ID: conv_456, ...')"
         },
         "get_conversation_dialog": {
-            "description": "Retrieve the latest 50 detailed content messages of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.",
+            "description": "Retrieve the latest  detailed content messages of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.Even the conversation is  marked as 'yes',you still have access to it.",
             "type": "query",
             "parameters": {
                 "conv_id": {
                     "type": "integer",
                     "description": "The conversation ID to query."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Limit the number of messages to query."
                 }
             },
             "output_format": "A string summarizing the conversation content with dialog entries.",
-            "example": {"tool_name": "get_conversation_dialog", "parameters": {"conv_id": 456}},
+            "example": {"tool_name": "get_conversation_dialog", "parameters": {"conv_id": 456,"limit":10}},
             "return_value": "Conversation content summary (e.g., 'Conversation dialog for Conv ID 456:\nTurn 1: user: Hello\n...')"
         },
         "analyze_user_activity": {
