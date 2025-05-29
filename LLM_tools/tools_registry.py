@@ -59,7 +59,7 @@ class DatabaseToolRegistry:
             "return_value": "Conversation list summary (e.g., 'Conversations for User ID 123:\nID: 456, Conv ID: conv_456, ...')"
         },
         "get_conversation_details": {
-            "description": "Retrieve detailed content of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.",
+            "description": "Retrieve the latest 50 detailed content messages of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.",
             "type": "query",
             "parameters": {
                 "conv_id": {
@@ -732,7 +732,7 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
             for i, tool_call in enumerate(tool_calls):
                 tool_name = tool_call.get("tool_name")
                 parameters = tool_call.get("parameters", {})
-                logger.info(f"调用工具 {i + 1}/{len(tool_calls)}: {tool_name}，参数: {parameters}")
+                logger.debug(f"调用工具 {i + 1}/{len(tool_calls)}: {tool_name}，参数: {parameters}")
                 # 直接从统一工具池 ALL_TOOLS 获取工具
                 tool_func = ALL_TOOLS.get(tool_name)
 
@@ -746,7 +746,7 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
                             "parameters": parameters,
                             "result": result
                         })
-                        logger.info(f"工具 {tool_name} 执行成功: {result}")
+                        logger.debug(f"工具 {tool_name} 执行成功: {result}")
                     except Exception as e:
                         error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
                         results.append(error_msg)

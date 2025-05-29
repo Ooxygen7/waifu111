@@ -611,18 +611,35 @@ class DatabaseTools:
     @staticmethod
     async def get_user_list() -> str:
         """
-        Retrieve a list of all users with basic information.
-        Description: Fetches a list of all users including their ID, username, and account tier.
+        Retrieve a list of all users with basic information and nickname.
+        Description: Fetches a list of all users including their ID, username, account tier, and nickname.
         Type: Query
         Parameters: None
         Return Value: A string summarizing the list of users.
         Invocation: {"tool_name": "get_user_list", "parameters": {}}
         """
-        query = "SELECT uid, user_name, account_tier FROM users"
+        # 修改 SQL 查询，使用 LEFT JOIN 连接 users 和 user_config 表
+        # 以便获取每个用户的昵称 (nick)。
+        # 使用表别名 u 代表 users，uc 代表 user_config，提高可读性。
+        query = """
+                SELECT u.uid, \
+                       u.user_name, \
+                       u.account_tier, \
+                       uc.nick
+                FROM users u \
+                         LEFT JOIN \
+                     user_config uc ON u.uid = uc.uid
+                ORDER BY u.uid; -- 增加排序以保持结果的稳定性 \
+                """
         result = db.query_db(query)
         if not result:
             return "No users found in the database."
-        user_summary = "\n".join([f"ID: {row[0]}, Username: {row[1]}, Tier: {row[2]}" for row in result])
+        # 修改 user_summary 格式化字符串，包含 nick
+        # row 的结构现在是 (uid, user_name, account_tier, nick)
+        user_summary = "\n".join([
+            f"ID: {row[0]}, Username: {row[1]}, Tier: {row[2]}, Nickname: {row[3] if row[3] is not None else 'N/A'}"
+            for row in result
+        ])
         return f"User List:\n{user_summary}"
 
     @staticmethod
@@ -676,19 +693,30 @@ class DatabaseTools:
     async def get_conversation_details(conv_id: int) -> str:
         """
         Retrieve detailed content of a specific conversation.
-        Description: Fetches all dialog entries for a given conversation ID.
+        Description: Fetches dialog entries for a given conversation ID,
+                     limited to the latest 50 turns.
         Type: Query
         Parameters:
             - conv_id (int): The conversation ID to query.
         Return Value: A string summarizing the conversation content.
         Invocation: {"tool_name": "get_conversation_details", "parameters": {"conv_id": 456}}
         """
-        query = "SELECT role, processed_content, turn_order, created_at FROM dialogs WHERE conv_id = ? ORDER BY turn_order"
+        # 1. 修改 SQL 查询，去除 created_at 参数
+        # 确保结果依然按 turn_order 从旧到新排列，以便后续截取最新数据
+        query = "SELECT role, processed_content, turn_order FROM dialogs WHERE conv_id = ? ORDER BY turn_order"
         result = db.query_db(query, (conv_id,))
+
         if not result:
             return f"No dialogs found for conversation ID {conv_id}."
-        dialog_summary = "\n".join([f"Turn {row[2]} ({row[3]}): {row[0]}: {row[1]}" for row in result])
-        return f"Conversation Details for Conv ID {conv_id}:\n{dialog_summary}"
+        latest_50_dialogs = result[-50:]
+        dialog_summary = "\n".join([
+            f"Turn {row[2]}: {row[0]}: {row[1]}"  # 移除了 {row[3]} (created_at)
+            for row in latest_50_dialogs
+        ])
+
+        return f"Conversation Details for Conv ID {conv_id} (latest {len(latest_50_dialogs)} turns):\n{dialog_summary}"
+
+
 
     @staticmethod
     async def analyze_user_activity(user_id: int, days: int = 7) -> str:
