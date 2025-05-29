@@ -3,7 +3,7 @@ import logging
 import random
 from typing import Union
 
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot_core.public_functions.conversation import GroupConv
@@ -37,8 +37,10 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         keyword_action = context.user_data.get('keyword_action')
         if keyword_action == 'add':
             user_id = update.effective_user.id
-            logger.info(f"用户正在添加关键词，忽略普通回复逻辑，用户ID: {user_id}，群组ID: {update.message.chat.id}")
+            logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
             await features.group_keyword_add(update, context)
+            return
+        if update.message.from_user.id == 12345678:
             return
 
         # 处理普通群聊消息

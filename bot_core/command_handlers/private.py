@@ -139,7 +139,7 @@ class SaveCommand(BaseCommand):
             placeholder_message = await update.message.reply_text("保存中...")
 
             async def create_summary(conv_id, placeholder):
-                summary = await llm.generate_summary(conv_id)
+                summary = await llm.LLM.generate_summary(conv_id)
                 if db.conversation_private_summary_add(conv_id, summary):
                     logger.info(f"保存对话并生成总结, conv_id: {conv_id}, summary: {summary}")
                     try:
@@ -307,7 +307,7 @@ class DoneCommand(BaseCommand):
             async def _generate_char(placeholder, char_description, save_to, name_char, uid, tg_context):
                 generated_content = None
                 try:
-                    generated_content = await llm.generate_char(char_description)
+                    generated_content = await llm.LLM.generate_char(char_description)
                     json_pattern = r'```json\s*([\s\S]*?)\s*```|```([\s\S]*?)\s*```|\{[\s\S]*\}'
                     match = re.search(json_pattern, generated_content)
                     if match:

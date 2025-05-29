@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Optional, Dict
 
 config_path = "./config/config_local.json"
 config_local = "./config/config_local.json"
@@ -120,3 +121,34 @@ def get_api_config(api_name: str) -> tuple[str, str, str]:
         if api_config_item['name'] == api_name:
             return api_config_item['key'], api_config_item['url'], api_config_item['model']
     raise ValueError(f"未找到名为 '{api_name}' 的API配置")
+
+
+def load_data_from_file(file_path: str) -> Optional[Dict]:
+    """直接从文件加载JSON数据，返回字典或None（处理文件不存在或解析错误）。"""
+    if not os.path.exists(file_path):
+        print(f"错误: 文件 '{file_path}' 不存在。")
+        return None
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)  # 加载并返回数据
+    except json.JSONDecodeError as e:
+        print(f"错误: JSON 文件格式错误 - {e}")
+        return None
+    except Exception as e:
+        print(f"错误: 读取文件时发生意外错误 - {e}")
+        return None
+
+
+def load_character_from_file(filename: str) -> str:
+    """直接从文件加载角色JSON文件，返回格式化字符串或错误消息。"""
+    file_path = os.path.join("./characters/", filename + ".json")
+    if not os.path.exists(file_path):
+        return f"Error: File '{file_path}' does not exist."
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return json.dumps(data, ensure_ascii=False, indent=4)
+    except json.JSONDecodeError:
+        return f"Error: File '{file_path}' is not a valid JSON file."
+    except Exception as e:
+        return f"Error: An unexpected error occurred: {str(e)}"

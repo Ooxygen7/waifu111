@@ -341,7 +341,7 @@ class GroupConv:
         """
         print("正在保存群聊记录")  # 打印日志
         db.group_info_update(self.group.id, 'call_count', 1, True)  # 更新调用计数
-        input_token = llm.calculate_token_count(str(self.client.messages))
+        input_token = self.client.calculate_token_count(str(self.client.messages))
         logger.debug(f"输入令牌:{input_token}")  # 计算对话令牌
         turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
         db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
@@ -349,7 +349,7 @@ class GroupConv:
         db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
                               self.output.id, GROUP)  # 添加助手对话
         db.conversation_group_update(self.group.id, self.user.id, 'turns', 1)  # 更新回合数
-        output_token = llm.calculate_token_count(self.output.text_raw)  # 计算输出令牌
+        output_token = self.client.calculate_token_count(self.output.text_raw)  # 计算输出令牌
         db.group_info_update(self.group.id, 'input_token', input_token, True)  # 更新输入令牌
         db.group_info_update(self.group.id, 'output_token', output_token, True)  # 更新输出令牌
         logger.debug(f"输出令牌:{output_token}")
@@ -567,10 +567,10 @@ class PrivateConv:
         该方法计算输入和输出的 token 数量,并更新数据库中用户的
         token 数量,对话轮次和剩余频率.
         """
-        input_tokens = llm.calculate_token_count(str(self.client.messages))  # 计算输入tokens
+        input_tokens = self.client.calculate_token_count(str(self.client.messages))  # 计算输入tokens
         logger.info(f"输入令牌：{input_tokens}")
         db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
-        output_tokens = llm.calculate_token_count(self.output.text_raw)  # 计算输出tokens
+        output_tokens = self.client.calculate_token_count(self.output.text_raw)  # 计算输出tokens
         logger.info(f"输出令牌：{output_tokens}")
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
         db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
