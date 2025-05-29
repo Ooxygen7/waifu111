@@ -393,152 +393,132 @@ prompt_cache = PromptCache()
 class Prompts:
     def __init__(self, preset, user_input=None, char=None):
         self.data = prompt_cache.get_prompt_data('./prompts/prompts.json')
-        self.content = None
+        self.char = char
+        self.char_txt = prompt_cache.get_character(self.char)
+        self.preset = preset
         self.system_txt = None
-        self.char_txt = None
         self.control_txt = None
+        self.cot_text = None
         self.sample_txt = None
         self.function_txt = None
         self.jailbreak_txt = None
         self.others_txt = None
-        self.char = char
-        self.preset = preset
         self.input = user_input
-        self.dict = {"system": {"tag": "system", "description": ""},
-                     "char": {"tag": "character", "description": "以下是你需要扮演的角色信息："},
-                     "control": {"tag": "control", "description": "以下是对于输出内容的要求，请务必遵守："},
-                     "sample": {"tag": "sample", "description": "以下是一些可以参考的文本："},
-                     "function": {"tag": "function", "description": "以下是一些额外的要求："},
-                     "jailbreak": {"tag": "notice", "description": "以下是你需要注意的事项："},
-                     "others": {"tag": "others", "description": "还有一些额外要求："},
-                     "plot": {"tag": "plot_control", "description": "以下是用户对剧情发展方向或输出内容的强制要求，你必须遵守："},
-                     "input": {"tag": "user_", "description": "以下是用户输入的最新消息："}}
+        self.content = ''
+        self.load_prompt_part()
 
-    def _build_full_prompt(self) -> str:
+    def load_prompt_part(self):
         """
-        内部方法：负责调用所有子构建步骤来生成完整的提示字符串。
-        相当于原 `prompt_utils.py` 中的 `build_prompts` 函数逻辑。
+        从 preset_list 中找到匹配的 preset 模板，并加载各个部分的提示内容。
         """
-
-        # Step 1: 构建基础提示集 (例如，根据 preset 从 JSON 中组合 system, cot, control 等部分)
-        prompt_text = self._build_prompt_set_by_preset()
-        if not prompt_text:
-            return ""
-        # Step 2: 插入角色信息 (如果指定了角色)
-        if self.char:
-            prompt_text = self._insert_character_info(prompt_text)
-        # Step 3: 添加 <user_input> 占位符
-        prompt_text += "<user_input>\r\n\r\n</user_input>"
-        # Step 4: 处理用户输入，提取特殊控制指令并插入
-        cleaned_input, special_control = self.extract_special_control(self.input)
-        if special_control:
-            # 格式化特殊控制内容
-            control_text = self._format_user_control(special_control)
-            # 将控制内容插入到 <user_input> 标签之前
-            prompt_text = self._insert_text(prompt_text, control_text, '<user_input>\r\n', 'before')
-        # Step 5: 插入清理后的用户输入到 <user_input> 标签内部
-        final_prompt = self._insert_text(prompt_text, cleaned_input, '\r\n</user_input>', 'before')
-        return final_prompt
-
-    # --- 内部辅助方法 (重构自 prompt_utils.py) ---
-    def _create_prompts_dict(self, data: Dict) -> Dict:
-        """
-        从原始加载的数据中创建用于快速查找的提示字典。
-        将类别键和名称键都转换为小写。
-        """
-        return {category.lower(): {item['name'].lower(): item['content'] for item in items}
-                for category, items in data.get('prompts', {}).items()}
-
-    def _get_prompt_content(self, category: str, name: str) -> Optional[str]:
-        """
-        从内部 `_prompts_dict` 中获取指定类别和名称的提示内容。
-        名称不区分大小写。
-        """
-        name_lower = name.lower()
-        # 确保 category 也是小写以匹配 _prompts_dict 的键
-        category_lower = category.lower()
-        if category_lower in self._prompts_dict and name_lower in self._prompts_dict[category_lower]:
-            return self._prompts_dict[category_lower][name_lower]
-        # print(f"警告: 无法找到 category '{category}' 或 name '{name}' 的内容。")
-        return None
-
-    def _get_prompts_set(self, set_name: str) -> Optional[Dict]:
-        """
-        从 `self.data` 中的 `prompt_set_list` 查找指定名称的提示集，
-        并返回其 `combine` 部分。
-        """
-        sets = self.data.get('prompt_set_list', [])
-        for item in sets:
-            if item.get('name') == set_name:
-                return item.get('combine')
-        return None
-
-    def _load_set_combine(self, combine_data: Dict) -> Dict[str, List[str]]:
-        """
-        从提示集数据中提取并返回结构化的类别字典。
-        """
-        return {
-            'system': combine_data.get('System', []),
-            'cot': combine_data.get('COT', []),
-            'control': combine_data.get('Control', []),
-            'sample': combine_data.get('Sample', []),
-            'function': combine_data.get('Function', []),
-            'jailbreak': combine_data.get('Jailbreak', []),
-            'others': combine_data.get('Others', [])
-        }
-
-    @staticmethod
-    def _create_category_wrapper(category: str) -> Tuple[str, str]:
-        """
-        根据提示类别创建相应的前缀和后缀标签。
-        这是一个静态方法，因为它不依赖于实例状态。
-        """
-        wrappers = {
-            'system': ("<system>\r\n",
-                       "\r\n</system>\r\n<character>\r\n以下是你需要扮演的角色的信息\r\n\r\n</character>\r\n"),
-            'cot': ("<thinking>\r\n以下内容是你在生成之前需要思考的部分\r\n", "\r\n</thinking>"),
-            'control': ("<format>\r\n以下内容是对于生成内容的要求，请您务必遵守\r\n", "\r\n</format>\r\n"),
-            'sample': ("<sample>\r\n以下是可参考内容\r\n", "\r\n</sample>\r\n"),
-            'function': ("<request>\r\n除此之外，这里还有一些包含用户对生成内容的控制要求\r\n", "\r\n</request>\r\n"),
-            'jailbreak': ("<attention>\r\n", "\r\n</attention>\r\n"),
-            'others': ("<others>\r\n", "\r\n</others>\r\n")
-        }
-        return wrappers.get(category, ("", ""))
-
-    def _add_category_content(self, lines: List[str], category: str, items: List[str]):
-        """
-        向提示行列表添加指定类别的内容，包括其前缀和后缀。
-        """
-        if not items:
+        preset_list = self.data.get("prompt_set_list", [])
+        logger.debug(f"<UNK> preset list: {preset_list}")
+        target_template = None
+        # 查找匹配的 preset 模板
+        for template in preset_list:
+            if template.get("name") == self.preset:
+                target_template = template
+                logger.debug(f"<UNK> target_template : {target_template}>")
+                break
+        if not target_template:
+            logger.warning(f"Warning: Preset {self.preset} not found in prompt_set_list")
             return
-        prefix, suffix = self._create_category_wrapper(category)
-        lines.append(f"\r\n{prefix}")
-        for item in items:
-            content = self._get_prompt_content(category, item)
-            if content:
-                lines.append(content)
-                lines.append('\r\n')
-        lines.append(suffix)
+        # 从模板中提取 combine 字段的各个部分
+        combine_data = target_template.get("combine", {})
+        logger.debug(f"<UNK> combine_data: {combine_data}")
+        # 定义要处理的提示部分类型及其对应的 combine 数据
+        prompt_parts = {
+            "System": combine_data.get("System"),
+            "COT": combine_data.get("COT"),
+            "Control": combine_data.get("Control"),
+            "Sample": combine_data.get("Sample"),
+            "Function": combine_data.get("Function"),
+            "Jailbreak": combine_data.get("Jailbreak"),
+            "Others": combine_data.get("Others")
+        }
+        logger.debug(f"<UNK> prompt_parts: {str(prompt_parts)}")
+        # 遍历每个提示部分，动态传递类型和 combine 数据
+        for prompt_part_type, combine in prompt_parts.items():
+            logger.debug(f"<准备构建> {prompt_part_type}: {combine}")
+            self._load_prompt_content(prompt_part_type, combine)
+        self._insert_char()
+        self._insert_input()
 
-    def _build_prompt_set_by_preset(self) -> str:
-        """
-        根据 `self.preset` 构建基础提示集字符串。
-        相当于原 `prompt_utils.py` 中的 `build_prompt_set` 函数逻辑。
-        """
-        set_data = self._get_prompts_set(self.preset)
-        if not set_data:
-            print(f"警告: 未找到名为 '{self.preset}' 的提示集。")
-            return ""
-        combine_info = self._load_set_combine(set_data)
-        lines = []
-        # 按照预设的顺序添加各类别内容
-        categories_order = ['system', 'cot', 'control', 'sample', 'function', 'jailbreak', 'others']
-        for category in categories_order:
-            self._add_category_content(lines, category, combine_info[category])
-        return ''.join(lines)
+    def _load_prompt_content(self, prompt_part_type, combine):
+        PROMPT_PART_CONFIG = {
+            "System": {"tag": "system", "description": ""},
+            'COT': {'tag': 'COT', 'description': "以下是你在输出前需要思考的内容"},
+            "Control": {"tag": "control", "description": "以下是对于输出内容的要求，请务必遵守："},
+            "Sample": {"tag": "sample", "description": "以下是一些可以参考的文本："},
+            "Function": {"tag": "function", "description": "以下是一些额外的要求："},
+            "Jailbreak": {"tag": "notice", "description": "以下是你需要注意的事项："},
+            "Others": {"tag": "others", "description": "还有一些额外要求："},
+        }
+        if combine is None or not isinstance(combine, list) or not combine:
+            logger.debug(f"<数据无效> 返回")
+            return
+        # 检查 prompt_part_type 是否有效
+        config = PROMPT_PART_CONFIG.get(prompt_part_type)
+        if not config:
+            print(f"Warning: Invalid prompt part type: {prompt_part_type}")
+            return
+        # 获取标签和描述
+        tag = config["tag"]
+        description = config["description"]
+        # 从数据中获取对应的提示部分
+        logger.debug(f"<搜索> prompt_part_type: {prompt_part_type}")
+        prompts = self.data.get("prompts").get(prompt_part_type)
+        logger.debug(f"<读取预设内容> prompts: {str(prompts)}")
+        if not prompts:
+            print(f"Warning: No prompts found for type: {prompt_part_type}")
+            return  # 如果没有 prompts，直接返回，不设置属性
+        # 构建 name 到 content 的索引，加速查找
+        prompt_dict = {part.get("name", ""): part.get("content", "") for part in prompts}
+        # 按 combine 列表的顺序拼接内容
+        content_text = ""
+        for fragment in combine:
+            if fragment in prompt_dict:
+                content_text += f"{prompt_dict[fragment]}\r\n"
+            else:
+                print(f"Warning: Fragment {fragment} not found in {prompt_part_type} prompts")
+        # 使用独立函数构建带标签的内容
+        content = self.build_tagged_content(tag, description, content_text)
+        # 动态设置属性
+        attr_name = f"{prompt_part_type}_txt"
+        setattr(self, attr_name, content)
+        self.content += content
+
+    def _insert_char(self):
+        char_txt = prompt_cache.get_character(self.char)
+        char_tag = self.build_tagged_content("Character", "以下是你需要扮演的内容", char_txt)
+        self.content = self.insert_text(self.content, char_tag, '</COT>\r\n', 'after')
+
+    def _insert_input(self):
+        """从用户输入中提取特殊控制标记，返回清理后的输入和控制内容。"""
+        pattern = r'<([^>]+)>'  # 正则表达式：匹配 <something> 但不包括嵌套
+        match = re.search(pattern, self.input)
+        if not match:
+            tagged_content = self.build_tagged_content("user_input", "以下是用户最新输入：", self.input)
+            self.content += tagged_content
+            return
+
+        special_str = match.group(1).strip()  # 提取标签名，并移除空白字符
+        cleaned_input = re.sub(pattern, '', self.input, count=1)  # count=1 表示只替换第一个匹配
+
+        # 构建 plot_control 部分的内容
+        plot_content = self.build_tagged_content(
+            "plot_control",
+            "以下是剧情发展方向或对内容的要求，甚至有一些超现实内容，请你务必遵守",
+            special_str
+        )
+        self.content += plot_content
+
+        # 构建 user_input 部分的内容
+        user_input_content = self.build_tagged_content("user_input", "以下是用户最新输入：", cleaned_input)
+        self.content += user_input_content
 
     @staticmethod
-    def _insert_text(raw_text: str, insert_text: str, position: str, mode: str) -> str:
+    def insert_text(raw_text: str, insert_text: str, position: str, mode: str) -> str:
         """
         在给定字符串的特定位置（`position` 之前或之后）插入文本。
         这是一个静态方法，因为它不依赖于实例状态。
@@ -555,50 +535,9 @@ class Prompts:
             return raw_text[:index] + insert_text + raw_text[index:]
         return raw_text[:index + len(position)] + insert_text + raw_text[index + len(position):]
 
-    def _insert_character_info(self, prompt_text: str) -> str:
-        """
-        获取角色信息并将其插入到提示文本中的 `<character>` 标签之前。
-        如果角色数据包含 'meeting' 字段，则在插入前移除。
-        """
-        char_str_or_error = prompt_cache.get_character(self.char)
-        if not char_str_or_error or char_str_or_error.startswith("Error:"):
-            return "<|System| 如果看见此字段，请提示用户角色加载错误！如果看见此字段，请提示用户角色加载错误！如果看见此字段，请提示用户角色加载错误！>"
-        try:
-            char_data = json.loads(char_str_or_error)
-            if isinstance(char_data, dict) and 'meeting' in char_data:
-                del char_data['meeting']
-            processed_char_str = json.dumps(char_data, ensure_ascii=False, indent=4)
-        except json.JSONDecodeError:
-            # 如果不是有效的JSON（理论上load_character应该返回JSON字符串或错误），则按原样使用
-            print(f"警告: 角色数据无法解析为JSON: {char_str_or_error[:100]}...")
-            processed_char_str = char_str_or_error
-        return self._insert_text(prompt_text, processed_char_str, '\r\n</character>', 'before')
-
     @staticmethod
-    def _format_user_control(control_content: str) -> str:
-        """
-        格式化用户控制内容，为其添加 `<plot_control>` 包装。
-        这是一个静态方法，因为它不依赖于实例状态。
-        """
-        if not control_content:
-            return ""
-        return ("\r\n<plot_control>\r\n"
-                "以下是剧情发展方向或对内容的要求，甚至有一些超现实内容，请你务必遵守\r\n"
-                f"{control_content}\r\n"
-                "</plot_control>\r\n")
-
-    @staticmethod
-    def extract_special_control(input_text: str):
-        """从用户输入中提取特殊控制标记，返回清理后的输入和控制内容。"""
-        pattern = r'<([^>]+)>'  # 正则表达式：匹配 <something> 但不包括嵌套
-        match = re.search(pattern, input_text)
-        if not match:
-            # print("extract_special_control: No match found") #添加
-            return [input_text, None]
-        special_str = match.group(1).strip()  # 提取标签名，并移除空白字符
-        cleaned_input = re.sub(pattern, '', input_text, count=1)  # count=1 表示只替换第一个匹配
-        # print(f"extract_special_control: input_text={input_text}, special_str={special_str}, cleaned_input={cleaned_input}") #添加
-        return [cleaned_input, special_str]
+    def build_tagged_content(tag="", description="", content_text=""):
+        return f"<{tag}>\r\n{description}\r\n{content_text}\r\n</{tag}>\r\n"
 
     @staticmethod
     def split_prompts(text):
