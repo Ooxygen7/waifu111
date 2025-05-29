@@ -58,7 +58,7 @@ class DatabaseToolRegistry:
             "example": {"tool_name": "get_user_conversations", "parameters": {"user_id": 123}},
             "return_value": "Conversation list summary (e.g., 'Conversations for User ID 123:\nID: 456, Conv ID: conv_456, ...')"
         },
-        "get_conversation_details": {
+        "get_conversation_dialog": {
             "description": "Retrieve the latest 50 detailed content messages of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.",
             "type": "query",
             "parameters": {
@@ -68,8 +68,8 @@ class DatabaseToolRegistry:
                 }
             },
             "output_format": "A string summarizing the conversation content with dialog entries.",
-            "example": {"tool_name": "get_conversation_details", "parameters": {"conv_id": 456}},
-            "return_value": "Conversation content summary (e.g., 'Conversation Details for Conv ID 456:\nTurn 1: user: Hello\n...')"
+            "example": {"tool_name": "get_conversation_dialog", "parameters": {"conv_id": 456}},
+            "return_value": "Conversation content summary (e.g., 'Conversation dialog for Conv ID 456:\nTurn 1: user: Hello\n...')"
         },
         "analyze_user_activity": {
             "description": "Analyze a user's activity over the past specified days.",
@@ -114,23 +114,7 @@ class DatabaseToolRegistry:
             "example": {"tool_name": "get_top_active_users", "parameters": {"limit": 10}},
             "return_value": "Top active users summary (e.g., 'Top 10 Active Users:\nID: 123, Username: user123, Conversations: 50\n...')"
         },
-        "analyze_conversation_topics": {
-            "description": "Analyze common topics or keywords in a user's conversations.",
-            "type": "analysis",
-            "parameters": {
-                "user_id": {
-                    "type": "integer",
-                    "description": "The ID of the user to analyze."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of recent conversations to analyze (default: 5)."
-                }
-            },
-            "output_format": "A string summarizing frequent topics or keywords in the user's conversations.",
-            "example": {"tool_name": "analyze_conversation_topics", "parameters": {"user_id": 123, "limit": 5}},
-            "return_value": "Topics analysis summary (e.g., 'Common Topics/Keywords for User ID 123 (Top 10):\nkeyword1: 15 times\n...')"
-        },
+
         "get_group_activity": {
             "description": "Retrieve activity data for a specific group.",
             "type": "query",

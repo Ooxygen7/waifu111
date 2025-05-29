@@ -690,7 +690,7 @@ class DatabaseTools:
         return f"Conversations for User ID {user_id}:\n{conv_summary}"
 
     @staticmethod
-    async def get_conversation_details(conv_id: int) -> str:
+    async def get_conversation_dialog(conv_id: int) -> str:
         """
         Retrieve detailed content of a specific conversation.
         Description: Fetches dialog entries for a given conversation ID,
@@ -785,35 +785,7 @@ class DatabaseTools:
                              f"Input Tokens: {row[4]}, Output Tokens: {row[5]}" for row in result])
         return f"Top {limit} Active Users:\n{summary}"
 
-    @staticmethod
-    async def analyze_conversation_topics(user_id: int, limit: int = 5) -> str:
-        """
-        Analyze common topics or keywords in a user's conversations.
-        Description: Extracts frequent words or phrases from a user's recent dialogs (basic analysis).
-        Type: Analysis
-        Parameters:
-            - user_id (int): The ID of the user to analyze.
-            - limit (int, optional): Number of recent conversations to analyze. Defaults to 5.
-        Return Value: A string summarizing frequent topics or keywords.
-        Invocation: {"tool_name": "analyze_conversation_topics", "parameters": {"user_id": 123, "limit": 5}}
-        """
-        conv_query = "SELECT conv_id FROM conversations WHERE user_id = ? ORDER BY update_at DESC LIMIT ?"
-        conv_ids = db.query_db(conv_query, (user_id, limit))
-        if not conv_ids:
-            return f"No conversations found for user ID {user_id}."
 
-        all_content = []
-        for conv_id in conv_ids:
-            dialog_query = "SELECT processed_content FROM dialogs WHERE conv_id = ?"
-            dialogs = db.query_db(dialog_query, (conv_id[0],))
-            all_content.extend([row[0] for row in dialogs if row[0]])
-
-        # 简单关键词提取（示例：统计单词频率）
-        text = " ".join(all_content).lower()
-        words = text.split()
-        common_words = Counter(words).most_common(10)
-        summary = "\n".join([f"{word}: {count} times" for word, count in common_words if len(word) > 3])
-        return f"Common Topics/Keywords for User ID {user_id} (Top 10):\n{summary}"
 
     @staticmethod
     async def get_group_activity(group_id: int) -> str:
@@ -910,11 +882,10 @@ DATABASE_TOOLS = {
     "get_user_list": DatabaseTools.get_user_list,
     "get_user_details": DatabaseTools.get_user_details,
     "get_user_conversations": DatabaseTools.get_user_conversations,
-    "get_conversation_details": DatabaseTools.get_conversation_details,
+    "get_conversation_dialog": DatabaseTools.get_conversation_dialog,
     "analyze_user_activity": DatabaseTools.analyze_user_activity,
     "get_user_sign_history": DatabaseTools.get_user_sign_history,
     "get_top_active_users": DatabaseTools.get_top_active_users,
-    "analyze_conversation_topics": DatabaseTools.analyze_conversation_topics,
     "get_group_activity": DatabaseTools.get_group_activity,
     "get_system_stats": DatabaseTools.get_system_stats,
     "get_recent_user_conversation_summary": DatabaseTools.get_recent_user_conversation_summary,
