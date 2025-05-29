@@ -118,7 +118,7 @@ class DatabaseCommand(BaseCommand):
         """
         try:
             # 初始化 LLM 客户端
-            client = llm.LLM()
+            client = llm.LLM('deepseek-v3')
             logger.debug("LLM 客户端初始化完成")
             # 构建与 LLM 交互的 messages，包含系统提示和用户输入
             prompt_text = DatabaseToolRegistry.get_prompt_text()
@@ -140,7 +140,7 @@ class DatabaseCommand(BaseCommand):
             ]
             final_result = ""
             current_messages = messages.copy()
-            max_iterations = 5  # 防止无限循环
+            max_iterations = 8  # 防止无限循环
             iteration = 0
             while iteration < max_iterations:
                 iteration += 1
