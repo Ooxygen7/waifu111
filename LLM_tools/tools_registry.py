@@ -12,12 +12,13 @@ import logging
 from utils.logging_utils import setup_logging
 import json
 import re
+import asyncio
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 # 导入之前定义的工具
-from LLM_tools.tools import PRIVATETOOLS
+
 from LLM_tools.tools import MARKETTOOLS
 from LLM_tools.tools import DATABASE_TOOLS
 
@@ -220,124 +221,7 @@ class DatabaseToolRegistry:
         return "\n".join(prompt_lines)
 
 
-class PrivateToolRegistry:
-    """A registry for private tools with descriptions, output formats, and metadata for LLM interaction."""
 
-    TOOLS: Dict[str, Dict[str, Any]] = {
-        "stream": {
-            "description": "Toggle streaming mode for message delivery.",
-            "type": "operation",  # 操作类工具，执行动作
-            "parameters": {},
-            "output_format": "A string indicating whether streaming mode was toggled successfully.",
-            "example": {"tool_name": "stream", "parameters": {}},
-            "return_value": "Success or failure message (e.g., 'Streaming mode toggled successfully.')"
-        },
-        "me": {
-            "description": "Display the user's personal information, including username, nickname, account tier, remain frequency, and balance.",
-            "type": "query",  # 查询类工具，返回信息
-            "parameters": {},
-            "output_format": "A string containing user information.",
-            "example": {"tool_name": "me", "parameters": {}},
-            "return_value": "User information string (e.g., '用户名: user, 账户等级: 1, ...')"
-        },
-        "status": {
-            "description": "Display the current settings, including character, API, preset, and streaming status.",
-            "type": "query",
-            "parameters": {},
-            "output_format": "A string containing current settings.",
-            "example": {"tool_name": "status", "parameters": {}},
-            "return_value": "Settings information string (e.g., '当前角色: char, 当前接口: api, ...')"
-        },
-        "newchar": {
-            "description": "Start the creation of a new character with a specified name.",
-            "type": "operation",
-            "parameters": {
-                "char_name": {
-                    "type": "string",
-                    "description": "The name of the new character to be created."
-                }
-            },
-            "output_format": "A string confirming the start of new character creation with the specified name.",
-            "example": {"tool_name": "newchar", "parameters": {"char_name": "Alice"}},
-            "return_value": "Confirmation message (e.g., 'New character creation started for Alice.')"
-        },
-        "nick": {
-            "description": "Set a nickname for the user in conversations.",
-            "type": "operation",
-            "parameters": {
-                "nickname": {
-                    "type": "string",
-                    "description": "The nickname to set for the user."
-                }
-            },
-            "output_format": "A string confirming the nickname update or indicating failure.",
-            "example": {"tool_name": "nick", "parameters": {"nickname": "CrispShark"}},
-            "return_value": "Confirmation or error message (e.g., 'Nickname updated to CrispShark.')"
-        },
-        "sign": {
-            "description": "Perform a daily check-in to gain temporary quota (limited to once every 8 hours).",
-            "type": "operation",
-            "parameters": {},
-            "output_format": "A string indicating the result of the check-in (success or time restriction).",
-            "example": {"tool_name": "sign", "parameters": {}},
-            "return_value": "Result message (e.g., 'Check-in successful, temporary quota increased by 50.')"
-        }
-    }
-
-    @staticmethod
-    def get_tool(tool_name: str) -> Optional[Callable]:
-        """Get the tool function by name from TOOLS_MAPPING."""
-        return PRIVATETOOLS.get(tool_name)
-
-    @staticmethod
-    def get_prompt_text() -> str:
-        """Generate a formatted text of tool descriptions and output formats for embedding in LLM prompts."""
-        prompt_lines = [
-            "You are an assistant integrated with the CyberWaifu bot system. You can invoke specific tools to interact with users. Below is a list of available tools with their descriptions, types, parameters, output formats, return values, and invocation examples. When invoking a tool, format your response as a JSON object with 'tool_name' and 'parameters'. If no tool is needed, respond with plain text.\n",
-            "Available Tools:"
-        ]
-
-        for tool_name, tool_info in PrivateToolRegistry.TOOLS.items():
-            params_str = "None"
-            if tool_info["parameters"]:
-                params_str = "\n    Parameters:"
-                for param_name, param_info in tool_info["parameters"].items():
-                    params_str += f"\n      - {param_name}: {param_info['type']} - {param_info['description']}"
-            prompt_lines.append(f"- {tool_name}:")
-            prompt_lines.append(f"  Description: {tool_info['description']}")
-            prompt_lines.append(
-                f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs an action)")
-            prompt_lines.append(f"  {params_str}")
-            prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
-            prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
-            prompt_lines.append(f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}")
-
-        prompt_lines.append("""\nInstruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
-    {
-      "tool_calls": [
-        {
-          "tool_name": "tool_name_1",
-          "parameters": {
-            "param1": "value1"
-          }
-        },
-        {
-          "tool_name": "tool_name_2",
-          "parameters": {
-            "param2": "value2"
-          }
-        }
-      ]
-    }
-    For single tool invocation, use this format, ensuring parameters are nested under 'parameters':
-    {
-      "tool_name": "tool_name",
-      "parameters": {
-        "param1": "value1"
-      }
-    }
-    Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text.""")
-        return "\n".join(prompt_lines)
 
 
 class MarketToolRegistry:
@@ -648,13 +532,7 @@ class MarketToolRegistry:
 
 
 ALL_TOOLS: Dict[str, Callable] = {}
-# 从 PrivateToolRegistry 添加工具
-for tool_name in PrivateToolRegistry.TOOLS.keys():
-    tool_func = PrivateToolRegistry.get_tool(tool_name)
-    if tool_func:
-        if tool_name in ALL_TOOLS:
-            logger.warning(f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 PrivateToolRegistry 覆盖")
-        ALL_TOOLS[tool_name] = tool_func
+
 # 从 MarketToolRegistry 添加工具
 for tool_name in MarketToolRegistry.TOOLS.keys():
     tool_func = MarketToolRegistry.get_tool(tool_name)
@@ -672,40 +550,63 @@ for tool_name in DatabaseToolRegistry.TOOLS.keys():
 logger.info(f"统一工具池初始化完成，包含工具: {list(ALL_TOOLS.keys())}")
 
 
-async def parse_and_invoke_tool(ai_response: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> tuple[
-    str, list]:
+async def parse_and_invoke_tool(ai_response: str) -> tuple[
+    str, list, bool]:
     """
-    Parse the AI response and invoke tools if necessary. Returns the final response and intermediate results.
+    Parse the AI response and invoke tools if necessary. Returns the LLM's text output,
+    list of full tool results for LLM feedback, and a boolean indicating if tools were called.
     This function extracts JSON content from the response (ignoring surrounding text) and processes tool calls.
     Args:
         ai_response: The raw response from the LLM.
         update: The Telegram Update object.
         context: The Telegram ContextTypes object.
     Returns:
-        tuple: (final_response, intermediate_results)
-        - final_response: The response to send to the user.
-        - intermediate_results: List of results from tool calls for feedback to LLM.
+        tuple: (llm_text_output, tool_results_for_llm_feedback, had_tool_calls)
+        - llm_text_output: The textual part of the LLM's response.
+        - tool_results_for_llm_feedback: List of detailed results from tool calls for feedback to LLM.
+        - had_tool_calls: Boolean, True if any tool calls were successfully parsed and invoked.
     """
-    try:
-        # 尝试提取可能的 JSON 内容（包括 Markdown 代码块和纯文本中的 JSON）
-        json_candidate = None
-        # 匹配 Markdown 代码块中的内容
-        code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', ai_response)
-        if code_block_match:
-            json_candidate = code_block_match.group(1).strip()
-            logger.debug(f"从 Markdown 代码块中提取内容: {json_candidate}")
-        else:
-            # 如果没有代码块，尝试直接提取纯文本中的 JSON 格式
-            # 使用更复杂的正则表达式支持嵌套花括号
+    llm_text_output = ai_response.strip()  # 默认整个响应都是文本
+    tool_results_for_llm_feedback = []
+    had_tool_calls = False
+    response_data = None
+    json_content_extracted = ""
+    # 尝试提取 Markdown 代码块中的 JSON
+    code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', ai_response)
+    if code_block_match:
+        json_content_extracted = code_block_match.group(1).strip()
+        # 从原始响应中移除 JSON 代码块，得到 LLM 的文本部分
+        llm_text_output = ai_response.replace(code_block_match.group(0), "").strip()
+        logger.debug(f"从 Markdown 代码块中提取 JSON，剩余文本: '{llm_text_output}'")
+    else:
+        # 如果没有代码块，尝试将整个响应解析为 JSON (仅当它是纯JSON时)
+        try:
+            parsed_full_response = json.loads(ai_response)
+            # 如果整个响应是有效 JSON，则文本部分为空
+            response_data = parsed_full_response
+            json_content_extracted = ai_response
+            llm_text_output = ""  # 整个响应都是 JSON
+            logger.debug("整个响应是纯 JSON 格式")
+        except json.JSONDecodeError:
+            # 如果整个响应不是纯 JSON，则尝试在文本中查找独立的 JSON 对象 (通常不是 LLM 返回的首选格式)
+            # 这个正则比较通用，但对于复杂的嵌套或多JSON对象可能不完美
             json_match = re.search(r'\{(?:[^\{\}]|\{(?:[^\{\}]|\{[^ \{\}]*\})*\})*\}', ai_response)
             if json_match:
-                json_candidate = json_match.group(0).strip()
-                logger.debug(f"从纯文本中提取 JSON 内容: {json_candidate}")
+                json_content_extracted = json_match.group(0).strip()
+                llm_text_output = ai_response.replace(json_match.group(0), "").strip()
+                logger.debug(f"从纯文本中提取 JSON，剩余文本: '{llm_text_output}'")
             else:
-                logger.debug("未找到 JSON 内容，直接返回原始文本")
-                return ai_response, []
-        # 尝试解析提取的 JSON 内容
-        response_data = json.loads(json_candidate)
+                logger.debug("未找到 JSON 内容，整个响应作为文本返回")
+                return llm_text_output, [], False  # 没有工具调用，直接返回文本
+    if json_content_extracted and not response_data:  # 如果通过正则提取了JSON但还没解析
+        try:
+            response_data = json.loads(json_content_extracted)
+        except json.JSONDecodeError as jde:
+            logger.warning(f"无法解析提取的 JSON 内容: '{json_content_extracted}'. 错误: {jde}. 将其视为文本。")
+            # 如果提取的 JSON 无效，则将其内容追加回文本输出
+            llm_text_output = (llm_text_output + "\n" + json_content_extracted).strip()
+            return llm_text_output, [], False
+    if response_data:
         tool_calls = []
         # 检查是否为多工具调用格式 {"tool_calls": [...]}
         if "tool_calls" in response_data and isinstance(response_data["tool_calls"], list):
@@ -715,53 +616,43 @@ async def parse_and_invoke_tool(ai_response: str, update: Update, context: Conte
             parameters = response_data.get("parameters", {})
             tool_calls = [{"tool_name": response_data["tool_name"], "parameters": parameters}]
         if tool_calls:
-            results = []
-            intermediate_results = []
+            had_tool_calls = True
             for i, tool_call in enumerate(tool_calls):
                 tool_name = tool_call.get("tool_name")
                 parameters = tool_call.get("parameters", {})
-                logger.debug(f"调用工具 {i + 1}/{len(tool_calls)}: {tool_name}，参数: {parameters}")
-                # 直接从统一工具池 ALL_TOOLS 获取工具
+                logger.info(f"解析到工具调用 {i + 1}/{len(tool_calls)}: {tool_name}，参数: {parameters}")
                 tool_func = ALL_TOOLS.get(tool_name)
-
                 if tool_func:
                     try:
-                        # 解包 parameters 字典，将其内容作为关键字参数传递给工具函数
-                        result = await tool_func(update, context, **parameters)
-                        results.append(f"工具 {tool_name} 执行结果: {result}")
-                        intermediate_results.append({
+                        # 确保只传递工具函数实际需要的参数
+                        # 这是一个更健壮的参数传递方式，特别是当LLM可能生成多余参数时
+                        import inspect
+                        sig = inspect.signature(tool_func)
+                        filtered_params = {k: v for k, v in parameters.items() if k in sig.parameters}
+                        result = await tool_func(**filtered_params) if asyncio.iscoroutinefunction(
+                            tool_func) else tool_func(**filtered_params)
+                        tool_results_for_llm_feedback.append({
                             "tool_name": tool_name,
-                            "parameters": parameters,
+                            "parameters": parameters,  # 保持原始参数以便LLM理解
                             "result": result
                         })
-                        logger.debug(f"工具 {tool_name} 执行成功: {result}")
+                        logger.info(f"工具 {tool_name} 执行成功: {result}")
                     except Exception as e:
                         error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
-                        results.append(error_msg)
-                        intermediate_results.append({
+                        tool_results_for_llm_feedback.append({
                             "tool_name": tool_name,
                             "parameters": parameters,
                             "result": error_msg
                         })
-                        logger.error(error_msg)
+                        logger.error(error_msg, exc_info=True)
                 else:
                     error_msg = f"未找到工具: {tool_name}"
-                    results.append(error_msg)
-                    intermediate_results.append({
+                    tool_results_for_llm_feedback.append({
                         "tool_name": tool_name,
                         "parameters": parameters,
                         "result": error_msg
                     })
                     logger.warning(error_msg)
-            # 汇总所有工具调用的结果
-            return "\n".join(results), intermediate_results
-    except json.JSONDecodeError as jde:
-        # 如果无法解析为 JSON，说明提取的内容不是有效 JSON，直接返回原始响应
-        logger.debug(f"提取的内容不是有效 JSON 格式，直接返回原始文本: {str(jde)}")
-        return ai_response, []
-    except Exception as e:
-        logger.error(f"解析或调用工具时发生错误: {str(e)}")
-        return f"处理工具调用时发生错误: {str(e)}", []
-    # 如果没有工具调用，直接返回原始响应
-    return ai_response, []
+
+    return llm_text_output, tool_results_for_llm_feedback, had_tool_calls
 

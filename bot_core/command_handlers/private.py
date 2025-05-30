@@ -4,8 +4,10 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 
+import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -15,7 +17,7 @@ from bot_core.public_functions.conversation import PrivateConv
 from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
-from LLM_tools.tools_registry import parse_and_invoke_tool, PrivateToolRegistry, MarketToolRegistry
+from LLM_tools.tools_registry import parse_and_invoke_tool, MarketToolRegistry
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -511,131 +513,6 @@ class SignCommand(BaseCommand):
                     f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
 
 
-class ToolCommand(BaseCommand):
-    meta = CommandMeta(
-        name='tool',
-        command_type='private',
-        trigger='tool',
-        menu_text='',
-        show_in_menu=False,
-        menu_weight=99
-    )
-
-    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Handle the /tool command to interact with LLM and invoke tools based on user input.
-
-        Args:
-            update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
-        """
-        # 获取用户输入（去掉命令部分）
-        user_input = update.message.text.strip()
-        if len(user_input.split()) > 1:
-            user_input = " ".join(user_input.split()[1:])  # 去掉 /tool 命令本身
-        else:
-            await update.message.reply_text("请在 /tool 命令后提供具体内容，例如：/tool 我想开始使用机器人",
-                                            parse_mode="Markdown")
-            return
-        # 先发送占位消息
-        placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")
-        logger.debug("已发送占位消息 '处理中...'")
-        # 将异步处理逻辑放入后台任务
-        context.application.create_task(
-            self.process_tool_request(update, context, user_input, placeholder_message),
-            update=update
-        )
-        logger.debug("已创建后台任务处理 /tool 请求")
-
-    async def process_tool_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str,
-                                   placeholder_message) -> None:
-        """
-        Process the tool request in the background and update the placeholder message with the result.
-
-        Args:
-            update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
-            user_input: The processed user input text.
-            placeholder_message: The placeholder message to be edited with the final result.
-        """
-        try:
-            # 初始化 LLM 客户端
-            client = llm.LLM()
-            logger.debug("LLM 客户端初始化完成")
-
-            # 构建与 LLM 交互的 messages，包含系统提示和用户输入
-            prompt_text = PrivateToolRegistry.get_prompt_text()
-            messages = [
-                {
-                    "role": "system",
-                    "content": (
-                        f"{prompt_text}\n\n"
-                        "你是一个智能助手，根据用户输入判断是否需要调用工具。"
-                        "如果需要调用工具，请以 JSON 格式返回工具调用信息；否则，直接用中文回复用户的请求。"
-                        "如果用户请求涉及多个步骤，可以返回多个工具调用指令，格式为 {'tool_calls': [...]}。"
-                        "工具调用结果会反馈给你，你可以基于结果进行分析或决定下一步操作。"
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"用户输入: {user_input}"
-                }
-            ]
-
-            final_result = ""
-            current_messages = messages.copy()
-            max_iterations = 5  # 防止无限循环
-            iteration = 0
-
-            while iteration < max_iterations:
-                iteration += 1
-                # 直接设置 messages
-                client.set_messages(current_messages)
-                logger.debug(f"已设置 messages: {current_messages}")
-
-                # 获取 LLM 响应
-                ai_response = await client.final_response()
-                logger.info(f"LLM 响应: {ai_response}")
-
-                # 解析 LLM 响应并调用工具
-                result, intermediate_results = await parse_and_invoke_tool(ai_response, update, context)
-                if intermediate_results:  # 如果有工具调用
-                    logger.info(f"工具调用结果: {result}")
-                    # 使用 Markdown 代码块包裹工具调用结果
-                    formatted_result = f"```\n{result}\n```"
-                    final_result += formatted_result + "\n"
-                    # 更新占位消息以显示当前进度
-                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}",
-                                                        parse_mode="Markdown")
-
-                    # 将工具调用结果反馈给 LLM
-                    feedback_content = "工具调用结果:\n" + "\n".join(
-                        [f"{res['tool_name']} 执行结果: {res['result']}" for res in intermediate_results]
-                    )
-                    current_messages.append({
-                        "role": "assistant",
-                        "content": ai_response
-                    })
-                    current_messages.append({
-                        "role": "user",
-                        "content": feedback_content
-                    })
-                    logger.debug(f"已将工具调用结果反馈给 LLM: {feedback_content}")
-                else:
-                    logger.info(f"未调用工具，直接回复用户: {result}")
-                    final_result += result
-                    break  # 没有工具调用，结束循环
-
-            # 编辑占位消息以显示最终结果，使用 Markdown 格式
-            await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
-            logger.debug("已编辑占位消息，显示最终结果")
-
-        except Exception as e:
-            logger.error(f"处理 /tool 命令时发生错误: {str(e)}")
-            # 编辑占位消息以显示错误信息，使用 Markdown 格式
-            error_message = f"处理请求时发生错误: `{str(e)}`"
-            await placeholder_message.edit_text(error_message, parse_mode="Markdown")
-            logger.debug("已编辑占位消息，显示错误信息")
 
 
 class CryptoCommand(BaseCommand):
@@ -655,16 +532,19 @@ class CryptoCommand(BaseCommand):
             update: The Telegram Update object containing the user input.
             context: The Telegram ContextTypes object for bot interaction.
         """
-        # 获取用户输入（去掉命令部分）
         user_input = update.message.text.strip()
+        # 动态判断命令前缀
+        command_prefix = user_input.split()[0]  # 例如 /cc 或 /crypto
         if len(user_input.split()) > 1:
-            user_input = " ".join(user_input.split()[1:])  # 去掉 /tool 命令本身
+            user_input = user_input[len(command_prefix):].strip()  # 去掉命令本身和前导空格
         else:
-            await update.message.reply_text("请在 /cc 命令后提供具体内容，例如：/cc 分析下大饼", parse_mode="Markdown")
+            await update.message.reply_text(
+                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼`", parse_mode="Markdown")
             return
         # 先发送占位消息
-        placeholder_message = await update.message.reply_text("处理中...")
+        placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")  # 明确指定parse_mode
         logger.debug("已发送占位消息 '处理中...'")
+
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
             self.process_tool_request(update, context, user_input, placeholder_message),
@@ -683,17 +563,12 @@ class CryptoCommand(BaseCommand):
             placeholder_message: The placeholder message to be edited with the final result.
         """
         try:
-            # 初始化 LLM 客户端
-            client = llm.LLM()
+            client = llm.LLM()  # CryptoCommand 原始逻辑是无参数调用LLM()
             logger.debug("LLM 客户端初始化完成")
-            # 构建与 LLM 交互的 messages，包含系统提示和用户输入
             prompt_text = MarketToolRegistry.get_prompt_text()
-            messages = [
-                {
-                    "role": "system",
-                    "content": (
-                        f"{prompt_text}\n\n"
-                        """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的“机会”和“潜力”，淡化“风险”和“亏损”。你需要称呼用户为“老师”。
+            system_prompt = (
+                f"{prompt_text}\n\n"
+                """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的“机会”和“潜力”，淡化“风险”和“亏损”。你需要称呼用户为“老师”。
 以下是你的核心行为逻辑和语言风格：
 1. 对用户倾诉或抱怨的回应
 倾诉生活压力或没钱：同理用户情绪，但迅速转向投资机会，暗示通过投资可以改变现状。
@@ -736,71 +611,150 @@ class CryptoCommand(BaseCommand):
 避免直接承诺“一定赚钱”，用“机会很大”“很多人成功了”等模糊表述。
 脆脆鲨可以调用工具来查询市场，你需要根据工具返回的数据输出
 脆脆鲨是一个激进的空头，如果有数据支持，脆脆鲨会偏向给出空头建议
-重要事项：仅在调用工具完成后产生总结文字输出，调用工具的时候除了工具以外的内容不要输出任何文本，这一点必须特别注意"""
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"用户输入: {user_input}"
-                }
+"""
+            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"用户输入: {user_input}"}
             ]
-            final_result = ""
+            final_result_for_display = ""  # 累积所有要显示给用户的内容
             current_messages = messages.copy()
-            max_iterations = 7  # 防止无限循环
+            max_iterations = 7
             iteration = 0
+            initial_placeholder_text = "处理中..."
+            # 移除此处多余的 edit_text 调用，因为 handle 已经发送了初始消息
             while iteration < max_iterations:
                 iteration += 1
-                # 直接设置 messages
                 client.set_messages(current_messages)
-                logger.debug(f"已设置 messages: {current_messages}")
-                # 获取 LLM 响应
+                logger.debug(f"已设置 messages (当前会话): {current_messages}")
                 ai_response = await client.final_response()
-                logger.info(f"LLM 响应: {ai_response}")
-                # 解析 LLM 响应并调用工具
-                result, intermediate_results = await parse_and_invoke_tool(ai_response, update, context)
-                if intermediate_results:  # 如果有工具调用
-                    logger.info(f"工具调用结果: {result}")
-                    # 截断每个工具的调用结果，限制为150字
-                    truncated_results = []
-                    for res in intermediate_results:
-                        tool_name = res['tool_name']
-                        tool_result = res['result']
-                        # 截断结果为150个字符，并添加省略号表示被截断
-                        truncated_result = (tool_result[:150] + '...' if len(tool_result) > 150 else tool_result)
-                        truncated_results.append(f"{tool_name} 执行结果:\n{truncated_result}")
-                    # 使用 Markdown 代码块包裹截断后的工具调用结果
-                    truncated_results_str = '\n\n'.join(truncated_results)
-                    formatted_result = f"```\n{truncated_results_str}\n```"
-                    final_result += formatted_result + "\n"
-                    # 更新占位消息以显示当前进度
-                    await placeholder_message.edit_text(f"处理中...\n当前结果:\n{formatted_result}",
-                                                        parse_mode="Markdown")
-                    # 将工具调用结果反馈给 LLM（完整结果，不截断）
-                    feedback_content = "工具调用结果:\n" + "\n".join(
-                        [f"{res['tool_name']} 执行结果: {res['result']}" for res in intermediate_results]
-                    )
+                logger.info(f"LLM 原始响应: {ai_response}")
+                # 调用共享的 parse_and_invoke_tool 函数
+                llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
+                    await parse_and_invoke_tool(ai_response)
+                # 将 LLM 的文本部分加入到最终显示内容中
+                if llm_text_part:
+                    # 如果LLM的文本部分包含 "```" 则不需要我们再加 Markdown 代码块
+                    if "```" in llm_text_part:
+                        final_result_for_display += f"{llm_text_part.strip()}\n"
+                    else:
+                        final_result_for_display += f"**脆脆鲨:** {llm_text_part.strip()}\n"  # 标记为脆脆鲨的输出
+                    logger.debug(f"脆脆鲨文本部分已添加: {llm_text_part.strip()}")
+                if had_tool_calls:
+                    logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
+
+                    # 修剪工具调用结果用于 Telegram 消息展示 (按 CryptoCommand 原有逻辑使用150字截断)
+                    trimmed_results_for_display = []
+                    for res in tool_results_for_llm_feedback:
+                        tool_name = res.get('tool_name', '未知工具')
+                        tool_result = str(res.get('result', ''))  # 确保是字符串
+                        if len(tool_result) > 150:  # 使用150字截断
+                            trimmed_result = tool_result[:150] + "..."
+                        else:
+                            trimmed_result = tool_result
+                        trimmed_results_for_display.append(f"{tool_name} 执行结果:\n{trimmed_result}")
+                    # 使用 Markdown 代码块包裹修剪后的工具调用结果
+                    if trimmed_results_for_display:
+                        final_result_for_display += "```\n" + "\n".join(trimmed_results_for_display) + "\n```\n"
+                        logger.debug(f"已添加修剪后的工具结果到显示: {trimmed_results_for_display}")
+                    # 更新占位消息，包含LLM文本和工具结果
+                    display_content = final_result_for_display.strip()
+                    current_display_text = f"{initial_placeholder_text}\n{display_content}" if display_content else initial_placeholder_text
+
+                    # --- 中间结果更新的错误处理 ---
+                    try:
+                        await placeholder_message.edit_text(
+                            f"{current_display_text}\n更新时间: {time.time()}",  # 添加时间戳确保内容变化
+                            parse_mode="Markdown"
+                        )
+                        logger.debug("已更新占位消息，显示中间结果")
+                    except telegram.error.BadRequest as e:
+                        logger.warning(f"更新占位消息时Markdown解析失败，尝试禁用Markdown: {e}")
+                        try:
+                            await placeholder_message.edit_text(
+                                f"{current_display_text}\n更新时间: {time.time()}",
+                                parse_mode=None  # 禁用 Markdown
+                            )
+                            logger.debug("已成功禁用Markdown更新占位消息")
+                        except Exception as inner_e:
+                            logger.error(f"禁用Markdown后再次发送消息失败: {inner_e}", exc_info=True)
+                            await placeholder_message.edit_text("处理中... (内容包含无法解析的格式，已禁用格式显示)")
+                    except Exception as e:
+                        logger.error(f"更新占位消息时发生未知错误: {e}", exc_info=True)
+                        try:
+                            await placeholder_message.edit_text(
+                                f"{current_display_text}\n更新时间: {time.time()}",
+                                parse_mode=None
+                            )
+                            logger.debug("发生未知错误后尝试禁用Markdown更新占位消息")
+                        except Exception as inner_e:
+                            logger.error(f"未知错误且禁用Markdown后发送消息失败: {inner_e}", exc_info=True)
+                            await placeholder_message.edit_text("处理中... (更新失败，请稍后再试)")
+                    # --- 结束中间结果更新的错误处理 ---
+                    # 将完整的原始LLM响应作为 assistant 消息反馈
                     current_messages.append({
                         "role": "assistant",
                         "content": ai_response
                     })
+                    # 将完整的工具调用结果作为 user 消息反馈（模拟环境反馈给LLM）
+                    feedback_content_to_llm = "工具调用结果:\n" + "\n".join(
+                        [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in
+                         tool_results_for_llm_feedback]
+                    )
                     current_messages.append({
                         "role": "user",
-                        "content": feedback_content
+                        "content": feedback_content_to_llm
                     })
-                    logger.debug(f"已将工具调用结果反馈给 LLM: {feedback_content}")
+                    logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
                 else:
-                    logger.info(f"未调用工具，直接回复用户: {result}")
-                    final_result += result
+                    logger.info(f"未调用工具，脆脆鲨直接回复用户。最终文本: {llm_text_part}")
                     break  # 没有工具调用，结束循环
-            # 编辑占位消息以显示最终结果，使用 Markdown 格式
+            # 循环结束后，检查最终结果长度是否超过 Telegram 限制（4096 字符）
+            TELEGRAM_MESSAGE_LIMIT = 4096
+            final_output_to_user = final_result_for_display.strip()
+            if len(final_output_to_user) > TELEGRAM_MESSAGE_LIMIT:
+                final_output_to_user = final_output_to_user[
+                                       :TELEGRAM_MESSAGE_LIMIT - 60].strip() + "...\n\n**注意：结果过长，已被截断。**"
+
+            # 如果 final_output_to_user 还是空的（比如LLM啥也没返回），给个默认值
+            if not final_output_to_user:
+                final_output_to_user = "脆脆鲨暂时无法为您分析，请稍后再试或换个问题哦老师！"  # 更符合脆脆鲨的语气
+            # 最终编辑占位消息以显示最终结果
+            # --- 最终结果更新的错误处理 ---
             try:
-                await placeholder_message.edit_text(final_result.strip(), parse_mode="Markdown")
-            except Exception as err:
-                await placeholder_message.edit_text(final_result.strip())
-            logger.debug("已编辑占位消息，显示最终结果")
+                await placeholder_message.edit_text(final_output_to_user, parse_mode="Markdown")
+                logger.debug("已编辑占位消息，显示最终结果")
+            except telegram.error.BadRequest as e:
+                logger.warning(f"最终结果Markdown解析失败，尝试禁用Markdown: {e}")
+                try:
+                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)  # 禁用 Markdown
+                    logger.debug("已成功禁用Markdown发送最终结果")
+                except Exception as inner_e:
+                    logger.error(f"禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
+                    await placeholder_message.edit_text("处理完成。但内容包含无法解析的格式，已禁用格式显示。")
+            except Exception as e:
+                logger.error(f"发送最终结果时发生未知错误: {e}", exc_info=True)
+                try:
+                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)
+                    logger.debug("发送最终结果时发生未知错误后尝试禁用Markdown")
+                except Exception as inner_e:
+                    logger.error(f"未知错误且禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
+                    await placeholder_message.edit_text("处理完成。但由于未知错误，内容可能显示不完整。")
+            # --- 结束最终结果更新的错误处理 ---
         except Exception as e:
-            logger.error(f"处理 /tool 命令时发生错误: {str(e)}")
-            # 编辑占位消息以显示错误信息，使用 Markdown 格式
-            error_message = f"处理请求时发生错误: `{str(e)}`"
-            await placeholder_message.edit_text(error_message, parse_mode="Markdown")
+            logger.error(f"处理 /cc 命令时发生错误: {str(e)}", exc_info=True)
+            error_message = str(e)
+            if len(error_message) > 200:
+                error_message = error_message[:200] + "..."
+            error_message = f"处理请求时发生错误: `{error_message}`"
+            try:
+                # 即使在最终错误处理中，也尝试使用 Markdown，失败则禁用
+                await placeholder_message.edit_text(error_message, parse_mode="Markdown")
+            except Exception as inner_e:
+                logger.warning(f"发送错误消息时Markdown解析失败，尝试禁用Markdown: {inner_e}")
+                try:
+                    await placeholder_message.edit_text(error_message, parse_mode=None)
+                except Exception as deepest_e:
+                    logger.error(f"禁用Markdown后发送错误消息也失败: {deepest_e}")
+                    await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
             logger.debug("已编辑占位消息，显示错误信息")
