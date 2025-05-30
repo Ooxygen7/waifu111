@@ -13,7 +13,7 @@ from utils.logging_utils import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
-default_api = 'gemini-2'
+DEFAULT_API = 'gemini-2'
 default_char = 'cuicuishark_public'
 
 
@@ -82,7 +82,7 @@ llm_client_manager = LLMClientManager()
 
 
 class LLM:
-    def __init__(self, api=default_api, chat_type='private'):
+    def __init__(self, api=DEFAULT_API, chat_type='private'):
         self.key, self.base_url, self.model = file.get_api_config(api)
         self.client = None
         self.messages = []
@@ -153,7 +153,7 @@ class LLM:
         self.prompts = prompts
 
     def set_default_client(self):
-        self.key, self.base_url, self.model = file.get_api_config(default_api)
+        self.key, self.base_url, self.model = file.get_api_config(DEFAULT_API)
 
     async def response(self, stream: bool = False):
         self.client = await llm_client_manager.get_client(self.key, self.base_url, self.model)
@@ -238,7 +238,7 @@ class LLM:
         async with llm_client_manager.semaphore:
             try:
                 # 构建对话历史
-                client = LLM(default_api, 'private')
+                client = LLM(DEFAULT_API, 'private')
                 client.build_conv_messages(conversation_id)
                 client.messages.append(
                     {"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字\r\n"})
@@ -298,7 +298,7 @@ class LLM:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": character_description}
                 ]
-                client = LLM(default_api, 'private')
+                client = LLM(DEFAULT_API, 'private')
                 client.set_messages(history)
                 client.set_default_client()
                 result = await client.final_response()

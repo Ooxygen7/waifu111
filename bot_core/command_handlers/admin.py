@@ -5,10 +5,11 @@ import time
 
 import telegram
 from telegram import Update
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 import logging
 
-from LLM_tools.tools_registry import DatabaseToolRegistry, ALL_TOOLS
+from LLM_tools.tools_registry import DatabaseToolRegistry, ALL_TOOLS, parse_and_invoke_tool
 from utils import db_utils as db
 from utils import LLM_utils as llm
 from .base import BaseCommand, CommandMeta
@@ -150,7 +151,7 @@ class DatabaseCommand(BaseCommand):
                 ai_response = await client.final_response()
                 logger.info(f"LLM 原始响应: {ai_response}")
                 llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
-                    await parse_and_invoke_tool(ai_response, update, context)
+                    await parse_and_invoke_tool(ai_response)
                 if llm_text_part:
                     if "```" in llm_text_part:
                         final_result_for_display += f"{llm_text_part.strip()}\n"
@@ -279,108 +280,82 @@ class DatabaseCommand(BaseCommand):
                     await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
             logger.debug("已编辑占位消息，显示错误信息")
 
-async def parse_and_invoke_tool(ai_response: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> tuple[
-    str, list, bool]:
-    """
-    Parse the AI response and invoke tools if necessary. Returns the LLM's text output,
-    list of full tool results for LLM feedback, and a boolean indicating if tools were called.
-    This function extracts JSON content from the response (ignoring surrounding text) and processes tool calls.
-    Args:
-        ai_response: The raw response from the LLM.
-        update: The Telegram Update object.
-        context: The Telegram ContextTypes object.
-    Returns:
-        tuple: (llm_text_output, tool_results_for_llm_feedback, had_tool_calls)
-        - llm_text_output: The textual part of the LLM's response.
-        - tool_results_for_llm_feedback: List of detailed results from tool calls for feedback to LLM.
-        - had_tool_calls: Boolean, True if any tool calls were successfully parsed and invoked.
-    """
-    llm_text_output = ai_response.strip()  # 默认整个响应都是文本
-    tool_results_for_llm_feedback = []
-    had_tool_calls = False
-    response_data = None
-    json_content_extracted = ""
-    # 尝试提取 Markdown 代码块中的 JSON
-    code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', ai_response)
-    if code_block_match:
-        json_content_extracted = code_block_match.group(1).strip()
-        # 从原始响应中移除 JSON 代码块，得到 LLM 的文本部分
-        llm_text_output = ai_response.replace(code_block_match.group(0), "").strip()
-        logger.debug(f"从 Markdown 代码块中提取 JSON，剩余文本: '{llm_text_output}'")
-    else:
-        # 如果没有代码块，尝试将整个响应解析为 JSON (仅当它是纯JSON时)
-        try:
-            parsed_full_response = json.loads(ai_response)
-            # 如果整个响应是有效 JSON，则文本部分为空
-            response_data = parsed_full_response
-            json_content_extracted = ai_response
-            llm_text_output = ""  # 整个响应都是 JSON
-            logger.debug("整个响应是纯 JSON 格式")
-        except json.JSONDecodeError:
-            # 如果整个响应不是纯 JSON，则尝试在文本中查找独立的 JSON 对象 (通常不是 LLM 返回的首选格式)
-            # 这个正则比较通用，但对于复杂的嵌套或多JSON对象可能不完美
-            json_match = re.search(r'\{(?:[^\{\}]|\{(?:[^\{\}]|\{[^ \{\}]*\})*\})*\}', ai_response)
-            if json_match:
-                json_content_extracted = json_match.group(0).strip()
-                llm_text_output = ai_response.replace(json_match.group(0), "").strip()
-                logger.debug(f"从纯文本中提取 JSON，剩余文本: '{llm_text_output}'")
-            else:
-                logger.debug("未找到 JSON 内容，整个响应作为文本返回")
-                return llm_text_output, [], False  # 没有工具调用，直接返回文本
-    if json_content_extracted and not response_data:  # 如果通过正则提取了JSON但还没解析
-        try:
-            response_data = json.loads(json_content_extracted)
-        except json.JSONDecodeError as jde:
-            logger.warning(f"无法解析提取的 JSON 内容: '{json_content_extracted}'. 错误: {jde}. 将其视为文本。")
-            # 如果提取的 JSON 无效，则将其内容追加回文本输出
-            llm_text_output = (llm_text_output + "\n" + json_content_extracted).strip()
-            return llm_text_output, [], False
-    if response_data:
-        tool_calls = []
-        # 检查是否为多工具调用格式 {"tool_calls": [...]}
-        if "tool_calls" in response_data and isinstance(response_data["tool_calls"], list):
-            tool_calls = response_data["tool_calls"]
-        # 检查是否为单工具调用格式 {"tool_name": "..."}
-        elif "tool_name" in response_data:
-            parameters = response_data.get("parameters", {})
-            tool_calls = [{"tool_name": response_data["tool_name"], "parameters": parameters}]
-        if tool_calls:
-            had_tool_calls = True
-            for i, tool_call in enumerate(tool_calls):
-                tool_name = tool_call.get("tool_name")
-                parameters = tool_call.get("parameters", {})
-                logger.info(f"解析到工具调用 {i + 1}/{len(tool_calls)}: {tool_name}，参数: {parameters}")
-                tool_func = ALL_TOOLS.get(tool_name)
-                if tool_func:
-                    try:
-                        # 确保只传递工具函数实际需要的参数
-                        # 这是一个更健壮的参数传递方式，特别是当LLM可能生成多余参数时
-                        import inspect
-                        sig = inspect.signature(tool_func)
-                        filtered_params = {k: v for k, v in parameters.items() if k in sig.parameters}
-                        result = await tool_func(**filtered_params) if asyncio.iscoroutinefunction(
-                            tool_func) else tool_func(**filtered_params)
-                        tool_results_for_llm_feedback.append({
-                            "tool_name": tool_name,
-                            "parameters": parameters,  # 保持原始参数以便LLM理解
-                            "result": result
-                        })
-                        logger.info(f"工具 {tool_name} 执行成功: {result}")
-                    except Exception as e:
-                        error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
-                        tool_results_for_llm_feedback.append({
-                            "tool_name": tool_name,
-                            "parameters": parameters,
-                            "result": error_msg
-                        })
-                        logger.error(error_msg, exc_info=True)
-                else:
-                    error_msg = f"未找到工具: {tool_name}"
-                    tool_results_for_llm_feedback.append({
-                        "tool_name": tool_name,
-                        "parameters": parameters,
-                        "result": error_msg
-                    })
-                    logger.warning(error_msg)
+class ForwardCommand(BaseCommand):
+    meta = CommandMeta(
+        name='forward',
+        command_type='admin',
+        trigger='fw',
+        menu_text='转发消息',
+        show_in_menu=False,
+        menu_weight=20,
+        bot_admin_required=True,
+    )
 
-    return llm_text_output, tool_results_for_llm_feedback, had_tool_calls
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        处理 /forward 或 /fw 命令，将指定消息转发到当前聊天。
+        命令格式: /forward <源聊天ID> <消息ID>
+        """
+        # context.args 会自动解析命令后的参数列表
+        # 例如，如果用户输入 "/fw -1001234567890 123"
+        # context.args 将是 ['-1001234567890', '123']
+        args = context.args
+        # 1. 参数校验
+        if not args or len(args) != 2:
+            await update.message.reply_text(
+                "❌ 用法错误！请提供源聊天ID和消息ID。\n"
+                "示例：`/forward <源聊天ID> <消息ID>`\n"
+                "或简写：`/fw <源聊天ID> <消息ID>`\n\n"
+                "💡 源聊天ID可以是用户ID、群组ID或频道ID（需要有访问权限）。\n"
+                "注意：频道ID通常以 `-100` 开头。",
+                parse_mode='Markdown'
+            )
+            return
+        try:
+            # 尝试将参数转换为整数
+            source_chat_id = int(args[0])
+            message_id = int(args[1])
+        except ValueError:
+            await update.message.reply_text(
+                "❌ 无效的ID！源聊天ID和消息ID都必须是有效的数字。\n"
+                "示例：`/forward -1001234567890 123`",
+                parse_mode='Markdown'
+            )
+            return
+        # 2. 获取目标聊天ID (通常是用户发起命令的聊天)
+        target_chat_id = update.effective_chat.id
+        # 3. 执行消息转发操作
+        try:
+            await context.bot.forward_message(
+                chat_id=target_chat_id,
+                from_chat_id=source_chat_id,
+                message_id=message_id
+            )
+            await update.message.reply_text("✅ 消息已成功转发！")
+        except TelegramError as e:
+            # 捕获 Telegram API 相关的错误，并给出更友好的提示
+            error_message = f"❌ 转发失败！Telegram API 错误：`{e}`\n"
+
+            # 常见错误类型提示
+            error_str = str(e).lower()
+            if "message not found" in error_str:
+                error_message += "⚠️ 可能是消息ID不正确，或者该消息已不存在。"
+            elif "chat not found" in error_str or "user not found" in error_str:
+                error_message += "⚠️ 可能是源聊天ID不正确，或者Bot无法访问该聊天。"
+            elif "not enough rights to forward message" in error_str:
+                error_message += "⚠️ Bot 没有足够的权限从源聊天转发消息。"
+            elif "bot was blocked by the user" in error_str:
+                error_message += "⚠️ Bot 被目标用户（或源聊天拥有者）屏蔽了。"
+            elif "forbidden: bot was blocked by the user" in error_str:
+                error_message += "⚠️ Bot 被目标聊天用户（或源聊天拥有者）屏蔽了。"
+            elif "peer_id_invalid" in error_str:
+                error_message += "⚠️ 源聊天ID格式无效或不存在。"
+            else:
+                error_message += "请检查源聊天ID、消息ID是否正确，并确保Bot有相应权限。"
+            await update.message.reply_text(error_message, parse_mode='Markdown')
+        except Exception as e:
+            # 捕获其他非 Telegram API 的意外错误
+            await update.message.reply_text(
+                f"❌ 发生未知错误：`{type(e).__name__}: {e}`",
+                parse_mode='Markdown'
+            )
