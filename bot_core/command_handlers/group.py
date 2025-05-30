@@ -342,3 +342,62 @@ class CryptoCommand(BaseCommand):
                     logger.error(f"禁用Markdown后发送错误消息也失败: {deepest_e}")
                     await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
             logger.debug("已编辑占位消息，显示错误信息")
+
+class ForwardCommand(BaseCommand):
+    meta = CommandMeta(
+        name='forward',
+        command_type='group',
+        trigger='fw',
+        menu_text='转发消息',
+        show_in_menu=False,
+        menu_weight=20,
+        bot_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        处理 /forward 或 /fw 命令，将指定消息转发到当前聊天。
+        命令格式: /forward <源聊天ID> <消息ID>
+        """
+        # context.args 会自动解析命令后的参数列表
+        # 例如，如果用户输入 "/fw -1001234567890 123"
+        # context.args 将是 ['-1001234567890', '123']
+        args = context.args
+        # 1. 参数校验
+        if not args or len(args) != 2:
+            await update.message.reply_text(
+                "❌ 用法错误！请提供源聊天ID和消息ID。\n"
+                "或简写：`/fw <源聊天ID> <消息ID>`\n\n"
+                "💡 源聊天ID可以是用户ID、群组ID或频道ID（需要有访问权限）。\n"
+                "注意：频道ID通常以 `-100` 开头。",
+                parse_mode='Markdown'
+            )
+            return
+        try:
+            # 尝试将参数转换为整数
+            source_chat_id = int(args[0])
+            message_id = int(args[1])
+        except ValueError:
+            await update.message.reply_text(
+                "❌ 无效的ID！源聊天ID和消息ID都必须是有效的数字。\n"
+                "示例：`/forward -1001234567890 123`",
+                parse_mode='Markdown'
+            )
+            return
+        # 2. 获取目标聊天ID (通常是用户发起命令的聊天)
+        target_chat_id = update.effective_chat.id
+        # 3. 执行消息转发操作
+        try:
+            await context.bot.forward_message(
+                chat_id=target_chat_id,
+                from_chat_id=source_chat_id,
+                message_id=message_id
+            )
+            #await update.message.reply_text("✅ 消息已成功转发！")
+
+        except Exception as e:
+            # 捕获其他非 Telegram API 的意外错误
+            await update.message.reply_text(
+                f"❌ 发生错误：`{type(e).__name__}: {e}`",
+                parse_mode='Markdown'
+            )

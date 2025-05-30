@@ -304,7 +304,6 @@ class ForwardCommand(BaseCommand):
         if not args or len(args) != 2:
             await update.message.reply_text(
                 "❌ 用法错误！请提供源聊天ID和消息ID。\n"
-                "示例：`/forward <源聊天ID> <消息ID>`\n"
                 "或简写：`/fw <源聊天ID> <消息ID>`\n\n"
                 "💡 源聊天ID可以是用户ID、群组ID或频道ID（需要有访问权限）。\n"
                 "注意：频道ID通常以 `-100` 开头。",
@@ -331,31 +330,11 @@ class ForwardCommand(BaseCommand):
                 from_chat_id=source_chat_id,
                 message_id=message_id
             )
-            await update.message.reply_text("✅ 消息已成功转发！")
-        except TelegramError as e:
-            # 捕获 Telegram API 相关的错误，并给出更友好的提示
-            error_message = f"❌ 转发失败！Telegram API 错误：`{e}`\n"
+            #await update.message.reply_text("✅ 消息已成功转发！")
 
-            # 常见错误类型提示
-            error_str = str(e).lower()
-            if "message not found" in error_str:
-                error_message += "⚠️ 可能是消息ID不正确，或者该消息已不存在。"
-            elif "chat not found" in error_str or "user not found" in error_str:
-                error_message += "⚠️ 可能是源聊天ID不正确，或者Bot无法访问该聊天。"
-            elif "not enough rights to forward message" in error_str:
-                error_message += "⚠️ Bot 没有足够的权限从源聊天转发消息。"
-            elif "bot was blocked by the user" in error_str:
-                error_message += "⚠️ Bot 被目标用户（或源聊天拥有者）屏蔽了。"
-            elif "forbidden: bot was blocked by the user" in error_str:
-                error_message += "⚠️ Bot 被目标聊天用户（或源聊天拥有者）屏蔽了。"
-            elif "peer_id_invalid" in error_str:
-                error_message += "⚠️ 源聊天ID格式无效或不存在。"
-            else:
-                error_message += "请检查源聊天ID、消息ID是否正确，并确保Bot有相应权限。"
-            await update.message.reply_text(error_message, parse_mode='Markdown')
         except Exception as e:
             # 捕获其他非 Telegram API 的意外错误
             await update.message.reply_text(
-                f"❌ 发生未知错误：`{type(e).__name__}: {e}`",
+                f"❌ 发生错误：`{type(e).__name__}: {e}`",
                 parse_mode='Markdown'
             )
