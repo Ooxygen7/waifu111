@@ -448,7 +448,7 @@ class Prompts:
         PROMPT_PART_CONFIG = {
             "System": {"tag": "system", "description": ""},
             'COT': {'tag': 'COT', 'description': "以下是你在输出前需要思考的内容"},
-            "Control": {"tag": "control", "description": "以下是对于输出内容的要求，请务必遵守："},
+            "Control": {"tag": "format", "description": "以下是对于输出内容的要求，请务必遵守："},
             "Sample": {"tag": "sample", "description": "以下是一些可以参考的文本："},
             "Function": {"tag": "function", "description": "以下是一些额外的要求："},
             "Jailbreak": {"tag": "notice", "description": "以下是你需要注意的事项："},

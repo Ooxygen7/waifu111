@@ -7,8 +7,8 @@ from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
-from utils import LLM_utils as llm, prompt_utils as prompt, db_utils as db, text_utils as txt, file_utils as file
-from utils.LLM_utils import LLM
+from utils import db_utils as db, text_utils as txt, file_utils as file
+from utils.LLM_utils import LLM, Prompts
 from utils.logging_utils import setup_logging
 
 setup_logging()
@@ -204,7 +204,7 @@ class GroupConv:
         self.input = Message(self.update.message.id, message_text, 'input')  # 创建输入消息对象
 
         self.output = None
-        self.prompt = None
+        self.prompt_obj = None
         self.placeholder = None
         self.config = GroupConfig(update.message.chat.id)  # 创建群组配置对象
         self.trigger = None
@@ -246,13 +246,13 @@ class GroupConv:
         self._build_prompts()
 
     def _build_prompts(self):
-        self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
-        self.prompt = prompt.insert_text(self.prompt,
-                                         f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}’，如果这个名字不方便称呼"
-                                         f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
-                                         '<user_input>\r\n', 'before')  # 在指定位置插入用户昵称信息
+        self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
+        self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content,
+                                                              f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}’，如果这个名字不方便称呼"
+                                                              f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
+                                                              '<user_input>\r\n', 'before')  # 在指定位置插入用户昵称信息
         group_dialog = db.group_dialog_get(self.group.id, 15)  # 获取最近15条群组对话
-        insert_txt = "<group_messages>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
+
         # 构建一个列表，用于存储对话的 JSON 结构
         dialogs_json = []
         for dialog in group_dialog:
@@ -267,21 +267,18 @@ class GroupConv:
                 dialogs_json.append(dialog_entry)
         # 将 dialogs_json 转换为格式化的 JSON 字符串
         json_str = json.dumps(dialogs_json, indent=2, ensure_ascii=False)
-        insert_txt += json_str
-        insert_txt += "\r\n</group_messages>"
-        # 输出到日志
-        logger.debug(insert_txt)
-        self.prompt = prompt.insert_text(self.prompt, insert_txt, '<user_input>\r\n', 'before')  # 插入群组消息
+        insert_txt = self.prompt_obj.build_tagged_content("group_messages",
+                                                          "现在是群聊模式，你先看看群友在聊什么，然后加入他们的对话",
+                                                          json_str)
 
-        # 确保用户输入内容被嵌入到 <user_input> 标签内
-        if self.input.text_processed:
-            user_input_text = f"<user_input>\r\n{self.input.text_raw}\r\n</user_input>\r\n"
-            self.prompt = prompt.insert_text(self.prompt, user_input_text, '<user_input>\r\n', 'after')
+        self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, insert_txt, '<user_input>\r\n',
+                                                              'before')  # 插入群组消息
 
         # 如果有图片，添加图片提示
         if self.images:
             image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
-            self.prompt = prompt.insert_text(self.prompt, image_prompt, '<user_input>\r\n', 'after')
+            self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, image_prompt,
+                                                                  '<user_input>\r\n', 'after')
 
     async def response(self):
         """
@@ -307,7 +304,7 @@ class GroupConv:
         更新 self.output 和数据库记录。
         """
         self.client.build_conv_messages(self.id)
-        self.client.set_prompt(self.prompt)
+        self.client.set_prompt(self.prompt_obj.content)
         await self.client.embedd_all_text(self.images, self.context, self.group.id)
         response = await self.client.final_response()
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
@@ -377,7 +374,7 @@ class PrivateConv:
         user (User): 用户对象, 包含用户的 ID 等信息.
         input (Message): 用户输入的消息对象.
         output (Message): LLM 生成的回复消息对象.
-        prompt (str): 用于传递给 LLM 的提示字符串.
+        prompt (obj): 用于传递给 LLM 的提示字符串.
         config (Config): 配置对象, 包含与用户相关的配置信息, 如角色,预设等.
         id (int): 会话 ID, 用于在数据库中标识会话.
     """
@@ -411,14 +408,14 @@ class PrivateConv:
             self.new()
         # 构建 prompt
         if self.input:
-            self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
-            self.prompt = prompt.insert_text(self.prompt,
-                                             f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
-                                             f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
-                                             '<character>',
-                                             'before')
+            self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
+            self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content,
+                                                              f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
+                                                              f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
+                                                              '<user_input>',
+                                                              'before')
         else:
-            self.prompt = None
+            self.prompt_obj = None
 
     async def response(self, save=True):
         """
@@ -446,7 +443,7 @@ class PrivateConv:
         db.conversation_delete_messages(self.id, last_msg_id_list[0])
         db.conversation_delete_messages(self.id, last_msg_id_list[1])
         self.input = Message(last_msg_id_list[1], last_input, 'input')
-        self.prompt = prompt.build_prompts(self.config.char, self.input.text_raw, self.config.preset)
+        self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
         await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
         await self.response()
 
@@ -513,12 +510,12 @@ class PrivateConv:
             data (str): 回调数据.
         """
         self.input = Message(0, data, 'callback')
-        self.prompt = prompt.build_prompts(self.config.char, self.input.text_processed, self.config.preset)
-        self.prompt = prompt.insert_text(self.prompt,
-                                         f"<user_nickname>\r\n用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
-                                         f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n</user_nickname>\r\n",
-                                         '<character>',
-                                         'before')
+        self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
+        self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content,
+                                                              f"<user_nickname>\r\n用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
+                                                              f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n</user_nickname>\r\n",
+                                                              '<character>',
+                                                              'before')
 
     async def _response_to_user(self, save):
         """
@@ -530,7 +527,7 @@ class PrivateConv:
         response_chunks = []
 
         self.client.build_conv_messages(self.id)
-        self.client.set_prompt(self.prompt)
+        self.client.set_prompt(self.prompt_obj.content)
         await self.client.embedd_all_text()
         async for chunk in self.client.response(self.config.stream):
             response_chunks.append(chunk)
