@@ -12,6 +12,10 @@
 .
 ├── Dockerfile           # Docker 镜像构建配置
 ├── LICENSE              # 许可证
+├── LLM_tools/           # LLM 工具调用模块
+│   ├── __init__.py
+│   ├── tools.py         # 工具定义
+│   └── tools_registry.py# 工具注册
 ├── README.md            # 项目说明文档
 ├── bot_run.py           # 启动入口
 ├── bot_core/            # 机器人核心模块
@@ -21,11 +25,10 @@
 │   └── public_functions/   # 公共功能
 ├── requirements.txt     # Python 依赖包列表
 └── utils/               # 工具函数模块
-    ├── LLM_utils.py     # 大语言模型 API 封装
+    ├── LLM_utils.py     # OPenAI API 封装
     ├── db_utils.py      # 数据库操作
     ├── file_utils.py    # 文件处理
     ├── logging_utils.py # 日志处理
-    ├── market_utils.py  # 加密货币行情
     ├── prompt_utils.py  # Prompt 处理
     └── text_utils.py    # 文本处理
 ```
@@ -52,7 +55,7 @@
 - 角色对话状态持久化
 
 ### 4. 扩展功能
-- 加密货币行情分析（集成 ccxt）
+- LLM 工具调用（支持自定义工具）
 - 对话状态持久化
 - 多模态支持（文本/图片）
 - 完善的错误处理机制
@@ -61,7 +64,7 @@
 ## 快速开始
 
 ### 依赖环境
-- Python 3.9+
+- Python 3.12+
 - pip
 - Docker（可选，推荐生产环境部署）
 
@@ -170,9 +173,6 @@ docker run -d --name cyber-waifu-container \
 
 ### Q: 如何获取 Telegram Bot Token?
 A: 通过 @BotFather 创建机器人获取
-
-### Q: 如何添加新的 API 支持?
-A: 在 utils/LLM_utils.py 中实现新的 API 类
 
 ### Q: 如何调试机器人?
 A: 查看 bot.log 文件获取详细日志
