@@ -10,8 +10,5 @@ COPY . /app
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 暴露端口（如果您的 Bot 使用 webhook 模式，需要暴露 Telegram webhook 端口，例如 8443）
-# EXPOSE 8443  # 如果不需要，可以注释掉
 
-# 指定容器启动时运行的命令（假设 bot.py 是主入口）
 CMD ["python", "bot_run.py"]
