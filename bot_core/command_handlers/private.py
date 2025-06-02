@@ -563,7 +563,7 @@ class CryptoCommand(BaseCommand):
             placeholder_message: The placeholder message to be edited with the final result.
         """
         try:
-            client = llm.LLM()  # CryptoCommand 原始逻辑是无参数调用LLM()
+            client = llm.LLM(api='gemini-2.5')  # CryptoCommand 原始逻辑是无参数调用LLM()
             logger.debug("LLM 客户端初始化完成")
             prompt_text = MarketToolRegistry.get_prompt_text()
             system_prompt = (
