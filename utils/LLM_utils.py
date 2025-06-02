@@ -433,7 +433,7 @@ class Prompts:
             "Sample": combine_data.get("Sample"),
             "Function": combine_data.get("Function"),
             "Jailbreak": combine_data.get("Jailbreak"),
-            "Others": combine_data.get("Others")
+            "Others": combine_data.get("Others"),
         }
         logger.debug(f"<UNK> prompt_parts: {str(prompt_parts)}")
         # 遍历每个提示部分，动态传递类型和 combine 数据
@@ -442,6 +442,7 @@ class Prompts:
             self._load_prompt_content(prompt_part_type, combine)
         self._insert_char()
         self._insert_input()
+        logger.debug(f"<最终内容>: {self.content}")
 
     def _load_prompt_content(self, prompt_part_type, combine):
         PROMPT_PART_CONFIG = {
@@ -486,7 +487,7 @@ class Prompts:
         attr_name = f"{prompt_part_type}_txt"
         setattr(self, attr_name, content)
         self.content += content
-        logger.debug(f"<最终内容>: {self.content}")
+
     def _insert_char(self):
         char_txt = prompt_cache.get_character(self.char)
         char_tag = self.build_tagged_content("Character", "以下是你需要扮演的内容", char_txt)
