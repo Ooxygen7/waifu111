@@ -143,8 +143,7 @@ class LLM:
             self.messages.append({"role": "user", "content": content_list})
         else:
             self.messages.append({"role": "user", "content": user_content})
-        for message in self.messages:
-            logger.debug(message)
+
 
     def set_messages(self, messages):
         self.messages = messages
@@ -412,7 +411,7 @@ class Prompts:
         从 preset_list 中找到匹配的 preset 模板，并加载各个部分的提示内容。
         """
         preset_list = self.data.get("prompt_set_list", [])
-        logger.debug(f"<UNK> preset list: {preset_list}")
+        logger.debug(f"preset list: {preset_list}")
         target_template = None
         # 查找匹配的 preset 模板
         for template in preset_list:
@@ -425,7 +424,7 @@ class Prompts:
             return
         # 从模板中提取 combine 字段的各个部分
         combine_data = target_template.get("combine", {})
-        logger.debug(f"<UNK> combine_data: {combine_data}")
+        logger.debug(f"combine_data: {combine_data}")
         # 定义要处理的提示部分类型及其对应的 combine 数据
         prompt_parts = {
             "System": combine_data.get("System"),
@@ -455,7 +454,7 @@ class Prompts:
             "Others": {"tag": "others", "description": "还有一些额外要求："},
         }
         if combine is None or not isinstance(combine, list) or not combine:
-            logger.debug(f"<数据无效> 返回")
+            #logger.debug(f"<数据无效> 返回")
             return
         # 检查 prompt_part_type 是否有效
         config = PROMPT_PART_CONFIG.get(prompt_part_type)
@@ -466,9 +465,9 @@ class Prompts:
         tag = config["tag"]
         description = config["description"]
         # 从数据中获取对应的提示部分
-        logger.debug(f"<搜索> prompt_part_type: {prompt_part_type}")
+        #logger.debug(f"<搜索> prompt_part_type: {prompt_part_type}")
         prompts = self.data.get("prompts").get(prompt_part_type)
-        logger.debug(f"<读取预设内容> prompts: {str(prompts)}")
+        #logger.debug(f"<读取预设内容> prompts: {str(prompts)}")
         if not prompts:
             print(f"Warning: No prompts found for type: {prompt_part_type}")
             return  # 如果没有 prompts，直接返回，不设置属性
@@ -487,7 +486,7 @@ class Prompts:
         attr_name = f"{prompt_part_type}_txt"
         setattr(self, attr_name, content)
         self.content += content
-
+        logger.debug(f"<最终内容>: {self.content}")
     def _insert_char(self):
         char_txt = prompt_cache.get_character(self.char)
         char_tag = self.build_tagged_content("Character", "以下是你需要扮演的内容", char_txt)
