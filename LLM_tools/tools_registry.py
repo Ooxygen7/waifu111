@@ -224,25 +224,44 @@ class DatabaseToolRegistry:
 
 
 
+import json
+from typing import Dict, Any, Callable, Optional
+
 class MarketToolRegistry:
     """A registry for market analysis tools with descriptions, output formats, and metadata for LLM interaction."""
     TOOLS: Dict[str, Dict[str, Any]] = {
-        "get_price": {
-            "description": "Fetch the current price of a cryptocurrency pair from a specified exchange.",
-            "type": "query",
+        "get_coin_index": {
+            "description": "Fetches multiple cryptocurrency indices (price, trends, volume, RSI, SMA, MACD) in a single call. Provides a comprehensive overview of a cryptocurrency pair.",
+            "type": "analysis",
             "parameters": {
                 "symbol": {
                     "type": "string",
                     "description": "The trading pair symbol (e.g., BTC/USDT)."
+                },
+                "timeframe": {
+                    "type": "string",
+                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of historical data points to analyze (default: 50)."
+                },
+                "period_rsi": {
+                    "type": "integer",
+                    "description": "Period for RSI calculation (default: 14)."
+                },
+                "period_sma": {
+                    "type": "integer",
+                    "description": "Period for SMA calculation (default: 20)."
                 },
                 "exchange": {
                     "type": "string",
                     "description": "The exchange to query (default: binance)."
                 }
             },
-            "output_format": "A string containing the current price of the specified trading pair.",
-            "example": {"tool_name": "get_price", "parameters": {"symbol": "BTC/USDT", "exchange": "binance"}},
-            "return_value": "Price information string (e.g., 'Current price of BTC/USDT on binance: 50000 USDT.')"
+            "output_format": "A string summarizing the price, market trend, volume analysis, RSI, SMA and MACD.",
+            "example": {"tool_name": "get_coin_index", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period_rsi": 14, "period_sma": 20, "exchange": "binance"}},
+            "return_value": "Comprehensive analysis of cryptocurrency indices including price, trend, volume, RSI, SMA, and MACD."
         },
         "get_historical_data": {
             "description": "Fetch historical OHLCV (Open, High, Low, Close, Volume) data for a cryptocurrency pair.",
@@ -292,146 +311,7 @@ class MarketToolRegistry:
                         "parameters": {"symbol": "BTC/USDT", "limit": 10, "exchange": "binance"}},
             "return_value": "Order book summary (e.g., 'Order book for BTC/USDT on binance...')"
         },
-        "get_market_trends": {
-            "description": "Analyze market trends for a cryptocurrency pair based on historical data.",
-            "type": "analysis",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "timeframe": {
-                    "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 30)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the market trend analysis.",
-            "example": {"tool_name": "get_market_trends",
-                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1d", "limit": 30, "exchange": "binance"}},
-            "return_value": "Trend analysis summary (e.g., 'Market trend analysis for BTC/USDT on binance...')"
-        },
-        "get_volume_analysis": {
-            "description": "Analyze trading volume for a cryptocurrency pair based on historical data.",
-            "type": "analysis",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "timeframe": {
-                    "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 50)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the volume analysis.",
-            "example": {"tool_name": "get_volume_analysis",
-                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
-            "return_value": "Volume analysis summary (e.g., 'Volume analysis for BTC/USDT on binance...')"
-        },
-        "get_rsi": {
-            "description": "Calculate the Relative Strength Index (RSI) for a cryptocurrency pair.",
-            "type": "analysis",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "timeframe": {
-                    "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 50)."
-                },
-                "period": {
-                    "type": "integer",
-                    "description": "Period for RSI calculation (default: 14)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the RSI value and interpretation.",
-            "example": {"tool_name": "get_rsi",
-                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period": 14,
-                                       "exchange": "binance"}},
-            "return_value": "RSI analysis result (e.g., 'RSI for BTC/USDT on binance: 65.32 (Neutral)')"
-        },
-        "get_moving_average": {
-            "description": "Calculate the Simple Moving Average (SMA) for a cryptocurrency pair.",
-            "type": "analysis",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "timeframe": {
-                    "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 50)."
-                },
-                "period": {
-                    "type": "integer",
-                    "description": "Period for SMA calculation (default: 20)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the SMA value and trend direction.",
-            "example": {"tool_name": "get_moving_average",
-                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period": 20,
-                                       "exchange": "binance"}},
-            "return_value": "SMA analysis result (e.g., 'SMA (20) for BTC/USDT on binance: 48000.00 USDT, current price is above SMA (bullish signal)')"
-        },
-        "get_macd": {
-            "description": "Calculate the Moving Average Convergence Divergence (MACD) for a cryptocurrency pair.",
-            "type": "analysis",
-            "parameters": {
-                "symbol": {
-                    "type": "string",
-                    "description": "The trading pair symbol (e.g., BTC/USDT)."
-                },
-                "timeframe": {
-                    "type": "string",
-                    "description": "The timeframe for analysis (e.g., 1h, 1d)."
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of historical data points to analyze (default: 50)."
-                },
-                "exchange": {
-                    "type": "string",
-                    "description": "The exchange to query (default: binance)."
-                }
-            },
-            "output_format": "A string summarizing the MACD value and signal interpretation.",
-            "example": {"tool_name": "get_macd",
-                        "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}},
-            "return_value": "MACD analysis result (e.g., 'MACD for BTC/USDT on binance: MACD=120.45, Signal=100.32 (Bullish crossover)')"
-        },
+
         "get_top_movers": {
             "description": "Fetch the top movers (biggest price changes) on a specified exchange.",
             "type": "query",
@@ -503,7 +383,7 @@ class MarketToolRegistry:
             prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
             prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
             prompt_lines.append(f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}")
-        prompt_lines.append("""\nImportant Analysis Guideline: For every market analysis request, you MUST include the 'get_candlestick_data' tool as the foundation for visualizing or understanding price movements. Additionally, combine it with 2-3 other relevant tools (e.g., 'get_rsi', 'get_moving_average', 'get_macd', 'get_market_trends', or 'get_volume_analysis') to provide a comprehensive analysis. Ensure that the tools selected are complementary and cover different aspects of the market (e.g., trend, momentum, volume). If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
+        prompt_lines.append("""\nImportant Analysis Guideline: For every market analysis request, you MUST include the 'get_candlestick_data' tool as the foundation for visualizing or understanding price movements. Additionally, combine it with 2-3 other relevant tools (e.g., 'get_coin_index', 'get_historical_data',  or 'get_order_book') to provide a comprehensive analysis. Ensure that the tools selected are complementary and cover different aspects of the market (e.g., trend, momentum, volume). If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:
     {
       "tool_calls": [
         {
@@ -529,6 +409,7 @@ class MarketToolRegistry:
     }
     Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text.""")
         return "\n".join(prompt_lines)
+
 
 
 ALL_TOOLS: Dict[str, Callable] = {}

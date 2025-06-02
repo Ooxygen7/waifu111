@@ -125,7 +125,9 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if keyword_list and any(keyword in message_text for keyword in keyword_list):
                 logger.info(f"触发关键词, group_name: {group_name}, user_name: {user_name}")
                 return 'keyword'
-            if random.random() < rate:
+            _rd = random.random() < rate
+            if _rd < rate:
+                logger.debug(f"roll:{_rd}<rate:{rate}")
                 logger.info(f"触发随机回复, group_name: {group_name}, user_name: {user_name}")
                 return 'random'
 

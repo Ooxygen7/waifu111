@@ -17,33 +17,35 @@ logger = logging.getLogger(__name__)
 
 class RemakeCommand(BaseCommand):
     meta = CommandMeta(
-        name='remake',
-        command_type='group',
-        trigger='remake',
-        menu_text='重开对话 (群组)',
+        name="remake",
+        command_type="group",
+        trigger="remake",
+        menu_text="重开对话 (群组)",
         show_in_menu=True,
-        menu_weight=17
+        menu_weight=17,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if db.conversation_group_delete(update.message.chat.id, update.message.from_user.id):
+        if db.conversation_group_delete(
+            update.message.chat.id, update.message.from_user.id
+        ):
             logger.info(f"处理 /remake 命令，用户ID: {update.effective_user.id}")
             await update.message.reply_text("您已重开对话！")
 
 
 class SwitchCommand(BaseCommand):
     meta = CommandMeta(
-        name='switch',
-        command_type='group',
-        trigger='switch',
-        menu_text='切换角色 (群组)',
+        name="switch",
+        command_type="group",
+        trigger="switch",
+        menu_text="切换角色 (群组)",
         show_in_menu=True,
         menu_weight=18,
-        group_admin_required=True
+        group_admin_required=True,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        markup = Inline.print_char_list('load', 'group', update.message.chat.id)
+        markup = Inline.print_char_list("load", "group", update.message.chat.id)
         if markup == "没有可操作的角色。":
             await update.message.reply_text(markup)
         else:
@@ -52,17 +54,17 @@ class SwitchCommand(BaseCommand):
 
 class RateCommand(BaseCommand):
     meta = CommandMeta(
-        name='rate',
-        command_type='group',
-        trigger='rate',
-        menu_text='设置回复频率 (群组)',
+        name="rate",
+        command_type="group",
+        trigger="rate",
+        menu_text="设置回复频率 (群组)",
         show_in_menu=True,
         menu_weight=19,
-        group_admin_required=True
+        group_admin_required=True,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        args = context.args if hasattr(context, 'args') else []
+        args = context.args if hasattr(context, "args") else []
         if len(args) < 1:
             await update.message.reply_text("请输入一个0-1的小数")
             return
@@ -70,19 +72,19 @@ class RateCommand(BaseCommand):
         if not 0 <= rate_value <= 1:
             await update.message.reply_text("请输入一个0-1的小数")
             return
-        if db.group_info_update(update.message.chat.id, 'rate', rate_value):
+        if db.group_info_update(update.message.chat.id, "rate", rate_value):
             await update.message.reply_text(f"已设置触发频率: {rate_value}")
 
 
 class KeywordCommand(BaseCommand):
     meta = CommandMeta(
-        name='keyword',
-        command_type='group',
-        trigger='kw',
-        menu_text='设置关键词',
+        name="keyword",
+        command_type="group",
+        trigger="kw",
+        menu_text="设置关键词",
         show_in_menu=True,
         menu_weight=0,
-        group_admin_required=True
+        group_admin_required=True,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -90,23 +92,33 @@ class KeywordCommand(BaseCommand):
         if not keywords:
             keywords_text = "当前群组没有设置关键词。"
         else:
-            keywords_text = "当前群组的关键词列表：\r\n" + ", ".join([f"`{kw}`" for kw in keywords])
+            keywords_text = "当前群组的关键词列表：\r\n" + ", ".join(
+                [f"`{kw}`" for kw in keywords]
+            )
         keyboard = [
-            [InlineKeyboardButton("添加关键词", callback_data=f"group_kw_add_{update.message.chat.id}"),
-             InlineKeyboardButton("删除关键词", callback_data=f"group_kw_del_{update.message.chat.id}")]
+            [
+                InlineKeyboardButton(
+                    "添加关键词", callback_data=f"group_kw_add_{update.message.chat.id}"
+                ),
+                InlineKeyboardButton(
+                    "删除关键词", callback_data=f"group_kw_del_{update.message.chat.id}"
+                ),
+            ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(keywords_text, reply_markup=reply_markup, parse_mode='Markdown')
+        await update.message.reply_text(
+            keywords_text, reply_markup=reply_markup, parse_mode="Markdown"
+        )
 
 
 class CryptoCommand(BaseCommand):
     meta = CommandMeta(
-        name='crypto',
-        command_type='group',
-        trigger='cc',
-        menu_text='分析加密货币实时行情',
+        name="crypto",
+        command_type="group",
+        trigger="cc",
+        menu_text="分析加密货币实时行情",
         show_in_menu=True,
-        menu_weight=99
+        menu_weight=99,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -120,29 +132,32 @@ class CryptoCommand(BaseCommand):
         # 动态判断命令前缀
         command_prefix = user_input.split()[0]  # 例如 /cc 或 /crypto
         if len(user_input.split()) > 1:
-            user_input = user_input[len(command_prefix):].strip()  # 去掉命令本身和前导空格
+            user_input = user_input[
+                len(command_prefix) :
+            ].strip()  # 去掉命令本身和前导空格
         else:
             await update.message.reply_text(
-                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼`", parse_mode="Markdown")
+                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼`",
+                parse_mode="Markdown",
+            )
             return
         # 先发送占位消息
-        placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")  # 明确指定parse_mode
+        placeholder_message = await update.message.reply_text(
+            "处理中...", parse_mode="Markdown"
+        )  # 明确指定parse_mode
         logger.debug("已发送占位消息 '处理中...'")
 
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
-            self.process_tool_request(update, context, user_input, placeholder_message),
-            update=update
+            self.process_tool_request(user_input, placeholder_message), update=update
         )
         logger.debug("已创建后台任务处理 /tool 请求")
 
-    async def process_tool_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str,
-                                   placeholder_message) -> None:
+    @staticmethod
+    async def process_tool_request(user_input: str, placeholder_message) -> None:
         """
         Process the tool request in the background and update the placeholder message with the result.
         Args:
-            update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
             user_input: The processed user input text.
             placeholder_message: The placeholder message to be edited with the final result.
         """
@@ -199,7 +214,7 @@ class CryptoCommand(BaseCommand):
             )
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"用户输入: {user_input}"}
+                {"role": "user", "content": f"用户输入: {user_input}"},
             ]
             final_result_for_display = ""  # 累积所有要显示给用户的内容
             current_messages = messages.copy()
@@ -214,8 +229,11 @@ class CryptoCommand(BaseCommand):
                 ai_response = await client.final_response()
                 logger.info(f"LLM 原始响应: {ai_response}")
                 # 调用共享的 parse_and_invoke_tool 函数
-                llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
-                    await parse_and_invoke_tool(ai_response)
+                (
+                    llm_text_part,
+                    tool_results_for_llm_feedback,
+                    had_tool_calls,
+                ) = await parse_and_invoke_tool(ai_response)
                 # 将 LLM 的文本部分加入到最终显示内容中
                 if llm_text_part:
                     # 如果LLM的文本部分包含 "```" 则不需要我们再加 Markdown 代码块
@@ -225,80 +243,108 @@ class CryptoCommand(BaseCommand):
                         final_result_for_display += f"**脆脆鲨:** {llm_text_part.strip()}\n"  # 标记为脆脆鲨的输出
                     logger.debug(f"脆脆鲨文本部分已添加: {llm_text_part.strip()}")
                 if had_tool_calls:
-                    logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
+                    logger.info(
+                        f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}"
+                    )
 
                     # 修剪工具调用结果用于 Telegram 消息展示 (按 CryptoCommand 原有逻辑使用150字截断)
                     trimmed_results_for_display = []
                     for res in tool_results_for_llm_feedback:
-                        tool_name = res.get('tool_name', '未知工具')
-                        tool_result = str(res.get('result', ''))  # 确保是字符串
+                        tool_name = res.get("tool_name", "未知工具")
+                        tool_result = str(res.get("result", ""))  # 确保是字符串
                         if len(tool_result) > 150:  # 使用150字截断
                             trimmed_result = tool_result[:150] + "..."
                         else:
                             trimmed_result = tool_result
-                        trimmed_results_for_display.append(f"{tool_name} 执行结果:\n{trimmed_result}")
+                        trimmed_results_for_display.append(
+                            f"{tool_name} 执行结果:\n{trimmed_result}"
+                        )
                     # 使用 Markdown 代码块包裹修剪后的工具调用结果
                     if trimmed_results_for_display:
-                        final_result_for_display += "```\n" + "\n".join(trimmed_results_for_display) + "\n```\n"
-                        logger.debug(f"已添加修剪后的工具结果到显示: {trimmed_results_for_display}")
+                        final_result_for_display += (
+                            "```\n" + "\n".join(trimmed_results_for_display) + "\n```\n"
+                        )
+                        logger.debug(
+                            f"已添加修剪后的工具结果到显示: {trimmed_results_for_display}"
+                        )
                     # 更新占位消息，包含LLM文本和工具结果
                     display_content = final_result_for_display.strip()
-                    current_display_text = f"{initial_placeholder_text}\n{display_content}" if display_content else initial_placeholder_text
+                    current_display_text = (
+                        f"{initial_placeholder_text}\n{display_content}"
+                        if display_content
+                        else initial_placeholder_text
+                    )
 
                     # --- 中间结果更新的错误处理 ---
                     try:
                         await placeholder_message.edit_text(
                             f"{current_display_text}\n更新时间: {time.time()}",  # 添加时间戳确保内容变化
-                            parse_mode="Markdown"
+                            parse_mode="Markdown",
                         )
                         logger.debug("已更新占位消息，显示中间结果")
                     except telegram.error.BadRequest as e:
-                        logger.warning(f"更新占位消息时Markdown解析失败，尝试禁用Markdown: {e}")
+                        logger.warning(
+                            f"更新占位消息时Markdown解析失败，尝试禁用Markdown: {e}"
+                        )
                         try:
                             await placeholder_message.edit_text(
                                 f"{current_display_text}\n更新时间: {time.time()}",
-                                parse_mode=None  # 禁用 Markdown
+                                parse_mode=None,  # 禁用 Markdown
                             )
                             logger.debug("已成功禁用Markdown更新占位消息")
                         except Exception as inner_e:
-                            logger.error(f"禁用Markdown后再次发送消息失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (内容包含无法解析的格式，已禁用格式显示)")
+                            logger.error(
+                                f"禁用Markdown后再次发送消息失败: {inner_e}",
+                                exc_info=True,
+                            )
+                            await placeholder_message.edit_text(
+                                "处理中... (内容包含无法解析的格式，已禁用格式显示)"
+                            )
                     except Exception as e:
                         logger.error(f"更新占位消息时发生未知错误: {e}", exc_info=True)
                         try:
                             await placeholder_message.edit_text(
                                 f"{current_display_text}\n更新时间: {time.time()}",
-                                parse_mode=None
+                                parse_mode=None,
                             )
                             logger.debug("发生未知错误后尝试禁用Markdown更新占位消息")
                         except Exception as inner_e:
-                            logger.error(f"未知错误且禁用Markdown后发送消息失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (更新失败，请稍后再试)")
+                            logger.error(
+                                f"未知错误且禁用Markdown后发送消息失败: {inner_e}",
+                                exc_info=True,
+                            )
+                            await placeholder_message.edit_text(
+                                "处理中... (更新失败，请稍后再试)"
+                            )
                     # --- 结束中间结果更新的错误处理 ---
                     # 将完整的原始LLM响应作为 assistant 消息反馈
-                    current_messages.append({
-                        "role": "assistant",
-                        "content": ai_response
-                    })
+                    current_messages.append(
+                        {"role": "assistant", "content": ai_response}
+                    )
                     # 将完整的工具调用结果作为 user 消息反馈（模拟环境反馈给LLM）
                     feedback_content_to_llm = "工具调用结果:\n" + "\n".join(
-                        [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in
-                         tool_results_for_llm_feedback]
+                        [
+                            f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}"
+                            for res in tool_results_for_llm_feedback
+                        ]
                     )
-                    current_messages.append({
-                        "role": "user",
-                        "content": feedback_content_to_llm
-                    })
+                    current_messages.append(
+                        {"role": "user", "content": feedback_content_to_llm}
+                    )
                     logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
                 else:
-                    logger.info(f"未调用工具，脆脆鲨直接回复用户。最终文本: {llm_text_part}")
+                    logger.info(
+                        f"未调用工具，脆脆鲨直接回复用户。最终文本: {llm_text_part}"
+                    )
                     break  # 没有工具调用，结束循环
             # 循环结束后，检查最终结果长度是否超过 Telegram 限制（4096 字符）
-            TELEGRAM_MESSAGE_LIMIT = 4096
+            ctx_limit = 4096
             final_output_to_user = final_result_for_display.strip()
-            if len(final_output_to_user) > TELEGRAM_MESSAGE_LIMIT:
-                final_output_to_user = final_output_to_user[
-                                       :TELEGRAM_MESSAGE_LIMIT - 60].strip() + "...\n\n**注意：结果过长，已被截断。**"
+            if len(final_output_to_user) > ctx_limit:
+                final_output_to_user = (
+                    final_output_to_user[: ctx_limit - 60].strip()
+                    + "...\n\n**注意：结果过长，已被截断。**"
+                )
 
             # 如果 final_output_to_user 还是空的（比如LLM啥也没返回），给个默认值
             if not final_output_to_user:
@@ -306,24 +352,39 @@ class CryptoCommand(BaseCommand):
             # 最终编辑占位消息以显示最终结果
             # --- 最终结果更新的错误处理 ---
             try:
-                await placeholder_message.edit_text(final_output_to_user, parse_mode="Markdown")
+                await placeholder_message.edit_text(
+                    final_output_to_user, parse_mode="Markdown"
+                )
                 logger.debug("已编辑占位消息，显示最终结果")
             except telegram.error.BadRequest as e:
                 logger.warning(f"最终结果Markdown解析失败，尝试禁用Markdown: {e}")
                 try:
-                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)  # 禁用 Markdown
+                    await placeholder_message.edit_text(
+                        final_output_to_user, parse_mode=None
+                    )  # 禁用 Markdown
                     logger.debug("已成功禁用Markdown发送最终结果")
                 except Exception as inner_e:
-                    logger.error(f"禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
-                    await placeholder_message.edit_text("处理完成。但内容包含无法解析的格式，已禁用格式显示。")
+                    logger.error(
+                        f"禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True
+                    )
+                    await placeholder_message.edit_text(
+                        "处理完成。但内容包含无法解析的格式，已禁用格式显示。"
+                    )
             except Exception as e:
                 logger.error(f"发送最终结果时发生未知错误: {e}", exc_info=True)
                 try:
-                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)
+                    await placeholder_message.edit_text(
+                        final_output_to_user, parse_mode=None
+                    )
                     logger.debug("发送最终结果时发生未知错误后尝试禁用Markdown")
                 except Exception as inner_e:
-                    logger.error(f"未知错误且禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
-                    await placeholder_message.edit_text("处理完成。但由于未知错误，内容可能显示不完整。")
+                    logger.error(
+                        f"未知错误且禁用Markdown后发送最终结果失败: {inner_e}",
+                        exc_info=True,
+                    )
+                    await placeholder_message.edit_text(
+                        "处理完成。但由于未知错误，内容可能显示不完整。"
+                    )
             # --- 结束最终结果更新的错误处理 ---
         except Exception as e:
             logger.error(f"处理 /cc 命令时发生错误: {str(e)}", exc_info=True)
@@ -333,22 +394,29 @@ class CryptoCommand(BaseCommand):
             error_message = f"处理请求时发生错误: `{error_message}`"
             try:
                 # 即使在最终错误处理中，也尝试使用 Markdown，失败则禁用
-                await placeholder_message.edit_text(error_message, parse_mode="Markdown")
+                await placeholder_message.edit_text(
+                    error_message, parse_mode="Markdown"
+                )
             except Exception as inner_e:
-                logger.warning(f"发送错误消息时Markdown解析失败，尝试禁用Markdown: {inner_e}")
+                logger.warning(
+                    f"发送错误消息时Markdown解析失败，尝试禁用Markdown: {inner_e}"
+                )
                 try:
                     await placeholder_message.edit_text(error_message, parse_mode=None)
                 except Exception as deepest_e:
                     logger.error(f"禁用Markdown后发送错误消息也失败: {deepest_e}")
-                    await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
+                    await placeholder_message.edit_text(
+                        "处理请求时发生未知错误，且无法格式化错误信息。"
+                    )
             logger.debug("已编辑占位消息，显示错误信息")
+
 
 class ForwardCommand(BaseCommand):
     meta = CommandMeta(
-        name='forward',
-        command_type='group',
-        trigger='fw',
-        menu_text='转发消息',
+        name="forward",
+        command_type="group",
+        trigger="fw",
+        menu_text="转发消息",
         show_in_menu=False,
         menu_weight=20,
         bot_admin_required=True,
@@ -370,7 +438,7 @@ class ForwardCommand(BaseCommand):
                 "或简写：`/fw <源聊天ID> <消息ID>`\n\n"
                 "💡 源聊天ID可以是用户ID、群组ID或频道ID（需要有访问权限）。\n"
                 "注意：频道ID通常以 `-100` 开头。",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return
         try:
@@ -381,7 +449,7 @@ class ForwardCommand(BaseCommand):
             await update.message.reply_text(
                 "❌ 无效的ID！源聊天ID和消息ID都必须是有效的数字。\n"
                 "示例：`/forward -1001234567890 123`",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return
         # 2. 获取目标聊天ID (通常是用户发起命令的聊天)
@@ -391,7 +459,7 @@ class ForwardCommand(BaseCommand):
             await context.bot.forward_message(
                 chat_id=target_chat_id,
                 from_chat_id=source_chat_id,
-                message_id=message_id
+                message_id=message_id,
             )
             #await update.message.reply_text("✅ 消息已成功转发！")
 

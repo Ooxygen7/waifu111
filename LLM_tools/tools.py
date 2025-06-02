@@ -5,11 +5,6 @@ from typing import Optional
 import ccxt.async_support as ccxt  # 使用异步支持以兼容 Telegram 机器人
 import numpy as np  # 用于数值计算
 import pandas as pd  # 用于数据处理和技术指标计算
-from telegram import Update
-from telegram.ext import ContextTypes
-from collections import Counter
-import bot_core.public_functions.update_parse as public
-from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
 
@@ -22,34 +17,132 @@ logger = logging.getLogger(__name__)
 
 class MarketTools:
     """A collection of tools for cryptocurrency market analysis that can be invoked by an LLM."""
-
     @staticmethod
-    async def get_price( symbol: str = "BTC/USDT",
-                        exchange: str = "binance") -> str:
+    async def get_coin_index(symbol: str = "BTC/USDT",
+                                   timeframe: str = "1h",
+                                   limit: int = 50,
+                                   period_rsi: int = 14,
+                                   period_sma: int = 20,
+                                   exchange: str = "binance") -> str:
         """
-        Fetch the current price of a cryptocurrency pair from a specified exchange.
-        Description: Retrieves the latest price for a given trading pair (e.g., BTC/USDT) from the specified exchange.
-        Type: Query
+        Fetches multiple cryptocurrency indices (price, trends, volume, RSI, SMA, MACD) in a single call.
+        Description: Combines several analysis tools to provide a comprehensive overview of a cryptocurrency pair.
+        Type: Analysis
         Parameters:
             - symbol (string): The trading pair symbol (e.g., BTC/USDT).
+            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
+            - limit (integer): Number of historical data points to analyze (default: 50).
+            - period_rsi (integer): Period for RSI calculation (default: 14).
+            - period_sma (integer): Period for SMA calculation (default: 20).
             - exchange (string): The exchange to query (default: binance).
-        Return Value: A string containing the current price of the specified trading pair.
-        Invocation: {"tool_name": "get_price", "parameters": {"symbol": "BTC/USDT", "exchange": "binance"}}
+        Return Value: A string summarizing the price, market trend, volume analysis, RSI, SMA and MACD.
+        Invocation: {"tool_name": "get_coin_index", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period_rsi": 14, "period_sma": 20,  "exchange": "binance"}}
         """
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
             if not exchange_class:
                 return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
-            ticker = await exchange_instance.fetch_ticker(symbol)
-            price = ticker['last']
-            timestamp = ticker['timestamp']
+            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+            if not ohlcv:
+                return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
+            closes = np.array([candle[4] for candle in ohlcv])
+            volumes = [candle[5] for candle in ohlcv]
+            # Current Price
+            current_price = closes[-1]
+            # Market Trends
+            first_price = closes[0]
+            price_change = closes[-1] - closes[0]
+            percentage_change = (price_change / first_price) * 100 if first_price != 0 else 0
+            trend = "bullish" if price_change > 0 else "bearish" if price_change < 0 else "neutral"
+            trend_desc = (
+                f"The price has increased by {price_change:.2f} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
+                if trend == "bullish" else
+                f"The price has decreased by {abs(price_change):.2f} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
+                if trend == "bearish" else
+                f"The price has remained stable over the last {limit} {timeframe} periods."
+            )
+            # Volume Analysis
+            avg_volume = sum(volumes) / len(volumes)
+            max_volume = max(volumes)
+            min_volume = min(volumes)
+            recent_volume = volumes[-1]
+            volume_trend = "above average" if recent_volume > avg_volume else "below average"
+            # RSI Calculation
+            period = period_rsi
+            if len(ohlcv) < period:
+                rsi_result = f"Insufficient historical data to calculate RSI.  Need {period} data points, but only have {len(ohlcv)}"
+                current_rsi = None
+                interpretation = None
+            else:
+                deltas = np.diff(closes)
+                seed = deltas[:period]
+                up = seed[seed >= 0].sum() / period
+                down = -seed[seed < 0].sum() / period
+                rs = up / down if down != 0 else 0
+                rsi = np.zeros_like(closes)
+                rsi[:period] = 100. - 100. / (1. + rs)
+                for i in range(period, len(closes)):
+                    delta = deltas[i - 1]
+                    if delta > 0:
+                        upval = delta
+                        downval = 0.
+                    else:
+                        upval = 0.
+                        downval = -delta
+                    up = (up * (period - 1) + upval) / period
+                    down = (down * (period - 1) + downval) / period
+                    rs = up / down if down != 0 else 0
+                    rsi[i] = 100. - 100. / (1. + rs)
+                current_rsi = rsi[-1]
+                interpretation = (
+                    "Overbought (potential sell signal)" if current_rsi > 70 else
+                    "Oversold (potential buy signal)" if current_rsi < 30 else
+                    "Neutral"
+                )
+                rsi_result = f"{current_rsi:.2f} ({interpretation})" if interpretation else f"{current_rsi:.2f}"
+            # SMA Calculation
+            period = period_sma
+            if len(ohlcv) < period:
+                sma_result = f"Insufficient historical data to calculate SMA. Need {period} data points, but only have {len(ohlcv)}"
+                sma = None
+                sma_trend = None
+            else:
+                sma = sum(closes[-period:]) / period
+                sma_trend = "above SMA (bullish signal)" if current_price > sma else "below SMA (bearish signal)"
+                sma_result = f"{sma:.2f} USDT, current price is {sma_trend}"
+            # MACD Calculation
+            if len(ohlcv) < 26:
+                macd_result = f"Insufficient historical data to calculate MACD. Need at least 26 data points, but only have {len(ohlcv)}"
+                current_macd = None
+                current_signal = None
+                macd_interpretation = None
+            else:
+                ema12 = pd.Series(closes).ewm(span=12, adjust=False).mean()
+                ema26 = pd.Series(closes).ewm(span=26, adjust=False).mean()
+                macd = ema12 - ema26
+                signal = macd.ewm(span=9, adjust=False).mean()
+                # histogram = macd - signal  # 暂时未使用
+                current_macd = macd.iloc[-1]
+                current_signal = signal.iloc[-1]
+                macd_interpretation = (
+                    "Bullish crossover (buy signal)" if current_macd > current_signal else
+                    "Bearish crossover (sell signal)"
+                )
+                macd_result = f"MACD={current_macd:.2f}, Signal={current_signal:.2f} ({macd_interpretation})" if macd_interpretation else f"MACD={current_macd:.2f}, Signal={current_signal:.2f}"
             await exchange_instance.close()
-            return f"Current price of {symbol} on {exchange}: {price} USDT (as of {timestamp})."
+            return (
+                f"**Coin Index Analysis for {symbol} on {exchange} (timeframe: {timeframe}, limit: {limit}):**\n"
+                f"- Current Price: {current_price:.2f} USDT\n"
+                f"- Market Trend: {trend.capitalize()} - {trend_desc}\n"
+                f"- Volume Analysis: Avg={avg_volume:.2f}, High={max_volume:.2f}, Low={min_volume:.2f}, Recent={recent_volume:.2f} ({volume_trend})\n"
+                f"- RSI ({period_rsi}): {rsi_result}\n"
+                f"- SMA ({period_sma}): {sma_result}\n"
+                f"- MACD: {macd_result}"
+            )
         except Exception as e:
-            logger.error(f"Error fetching price for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to fetch price for {symbol} on {exchange}: {str(e)}"
-
+            logger.error(f"Error calculating coin index for {symbol} on {exchange}: {str(e)}")
+            return f"Failed to calculate coin index for {symbol} on {exchange}: {str(e)}"
     @staticmethod
     async def get_historical_data( symbol: str = "BTC/USDT",
                                   timeframe: str = "1h", limit: int = 100, exchange: str = "binance") -> str:
@@ -87,7 +180,6 @@ class MarketTools:
         except Exception as e:
             logger.error(f"Error fetching historical data for {symbol} on {exchange}: {str(e)}")
             return f"Failed to fetch historical data for {symbol} on {exchange}: {str(e)}"
-
     @staticmethod
     async def get_order_book(symbol: str = "BTC/USDT",
                              limit: int = 10, exchange: str = "binance") -> str:
@@ -123,222 +215,6 @@ class MarketTools:
         except Exception as e:
             logger.error(f"Error fetching order book for {symbol} on {exchange}: {str(e)}")
             return f"Failed to fetch order book for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
-    async def get_market_trends(symbol: str = "BTC/USDT",
-                                timeframe: str = "1d", limit: int = 30, exchange: str = "binance") -> str:
-        """
-        Analyze market trends for a cryptocurrency pair based on historical data.
-        Description: Analyzes historical data to provide insights on price trends (e.g., bullish, bearish, or neutral).
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 30).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the market trend analysis.
-        Invocation: {"tool_name": "get_market_trends", "parameters": {"symbol": "BTC/USDT", "timeframe": "1d", "limit": 30, "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv:
-                return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
-            closes = [candle[4] for candle in ohlcv]
-            first_price = closes[0]
-            last_price = closes[-1]
-            price_change = last_price - first_price
-            percentage_change = (price_change / first_price) * 100 if first_price != 0 else 0
-            trend = "bullish" if price_change > 0 else "bearish" if price_change < 0 else "neutral"
-            trend_desc = (
-                f"The price has increased by {price_change:.2f} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
-                if trend == "bullish" else
-                f"The price has decreased by {abs(price_change):.2f} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
-                if trend == "bearish" else
-                f"The price has remained stable over the last {limit} {timeframe} periods."
-            )
-            await exchange_instance.close()
-            return f"Market trend analysis for {symbol} on {exchange}:\n- Trend: {trend.capitalize()}\n- {trend_desc}"
-        except Exception as e:
-            logger.error(f"Error analyzing market trends for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to analyze market trends for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
-    async def get_volume_analysis( symbol: str = "BTC/USDT",
-                                  timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
-        """
-        Analyze trading volume for a cryptocurrency pair based on historical data.
-        Description: Analyzes historical volume data to identify spikes or trends in trading activity.
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 50).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the volume analysis.
-        Invocation: {"tool_name": "get_volume_analysis", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv:
-                return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
-            volumes = [candle[5] for candle in ohlcv]
-            avg_volume = sum(volumes) / len(volumes)
-            max_volume = max(volumes)
-            min_volume = min(volumes)
-            recent_volume = volumes[-1]
-            volume_trend = "above average" if recent_volume > avg_volume else "below average"
-            await exchange_instance.close()
-            return (
-                f"Volume analysis for {symbol} on {exchange} (timeframe: {timeframe}, last {limit} periods):\n"
-                f"- Average Volume: {avg_volume:.2f}\n"
-                f"- Highest Volume: {max_volume:.2f}\n"
-                f"- Lowest Volume: {min_volume:.2f}\n"
-                f"- Recent Volume: {recent_volume:.2f} ({volume_trend})"
-            )
-        except Exception as e:
-            logger.error(f"Error analyzing volume for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to analyze volume for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
-    async def get_rsi( symbol: str = "BTC/USDT",
-                      timeframe: str = "1h", limit: int = 50, period: int = 14, exchange: str = "binance") -> str:
-        """
-        Calculate the Relative Strength Index (RSI) for a cryptocurrency pair.
-        Description: Computes the RSI based on historical data to identify overbought or oversold conditions.
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 50).
-            - period (integer): Period for RSI calculation (default: 14).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the RSI value and interpretation.
-        Invocation: {"tool_name": "get_rsi", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period": 14, "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv or len(ohlcv) < period:
-                return f"Insufficient historical data for {symbol} on {exchange} to calculate RSI."
-            closes = np.array([candle[4] for candle in ohlcv])
-            deltas = np.diff(closes)
-            seed = deltas[:period]
-            up = seed[seed >= 0].sum() / period
-            down = -seed[seed < 0].sum() / period
-            rs = up / down if down != 0 else 0
-            rsi = np.zeros_like(closes)
-            rsi[:period] = 100. - 100. / (1. + rs)
-            for i in range(period, len(closes)):
-                delta = deltas[i - 1]
-                if delta > 0:
-                    upval = delta
-                    downval = 0.
-                else:
-                    upval = 0.
-                    downval = -delta
-                up = (up * (period - 1) + upval) / period
-                down = (down * (period - 1) + downval) / period
-                rs = up / down if down != 0 else 0
-                rsi[i] = 100. - 100. / (1. + rs)
-            current_rsi = rsi[-1]
-            interpretation = (
-                "Overbought (potential sell signal)" if current_rsi > 70 else
-                "Oversold (potential buy signal)" if current_rsi < 30 else
-                "Neutral"
-            )
-            await exchange_instance.close()
-            return f"RSI for {symbol} on {exchange} (timeframe: {timeframe}, period: {period}): {current_rsi:.2f} ({interpretation})"
-        except Exception as e:
-            logger.error(f"Error calculating RSI for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to calculate RSI for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
-    async def get_moving_average(symbol: str = "BTC/USDT",
-                                 timeframe: str = "1h", limit: int = 50, period: int = 20,
-                                 exchange: str = "binance") -> str:
-        """
-        Calculate the Simple Moving Average (SMA) for a cryptocurrency pair.
-        Description: Computes the SMA based on historical data to identify price trends.
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 50).
-            - period (integer): Period for SMA calculation (default: 20).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the SMA value and trend direction.
-        Invocation: {"tool_name": "get_moving_average", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "period": 20, "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv or len(ohlcv) < period:
-                return f"Insufficient historical data for {symbol} on {exchange} to calculate SMA."
-            closes = [candle[4] for candle in ohlcv]
-            sma = sum(closes[-period:]) / period
-            current_price = closes[-1]
-            trend = "above SMA (bullish signal)" if current_price > sma else "below SMA (bearish signal)"
-            await exchange_instance.close()
-            return f"SMA ({period}) for {symbol} on {exchange} (timeframe: {timeframe}): {sma:.2f} USDT, current price is {trend}"
-        except Exception as e:
-            logger.error(f"Error calculating SMA for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to calculate SMA for {symbol} on {exchange}: {str(e)}"
-
-    @staticmethod
-    async def get_macd( symbol: str = "BTC/USDT",
-                       timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
-        """
-        Calculate the Moving Average Convergence Divergence (MACD) for a cryptocurrency pair.
-        Description: Computes the MACD to identify momentum and potential buy/sell signals.
-        Type: Analysis
-        Parameters:
-            - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - timeframe (string): The timeframe for analysis (e.g., 1h, 1d).
-            - limit (integer): Number of historical data points to analyze (default: 50).
-            - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the MACD value and signal interpretation.
-        Invocation: {"tool_name": "get_macd", "parameters": {"symbol": "BTC/USDT", "timeframe": "1h", "limit": 50, "exchange": "binance"}}
-        """
-        try:
-            exchange_class = getattr(ccxt, exchange.lower(), None)
-            if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
-            exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
-            if not ohlcv or len(ohlcv) < 26:
-                return f"Insufficient historical data for {symbol} on {exchange} to calculate MACD."
-            closes = np.array([candle[4] for candle in ohlcv])
-            ema12 = pd.Series(closes).ewm(span=12, adjust=False).mean()
-            ema26 = pd.Series(closes).ewm(span=26, adjust=False).mean()
-            macd = ema12 - ema26
-            signal = macd.ewm(span=9, adjust=False).mean()
-            histogram = macd - signal
-            current_macd = macd.iloc[-1]
-            current_signal = signal.iloc[-1]
-            interpretation = (
-                "Bullish crossover (buy signal)" if current_macd > current_signal else
-                "Bearish crossover (sell signal)"
-            )
-            await exchange_instance.close()
-            return f"MACD for {symbol} on {exchange} (timeframe: {timeframe}): MACD={current_macd:.2f}, Signal={current_signal:.2f} ({interpretation})"
-        except Exception as e:
-            logger.error(f"Error calculating MACD for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to calculate MACD for {symbol} on {exchange}: {str(e)}"
-
     @staticmethod
     async def get_top_movers( limit: int = 5,
                              exchange: str = "binance") -> str:
@@ -370,7 +246,6 @@ class MarketTools:
         except Exception as e:
             logger.error(f"Error fetching top movers on {exchange}: {str(e)}")
             return f"Failed to fetch top movers on {exchange}: {str(e)}"
-
     @staticmethod
     async def get_candlestick_data(symbol: str = "BTC/USDT",
                                    timeframe: str = "1h", limit: int = 50, exchange: str = "binance") -> str:
@@ -408,18 +283,11 @@ class MarketTools:
         except Exception as e:
             logger.error(f"Error fetching candlestick data for {symbol} on {exchange}: {str(e)}")
             return f"Failed to fetch candlestick data for {symbol} on {exchange}: {str(e)}"
-
-
 # Tool mapping for LLM invocation
 MARKETTOOLS = {
-    "get_price": MarketTools.get_price,
+    "get_coin_index": MarketTools.get_coin_index,  # 替换了多个工具
     "get_historical_data": MarketTools.get_historical_data,
     "get_order_book": MarketTools.get_order_book,
-    "get_market_trends": MarketTools.get_market_trends,
-    "get_volume_analysis": MarketTools.get_volume_analysis,
-    "get_rsi": MarketTools.get_rsi,
-    "get_moving_average": MarketTools.get_moving_average,
-    "get_macd": MarketTools.get_macd,
     "get_top_movers": MarketTools.get_top_movers,
     "get_candlestick_data": MarketTools.get_candlestick_data,
 }
