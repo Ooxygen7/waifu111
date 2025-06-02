@@ -10,7 +10,6 @@ from utils.logging_utils import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
-
 # --- 默认配置项 (建议未来迁移到专门的配置文件) ---
 DEFAULT_API = 'gemini-2'  # 默认使用的LLM API
 DEFAULT_PRESET = 'Default_meeting'  # 默认预设名称
