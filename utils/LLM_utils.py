@@ -411,20 +411,20 @@ class Prompts:
         从 preset_list 中找到匹配的 preset 模板，并加载各个部分的提示内容。
         """
         preset_list = self.data.get("prompt_set_list", [])
-        logger.debug(f"preset list: {preset_list}")
+        #logger.debug(f"preset list: {preset_list}")
         target_template = None
         # 查找匹配的 preset 模板
         for template in preset_list:
             if template.get("name") == self.preset:
                 target_template = template
-                logger.debug(f"<UNK> target_template : {target_template}>")
+                #logger.debug(f"<UNK> target_template : {target_template}>")
                 break
         if not target_template:
             logger.warning(f"Warning: Preset {self.preset} not found in prompt_set_list")
             return
         # 从模板中提取 combine 字段的各个部分
         combine_data = target_template.get("combine", {})
-        logger.debug(f"combine_data: {combine_data}")
+        #logger.debug(f"combine_data: {combine_data}")
         # 定义要处理的提示部分类型及其对应的 combine 数据
         prompt_parts = {
             "System": combine_data.get("System"),
@@ -435,14 +435,14 @@ class Prompts:
             "Jailbreak": combine_data.get("Jailbreak"),
             "Others": combine_data.get("Others"),
         }
-        logger.debug(f"<UNK> prompt_parts: {str(prompt_parts)}")
+        #logger.debug(f"<UNK> prompt_parts: {str(prompt_parts)}")
         # 遍历每个提示部分，动态传递类型和 combine 数据
         for prompt_part_type, combine in prompt_parts.items():
             logger.debug(f"<准备构建> {prompt_part_type}: {combine}")
             self._load_prompt_content(prompt_part_type, combine)
         self._insert_char()
         self._insert_input()
-        logger.debug(f"<最终内容>: {self.content}")
+
 
     def _load_prompt_content(self, prompt_part_type, combine):
         PROMPT_PART_CONFIG = {

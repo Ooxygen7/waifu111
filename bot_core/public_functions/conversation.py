@@ -277,8 +277,9 @@ class GroupConv:
         # 如果有图片，添加图片提示
         if self.images:
             image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
-            self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, image_prompt,
-                                                                  '<user_input>\r\n', 'after')
+            self.prompt_obj.content = self.prompt_obj.insert_text(
+                self.prompt_obj.content, image_prompt, "<user_input>\r\n", "after"
+            )
 
     async def response(self):
         """
@@ -287,6 +288,7 @@ class GroupConv:
         副作用:
         发送占位消息并启动异步任务。
         """
+
         self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
         if self.trigger in ['random', 'keyword', '@']:
             logger.debug(f"触发了{self.trigger}")
@@ -306,6 +308,7 @@ class GroupConv:
         self.client.build_conv_messages(self.id)
         self.client.set_prompt(self.prompt_obj.content)
         await self.client.embedd_all_text(self.images, self.context, self.group.id)
+        logger.debug(f"<最终prompts>: {self.prompt_obj.content}")
         response = await self.client.final_response()
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
         await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
