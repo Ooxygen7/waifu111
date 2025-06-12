@@ -40,8 +40,7 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
             await features.group_keyword_add(update, context)
             return
-        if update.message.from_user.id == 12345678:
-            return
+            
 
         # 处理普通群聊消息
         await group_reply(update, context)
@@ -62,6 +61,11 @@ async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     info = update_info_get(update)
     # 添加消息到群消息记录
     _group_dialog_add(info)
+    
+    # 检查话题权限
+    if not _check_topic_permission(update, context):
+        return
+    
     # 检查是否需要回复
     needs_reply = _group_msg_need_reply(update, context)
     if not needs_reply:
@@ -138,3 +142,35 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except Exception as e:
         logger.error(f"检查群聊消息是否需要回复失败, group_id: {group_id}, 错误: {str(e)}")
         raise BotError(f"检查群聊消息是否需要回复失败: {str(e)}")
+
+
+def _check_topic_permission(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+    """
+    检查Bot是否有权限在当前话题中发言。
+    
+    Args:
+        update (Update): Telegram更新对象。
+        context (ContextTypes.DEFAULT_TYPE): 上下文对象。
+    
+    Returns:
+        bool: 是否允许发言。
+    """
+    try:
+        message = update.message
+        group_id = message.chat.id
+        
+        # 获取禁用的话题列表
+        disabled_topics = db.group_disabled_topics_get(group_id)
+        
+        # 检查是否在话题中
+        if hasattr(message, 'message_thread_id') and message.message_thread_id:
+            topic_id = str(message.message_thread_id)
+            # 如果当前话题在禁用列表中，则不允许发言
+            return topic_id not in disabled_topics
+        else:
+            # 不在话题中的消息，检查主群聊是否被禁用
+            return "main" not in disabled_topics
+            
+    except Exception as e:
+        logger.error(f"检查话题权限失败: {str(e)}")
+        return True  # 出错时默认允许

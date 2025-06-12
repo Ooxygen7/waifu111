@@ -706,6 +706,29 @@ def group_rate_get(group_id: int) -> float:
     return result[0][0] if result and result[0] and result[0][0] is not None else 0.05
 
 
+def group_disabled_topics_get(group_id: int) -> List[str]:
+    """获取指定群组的禁用话题列表（从JSON字符串解析）。如果解析失败或无数据，返回空列表（表示没有禁用话题）。"""
+    try:
+        command = "SELECT disabled_topics FROM groups WHERE group_id = ?"
+        result = query_db(command, (group_id,))
+        return json.loads(result[0][0]) if result and result[0][0] else []
+    except Exception as e:
+        print(f"获取群组禁用话题错误: {e}")
+        return []
+
+
+def group_disabled_topics_set(group_id: int, topics: List[str]) -> bool:
+    """设置指定群组的禁用话题列表（序列化为JSON字符串存储）。返回操作是否成功。"""
+    try:
+        topics_str = json.dumps(topics, ensure_ascii=False)
+        command = "UPDATE groups SET disabled_topics = ? WHERE group_id = ?"
+        result = revise_db(command, (topics_str, group_id))
+        return result > 0
+    except Exception as e:
+        print(f"设置群组禁用话题错误: {e}")
+        return False
+
+
 def user_sign_info_get(user_id: int) -> dict:
     """获取指定用户的临时额度 (temporary_frequency)。如果未设置或查询失败，返回默认值0。"""
     command = f"SELECT user_id,last_sign,sign_count,frequency from user_sign where user_id =?"

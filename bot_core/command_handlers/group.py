@@ -111,6 +111,82 @@ class KeywordCommand(BaseCommand):
         )
 
 
+class DisableTopicCommand(BaseCommand):
+    meta = CommandMeta(
+        name="disable_topic",
+        command_type="group",
+        trigger="d",
+        menu_text="禁用当前话题",
+        show_in_menu=True,
+        menu_weight=20,
+        group_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """处理禁用话题命令"""
+        try:
+            message = update.message
+            group_id = message.chat.id
+            
+            if not hasattr(message, 'message_thread_id') or not message.message_thread_id:
+                await message.reply_text("请在话题中执行此命令以禁用当前话题。")
+                return
+            
+            topic_id = str(message.message_thread_id)
+            
+            disabled_topics = db.group_disabled_topics_get(group_id)
+            if topic_id not in disabled_topics:
+                disabled_topics.append(topic_id)
+                if db.group_disabled_topics_set(group_id, disabled_topics):
+                    await message.reply_text(f"已禁用当前话题 (ID: `{topic_id}`)。Bot将不会在此话题中发言。", parse_mode="Markdown")
+                else:
+                    await message.reply_text("禁用话题失败，请稍后重试。")
+            else:
+                await message.reply_text(f"当前话题 (ID: `{topic_id}`) 已被禁用。", parse_mode="Markdown")
+                
+        except Exception as e:
+            logger.error(f"处理禁用话题命令失败: {str(e)}")
+            await update.message.reply_text("处理禁用话题命令时发生错误，请稍后重试。")
+
+
+class EnableTopicCommand(BaseCommand):
+    meta = CommandMeta(
+        name="enable_topic",
+        command_type="group",
+        trigger="e",
+        menu_text="启用当前话题",
+        show_in_menu=True,
+        menu_weight=20,
+        group_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """处理启用话题命令"""
+        try:
+            message = update.message
+            group_id = message.chat.id
+            
+            if not hasattr(message, 'message_thread_id') or not message.message_thread_id:
+                await message.reply_text("请在话题中执行此命令以启用当前话题。")
+                return
+            
+            topic_id = str(message.message_thread_id)
+            
+            disabled_topics = db.group_disabled_topics_get(group_id)
+            if topic_id in disabled_topics:
+                disabled_topics.remove(topic_id)
+                if db.group_disabled_topics_set(group_id, disabled_topics):
+                    await message.reply_text(f"已启用当前话题 (ID: `{topic_id}`)。Bot将在此话题中发言。", parse_mode="Markdown")
+                else:
+                    await message.reply_text("启用话题失败，请稍后重试。")
+            else:
+                await message.reply_text(f"当前话题 (ID: `{topic_id}`) 未被禁用。", parse_mode="Markdown")
+                
+        except Exception as e:
+            logger.error(f"处理启用话题命令失败: {str(e)}")
+            await update.message.reply_text("处理启用话题命令时发生错误，请稍后重试。")
+
+
 class CryptoCommand(BaseCommand):
     meta = CommandMeta(
         name="crypto",
