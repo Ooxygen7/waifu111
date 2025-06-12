@@ -1,6 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+virtualenv/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Distribution / packaging
+.eggs/
+*.egg-info/
+build/
+dist/
+
+# Editors
+.vscode/
 .idea/
-characters/
-config/
-data/
-prompts/
+
+# OS generated files
+.DS_Store
+.Trashes
+Thumbs.db
+
+# Logs and databases
 bot.log
+data.db
+*.log
+*.sqlite3
+*.db
+
+# User-specific configurations
+config/config_local.json
+data/data.db
