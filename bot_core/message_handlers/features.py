@@ -2,6 +2,8 @@ import os
 import time
 import json
 import re
+import os
+import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
 import logging 
@@ -90,6 +92,21 @@ async def f_or_not(update: Update, context: ContextTypes.DEFAULT_TYPE):
         update: Telegram 更新对象。
         context: 上下文对象。
     """
+    # 回复用户的图片消息
+    placeholder_msg = await update.message.reply_text("正在分析，请稍候...", reply_to_message_id=update.message.message_id)
+    
+    # 创建异步任务处理后续逻辑
+    _task = asyncio.create_task(_process_image_analysis(update, context, placeholder_msg))
+
+
+async def _process_image_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, placeholder_msg):
+    """处理图片分析的异步逻辑
+    
+    Args:
+        update: Telegram 更新对象。
+        context: 上下文对象。
+        placeholder_msg: 占位消息对象。
+    """
     user_id = update.message.from_user.id
     
     try:
@@ -108,9 +125,6 @@ async def f_or_not(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 下载并保存图片
         file = await photo.get_file()
         await file.download_to_drive(filepath)
-        
-        # 回复用户的图片消息
-        placeholder_msg = await update.message.reply_text("正在分析，请稍候...", reply_to_message_id=update.message.message_id)
         
         # 准备系统提示词（占位）
         system_prompt = """

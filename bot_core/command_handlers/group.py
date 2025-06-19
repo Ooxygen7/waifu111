@@ -3,6 +3,7 @@ import time
 import os
 import json
 import re
+import asyncio
 
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -562,19 +563,34 @@ class FuckCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理/fuck命令，分析用户回复的图片消息。"""
+        # 检查是否是回复消息
+        if not update.message.reply_to_message:
+            await update.message.reply_text("请回复一条包含图片的消息来使用此命令。")
+            return
+        
+        replied_message = update.message.reply_to_message
+        
+        # 检查回复的消息是否包含图片
+        if not replied_message.photo:
+            await update.message.reply_text("回复的消息中没有图片。")
+            return
+        
+        # 发送占位消息
+        placeholder_msg = await update.message.reply_text("正在分析，请稍候...")
+        
+        # 创建异步任务处理后续逻辑
+        _task = asyncio.create_task(self._process_fuck_analysis(update, context, placeholder_msg, replied_message))
+    
+    async def _process_fuck_analysis(self, update: Update, context: ContextTypes.DEFAULT_TYPE, placeholder_msg, replied_message) -> None:
+        """处理图片分析的异步逻辑
+        
+        Args:
+            update: Telegram 更新对象。
+            context: 上下文对象。
+            placeholder_msg: 占位消息对象。
+            replied_message: 被回复的消息对象。
+        """
         try:
-            # 检查是否是回复消息
-            if not update.message.reply_to_message:
-                await update.message.reply_text("请回复一条包含图片的消息来使用此命令。")
-                return
-            
-            replied_message = update.message.reply_to_message
-            
-            # 检查回复的消息是否包含图片
-            if not replied_message.photo:
-                await update.message.reply_text("回复的消息中没有图片。")
-                return
-            
             user_id = update.message.from_user.id
             
             # 获取最大尺寸的图片
@@ -592,9 +608,6 @@ class FuckCommand(BaseCommand):
             # 下载并保存图片
             file = await photo.get_file()
             await file.download_to_drive(filepath)
-            
-            # 发送占位消息
-            placeholder_msg = await update.message.reply_text("正在分析，请稍候...")
             
             # 准备系统提示词
             system_prompt = """
