@@ -36,10 +36,11 @@ class StartCommand(BaseCommand):
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
         await update.message.reply_text(
-            f"您好，{info['first_name']} {info['last_name']}！这是由 @Xi_cuicui 开发的`CyberWaifu`项目。\r\n已为您创建用户档案。\r\n使用`/char`可以切换角色\r\n"
+            f"您好，{info['first_name']} {info['last_name']}！这是由 @Xi_cuicui 开发的`CyberWaifu`项目。\r\n使用`/char`可以切换角色\r\n"
             f"使用`/setting`可以管理您的对话与角色设置\r\n"
             f"使用`/c` 可获取加密货币行情分析\r\n"
             f"使用`/sign` 可签到\r\n"
+            f"直接发送图片可以获取`fuck or not`的评价\r\n"
         )
 
 

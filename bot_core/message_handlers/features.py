@@ -190,62 +190,48 @@ async def f_or_not(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open(txt_filepath, 'w', encoding='utf-8') as f:
             f.write(response)
         
-        # 编辑占位消息为AI回复，优先使用markdown渲染
-        max_len = 4000
+        # 删除占位消息
+        await context.bot.delete_message(
+            chat_id=update.message.chat.id,
+            message_id=placeholder_msg.message_id
+        )
+        
+        # 发送包含图片和文本的回复消息
         try:
-            # Telegram 单条消息最大长度限制4096字符，保险起见用4000
-            if len(response) <= max_len:
-                await context.bot.edit_message_text(
+            with open(filepath, 'rb') as photo_file:
+                await context.bot.send_photo(
                     chat_id=update.message.chat.id,
-                    message_id=placeholder_msg.message_id,
-                    text=response,
-                    parse_mode="markdown"
+                    photo=photo_file,
+                    caption=response,
+                    parse_mode="markdown",
+                    reply_to_message_id=update.message.message_id
                 )
-            else:
-                # 超长时分两段发送，先发前半段，再发后半段
-                await context.bot.edit_message_text(
-                    chat_id=update.message.chat.id,
-                    message_id=placeholder_msg.message_id,
-                    text=response[:max_len],
-                    parse_mode="markdown"
-                )
-                await update.message.reply_text(response[max_len:], parse_mode="markdown")
         except Exception as e:
             # 如果markdown解析失败，禁用markdown重试
             try:
-                if len(response) <= max_len:
-                    await context.bot.edit_message_text(
+                with open(filepath, 'rb') as photo_file:
+                    await context.bot.send_photo(
                         chat_id=update.message.chat.id,
-                        message_id=placeholder_msg.message_id,
-                        text=response,
-                        parse_mode=None
+                        photo=photo_file,
+                        caption=response,
+                        parse_mode=None,
+                        reply_to_message_id=update.message.message_id
                     )
-                else:
-                    await context.bot.edit_message_text(
-                        chat_id=update.message.chat.id,
-                        message_id=placeholder_msg.message_id,
-                        text=response[:max_len],
-                        parse_mode=None
-                    )
-                    await update.message.reply_text(response[max_len:], parse_mode=None)
             except Exception as e2:
-                # 如果仍然失败，发送错误信息
-                await context.bot.edit_message_text(
-                    chat_id=update.message.chat.id,
-                    message_id=placeholder_msg.message_id,
-                    text=f"图片分析失败：{str(e2)}"
-                )
+                # 如果仍然失败，发送纯文本错误信息
+                await update.message.reply_text(f"图片分析失败：{str(e2)}")
         
     except Exception as e:
-        # 如果出错，编辑占位消息显示错误信息
+        # 如果出错，删除占位消息并发送错误信息
         try:
-            await context.bot.edit_message_text(
+            await context.bot.delete_message(
                 chat_id=update.message.chat.id,
-                message_id=placeholder_msg.message_id,
-                text=f"图片分析失败：{str(e)}"
+                message_id=placeholder_msg.message_id
             )
         except:
-            await update.message.reply_text(f"图片分析失败：{str(e)}")
+            pass  # 如果删除失败，忽略错误
+        
+        await update.message.reply_text(f"图片分析失败：{str(e)}")
 
 
 async def _image_to_base64(filepath: str) -> str:
