@@ -38,6 +38,8 @@ class StartCommand(BaseCommand):
         await update.message.reply_text(
             f"您好，{info['first_name']} {info['last_name']}！这是由 @Xi_cuicui 开发的`CyberWaifu`项目。\r\n已为您创建用户档案。\r\n使用`/char`可以切换角色\r\n"
             f"使用`/setting`可以管理您的对话与角色设置\r\n"
+            f"使用`/c` 可获取加密货币行情分析\r\n"
+            f"使用`/sign` 可签到\r\n"
         )
 
 
@@ -532,6 +534,7 @@ class CryptoCommand(BaseCommand):
             update: The Telegram Update object containing the user input.
             context: The Telegram ContextTypes object for bot interaction.
         """
+
         user_input = update.message.text.strip()
         # 动态判断命令前缀
         command_prefix = user_input.split()[0]  # 例如 /cc 或 /crypto
