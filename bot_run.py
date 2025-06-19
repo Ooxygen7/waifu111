@@ -175,7 +175,7 @@ def setup_handlers(app: Application) -> None:
     # 消息处理器
     message_handlers = [
         MessageHandler(
-            (filters.TEXT | filters.Document.ALL) & ~filters.COMMAND & filters.ChatType.PRIVATE,
+            (filters.TEXT | filters.Document.ALL | filters.PHOTO) & ~filters.COMMAND & filters.ChatType.PRIVATE,
             private_handler.private_msg_handler
         ),
         MessageHandler(
