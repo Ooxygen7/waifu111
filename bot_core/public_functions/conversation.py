@@ -288,8 +288,14 @@ class GroupConv:
         副作用:
         发送占位消息并启动异步任务。
         """
-
-        self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
+        
+        # 检查机器人是否有发送消息的权限
+        
+        try:
+            self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
+        except (BadRequest, TelegramError) as e:
+            logger.warning(f"发送占位消息失败: {e}，跳过回复")
+            return
         if self.trigger in ['random', 'keyword', '@']:
             logger.debug(f"触发了{self.trigger}")
             self.id = None  # 创建一次性响应任务

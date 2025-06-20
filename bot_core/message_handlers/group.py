@@ -32,23 +32,24 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         此函数已使用 @check_message_and_user 装饰器进行用户和消息有效性检查。
         如果消息过期或用户无效，装饰器会自动处理并返回。
     """
-    try:
-        # 检查是否在关键词添加模式
-        keyword_action = context.user_data.get('keyword_action')
-        if keyword_action == 'add':
-            user_id = update.effective_user.id
-            logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
-            await features.group_keyword_add(update, context)
-            return
-            
+    if update.message:
+        try:
+            # 检查是否在关键词添加模式
+            keyword_action = context.user_data.get('keyword_action')
+            if keyword_action == 'add':
+                user_id = update.effective_user.id
+                logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
+                await features.group_keyword_add(update, context)
+                return
 
-        # 处理普通群聊消息
-        await group_reply(update, context)
-    except Exception as e:
-        logger.error(
-            f"处理群聊消息时出错: {str(e)}，用户ID: {update.effective_user.id}，群组ID: {update.message.chat.id}",
-            exc_info=True
-        )
+
+            # 处理普通群聊消息
+            await group_reply(update, context)
+        except Exception as e:
+            logger.error(
+                f"处理群聊消息时出错: {str(e)}，用户ID: {update.effective_user.id}，群组ID: {update.message.chat.id}",
+                exc_info=True
+            )
 
 
 async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

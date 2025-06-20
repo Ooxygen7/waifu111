@@ -76,8 +76,14 @@ class Decorators:
 
         @functools.wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
-            group_id = update.message.chat.id  # 假设更新来自消息
-            group_name = update.message.chat.title
+            # 使用update_info_get安全地获取更新信息
+            info = update_info_get(update)
+            if not info or 'group_id' not in info:
+                logger.warning("无法获取群组信息，跳过群组信息更新")
+                return await func(update, context, *args, **kwargs)
+            
+            group_id = info['group_id']
+            group_name = info.get('group_name', '')
             current_time = str(datetime.datetime.now())
 
             try:
@@ -118,13 +124,25 @@ class Decorators:
 
         @functools.wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
-            # 确保 update.message 和 update.message.text 存在
+            # 检查是否为消息编辑或其他非消息更新，如果是则跳过过期检查
+            if not update.message:
+                logger.debug("跳过非消息更新的过期检查（可能是消息编辑）")
+                return await func(update, context, *args, **kwargs)
+            
+            # 确保 update.message.date 存在
+            if not update.message.date:
+                logger.warning("消息缺少时间戳，跳过过期检查")
+                return await func(update, context, *args, **kwargs)
+            
+            # 检查消息是否过期
             command_name = '消息'
-            if update.message and update.message.text and update.message.text.startswith('/'):
+            if update.message.text and update.message.text.startswith('/'):
                 command_name = update.message.text.split()[0]
+            
             if datetime.datetime.now(update.message.date.tzinfo) - update.message.date > datetime.timedelta(seconds=30):
                 logger.warning(f"忽略过期的{command_name}，消息ID: {update.message.message_id}")
                 return None  # 停止处理如果消息过期
+            
             # 如果不过期，继续调用原函数
             return await func(update, context, *args, **kwargs)
 
