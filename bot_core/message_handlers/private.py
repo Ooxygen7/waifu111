@@ -33,9 +33,9 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await features.private_newchar(update, newchar_state, user_id)
             return
         
-        # 检查用户是否只发送了一张图片
-        if update.message.photo:
-            logger.info(f"用户只发送了一张图片，调用图片处理函数，用户ID: {user_id}")
+        # 检查用户是否发送了图片、贴纸或GIF
+        if update.message.photo or update.message.sticker or update.message.animation:
+            logger.info(f"用户发送了图片、贴纸或GIF，调用处理函数，用户ID: {user_id}")
             await features.f_or_not(update, context)
             return
         

@@ -4,6 +4,7 @@ import os
 import json
 import re
 import asyncio
+from PIL import Image
 
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -570,9 +571,9 @@ class FuckCommand(BaseCommand):
         
         replied_message = update.message.reply_to_message
         
-        # 检查回复的消息是否包含图片
-        if not replied_message.photo:
-            await update.message.reply_text("回复的消息中没有图片。")
+        # 检查回复的消息是否包含图片、贴纸或GIF
+        if not (replied_message.photo or replied_message.sticker or replied_message.animation):
+            await update.message.reply_text("请回复一条包含图片、贴纸或GIF的消息来使用此命令。")
             return
         
         # 发送占位消息
@@ -593,8 +594,20 @@ class FuckCommand(BaseCommand):
         try:
             user_id = update.message.from_user.id
             
-            # 获取最大尺寸的图片
-            photo = replied_message.photo[-1]
+            file_id = None
+            # 确定file_id
+            if replied_message.photo:
+                file_id = replied_message.photo[-1].file_id
+            elif replied_message.sticker:
+                if replied_message.sticker.thumbnail:
+                    file_id = replied_message.sticker.thumbnail.file_id
+                else:
+                    file_id = replied_message.sticker.file_id
+            elif replied_message.animation:
+                if replied_message.animation.thumbnail:
+                    file_id = replied_message.animation.thumbnail.file_id
+                else:
+                    file_id = replied_message.animation.file_id
             
             # 创建保存目录
             pics_dir = "./data/pics"
@@ -602,12 +615,28 @@ class FuckCommand(BaseCommand):
             
             # 生成文件名：用户ID_时间戳
             timestamp = int(time.time())
-            filename = f"{user_id}_{timestamp}.jpg"
-            filepath = os.path.join(pics_dir, filename)
-            
-            # 下载并保存图片
-            file = await photo.get_file()
-            await file.download_to_drive(filepath)
+            base_filename = f"{user_id}_{timestamp}"
+            temp_filepath = os.path.join(pics_dir, f"{base_filename}.temp")
+            final_filepath = os.path.join(pics_dir, f"{base_filename}.jpg")
+
+            # 下载文件
+            file = await context.bot.get_file(file_id)
+            await file.download_to_drive(temp_filepath)
+
+            # 如果是贴纸或GIF，则转换为JPG
+            if replied_message.sticker or replied_message.animation:
+                try:
+                    with Image.open(temp_filepath) as img:
+                        img.convert("RGB").save(final_filepath, "jpeg")
+                    os.remove(temp_filepath)  # 删除临时文件
+                    filepath = final_filepath
+                except Exception as e:
+                    logger.error(f"转换图片失败: {e}, 将直接使用临时文件")
+                    os.rename(temp_filepath, final_filepath)
+                    filepath = final_filepath
+            else:
+                os.rename(temp_filepath, final_filepath)
+                filepath = final_filepath
             
             # 准备系统提示词
             system_prompt = """

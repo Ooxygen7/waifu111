@@ -2,11 +2,13 @@ import os
 import time
 import json
 import re
-import os
 import asyncio
+import os
+import time
+from PIL import Image
 from telegram import Update
 from telegram.ext import ContextTypes
-import logging 
+import logging
 from utils import db_utils as db
 from utils import LLM_utils
 from utils.logging_utils import setup_logging
@@ -108,23 +110,55 @@ async def _process_image_analysis(update: Update, context: ContextTypes.DEFAULT_
         placeholder_msg: 占位消息对象。
     """
     user_id = update.message.from_user.id
-    
+
     try:
-        # 获取最大尺寸的图片
-        photo = update.message.photo[-1]
-        
+        file_id = None
+        if update.message.photo:
+            file_id = update.message.photo[-1].file_id
+        elif update.message.sticker:
+            if update.message.sticker.thumbnail:
+                file_id = update.message.sticker.thumbnail.file_id
+            else:
+                file_id = update.message.sticker.file_id # Fallback for static stickers
+        elif update.message.animation:
+            if update.message.animation.thumbnail:
+                file_id = update.message.animation.thumbnail.file_id
+            else:
+                file_id = update.message.animation.file_id # Fallback
+
+        if not file_id:
+            await placeholder_msg.edit_text("未能识别到图片、贴纸或GIF。")
+            return
+
         # 创建保存目录
         pics_dir = "./data/pics"
         os.makedirs(pics_dir, exist_ok=True)
-        
+
         # 生成文件名：用户ID_时间戳
         timestamp = int(time.time())
-        filename = f"{user_id}_{timestamp}.jpg"
-        filepath = os.path.join(pics_dir, filename)
-        
-        # 下载并保存图片
-        file = await photo.get_file()
-        await file.download_to_drive(filepath)
+        filepath = os.path.join(pics_dir, f"{user_id}_{timestamp}.jpg")
+
+        # 下载文件
+        new_file = await context.bot.get_file(file_id)
+        download_path = os.path.join(pics_dir, f"{user_id}_{timestamp}_temp")
+        await new_file.download_to_drive(download_path)
+
+        # 对于贴纸和动画，它们可能是webp, tgs, mp4等格式，需要转换
+        # PIL可以直接处理webp，对于tgs(lottie)和视频，需要更复杂的处理
+        # 一个简化的方法是直接尝试用Pillow打开，如果失败则记录错误
+        # 更好的方法是检查文件类型，但为了简单起见，我们先用try-except
+        try:
+            with Image.open(download_path) as img:
+                # 动图和视频贴纸的第一帧
+                if getattr(img, 'is_animated', False):
+                    img.seek(0)
+                img.convert("RGB").save(filepath, "jpeg")
+            os.remove(download_path)
+        except Exception as e:
+            # 如果Pillow失败，可能文件格式不支持，比如视频
+            # 作为一个兜底方案，我们可以尝试重命名，如果后续步骤失败，也能知道原因
+            logger.warning(f"无法用Pillow直接转换文件 {download_path}, 错误: {e}. 将直接使用下载的文件。")
+            os.rename(download_path, filepath)
         
         # 准备系统提示词（占位）
         system_prompt = """
