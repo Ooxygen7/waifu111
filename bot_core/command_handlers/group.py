@@ -664,8 +664,10 @@ class FuckCommand(BaseCommand):
 ```json
 {
 "score": "整数（1-10，综合评分，基于颜值、身材、表情、姿势、服饰的总体印象）",
-"reason": "综合评价理由，100-150字，说明为何给出该分数，涵盖颜值、身材、表情、姿势、服饰",
-"fantasy": "你想怎么操角色，150-200字，以淫秽、直白、低俗的语言描述你想如何与角色做爱，需符合角色外貌和气质，注重情境和沉浸感"
+"reason_short": "简短理由，10字左右，概括性评价",
+"reason_detail": "详细理由，200-250字，说明为何给出该分数，涵盖颜值、身材、表情、姿势、服饰",
+"fantasy_short": "简短评价，10字左右，概括性描述",
+"fantasy_detail": "详细评价，200-300字，以淫秽、直白、低俗的语言描述你想如何与角色做爱，需符合角色外貌和气质，注重情境和沉浸感"
 }
 ```
 
@@ -727,10 +729,16 @@ class FuckCommand(BaseCommand):
 
                 response_json = json.loads(json_str)
                 score = response_json.get("score", "N/A")
-                reason = response_json.get("reason", "N/A")
-                fantasy = response_json.get("fantasy", "N/A")
-                formatted_response = f"```\n分数：{score}\n```\n\n理由：{reason}\n\n评价：{fantasy}"
-                response = formatted_response
+                reason_short = response_json.get("reason_short", "N/A")
+                reason_detail = response_json.get("reason_detail", "N/A")
+                fantasy_short = response_json.get("fantasy_short", "N/A")
+                fantasy_detail = response_json.get("fantasy_detail", "N/A")
+                
+                # 格式化输出，使用可展开引用块实现折叠效果
+                response = f" <b>分析结果</b> \n\n"
+                response += f"<b>评分</b>: {score}/10\n\n"
+                response += f"<b>理由</b>: {reason_short}\n<blockquote expandable>{reason_detail}</blockquote>\n\n"
+                response += f"<b>评价</b>: {fantasy_short}\n<blockquote expandable>{fantasy_detail}</blockquote>"
             except json.JSONDecodeError as e:
                 # 如果不是有效的JSON，则保持原样
                 logger.warning(f"LLM响应不是有效的JSON格式或无法从Markdown中提取JSON: {e}，将直接使用原始响应。")
@@ -754,11 +762,11 @@ class FuckCommand(BaseCommand):
                 await context.bot.send_message(
                     chat_id=update.message.chat.id,
                     text=response,
-                    parse_mode="markdown",
+                    parse_mode="HTML",
                     reply_to_message_id=replied_message.message_id
                 )
             except Exception as e:
-                # 如果markdown解析失败，禁用markdown重试
+                # 如果HTML解析失败，禁用解析重试
                 try:
                     await context.bot.send_message(
                         chat_id=update.message.chat.id,
