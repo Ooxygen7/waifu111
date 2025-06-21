@@ -49,8 +49,10 @@ class DirectorMenu:
             "propel_daily": "<Plot Request:自动推进剧情，将剧情发展带到一个非性爱的日常场景，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
             "camera_monitor": "<Plot Request:使用旁观者的视角，以第三人称的形式描绘当前的场景，聚焦于角色和用户的互动、动作、姿势。角色和用户都不会察觉有旁观者的存在>",
             "camera_perspective": "<Plot Request:作为叙事者，对当前角色进行特写，允许使用超视觉的描绘手法，比如对角色的身体内部的构造、运动进行详细描写>",
-            "camera_inner": "<Plot Request:详细描写角色当前的内心独白，展现角色的心声,你扮演的是角色而非用户，保持角色的第一人称视角>",
-            "control_props_vibrator": "<Plot Request:用户对角色使用了震动棒，详细描绘角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
+            "camera_inner": "<Plot Request:详细描写角色当前的内心想法的独白，展现角色的心声(而非台词),你扮演的是角色而非用户，保持角色的第一人称视角>",
+            "control_props_vibrator": "<Plot Request:用户对角色使用了震动棒，详细描写角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
+            "control_props_rope": "<Plot Request:用户用绳索对角色进行捆绑束缚，详细描写角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
+            "control_props_candle": "<Plot Request:用户用点燃低温蜡烛，和角色进行滴蜡sm，详细描写角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
             "control_magic_clean": "<Plot Request:无视剧情的合理性，角色身上和体内的脏污、体液等立刻消失，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
             "control_magic_weak": "<Plot Request:无视剧情的合理性，角色立刻陷入虚弱状态，反抗能力大幅度降低，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
             "control_magic_heal": "<Plot Request:无视剧情的合理性，角色立刻恢复健康和精力，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
@@ -63,6 +65,8 @@ class DirectorMenu:
             "control_pose_handjob": "<Plot Request:角色用手来服侍用户的肉棒，根据角色的性格、状态详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
             "control_pose_footjob": "<Plot Request:角色用脚部来摩擦、撸动角色的肉棒，根据角色的性格、状态详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
             "control_pose_blowjob": "<Plot Request:角色对用户进行口交侍奉，根据角色的性格、状态详细描写角色的动作和反应、声音等等，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
+            "control_pose_cowgirl": "<Plot Request:角色和用户的体位切换到女上位，详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
+            "control_pose_doggy": "<Plot Request:角色和用户的体位切换到后入式，详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
         }
 
         # 菜单和按钮的字典定义，类似于前端页面结构，增加 description 属性
@@ -130,6 +134,10 @@ class DirectorMenu:
                 "buttons": [
                     {"text": "震动棒", "type": ButtonType.ACTION, "target": "control_props_vibrator",
                      "description": "使用震动棒"},
+                    {"text": "绳索", "type": ButtonType.ACTION, "target": "control_props_rope",
+                     "description": "使用绳索捆绑角色"},
+                    {"text": "蜡烛", "type": ButtonType.ACTION, "target": "control_props_candle",
+                     "description": "滴蜡play"},
                 ]
             },
             "control_magic_menu": {
@@ -172,6 +180,10 @@ class DirectorMenu:
                      "description": "角色为用户口交"},
                     {"text": "足交", "type": ButtonType.ACTION, "target": "control_pose_footjob",
                      "description": "角色为用户足交"},
+                    {"text": "女上位", "type": ButtonType.ACTION, "target": "control_pose_cowgirl",
+                     "description": "角色和用户的体位切换到女上位"},
+                    {"text": "后入式", "type": ButtonType.ACTION, "target": "control_pose_doggy",
+                     "description": "角色和用户的体位切换到后入式"},
                 ]
             },
         }
