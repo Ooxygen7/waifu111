@@ -42,7 +42,10 @@ class SetCharCallback(BaseCallback):
         try:
             character = data
             info = public.update_info_get(update)
+            
             if db.user_config_arg_update(info['user_id'], 'char', character):
+                conversation = PrivateConv(update, context)
+                conversation.new()
                 await update.callback_query.message.edit_text(
                     f"角色切换成功！会话已重开！当前角色: {character.split('_')[0]}。")
                 # 加载角色文件并发送问候语

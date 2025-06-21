@@ -204,7 +204,6 @@ class CharCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         conversation = PrivateConv(update, context)
-        conversation.new()
         markup = Inline.print_char_list('load', 'private', conversation.user.id)
         if markup == "没有可操作的角色。":
             await update.message.reply_text(markup)
