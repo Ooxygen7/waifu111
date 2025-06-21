@@ -1,3 +1,5 @@
+import json
+import os
 from typing import Dict, List
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -38,158 +40,46 @@ class MenuElement:
 class DirectorMenu:
     # noinspection SpellCheckingInspection
     def __init__(self):
-        # 映射 target 到真实的长字符串数据
+        # 从配置文件加载数据
+        self._load_config()
+        
+        # 构建菜单对象
+        self.menus: Dict[str, MenuElement] = self._build_menus()
+    
+    def _load_config(self):
+        """从JSON配置文件加载菜单数据"""
+        # 获取当前文件的目录，然后构建配置文件路径
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(current_dir, '..', '..', 'config', 'director_menu.json')
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+                self.data_mapping = config_data.get('data_mapping', {})
+                self.menu_definitions = config_data.get('menu_definitions', {})
+        except FileNotFoundError:
+            print(f"警告：配置文件 {config_path} 未找到，使用默认配置")
+            self._load_default_config()
+        except json.JSONDecodeError as e:
+            print(f"警告：配置文件格式错误 {e}，使用默认配置")
+            self._load_default_config()
+    
+    def _load_default_config(self):
+        """加载默认配置（作为备用）"""
         self.data_mapping = {
             "undo": "",
             "regen": "",
-            "propel_future": "<Plot Request:自动推进剧情，将当前场景推进到几天后，角色和用户见面的场景，你扮演的是角色而非用户，注意保持角色的第一人称视角?>",
-            "propel_sex": "<Plot Request:自动推进剧情，将当前场景转换到角色和用户即将进行性爱之前，根据角色关系、当前的场景等准备合理的剧情，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "propel_fastforward": "<Plot Request:自动推进当前的剧情，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "propel_cuddle": "<Plot Request:自动推进剧情，将剧情推进到角色和用户已经完全满足后，结束性爱的场景，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "propel_daily": "<Plot Request:自动推进剧情，将剧情发展带到一个非性爱的日常场景，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "camera_monitor": "<Plot Request:使用旁观者的视角，以第三人称的形式描绘当前的场景，聚焦于角色和用户的互动、动作、姿势。角色和用户都不会察觉有旁观者的存在>",
-            "camera_perspective": "<Plot Request:作为叙事者，对当前角色进行特写，允许使用超视觉的描绘手法，比如对角色的身体内部的构造、运动进行详细描写>",
-            "camera_inner": "<Plot Request:详细描写角色当前的内心想法的独白，展现角色的心声(而非台词),你扮演的是角色而非用户，保持角色的第一人称视角>",
-            "control_props_vibrator": "<Plot Request:用户对角色使用了震动棒，详细描写角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_props_rope": "<Plot Request:用户用绳索对角色进行捆绑束缚，详细描写角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_props_candle": "<Plot Request:用户用点燃低温蜡烛，和角色进行滴蜡sm，详细描写角色反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_magic_clean": "<Plot Request:无视剧情的合理性，角色身上和体内的脏污、体液等立刻消失，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_magic_weak": "<Plot Request:无视剧情的合理性，角色立刻陷入虚弱状态，反抗能力大幅度降低，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_magic_heal": "<Plot Request:无视剧情的合理性，角色立刻恢复健康和精力，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_cheat_hypnosis": "<Plot Request:覆写角色心智，角色被催眠，会无条件服从用户，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_cheat_rut": "<Plot Request:覆写角色心智，角色进入发情状态，对色情指令的服从度大幅度提高，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_cheat_shame": "<Plot Request:覆写角色心智，大幅度增加角色当前的羞耻感，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_cheat_love": "<Plot Request:覆写角色心智，角色现在开始深爱着用户，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_cheat_hate": "<Plot Request:覆写角色心智，角色现在开始对用户恨之入骨，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_cheat_raw": "<Plot Request:角色现在恢复正常状态，消除掉所有精神控制效果，保留身体状态>",
-            "control_pose_handjob": "<Plot Request:角色用手来服侍用户的肉棒，根据角色的性格、状态详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_pose_footjob": "<Plot Request:角色用脚部来摩擦、撸动角色的肉棒，根据角色的性格、状态详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_pose_blowjob": "<Plot Request:角色对用户进行口交侍奉，根据角色的性格、状态详细描写角色的动作和反应、声音等等，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_pose_cowgirl": "<Plot Request:角色和用户的体位切换到女上位，详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
-            "control_pose_doggy": "<Plot Request:角色和用户的体位切换到后入式，详细描写角色的动作和反应，你扮演的是角色而非用户，注意保持角色的第一人称视角>",
         }
-
-        # 菜单和按钮的字典定义，类似于前端页面结构，增加 description 属性
         self.menu_definitions = {
             "main_menu": {
                 "display_name": "主菜单",
                 "parent_menu": None,
                 "buttons": [
-                    {"text": "推进", "type": ButtonType.NAVIGATE, "target": "propel_menu",
-                     "description": "推进剧情"},
-                    {"text": "控制", "type": ButtonType.NAVIGATE, "target": "control_menu",
-                     "description": "对角色行为和反应进行控制"},
-                    {"text": "镜头", "type": ButtonType.NAVIGATE, "target": "camera_menu",
-                     "description": "以不同视角描绘当前场景（一次性，不计入消息记录）"},
-                    {"text": "重新生成", "type": ButtonType.ACTION, "target": "regen",
-                     "description": "重新生成当前内容"},
-                    {"text": "撤回", "type": ButtonType.ACTION, "target": "undo", "description": "撤回上一步操作"},
+                    {"text": "重新生成", "type": "action", "target": "regen", "description": "重新生成当前内容"},
+                    {"text": "撤回", "type": "action", "target": "undo", "description": "撤回上一步操作"},
                 ]
-            },
-            "propel_menu": {
-                "display_name": "推进菜单",
-                "parent_menu": "main_menu",
-                "buttons": [
-                    {"text": "日后", "type": ButtonType.ACTION, "target": "propel_future",
-                     "description": "推进到几天后"},
-                    {"text": "开搞", "type": ButtonType.ACTION, "target": "propel_sex",
-                     "description": "推进到准备和角色进行亲密互动"},
-                    {"text": "快进", "type": ButtonType.ACTION, "target": "propel_fastforward",
-                     "description": "稍微推进当前剧情"},
-                    {"text": "温存", "type": ButtonType.ACTION, "target": "propel_cuddle",
-                     "description": "推进到和角色亲密互动结束后"},
-                    {"text": "日常", "type": ButtonType.ACTION, "target": "propel_daily",
-                     "description": "切换到一个非亲密接触的场景"},
-                ]
-            },
-            "camera_menu": {
-                "display_name": "镜头菜单",
-                "parent_menu": "main_menu",
-                "buttons": [
-                    {"text": "监控", "type": ButtonType.ACTION, "target": "camera_monitor",
-                     "description": "以第三人称描述当前场景"},
-                    {"text": "特写", "type": ButtonType.ACTION, "target": "camera_perspective",
-                     "description": "详细描述当前场景的各种细节"},
-                    {"text": "心声", "type": ButtonType.ACTION, "target": "camera_inner",
-                     "description": "详细描述角色的内心活动"},
-                ]
-            },
-            "control_menu": {
-                "display_name": "控制菜单",
-                "parent_menu": "main_menu",
-                "buttons": [
-                    {"text": "道具", "type": ButtonType.NAVIGATE, "target": "control_props_menu",
-                     "description": "对角色使用道具"},
-                    {"text": "魔法", "type": ButtonType.NAVIGATE, "target": "control_magic_menu",
-                     "description": "使用魔法(超现实元素)"},
-                    {"text": "作弊", "type": ButtonType.NAVIGATE, "target": "control_cheat_menu",
-                     "description": "强制改变剧情或角色状态"},
-                    {"text": "姿势", "type": ButtonType.NAVIGATE, "target": "control_pose_menu",
-                     "description": "控制当前姿势"},
-                ]
-            },
-            "control_props_menu": {
-                "display_name": "道具菜单",
-                "parent_menu": "control_menu",
-                "buttons": [
-                    {"text": "震动棒", "type": ButtonType.ACTION, "target": "control_props_vibrator",
-                     "description": "使用震动棒"},
-                    {"text": "绳索", "type": ButtonType.ACTION, "target": "control_props_rope",
-                     "description": "使用绳索捆绑角色"},
-                    {"text": "蜡烛", "type": ButtonType.ACTION, "target": "control_props_candle",
-                     "description": "滴蜡play"},
-                ]
-            },
-            "control_magic_menu": {
-                "display_name": "魔法菜单",
-                "parent_menu": "control_menu",
-                "buttons": [
-                    {"text": "清理", "type": ButtonType.ACTION, "target": "control_magic_clean",
-                     "description": "清理角色身上所有脏污"},
-                    {"text": "治疗", "type": ButtonType.ACTION, "target": "control_magic_heal",
-                     "description": "治愈角色所有伤病，恢复精力"},
-                    {"text": "虚弱", "type": ButtonType.ACTION, "target": "control_magic_weak",
-                     "description": "使角色虚弱，降低反抗能力"},
-                ]
-            },
-            "control_cheat_menu": {
-                "display_name": "作弊菜单",
-                "parent_menu": "control_menu",
-                "buttons": [
-                    {"text": "绵绵爱意", "type": ButtonType.ACTION, "target": "control_cheat_love",
-                     "description": "让角色无条件爱你"},
-                    {"text": "无边恨意", "type": ButtonType.ACTION, "target": "control_cheat_hate",
-                     "description": "让角色对你恨之入骨"},
-                    {"text": "催眠", "type": ButtonType.ACTION, "target": "control_cheat_hypnosis",
-                     "description": "让角色无条件顺从你"},
-                    {"text": "发情", "type": ButtonType.ACTION, "target": "control_cheat_rut",
-                     "description": "让角色进入发情状态"},
-                    {"text": "羞耻", "type": ButtonType.ACTION, "target": "control_cheat_shame",
-                     "description": "大幅度强化角色的羞耻感"},
-                    {"text": "复原", "type": ButtonType.ACTION, "target": "control_cheat_raw",
-                     "description": "让角色回到正常状态"},
-                ]
-            },
-            "control_pose_menu": {
-                "display_name": "姿势菜单",
-                "parent_menu": "control_menu",
-                "buttons": [
-                    {"text": "手交", "type": ButtonType.ACTION, "target": "control_pose_handjob",
-                     "description": "角色为用户手交"},
-                    {"text": "口交", "type": ButtonType.ACTION, "target": "control_pose_blowjob",
-                     "description": "角色为用户口交"},
-                    {"text": "足交", "type": ButtonType.ACTION, "target": "control_pose_footjob",
-                     "description": "角色为用户足交"},
-                    {"text": "女上位", "type": ButtonType.ACTION, "target": "control_pose_cowgirl",
-                     "description": "角色和用户的体位切换到女上位"},
-                    {"text": "后入式", "type": ButtonType.ACTION, "target": "control_pose_doggy",
-                     "description": "角色和用户的体位切换到后入式"},
-                ]
-            },
+            }
         }
-
-        # 构建菜单对象
-        self.menus: Dict[str, MenuElement] = self._build_menus()
 
     def _build_menus(self) -> Dict[str, MenuElement]:
         """从字典定义构建菜单对象"""
