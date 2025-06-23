@@ -334,29 +334,30 @@ class DatabaseTools:
     async def get_user_details(user_id: int) -> str:
         """
         Retrieve detailed information about a specific user.
-        Description: Fetches detailed information for a specific user including quotas, balance, and activity.
+        Description: Fetches comprehensive user information including basic details and activity metrics.
         Type: Query
         Parameters:
             - user_id (int): The ID of the user to query.
-        Return Value: A string with detailed user information.
+        Return Value: A string summarizing the user's detailed information.
         Invocation: {"tool_name": "get_user_details", "parameters": {"user_id": 123}}
         """
-        query = "SELECT * FROM users WHERE uid = ?"
+        query = "SELECT uid, user_name, first_name, last_name, create_at, update_at, input_tokens, output_tokens, account_tier, remain_frequency, balance, conversations, dialog_turns FROM users WHERE uid = ?"
         result = db.query_db(query, (user_id,))
         if not result:
             return f"No user found with ID {user_id}."
         user = result[0]
         return (f"User Details for ID {user_id}:\n"
-                f"Username: {user[1]} {user[2]}\n"
-                f"Account Tier: {user[10]}\n"
-                f"Remaining Frequency: {user[11]}\n"
-                f"Balance: {user[12]}\n"
-                f"Conversations: {user[5]}\n"
-                f"Dialog Turns: {user[6]}\n"
-                f"Input Tokens: {user[8]}\n"
-                f"Output Tokens: {user[9]}\n"
-                f"Created At: {user[4]}\n"
-                f"Updated At: {user[7]}")
+                f"Username: {user[1]}\n"
+                f"Name: {user[2]} {user[3]}\n"
+                f"Created: {user[4]}\n"
+                f"Last Updated: {user[5]}\n"
+                f"Input Tokens: {user[6]}\n"
+                f"Output Tokens: {user[7]}\n"
+                f"Account Tier: {user[8]}\n"
+                f"Remaining Frequency: {user[9]}\n"
+                f"Balance: {user[10]}\n"
+                f"Total Conversations: {user[11]}\n"
+                f"Total Dialog Turns: {user[12]}")
 
     @staticmethod
     async def get_user_conversations(user_id: int) -> str:
@@ -561,6 +562,230 @@ class DatabaseTools:
                 f"Streaming: {config[3]}\n"
                 f"Nickname: {config[4]}")
 
+    @staticmethod
+    async def search_private_conversations(user_id: int, keyword: str, limit: int = 20) -> str:
+        """
+        Search for private conversation content by keyword for a specific user.
+        Description: Searches through private conversation dialogs for messages containing the specified keyword.
+        Type: Query
+        Parameters:
+            - user_id (int): The ID of the user whose conversations to search.
+            - keyword (str): The keyword to search for in conversation content.
+            - limit (int, optional): Maximum number of results to return. Defaults to 20.
+        Return Value: A string containing matching conversation excerpts.
+        Invocation: {"tool_name": "search_private_conversations", "parameters": {"user_id": 123, "keyword": "example", "limit": 20}}
+        """
+        query = """
+        SELECT d.conv_id, d.role, d.raw_content, d.created_at, c.character
+        FROM dialogs d
+        JOIN conversations c ON d.conv_id = c.conv_id
+        WHERE c.user_id = ? AND (d.raw_content LIKE ? OR d.processed_content LIKE ?)
+        ORDER BY d.created_at DESC
+        LIMIT ?
+        """
+        keyword_pattern = f"%{keyword}%"
+        result = db.query_db(query, (user_id, keyword_pattern, keyword_pattern, limit))
+        if not result:
+            return f"No private conversations found for user ID {user_id} containing keyword '{keyword}'."
+        
+        summary = "\n".join([
+            f"Conv {row[0]} | {row[1]} ({row[3]}): {row[2][:100]}..."
+            for row in result
+        ])
+        return f"Private Conversation Search Results for User ID {user_id} (Keyword: '{keyword}'):\n{summary}"
+
+    @staticmethod
+    async def search_group_conversations(group_id: int, keyword: str, limit: int = 20) -> str:
+        """
+        Search for group conversation content by keyword.
+        Description: Searches through group conversation dialogs for messages containing the specified keyword.
+        Type: Query
+        Parameters:
+            - group_id (int): The ID of the group to search in.
+            - keyword (str): The keyword to search for in conversation content.
+            - limit (int, optional): Maximum number of results to return. Defaults to 20.
+        Return Value: A string containing matching conversation excerpts.
+        Invocation: {"tool_name": "search_group_conversations", "parameters": {"group_id": 789, "keyword": "example", "limit": 20}}
+        """
+        query = """
+        SELECT msg_id, msg_user_name, msg_text, create_at
+        FROM group_dialogs
+        WHERE group_id = ? AND (msg_text LIKE ? OR processed_response LIKE ?)
+        ORDER BY create_at DESC
+        LIMIT ?
+        """
+        keyword_pattern = f"%{keyword}%"
+        result = db.query_db(query, (group_id, keyword_pattern, keyword_pattern, limit))
+        if not result:
+            return f"No group conversations found for group ID {group_id} containing keyword '{keyword}'."
+        
+        summary = "\n".join([
+            f"Msg {row[0]} | {row[1]} ({row[3]}): {row[2][:100]}..."
+            for row in result
+        ])
+        return f"Group Conversation Search Results for Group ID {group_id} (Keyword: '{keyword}'):\n{summary}"
+
+    @staticmethod
+    async def get_group_chat_history(group_id: int, limit: int = 50) -> str:
+        """
+        Retrieve recent group chat history.
+        Description: Fetches the most recent group chat messages with adjustable limit.
+        Type: Query
+        Parameters:
+            - group_id (int): The ID of the group to query.
+            - limit (int, optional): Number of recent messages to return. Defaults to 50.
+        Return Value: A string containing the recent group chat history.
+        Invocation: {"tool_name": "get_group_chat_history", "parameters": {"group_id": 789, "limit": 50}}
+        """
+        result = db.group_dialog_get(group_id, limit)
+        if not result:
+            return f"No chat history found for group ID {group_id}."
+        
+        summary = "\n".join([
+            f"{row[1]} ({row[3]}): {row[0] or 'No message'}"
+            for row in result
+        ])
+        return f"Group Chat History for Group ID {group_id} (Latest {len(result)} messages):\n{summary}"
+
+    @staticmethod
+    async def get_group_content_extract(group_id: int, days: int = 7) -> str:
+        """
+        Extract group content from recent days.
+        Description: Extracts and summarizes group conversation content from the specified number of recent days.
+        Type: Analysis
+        Parameters:
+            - group_id (int): The ID of the group to analyze.
+            - days (int, optional): Number of recent days to extract content from. Defaults to 7.
+        Return Value: A string summarizing recent group content.
+        Invocation: {"tool_name": "get_group_content_extract", "parameters": {"group_id": 789, "days": 7}}
+        """
+        import datetime
+        cutoff_time = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+        query = """
+        SELECT msg_user_name, msg_text, create_at
+        FROM group_dialogs
+        WHERE group_id = ? AND create_at >= ?
+        ORDER BY create_at DESC
+        """
+        result = db.query_db(query, (group_id, cutoff_time))
+        if not result:
+            return f"No group content found for group ID {group_id} in the last {days} days."
+        
+        summary = "\n".join([
+            f"{row[0]} ({row[2]}): {row[1][:100]}..."
+            for row in result[:100]  # Limit to 100 messages for summary
+        ])
+        return f"Group Content Extract for Group ID {group_id} (Last {days} days, {len(result)} messages):\n{summary}"
+
+    @staticmethod
+    async def generate_private_conversation_summary(conv_id: int) -> str:
+        """
+        Generate a comprehensive summary of a private conversation.
+        Description: Creates an extended 400-word summary of the specified private conversation.
+        Type: Analysis
+        Parameters:
+            - conv_id (int): The conversation ID to summarize.
+        Return Value: A comprehensive summary of the conversation.
+        Invocation: {"tool_name": "generate_private_conversation_summary", "parameters": {"conv_id": 123}}
+        """
+        try:
+            from utils.LLM_utils import LLMClientManager
+            from utils.LLM_utils import LLM
+            from config import DEFAULT_API
+            
+            # Get conversation details
+            conv_query = "SELECT user_id, character, preset FROM conversations WHERE conv_id = ?"
+            conv_result = db.query_db(conv_query, (conv_id,))
+            if not conv_result:
+                return f"No conversation found with ID {conv_id}."
+            
+            user_id, character, preset = conv_result[0]
+            
+            # Get dialog content
+            dialog_query = "SELECT role, raw_content, created_at FROM dialogs WHERE conv_id = ? ORDER BY turn_order"
+            dialogs = db.query_db(dialog_query, (conv_id,))
+            if not dialogs:
+                return f"No dialog content found for conversation ID {conv_id}."
+            
+            # Build conversation context for summary
+            conversation_text = "\n".join([
+                f"{row[0]}: {row[1]}"
+                for row in dialogs
+            ])
+            
+            # Generate extended summary using LLM
+            llm_client_manager = LLMClientManager()
+            async with llm_client_manager.semaphore:
+                client = LLM(DEFAULT_API, 'private')
+                client.messages = [
+                    {"role": "user", "content": f"请为以下对话生成一个详细的总结，总结应该包含：1）对话的主要话题和内容；2）用户的主要关注点和问题；3）AI助手提供的主要帮助和建议；4）对话的整体氛围和风格。总结应该在400字左右，要详细且有条理。\n\n对话内容：\n{conversation_text}"}
+                ]
+                summary = await client.final_response()
+                
+            return f"Private Conversation Summary (Conv ID: {conv_id}, User: {user_id}, Character: {character}):\n{summary}"
+            
+        except Exception as e:
+            return f"Failed to generate summary for conversation {conv_id}: {str(e)}"
+
+    @staticmethod
+    async def generate_group_conversation_summary(group_id: int, days: int = 7) -> str:
+        """
+        Generate a comprehensive summary of group conversations.
+        Description: Creates an extended 400-word summary of group conversations from recent days.
+        Type: Analysis
+        Parameters:
+            - group_id (int): The group ID to summarize.
+            - days (int, optional): Number of recent days to include in summary. Defaults to 7.
+        Return Value: A comprehensive summary of group conversations.
+        Invocation: {"tool_name": "generate_group_conversation_summary", "parameters": {"group_id": 789, "days": 7}}
+        """
+        try:
+            from utils.LLM_utils import LLMClientManager
+            from utils.LLM_utils import LLM
+            from config import DEFAULT_API
+            import datetime
+            
+            # Get group info
+            group_query = "SELECT group_name, char, preset FROM groups WHERE group_id = ?"
+            group_result = db.query_db(group_query, (group_id,))
+            if not group_result:
+                return f"No group found with ID {group_id}."
+            
+            group_name, character, preset = group_result[0]
+            
+            # Get recent group dialogs
+            cutoff_time = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+            dialog_query = """
+            SELECT msg_user_name, msg_text, processed_response, create_at
+            FROM group_dialogs
+            WHERE group_id = ? AND create_at >= ?
+            ORDER BY create_at
+            LIMIT 200
+            """
+            dialogs = db.query_db(dialog_query, (group_id, cutoff_time))
+            if not dialogs:
+                return f"No group conversations found for group ID {group_id} in the last {days} days."
+            
+            # Build conversation context for summary
+            conversation_text = "\n".join([
+                f"{row[0]}: {row[1]}" + (f"\nAI回复: {row[2]}" if row[2] else "")
+                for row in dialogs
+            ])
+            
+            # Generate extended summary using LLM
+            llm_client_manager = LLMClientManager()
+            async with llm_client_manager.semaphore:
+                client = LLM(DEFAULT_API, 'private')
+                client.messages = [
+                    {"role": "user", "content": f"请为以下群聊对话生成一个详细的总结，总结应该包含：1）群聊的主要话题和讨论内容；2）活跃用户和他们的主要贡献；3）群聊的整体氛围和互动特点；4）AI助手在群聊中的参与情况和作用。总结应该在400字左右，要详细且有条理。\n\n群聊内容（最近{days}天）：\n{conversation_text}"}
+                ]
+                summary = await client.final_response()
+                
+            return f"Group Conversation Summary (Group: {group_name}, ID: {group_id}, Last {days} days, {len(dialogs)} messages):\n{summary}"
+            
+        except Exception as e:
+            return f"Failed to generate group summary for group {group_id}: {str(e)}"
+
 
 # Tool mapping for LLM invocation
 DATABASE_TOOLS = {
@@ -575,4 +800,10 @@ DATABASE_TOOLS = {
     "get_system_stats": DatabaseTools.get_system_stats,
     "get_recent_user_conversation_summary": DatabaseTools.get_recent_user_conversation_summary,
     "get_user_config": DatabaseTools.get_user_config,
+    "search_private_conversations": DatabaseTools.search_private_conversations,
+    "search_group_conversations": DatabaseTools.search_group_conversations,
+    "get_group_chat_history": DatabaseTools.get_group_chat_history,
+    "get_group_content_extract": DatabaseTools.get_group_content_extract,
+    "generate_private_conversation_summary": DatabaseTools.generate_private_conversation_summary,
+    "generate_group_conversation_summary": DatabaseTools.generate_group_conversation_summary,
 }

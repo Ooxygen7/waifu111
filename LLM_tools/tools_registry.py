@@ -68,7 +68,7 @@ class DatabaseToolRegistry:
             "return_value": "Conversation list summary (e.g., 'Conversations for User ID 123:\nID: 456, Conv ID: conv_456, ...')",
         },
         "get_conversation_dialog": {
-            "description": "Retrieve the latest  detailed content messages of a specific conversation.The user is marked as 'user',and llm is marked as 'assistant'.Even the conversation is  marked as 'yes',you still have access to it.",
+            "description": "Retrieve the latest detailed content messages of a specific conversation. WARNING: Use sparingly - prefer conversation summary tools for efficiency. The user is marked as 'user', and llm is marked as 'assistant'. Even conversations marked as 'yes' are accessible.",
             "type": "query",
             "parameters": {
                 "conv_id": {
@@ -191,6 +191,112 @@ class DatabaseToolRegistry:
             "output_format": "A string summarizing the user's configuration settings.",
             "example": {"tool_name": "get_user_config", "parameters": {"user_id": 123}},
             "return_value": "User configuration summary (e.g., 'Configuration for User ID 123:\nCharacter: char1\nAPI: api1\n...')",
+        },
+        "search_private_conversations": {
+            "description": "Search for private conversation content by keyword for a specific user.",
+            "type": "query",
+            "parameters": {
+                "user_id": {
+                    "type": "integer",
+                    "description": "The ID of the user whose conversations to search.",
+                },
+                "keyword": {
+                    "type": "string",
+                    "description": "The keyword to search for in conversation content.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (default: 20).",
+                }
+            },
+            "output_format": "A string containing matching conversation excerpts with context.",
+            "example": {"tool_name": "search_private_conversations", "parameters": {"user_id": 123, "keyword": "example", "limit": 20}},
+            "return_value": "Search results summary (e.g., 'Private Conversation Search Results for User ID 123 (Keyword: example):\nConv 456 | user (2023-10-01): Hello example...')",
+        },
+        "search_group_conversations": {
+            "description": "Search for group conversation content by keyword.",
+            "type": "query",
+            "parameters": {
+                "group_id": {
+                    "type": "integer",
+                    "description": "The ID of the group to search in.",
+                },
+                "keyword": {
+                    "type": "string",
+                    "description": "The keyword to search for in conversation content.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (default: 20).",
+                }
+            },
+            "output_format": "A string containing matching conversation excerpts with context.",
+            "example": {"tool_name": "search_group_conversations", "parameters": {"group_id": 789, "keyword": "example", "limit": 20}},
+            "return_value": "Search results summary (e.g., 'Group Conversation Search Results for Group ID 789 (Keyword: example):\nMsg 123 | user1 (2023-10-01): Hello example...')",
+        },
+        "get_group_chat_history": {
+            "description": "Retrieve recent group chat history with adjustable message limit.",
+            "type": "query",
+            "parameters": {
+                "group_id": {
+                    "type": "integer",
+                    "description": "The ID of the group to query.",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Number of recent messages to return (default: 50).",
+                }
+            },
+            "output_format": "A string containing the recent group chat history.",
+            "example": {"tool_name": "get_group_chat_history", "parameters": {"group_id": 789, "limit": 50}},
+            "return_value": "Group chat history summary (e.g., 'Group Chat History for Group ID 789 (Latest 50 messages):\nuser1 (2023-10-01): Hello...')",
+        },
+        "get_group_content_extract": {
+            "description": "Extract and summarize group conversation content from recent days.",
+            "type": "analysis",
+            "parameters": {
+                "group_id": {
+                    "type": "integer",
+                    "description": "The ID of the group to analyze.",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Number of recent days to extract content from (default: 7).",
+                }
+            },
+            "output_format": "A string summarizing recent group content with activity metrics.",
+            "example": {"tool_name": "get_group_content_extract", "parameters": {"group_id": 789, "days": 7}},
+            "return_value": "Group content extract summary (e.g., 'Group Content Extract for Group ID 789 (Last 7 days, 150 messages):\nuser1 (2023-10-01): Hello...')",
+        },
+        "generate_private_conversation_summary": {
+            "description": "Generate a comprehensive 400-word summary of a private conversation. RECOMMENDED: Use this instead of get_conversation_dialog for analysis.",
+            "type": "analysis",
+            "parameters": {
+                "conv_id": {
+                    "type": "integer",
+                    "description": "The conversation ID to summarize.",
+                }
+            },
+            "output_format": "A comprehensive summary of the conversation including topics, user concerns, AI assistance, and overall atmosphere.",
+            "example": {"tool_name": "generate_private_conversation_summary", "parameters": {"conv_id": 123}},
+            "return_value": "Detailed conversation summary (e.g., 'Private Conversation Summary (Conv ID: 123, User: 456, Character: char1):\nThis conversation covered...')",
+        },
+        "generate_group_conversation_summary": {
+            "description": "Generate a comprehensive 400-word summary of group conversations from recent days. RECOMMENDED: Use this for group analysis.",
+            "type": "analysis",
+            "parameters": {
+                "group_id": {
+                    "type": "integer",
+                    "description": "The group ID to summarize.",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Number of recent days to include in summary (default: 7).",
+                }
+            },
+            "output_format": "A comprehensive summary of group conversations including topics, active users, atmosphere, and AI participation.",
+            "example": {"tool_name": "generate_group_conversation_summary", "parameters": {"group_id": 789, "days": 7}},
+            "return_value": "Detailed group summary (e.g., 'Group Conversation Summary (Group: groupname, ID: 789, Last 7 days, 200 messages):\nThe group discussions focused on...')",
         },
     }
 
@@ -591,7 +697,7 @@ async def parse_and_invoke_tool(ai_response: str) -> tuple[str, list, bool]:
                                 "result": result,
                             }
                         )
-                        logger.info(f"工具 {tool_name} 执行成功: {result}")
+                        logger.debug(f"工具 {tool_name} 执行成功: {result}")
                     except Exception as e:
                         error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
                         tool_results_for_llm_feedback.append(
