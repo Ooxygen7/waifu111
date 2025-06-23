@@ -87,74 +87,47 @@ class DatabaseToolRegistry:
             },
             "return_value": "Conversation content summary (e.g., 'Conversation dialog for Conv ID 456:\nTurn 1: user: Hello\n...')",
         },
-        "analyze_user_activity": {
-            "description": "Analyze a user's activity over the past specified days.",
-            "type": "analysis",
-            "parameters": {
-                "user_id": {
-                    "type": "integer",
-                    "description": "The ID of the user to analyze.",
-                },
-                "days": {
-                    "type": "integer",
-                    "description": "Number of days to look back (default: 7).",
-                },
-            },
-            "output_format": "A string summarizing the user's activity including conversation frequency and token usage.",
-            "example": {
-                "tool_name": "analyze_user_activity",
-                "parameters": {"user_id": 123, "days": 7},
-            },
-            "return_value": "Activity analysis summary (e.g., 'Activity Analysis for User ID 123 (Last 7 Days):\nNew Conversations: 5\n...')",
+        "get_all_groups": {
+            "description": "Retrieve a list of all groups with basic information.",
+            "type": "query",
+            "parameters": {},
+            "output_format": "A string summarizing the list of groups with their ID, name, call count, and token usage.",
+            "example": {"tool_name": "get_all_groups", "parameters": {}},
+            "return_value": "Group list summary (e.g., 'Group List:\nID: 123, Name: group123, Calls: 100, Input Tokens: 1000, Output Tokens: 2000, Updated: 2023-10-01\n...')",
         },
-        "get_user_sign_history": {
-            "description": "Retrieve the sign-in history and frequency for a specific user.",
+        "search_users_by_info": {
+            "description": "Search for users by ID, first name, last name, or username.",
             "type": "query",
             "parameters": {
-                "user_id": {
-                    "type": "integer",
-                    "description": "The ID of the user to query.",
+                "search_term": {
+                    "type": "string",
+                    "description": "The search term to match against user information.",
                 }
             },
-            "output_format": "A string summarizing the user's sign-in history and temporary quota.",
+            "output_format": "A string listing matching users with their details.",
             "example": {
-                "tool_name": "get_user_sign_history",
-                "parameters": {"user_id": 123},
+                "tool_name": "search_users_by_info",
+                "parameters": {"search_term": "john"},
             },
-            "return_value": "Sign-in history summary (e.g., 'Sign-in History for User ID 123:\nLast Sign-in: 2023-10-01 10:00:00\n...')",
+            "return_value": "User search results summary (e.g., 'Users matching john:\nID: 123, Username: john_doe, Name: John Doe, Tier: 1, Nickname: Johnny\n...')",
         },
-        "get_top_active_users": {
-            "description": "Retrieve the most active users based on conversation count or token usage.",
-            "type": "analysis",
-            "parameters": {
-                "limit": {
-                    "type": "integer",
-                    "description": "Number of top users to return (default: 10).",
-                }
-            },
-            "output_format": "A string summarizing the top active users with their activity metrics.",
-            "example": {
-                "tool_name": "get_top_active_users",
-                "parameters": {"limit": 10},
-            },
-            "return_value": "Top active users summary (e.g., 'Top 10 Active Users:\nID: 123, Username: user123, Conversations: 50\n...')",
-        },
-        "get_group_activity": {
-            "description": "Retrieve activity data for a specific group.",
+        "search_groups_by_name": {
+            "description": "Search for groups by name.",
             "type": "query",
             "parameters": {
-                "group_id": {
-                    "type": "integer",
-                    "description": "The ID of the group to query.",
+                "search_term": {
+                    "type": "string",
+                    "description": "The search term to match against group names.",
                 }
             },
-            "output_format": "A string summarizing group activity including call count and token usage.",
+            "output_format": "A string listing matching groups with their details.",
             "example": {
-                "tool_name": "get_group_activity",
-                "parameters": {"group_id": 789},
+                "tool_name": "search_groups_by_name",
+                "parameters": {"search_term": "chat"},
             },
-            "return_value": "Group activity summary (e.g., 'Group Activity for ID 789:\nGroup Name: group789\nCall Count: 100\n...')",
+            "return_value": "Group search results summary (e.g., 'Groups matching chat:\nID: 789, Name: general_chat, Calls: 200, Input Tokens: 5000, Output Tokens: 8000, Updated: 2023-10-01\n...')",
         },
+
         "get_system_stats": {
             "description": "Retrieve overall system statistics.",
             "type": "analysis",
@@ -163,22 +136,7 @@ class DatabaseToolRegistry:
             "example": {"tool_name": "get_system_stats", "parameters": {}},
             "return_value": "System stats summary (e.g., 'System Statistics:\nTotal Users: 1000\nTotal Conversations: 5000\n...')",
         },
-        "get_recent_user_conversation_summary": {
-            "description": "Summarize the most recent conversation of a user for quick insight.",
-            "type": "analysis",
-            "parameters": {
-                "user_id": {
-                    "type": "integer",
-                    "description": "The ID of the user to analyze.",
-                }
-            },
-            "output_format": "A string summarizing the latest conversation content for the user.",
-            "example": {
-                "tool_name": "get_recent_user_conversation_summary",
-                "parameters": {"user_id": 123},
-            },
-            "return_value": "Recent conversation summary (e.g., 'Recent Conversation Summary for User ID 123 (Conv ID: 456):\nuser: Hello\n...')",
-        },
+
         "get_user_config": {
             "description": "Retrieve the configuration settings for a specific user.",
             "type": "query",
@@ -193,34 +151,26 @@ class DatabaseToolRegistry:
             "return_value": "User configuration summary (e.g., 'Configuration for User ID 123:\nCharacter: char1\nAPI: api1\n...')",
         },
         "search_private_conversations": {
-            "description": "Search for private conversation content by keyword for a specific user.",
+            "description": "Search for private conversation content by keyword across all users.",
             "type": "query",
             "parameters": {
-                "user_id": {
-                    "type": "integer",
-                    "description": "The ID of the user whose conversations to search.",
-                },
                 "keyword": {
                     "type": "string",
                     "description": "The keyword to search for in conversation content.",
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Maximum number of results to return (default: 20).",
+                    "description": "Maximum number of results to return (default: 10).",
                 }
             },
             "output_format": "A string containing matching conversation excerpts with context.",
-            "example": {"tool_name": "search_private_conversations", "parameters": {"user_id": 123, "keyword": "example", "limit": 20}},
-            "return_value": "Search results summary (e.g., 'Private Conversation Search Results for User ID 123 (Keyword: example):\nConv 456 | user (2023-10-01): Hello example...')",
+            "example": {"tool_name": "search_private_conversations", "parameters": {"keyword": "example", "limit": 10}},
+            "return_value": "Search results summary (e.g., 'Private Conversations containing example:\nConv 456 | User 123 | user (2023-10-01): Hello example...')",
         },
         "search_group_conversations": {
-            "description": "Search for group conversation content by keyword.",
+            "description": "Search for group conversation content by keyword across all groups.",
             "type": "query",
             "parameters": {
-                "group_id": {
-                    "type": "integer",
-                    "description": "The ID of the group to search in.",
-                },
                 "keyword": {
                     "type": "string",
                     "description": "The keyword to search for in conversation content.",
@@ -231,8 +181,8 @@ class DatabaseToolRegistry:
                 }
             },
             "output_format": "A string containing matching conversation excerpts with context.",
-            "example": {"tool_name": "search_group_conversations", "parameters": {"group_id": 789, "keyword": "example", "limit": 20}},
-            "return_value": "Search results summary (e.g., 'Group Conversation Search Results for Group ID 789 (Keyword: example):\nMsg 123 | user1 (2023-10-01): Hello example...')",
+            "example": {"tool_name": "search_group_conversations", "parameters": {"keyword": "example", "limit": 20}},
+            "return_value": "Search results summary (e.g., 'Group Conversation Search Results (Keyword: example):\nConv 456 | Group 789 | user (2023-10-01): Hello example...')",
         },
         "get_group_chat_history": {
             "description": "Retrieve recent group chat history with adjustable message limit.",

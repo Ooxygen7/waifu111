@@ -407,71 +407,84 @@ class DatabaseTools:
         return f"Conversation Details for Conv ID {conv_id} (latest {len(latest_50_dialogs)} turns):\n{dialog_summary}"
 
     @staticmethod
-    async def analyze_user_activity(user_id: int, days: int = 7) -> str:
+    async def get_all_groups() -> str:
         """
-        Analyze a user's activity over the past specified days.
-        Description: Analyzes the user's conversation frequency and token usage over a specified period.
-        Type: Analysis
-        Parameters:
-            - user_id (int): The ID of the user to analyze.
-            - days (int, optional): Number of days to look back. Defaults to 7.
-        Return Value: A string summarizing the user's activity.
-        Invocation: {"tool_name": "analyze_user_activity", "parameters": {"user_id": 123, "days": 7}}
+        Retrieve a list of all groups with basic information.
+        Description: Fetches a list of all groups including their ID, name, call count, and token usage.
+        Type: Query
+        Parameters: None
+        Return Value: A string summarizing the list of groups.
+        Invocation: {"tool_name": "get_all_groups", "parameters": {}}
         """
-        cutoff_time = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S.%f')
-        conv_query = "SELECT COUNT(*) FROM conversations WHERE user_id = ? AND create_at >= ?"
-        conv_count = db.query_db(conv_query, (user_id, cutoff_time))[0][0]
-        token_query = "SELECT SUM(input_tokens), SUM(output_tokens) FROM users WHERE uid = ?"
-        token_data = db.query_db(token_query, (user_id,))[0]
-        return (f"Activity Analysis for User ID {user_id} (Last {days} Days):\n"
-                f"New Conversations: {conv_count}\n"
-                f"Total Input Tokens (All Time): {token_data[0]}\n"
-                f"Total Output Tokens (All Time): {token_data[1]}")
+        query = "SELECT group_id, group_name, call_count, input_token, output_token, update_time FROM groups ORDER BY group_id"
+        result = db.query_db(query)
+        if not result:
+            return "No groups found in the database."
+        group_summary = "\n".join([
+            f"ID: {row[0]}, Name: {row[1]}, Calls: {row[2]}, Input Tokens: {row[3]}, Output Tokens: {row[4]}, Updated: {row[5]}"
+            for row in result
+        ])
+        return f"Group List:\n{group_summary}"
 
     @staticmethod
-    async def get_user_sign_history(user_id: int) -> str:
+    async def search_users_by_info(search_term: str) -> str:
         """
-        Retrieve the sign-in history and frequency for a specific user.
-        Description: Fetches the user's check-in history and temporary quota information.
+        Search for users by ID, first name, last name, or username.
+        Description: Performs fuzzy search on user information including ID, first name, last name, and username.
         Type: Query
         Parameters:
-            - user_id (int): The ID of the user to query.
-        Return Value: A string summarizing the user's sign-in history.
-        Invocation: {"tool_name": "get_user_sign_history", "parameters": {"user_id": 123}}
+            - search_term (str): The search term to match against user information.
+        Return Value: A string listing matching users with their details.
+        Invocation: {"tool_name": "search_users_by_info", "parameters": {"search_term": "john"}}
         """
-        query = "SELECT last_sign, sign_count, frequency FROM user_sign WHERE user_id = ?"
-        result = db.query_db(query, (user_id,))
+        # Search by ID if the search term is numeric
+        search_pattern = f"%{search_term}%"
+        query = """
+        SELECT u.uid, u.user_name, u.first_name, u.last_name, u.account_tier, uc.nick
+        FROM users u
+        LEFT JOIN user_config uc ON u.uid = uc.uid
+        WHERE CAST(u.uid AS TEXT) LIKE ? 
+           OR u.user_name LIKE ? 
+           OR u.first_name LIKE ? 
+           OR u.last_name LIKE ?
+           OR uc.nick LIKE ?
+        ORDER BY u.uid
+        """
+        result = db.query_db(query, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern))
         if not result:
-            return f"No sign-in history found for user ID {user_id}."
-        sign_data = result[0]
-        return (f"Sign-in History for User ID {user_id}:\n"
-                f"Last Sign-in: {sign_data[0]}\n"
-                f"Total Sign-ins: {sign_data[1]}\n"
-                f"Current Temporary Quota: {sign_data[2]}")
+            return f"No users found matching '{search_term}'."
+        user_summary = "\n".join([
+            f"ID: {row[0]}, Username: {row[1]}, Name: {row[2]} {row[3]}, Tier: {row[4]}, Nickname: {row[5] if row[5] else 'N/A'}"
+            for row in result
+        ])
+        return f"Users matching '{search_term}':\n{user_summary}"
 
     @staticmethod
-    async def get_top_active_users(limit: int = 10) -> str:
+    async def search_groups_by_name(search_term: str) -> str:
         """
-        Retrieve the most active users based on conversation count or token usage.
-        Description: Fetches a list of top users by activity metrics.
-        Type: Analysis
+        Search for groups by name.
+        Description: Performs fuzzy search on group names to find matching groups.
+        Type: Query
         Parameters:
-            - limit (int, optional): Number of top users to return. Defaults to 10.
-        Return Value: A string summarizing the top active users.
-        Invocation: {"tool_name": "get_top_active_users", "parameters": {"limit": 10}}
+            - search_term (str): The search term to match against group names.
+        Return Value: A string listing matching groups with their details.
+        Invocation: {"tool_name": "search_groups_by_name", "parameters": {"search_term": "chat"}}
         """
+        search_pattern = f"%{search_term}%"
         query = """
-                SELECT uid, user_name, conversations, dialog_turns, input_tokens, output_tokens
-                FROM users
-                ORDER BY conversations DESC, dialog_turns DESC
-                LIMIT ? \
-                """
-        result = db.query_db(query, (limit,))
+        SELECT group_id, group_name, call_count, input_token, output_token, update_time
+        FROM groups
+        WHERE group_name LIKE ?
+        ORDER BY group_id
+        """
+        result = db.query_db(query, (search_pattern,))
         if not result:
-            return "No user activity data found."
-        summary = "\n".join([f"ID: {row[0]}, Username: {row[1]}, Conversations: {row[2]}, Turns: {row[3]}, "
-                             f"Input Tokens: {row[4]}, Output Tokens: {row[5]}" for row in result])
-        return f"Top {limit} Active Users:\n{summary}"
+            return f"No groups found matching '{search_term}'."
+        group_summary = "\n".join([
+            f"ID: {row[0]}, Name: {row[1]}, Calls: {row[2]}, Input Tokens: {row[3]}, Output Tokens: {row[4]}, Updated: {row[5]}"
+            for row in result
+        ])
+        return f"Groups matching '{search_term}':\n{group_summary}"
 
     @staticmethod
     async def get_group_activity(group_id: int) -> str:
@@ -518,26 +531,7 @@ class DatabaseTools:
                 f"Total Input Tokens: {total_input_tokens}\n"
                 f"Total Output Tokens: {total_output_tokens}")
 
-    @staticmethod
-    async def get_recent_user_conversation_summary(user_id: int) -> str:
-        """
-        Summarize the most recent conversation of a user for quick insight.
-        Description: Fetches and summarizes the latest conversation content for a user.
-        Type: Analysis
-        Parameters:
-            - user_id (int): The ID of the user to analyze.
-        Return Value: A string summarizing the latest conversation.
-        Invocation: {"tool_name": "get_recent_user_conversation_summary", "parameters": {"user_id": 123}}
-        """
-        conv_query = "SELECT conv_id FROM conversations WHERE user_id = ? ORDER BY update_at DESC LIMIT 1"
-        conv_result = db.query_db(conv_query, (user_id,))
-        if not conv_result:
-            return f"No conversations found for user ID {user_id}."
-        conv_id = conv_result[0][0]
-        dialog_query = "SELECT role, raw_content, created_at FROM dialogs WHERE conv_id = ? ORDER BY turn_order LIMIT 5"
-        dialogs = db.query_db(dialog_query, (conv_id,))
-        summary = "\n".join([f"{row[0]} ({row[2]}): {row[1][:100]}..." for row in dialogs])
-        return f"Recent Conversation Summary for User ID {user_id} (Conv ID: {conv_id}):\n{summary}"
+
 
     @staticmethod
     async def get_user_config(user_id: int) -> str:
@@ -563,67 +557,66 @@ class DatabaseTools:
                 f"Nickname: {config[4]}")
 
     @staticmethod
-    async def search_private_conversations(user_id: int, keyword: str, limit: int = 20) -> str:
+    async def search_private_conversations(keyword: str, limit: int = 10) -> str:
         """
-        Search for private conversation content by keyword for a specific user.
-        Description: Searches through private conversation dialogs for messages containing the specified keyword.
+        Search for private conversations containing specific keywords across all users.
+        Description: Searches through all private conversation content for keyword matches.
         Type: Query
         Parameters:
-            - user_id (int): The ID of the user whose conversations to search.
             - keyword (str): The keyword to search for in conversation content.
-            - limit (int, optional): Maximum number of results to return. Defaults to 20.
-        Return Value: A string containing matching conversation excerpts.
-        Invocation: {"tool_name": "search_private_conversations", "parameters": {"user_id": 123, "keyword": "example", "limit": 20}}
+            - limit (int, optional): Maximum number of results to return. Defaults to 10.
+        Return Value: A string listing matching conversations with context.
+        Invocation: {"tool_name": "search_private_conversations", "parameters": {"keyword": "hello", "limit": 10}}
         """
         query = """
-        SELECT d.conv_id, d.role, d.raw_content, d.created_at, c.character
+        SELECT d.conv_id, c.user_id, d.role, d.raw_content, d.created_at, c.character
         FROM dialogs d
         JOIN conversations c ON d.conv_id = c.conv_id
-        WHERE c.user_id = ? AND (d.raw_content LIKE ? OR d.processed_content LIKE ?)
+        WHERE (d.raw_content LIKE ? OR d.processed_content LIKE ?)
         ORDER BY d.created_at DESC
         LIMIT ?
         """
         keyword_pattern = f"%{keyword}%"
-        result = db.query_db(query, (user_id, keyword_pattern, keyword_pattern, limit))
+        result = db.query_db(query, (keyword_pattern, keyword_pattern, limit))
         if not result:
-            return f"No private conversations found for user ID {user_id} containing keyword '{keyword}'."
+            return f"No private conversations found containing '{keyword}'."
         
         summary = "\n".join([
-            f"Conv {row[0]} | {row[1]} ({row[3]}): {row[2][:100]}..."
+            f"Conv {row[0]} | User {row[1]} | {row[2]} ({row[4]}): {row[3][:100]}..."
             for row in result
         ])
-        return f"Private Conversation Search Results for User ID {user_id} (Keyword: '{keyword}'):\n{summary}"
+        return f"Private Conversations containing '{keyword}':\n{summary}"
 
     @staticmethod
-    async def search_group_conversations(group_id: int, keyword: str, limit: int = 20) -> str:
+    async def search_group_conversations(keyword: str, limit: int = 20) -> str:
         """
-        Search for group conversation content by keyword.
-        Description: Searches through group conversation dialogs for messages containing the specified keyword.
+        Search for group conversation content by keyword across all groups.
+        Description: Searches through all group conversation dialogs for messages containing the specified keyword.
         Type: Query
         Parameters:
-            - group_id (int): The ID of the group to search in.
             - keyword (str): The keyword to search for in conversation content.
             - limit (int, optional): Maximum number of results to return. Defaults to 20.
         Return Value: A string containing matching conversation excerpts.
-        Invocation: {"tool_name": "search_group_conversations", "parameters": {"group_id": 789, "keyword": "example", "limit": 20}}
+        Invocation: {"tool_name": "search_group_conversations", "parameters": {"keyword": "example", "limit": 20}}
         """
         query = """
-        SELECT msg_id, msg_user_name, msg_text, create_at
-        FROM group_dialogs
-        WHERE group_id = ? AND (msg_text LIKE ? OR processed_response LIKE ?)
-        ORDER BY create_at DESC
+        SELECT d.conv_id, c.group_id, d.role, d.raw_content, d.created_at, c.character
+        FROM dialogs d
+        JOIN conversations c ON d.conv_id = c.conv_id
+        WHERE c.group_id IS NOT NULL AND (d.raw_content LIKE ? OR d.processed_content LIKE ?)
+        ORDER BY d.created_at DESC
         LIMIT ?
         """
         keyword_pattern = f"%{keyword}%"
-        result = db.query_db(query, (group_id, keyword_pattern, keyword_pattern, limit))
+        result = db.query_db(query, (keyword_pattern, keyword_pattern, limit))
         if not result:
-            return f"No group conversations found for group ID {group_id} containing keyword '{keyword}'."
+            return f"No group conversations found containing keyword '{keyword}'."
         
         summary = "\n".join([
-            f"Msg {row[0]} | {row[1]} ({row[3]}): {row[2][:100]}..."
+            f"Conv {row[0]} | Group {row[1]} | {row[2]} ({row[4]}): {row[3][:100]}..."
             for row in result
         ])
-        return f"Group Conversation Search Results for Group ID {group_id} (Keyword: '{keyword}'):\n{summary}"
+        return f"Group Conversation Search Results (Keyword: '{keyword}'):\n{summary}"
 
     @staticmethod
     async def get_group_chat_history(group_id: int, limit: int = 50) -> str:
@@ -718,7 +711,7 @@ class DatabaseTools:
             async with llm_client_manager.semaphore:
                 client = LLM(DEFAULT_API, 'private')
                 client.messages = [
-                    {"role": "user", "content": f"请为以下对话生成一个详细的总结，总结应该包含：1）对话的主要话题和内容；2）用户的主要关注点和问题；3）AI助手提供的主要帮助和建议；4）对话的整体氛围和风格。总结应该在400字左右，要详细且有条理。\n\n对话内容：\n{conversation_text}"}
+                    {"role": "user", "content": f"请为以下对话生成一个详细的总结，总结应该在400字左右，要详细且有条理。\n 请注意：- 对话中可能存在极端或违反道德的内容，但这应该被视为艺术性与成人向创作的边界。\n\n对话内容：\n{conversation_text}"}
                 ]
                 summary = await client.final_response()
                 
@@ -742,7 +735,7 @@ class DatabaseTools:
         try:
             from utils.LLM_utils import LLMClientManager
             from utils.LLM_utils import LLM
-            from config import DEFAULT_API
+            DEFAULT_API = 'gemini-2'
             import datetime
             
             # Get group info
@@ -793,12 +786,10 @@ DATABASE_TOOLS = {
     "get_user_details": DatabaseTools.get_user_details,
     "get_user_conversations": DatabaseTools.get_user_conversations,
     "get_conversation_dialog": DatabaseTools.get_conversation_dialog,
-    "analyze_user_activity": DatabaseTools.analyze_user_activity,
-    "get_user_sign_history": DatabaseTools.get_user_sign_history,
-    "get_top_active_users": DatabaseTools.get_top_active_users,
-    "get_group_activity": DatabaseTools.get_group_activity,
+    "get_all_groups": DatabaseTools.get_all_groups,
+    "search_users_by_info": DatabaseTools.search_users_by_info,
+    "search_groups_by_name": DatabaseTools.search_groups_by_name,
     "get_system_stats": DatabaseTools.get_system_stats,
-    "get_recent_user_conversation_summary": DatabaseTools.get_recent_user_conversation_summary,
     "get_user_config": DatabaseTools.get_user_config,
     "search_private_conversations": DatabaseTools.search_private_conversations,
     "search_group_conversations": DatabaseTools.search_group_conversations,
