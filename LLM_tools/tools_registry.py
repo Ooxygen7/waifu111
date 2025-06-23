@@ -269,7 +269,7 @@ class DatabaseToolRegistry:
             "return_value": "Group content extract summary (e.g., 'Group Content Extract for Group ID 789 (Last 7 days, 150 messages):\nuser1 (2023-10-01): Hello...')",
         },
         "generate_private_conversation_summary": {
-            "description": "Generate a comprehensive 400-word summary of a private conversation. RECOMMENDED: Use this instead of get_conversation_dialog for analysis.",
+            "description": "Generate a comprehensive 400-word summary of a private conversation. RECOMMENDED: Use this instead of get_conversation_dialog for analysis.You can only invoke this tool once in each tools call,if you need to generate summary for multiple conversations,call this tool for times.",
             "type": "analysis",
             "parameters": {
                 "conv_id": {

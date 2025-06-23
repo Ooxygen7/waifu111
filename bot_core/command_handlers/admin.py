@@ -119,7 +119,7 @@ class DatabaseCommand(BaseCommand):
         Process the database tool request in the background and update the placeholder message with the result.
         """
         try:
-            client = llm.LLM('gemini-2.5')
+            client = llm.LLM('gemini-2')
             logger.debug("LLM 客户端初始化完成")
             prompt_text = DatabaseToolRegistry.get_prompt_text()
             system_prompt = (
@@ -137,81 +137,125 @@ class DatabaseCommand(BaseCommand):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"用户输入: {user_input}"}
             ]
-            final_result_for_display = ""
+            # 移除final_result_for_display变量，改为每轮直接发送消息
             current_messages = messages.copy()
-            max_iterations = 8
+            max_iterations = 12
             iteration = 0
             initial_placeholder_text = "处理中..."
             # 移除了此处多余的 await placeholder_message.edit_text(initial_placeholder_text, parse_mode="Markdown")
             # 因为 handle 函数已经发送了初始的 "处理中..." 消息
             while iteration < max_iterations:
                 iteration += 1
+                
+                # 为每次迭代发送一条新的占位消息
+                placeholder_message = await update.message.reply_text(
+                    f"🔄 第 {iteration} 轮分析中...",
+                    parse_mode="HTML"
+                )
+                
                 client.set_messages(current_messages)
                 logger.debug(f"已设置 messages (当前会话): {current_messages}")
                 ai_response = await client.final_response()
                 logger.info(f"LLM 原始响应: {ai_response}")
+                
+                # 调用共享的 parse_and_invoke_tool 函数
                 llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
                     await parse_and_invoke_tool(ai_response)
+                
+                # 为当前轮次构建消息内容（LLM文本 + 工具结果）
+                iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
+                
+                # 添加LLM文本部分
                 if llm_text_part:
-                    if "```" in llm_text_part:
-                        final_result_for_display += f"{llm_text_part.strip()}\n"
+                    if "<" in llm_text_part and ">" in llm_text_part:
+                        iteration_message_text += f"{llm_text_part.strip()}\n\n"
                     else:
-                        final_result_for_display += f"脆脆鲨: {llm_text_part.strip()}\n"
-                    logger.debug(f"LLM文本部分已添加: {llm_text_part.strip()}")
+                        iteration_message_text += f"<b>脆脆鲨:</b> {llm_text_part.strip()}\n\n"
+                    logger.debug(f"脆脆鲨文本部分: {llm_text_part.strip()}")
+                
+                # 添加工具调用结果
                 if had_tool_calls:
                     logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
-
-                    trimmed_results_for_display = []
+                    
+                    # 处理工具结果，使用HTML格式
+                    tool_results_html = []
                     for res in tool_results_for_llm_feedback:
                         tool_name = res.get('tool_name', '未知工具')
                         tool_result = str(res.get('result', ''))
-                        if len(tool_result) > 80:
-                            trimmed_result = tool_result[:80] + "..."
+                        if len(tool_result) > 2000:  # 截断限制1000字符
+                            trimmed_result = tool_result[:2000] + "..."
                         else:
                             trimmed_result = tool_result
-                        trimmed_results_for_display.append(f"{tool_name} 执行结果: {trimmed_result}")
-                    if trimmed_results_for_display:
-                        final_result_for_display += "```\n" + "\n".join(trimmed_results_for_display) + "\n```\n"
-                        logger.debug(f"已添加修剪后的工具结果到显示: {trimmed_results_for_display}")
-                    display_content = final_result_for_display.strip()
-                    # 确保每次更新都有"处理中..."前缀
-                    current_display_text = f"{initial_placeholder_text}\n{display_content}" if display_content else initial_placeholder_text
-
-                    # --- 中间结果更新的错误处理 ---
+                        
+                        # 使用可展开引用块创建折叠的工具结果
+                        tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
+                        tool_results_html.append(tool_html)
+                    
+                    if tool_results_html:
+                        iteration_message_text += "\n".join(tool_results_html)
+                        logger.debug(f"已添加工具结果到当前轮次消息")
+                
+                # 检查消息长度，如果超过4000字符则分割发送
+                TELEGRAM_MESSAGE_LIMIT = 4000
+                if len(iteration_message_text) > TELEGRAM_MESSAGE_LIMIT:
+                    # 分割消息
+                    parts = []
+                    current_part = ""
+                    lines = iteration_message_text.split('\n')
+                    
+                    for line in lines:
+                        if len(current_part + line + '\n') > TELEGRAM_MESSAGE_LIMIT:
+                            if current_part:
+                                parts.append(current_part.strip())
+                                current_part = line + '\n'
+                            else:
+                                # 单行就超过限制，强制截断
+                                parts.append(line[:TELEGRAM_MESSAGE_LIMIT-50] + "...")
+                        else:
+                            current_part += line + '\n'
+                    
+                    if current_part:
+                        parts.append(current_part.strip())
+                    
+                    # 发送分割后的消息
+                    for i, part in enumerate(parts):
+                        try:
+                            if i == 0:
+                                # 更新当前轮次的占位消息
+                                await placeholder_message.edit_text(part, parse_mode="HTML")
+                            else:
+                                # 发送新消息
+                                await update.message.reply_text(part, parse_mode="HTML")
+                            logger.debug(f"已发送第{iteration}轮消息部分 {i+1}/{len(parts)}")
+                        except telegram.error.BadRequest as e:
+                            logger.warning(f"HTML解析失败，尝试文本模式: {e}")
+                            try:
+                                if i == 0:
+                                    await placeholder_message.edit_text(part, parse_mode=None)
+                                else:
+                                    await update.message.reply_text(part, parse_mode=None)
+                            except Exception as inner_e:
+                                logger.error(f"文本模式发送也失败: {inner_e}", exc_info=True)
+                                error_msg = f"第{iteration}轮第{i+1}部分消息发送失败"
+                                if i == 0:
+                                    await placeholder_message.edit_text(error_msg)
+                                else:
+                                    await update.message.reply_text(error_msg)
+                else:
+                    # 消息长度正常，直接更新占位消息
                     try:
-                        await placeholder_message.edit_text(
-                            f"{current_display_text}\n更新时间: {time.time()}",  # 添加时间戳确保内容变化
-                            parse_mode="Markdown"
-                        )
-                        logger.debug("已更新占位消息，显示中间结果")
-                    except telegram.ext.error.BadRequest as e:
-                        # 捕获 Telegram 的 BadRequest 错误，通常是 Markdown 解析问题
-                        logger.warning(f"更新占位消息时Markdown解析失败，尝试禁用Markdown: {e}")
+                        await placeholder_message.edit_text(iteration_message_text, parse_mode="HTML")
+                        logger.debug(f"已更新第{iteration}轮占位消息，显示结果")
+                    except telegram.error.BadRequest as e:
+                        logger.warning(f"HTML解析失败，尝试文本模式: {e}")
                         try:
-                            # 尝试禁用 Markdown 再次发送
-                            await placeholder_message.edit_text(
-                                f"{current_display_text}\n更新时间: {time.time()}",
-                                parse_mode=None  # 禁用 Markdown
-                            )
-                            logger.debug("已成功禁用Markdown更新占位消息")
+                            await placeholder_message.edit_text(iteration_message_text, parse_mode=None)
+                            logger.debug(f"已成功使用文本模式更新第{iteration}轮占位消息")
                         except Exception as inner_e:
-                            # 如果禁用 Markdown 后仍然失败，记录更深层的错误并发送通用错误消息
-                            logger.error(f"禁用Markdown后再次发送消息失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (内容包含无法解析的格式，已禁用格式显示)")
-                    except Exception as e:
-                        # 捕获其他非 Telegram BadRequest 的异常
-                        logger.error(f"更新占位消息时发生未知错误: {e}", exc_info=True)
-                        # 尝试禁用 Markdown 再次发送，作为通用降级方案
-                        try:
-                            await placeholder_message.edit_text(
-                                f"{current_display_text}\n更新时间: {time.time()}",
-                                parse_mode=None
-                            )
-                            logger.debug("发生未知错误后尝试禁用Markdown更新占位消息")
-                        except Exception as inner_e:
-                            logger.error(f"未知错误且禁用Markdown后发送消息失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (更新失败，请稍后再试)")
-                    # --- 结束中间结果更新的错误处理 ---
+                            logger.error(f"文本模式更新也失败: {inner_e}", exc_info=True)
+                            await placeholder_message.edit_text(f"第{iteration}轮处理完成，但内容显示失败")
+                
+                if had_tool_calls:
                     current_messages.append({
                         "role": "assistant",
                         "content": ai_response
@@ -226,57 +270,35 @@ class DatabaseCommand(BaseCommand):
                     })
                     logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
                 else:
-                    logger.info(f"未调用工具，LLM直接回复。最终文本: {llm_text_part}")
-                    break  # 结束循环
-            TELEGRAM_MESSAGE_LIMIT = 4096
-            final_output_to_user = final_result_for_display.strip()
-            if len(final_output_to_user) > TELEGRAM_MESSAGE_LIMIT:
-                final_output_to_user = final_output_to_user[
-                                       :TELEGRAM_MESSAGE_LIMIT - 60].strip() + "...\n\n**注意：结果过长，已被截断。**"
-
-            if not final_output_to_user:
-                final_output_to_user = "LLM未返回有效内容。"
-            # --- 最终结果更新的错误处理 ---
-            try:
-                await placeholder_message.edit_text(final_output_to_user, parse_mode="Markdown")
-                logger.debug("已编辑占位消息，显示最终结果")
-            except telegram.error.BadRequest as e:
-                # 捕获 Telegram 的 BadRequest 错误，通常是 Markdown 解析问题
-                logger.warning(f"最终结果Markdown解析失败，尝试禁用Markdown: {e}")
+                    # 没有工具调用，这是最终回复，结束循环
+                    logger.info(f"第{iteration}轮未调用工具，脆脆鲨给出最终回复: {llm_text_part}")
+                    break  # 没有工具调用，结束循环
+            
+            # 如果循环结束但仍有工具调用，说明达到最大迭代次数
+            if iteration >= max_iterations:
                 try:
-                    # 尝试禁用 Markdown 再次发送
-                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)  # 禁用 Markdown
-                    logger.debug("已成功禁用Markdown发送最终结果")
-                except Exception as inner_e:
-                    # 如果禁用 Markdown 后仍然失败，记录更深层的错误并发送通用错误消息
-                    logger.error(f"禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
-                    await placeholder_message.edit_text("处理完成。但内容包含无法解析的格式，已禁用格式显示。")
-            except Exception as e:
-                # 捕获其他非 Telegram BadRequest 的异常
-                logger.error(f"发送最终结果时发生未知错误: {e}", exc_info=True)
-                # 尝试禁用 Markdown 再次发送，作为通用降级方案
-                try:
-                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)
-                    logger.debug("发送最终结果时发生未知错误后尝试禁用Markdown")
-                except Exception as inner_e:
-                    logger.error(f"未知错误且禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
-                    await placeholder_message.edit_text("处理完成。但由于未知错误，内容可能显示不完整。")
-            # --- 结束最终结果更新的错误处理 ---
+                    await update.message.reply_text(
+                        "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！",
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logger.error(f"发送最大迭代提示失败: {e}", exc_info=True)
+                    await update.message.reply_text("分析轮次已达上限，请重新发起请求。")
         except Exception as e:
             logger.error(f"处理 /database 命令时发生错误: {str(e)}", exc_info=True)
             error_message = str(e)
             if len(error_message) > 200:
                 error_message = error_message[:200] + "..."
-            error_message = f"处理请求时发生错误: `{error_message}`"
+            error_message = f"处理请求时发生错误: <code>{error_message}</code>"
             try:
-                # 即使在最终错误处理中，也尝试使用 Markdown，失败则禁用
-                await placeholder_message.edit_text(error_message, parse_mode="Markdown")
+                # 即使在最终错误处理中，也尝试使用 HTML，失败则禁用
+                await placeholder_message.edit_text(error_message, parse_mode="HTML")
             except Exception as inner_e:
-                logger.warning(f"发送错误消息时Markdown解析失败，尝试禁用Markdown: {inner_e}")
+                logger.warning(f"发送错误消息时HTML解析失败，尝试禁用HTML: {inner_e}")
                 try:
                     await placeholder_message.edit_text(error_message, parse_mode=None)
                 except Exception as deepest_e:
-                    logger.error(f"禁用Markdown后发送错误消息也失败: {deepest_e}")
+                    logger.error(f"禁用HTML后发送错误消息也失败: {deepest_e}")
                     await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
             logger.debug("已编辑占位消息，显示错误信息")
 

@@ -581,80 +581,115 @@ class CryptoCommand(BaseCommand):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"用户输入: {user_input}"}
             ]
-            final_result_for_display = ""  # 累积所有要显示给用户的内容
             current_messages = messages.copy()
             max_iterations = 7
             iteration = 0
-            initial_placeholder_text = "处理中..."
-            # 移除此处多余的 edit_text 调用，因为 handle 已经发送了初始消息
+            
             while iteration < max_iterations:
                 iteration += 1
                 client.set_messages(current_messages)
                 logger.debug(f"已设置 messages (当前会话): {current_messages}")
                 ai_response = await client.final_response()
                 logger.info(f"LLM 原始响应: {ai_response}")
+                
                 # 调用共享的 parse_and_invoke_tool 函数
                 llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
                     await parse_and_invoke_tool(ai_response)
-                # 将 LLM 的文本部分加入到最终显示内容中
+                
+                # 为每轮调用构建完整的消息内容（LLM文本 + 工具结果）
+                iteration_message_text = ""
+                
+                # 添加LLM文本部分
                 if llm_text_part:
-                    # 如果LLM的文本部分包含 "```" 则不需要我们再加 Markdown 代码块
-                    if "```" in llm_text_part:
-                        final_result_for_display += f"{llm_text_part.strip()}\n"
+                    if "<" in llm_text_part and ">" in llm_text_part:
+                        iteration_message_text += f"{llm_text_part.strip()}\n\n"
                     else:
-                        final_result_for_display += f"**脆脆鲨:** {llm_text_part.strip()}\n"  # 标记为脆脆鲨的输出
-                    logger.debug(f"脆脆鲨文本部分已添加: {llm_text_part.strip()}")
+                        iteration_message_text += f"<b>脆脆鲨:</b> {llm_text_part.strip()}\n\n"
+                    logger.debug(f"脆脆鲨文本部分: {llm_text_part.strip()}")
+                
+                # 添加工具调用结果
                 if had_tool_calls:
                     logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
-
-                    # 修剪工具调用结果用于 Telegram 消息展示 (按 CryptoCommand 原有逻辑使用150字截断)
-                    trimmed_results_for_display = []
+                    
+                    # 处理工具结果，使用HTML格式
+                    tool_results_html = []
                     for res in tool_results_for_llm_feedback:
                         tool_name = res.get('tool_name', '未知工具')
-                        tool_result = str(res.get('result', ''))  # 确保是字符串
-                        if len(tool_result) > 150:  # 使用150字截断
-                            trimmed_result = tool_result[:150] + "..."
+                        tool_result = str(res.get('result', ''))
+                        if len(tool_result) > 1000:  # 提升截断限制到1000字符
+                            trimmed_result = tool_result[:1000] + "..."
                         else:
                             trimmed_result = tool_result
-                        trimmed_results_for_display.append(f"{tool_name} 执行结果:\n{trimmed_result}")
-                    # 使用 Markdown 代码块包裹修剪后的工具调用结果
-                    if trimmed_results_for_display:
-                        final_result_for_display += "```\n" + "\n".join(trimmed_results_for_display) + "\n```\n"
-                        logger.debug(f"已添加修剪后的工具结果到显示: {trimmed_results_for_display}")
-                    # 更新占位消息，包含LLM文本和工具结果
-                    display_content = final_result_for_display.strip()
-                    current_display_text = f"{initial_placeholder_text}\n{display_content}" if display_content else initial_placeholder_text
-
-                    # --- 中间结果更新的错误处理 ---
+                        
+                        # 使用可展开引用块创建折叠的工具结果
+                        tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
+                        tool_results_html.append(tool_html)
+                    
+                    if tool_results_html:
+                        iteration_message_text += "\n".join(tool_results_html)
+                        logger.debug(f"已添加工具结果到当前轮次消息")
+                
+                # 检查消息长度，如果超过4000字符则分割发送
+                TELEGRAM_MESSAGE_LIMIT = 4000
+                if len(iteration_message_text) > TELEGRAM_MESSAGE_LIMIT:
+                    # 分割消息
+                    parts = []
+                    current_part = ""
+                    lines = iteration_message_text.split('\n')
+                    
+                    for line in lines:
+                        if len(current_part + line + '\n') > TELEGRAM_MESSAGE_LIMIT:
+                            if current_part:
+                                parts.append(current_part.strip())
+                                current_part = line + '\n'
+                            else:
+                                # 单行就超过限制，强制截断
+                                parts.append(line[:TELEGRAM_MESSAGE_LIMIT-50] + "...")
+                        else:
+                            current_part += line + '\n'
+                    
+                    if current_part:
+                        parts.append(current_part.strip())
+                    
+                    # 发送分割后的消息
+                    for i, part in enumerate(parts):
+                        try:
+                            if i == 0:
+                                # 更新占位消息
+                                await placeholder_message.edit_text(part, parse_mode="HTML")
+                            else:
+                                # 发送新消息
+                                await update.message.reply_text(part, parse_mode="HTML")
+                            logger.debug(f"已发送消息部分 {i+1}/{len(parts)}")
+                        except telegram.error.BadRequest as e:
+                            logger.warning(f"HTML解析失败，尝试文本模式: {e}")
+                            try:
+                                if i == 0:
+                                    await placeholder_message.edit_text(part, parse_mode=None)
+                                else:
+                                    await update.message.reply_text(part, parse_mode=None)
+                            except Exception as inner_e:
+                                logger.error(f"文本模式发送也失败: {inner_e}", exc_info=True)
+                                error_msg = f"第{i+1}部分消息发送失败"
+                                if i == 0:
+                                    await placeholder_message.edit_text(error_msg)
+                                else:
+                                    await update.message.reply_text(error_msg)
+                else:
+                    # 消息长度正常，直接发送
                     try:
-                        await placeholder_message.edit_text(
-                            f"{current_display_text}\n更新时间: {time.time()}",  # 添加时间戳确保内容变化
-                            parse_mode="Markdown"
-                        )
-                        logger.debug("已更新占位消息，显示中间结果")
+                        await placeholder_message.edit_text(iteration_message_text, parse_mode="HTML")
+                        logger.debug("已更新占位消息，显示当前轮次结果")
                     except telegram.error.BadRequest as e:
-                        logger.warning(f"更新占位消息时Markdown解析失败，尝试禁用Markdown: {e}")
+                        logger.warning(f"HTML解析失败，尝试文本模式: {e}")
                         try:
-                            await placeholder_message.edit_text(
-                                f"{current_display_text}\n更新时间: {time.time()}",
-                                parse_mode=None  # 禁用 Markdown
-                            )
-                            logger.debug("已成功禁用Markdown更新占位消息")
+                            await placeholder_message.edit_text(iteration_message_text, parse_mode=None)
+                            logger.debug("已成功使用文本模式更新占位消息")
                         except Exception as inner_e:
-                            logger.error(f"禁用Markdown后再次发送消息失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (内容包含无法解析的格式，已禁用格式显示)")
-                    except Exception as e:
-                        logger.error(f"更新占位消息时发生未知错误: {e}", exc_info=True)
-                        try:
-                            await placeholder_message.edit_text(
-                                f"{current_display_text}\n更新时间: {time.time()}",
-                                parse_mode=None
-                            )
-                            logger.debug("发生未知错误后尝试禁用Markdown更新占位消息")
-                        except Exception as inner_e:
-                            logger.error(f"未知错误且禁用Markdown后发送消息失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (更新失败，请稍后再试)")
-                    # --- 结束中间结果更新的错误处理 ---
+                            logger.error(f"文本模式更新也失败: {inner_e}", exc_info=True)
+                            await placeholder_message.edit_text("处理中... (内容显示失败)")
+                
+                if had_tool_calls:
                     # 将完整的原始LLM响应作为 assistant 消息反馈
                     current_messages.append({
                         "role": "assistant",
@@ -671,54 +706,52 @@ class CryptoCommand(BaseCommand):
                     })
                     logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
                 else:
+                    # 没有工具调用，发送LLM的最终回复
+                    if llm_text_part:
+                        final_message = llm_text_part.strip()
+                        if not ("<" in final_message and ">" in final_message):
+                            final_message = f"<b>脆脆鲨:</b> {final_message}"
+                        
+                        try:
+                            await placeholder_message.edit_text(final_message, parse_mode="HTML")
+                            logger.debug("已发送脆脆鲨最终回复")
+                        except telegram.error.BadRequest as e:
+                            logger.warning(f"最终回复HTML解析失败，尝试文本模式: {e}")
+                            try:
+                                await placeholder_message.edit_text(final_message, parse_mode=None)
+                            except Exception as inner_e:
+                                logger.error(f"文本模式发送最终回复也失败: {inner_e}", exc_info=True)
+                                await placeholder_message.edit_text("处理完成，但回复显示失败。")
+                    else:
+                        await placeholder_message.edit_text("脆脆鲨暂时无法为您分析，请稍后再试或换个问题哦老师！")
                     logger.info(f"未调用工具，脆脆鲨直接回复用户。最终文本: {llm_text_part}")
                     break  # 没有工具调用，结束循环
-            # 循环结束后，检查最终结果长度是否超过 Telegram 限制（4096 字符）
-            TELEGRAM_MESSAGE_LIMIT = 4096
-            final_output_to_user = final_result_for_display.strip()
-            if len(final_output_to_user) > TELEGRAM_MESSAGE_LIMIT:
-                final_output_to_user = final_output_to_user[
-                                       :TELEGRAM_MESSAGE_LIMIT - 60].strip() + "...\n\n**注意：结果过长，已被截断。**"
-
-            # 如果 final_output_to_user 还是空的（比如LLM啥也没返回），给个默认值
-            if not final_output_to_user:
-                final_output_to_user = "脆脆鲨暂时无法为您分析，请稍后再试或换个问题哦老师！"  # 更符合脆脆鲨的语气
-            # 最终编辑占位消息以显示最终结果
-            # --- 最终结果更新的错误处理 ---
-            try:
-                await placeholder_message.edit_text(final_output_to_user, parse_mode="Markdown")
-                logger.debug("已编辑占位消息，显示最终结果")
-            except telegram.error.BadRequest as e:
-                logger.warning(f"最终结果Markdown解析失败，尝试禁用Markdown: {e}")
+            
+            # 如果循环结束但仍有工具调用，说明达到最大迭代次数
+            if iteration >= max_iterations:
                 try:
-                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)  # 禁用 Markdown
-                    logger.debug("已成功禁用Markdown发送最终结果")
-                except Exception as inner_e:
-                    logger.error(f"禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
-                    await placeholder_message.edit_text("处理完成。但内容包含无法解析的格式，已禁用格式显示。")
-            except Exception as e:
-                logger.error(f"发送最终结果时发生未知错误: {e}", exc_info=True)
-                try:
-                    await placeholder_message.edit_text(final_output_to_user, parse_mode=None)
-                    logger.debug("发送最终结果时发生未知错误后尝试禁用Markdown")
-                except Exception as inner_e:
-                    logger.error(f"未知错误且禁用Markdown后发送最终结果失败: {inner_e}", exc_info=True)
-                    await placeholder_message.edit_text("处理完成。但由于未知错误，内容可能显示不完整。")
+                    await update.message.reply_text(
+                        "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！",
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logger.error(f"发送最大迭代提示失败: {e}", exc_info=True)
+                    await update.message.reply_text("分析轮次已达上限，请重新发起请求。")
             # --- 结束最终结果更新的错误处理 ---
         except Exception as e:
             logger.error(f"处理 /cc 命令时发生错误: {str(e)}", exc_info=True)
             error_message = str(e)
             if len(error_message) > 200:
                 error_message = error_message[:200] + "..."
-            error_message = f"处理请求时发生错误: `{error_message}`"
+            error_message = f"处理请求时发生错误: <code>{error_message}</code>"
             try:
-                # 即使在最终错误处理中，也尝试使用 Markdown，失败则禁用
-                await placeholder_message.edit_text(error_message, parse_mode="Markdown")
+                # 即使在最终错误处理中，也尝试使用 HTML，失败则禁用
+                await placeholder_message.edit_text(error_message, parse_mode="HTML")
             except Exception as inner_e:
-                logger.warning(f"发送错误消息时Markdown解析失败，尝试禁用Markdown: {inner_e}")
+                logger.warning(f"发送错误消息时HTML解析失败，尝试禁用HTML: {inner_e}")
                 try:
                     await placeholder_message.edit_text(error_message, parse_mode=None)
                 except Exception as deepest_e:
-                    logger.error(f"禁用Markdown后发送错误消息也失败: {deepest_e}")
+                    logger.error(f"禁用HTML后发送错误消息也失败: {deepest_e}")
                     await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
             logger.debug("已编辑占位消息，显示错误信息")

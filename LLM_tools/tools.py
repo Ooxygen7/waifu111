@@ -691,7 +691,7 @@ class DatabaseTools:
         try:
             from utils.LLM_utils import LLMClientManager
             from utils.LLM_utils import LLM
-            from config import DEFAULT_API
+            DEFAULT_API = 'gemini-2'
             
             # Get conversation details
             conv_query = "SELECT user_id, character, preset FROM conversations WHERE conv_id = ?"
