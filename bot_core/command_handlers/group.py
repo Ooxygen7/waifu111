@@ -720,6 +720,15 @@ class FuckCommand(BaseCommand):
             llm_instance = llm.LLM()
             llm_instance.set_messages(messages)
             response = await llm_instance.final_response()
+            
+            # 更新群聊调用计数和token统计
+            group_id = update.message.chat.id
+            db.group_info_update(group_id, 'call_count', 1, True)  # 更新调用计数
+            logger.info(f"用户{user_id}在群聊{group_id}调用了fuck命令")
+            input_token = llm.LLM.calculate_token_count(str(messages))  # 计算输入token
+            output_token = llm.LLM.calculate_token_count(response)  # 计算输出token
+            db.group_info_update(group_id, 'input_token', input_token, True)  # 更新输入token
+            db.group_info_update(group_id, 'output_token', output_token, True)  # 更新输出token
 
             # 尝试解析JSON并格式化输出
             try:
