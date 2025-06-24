@@ -1,6 +1,10 @@
 import importlib
 import inspect
 import logging
+import threading
+import subprocess
+import sys
+import os
 
 import telegram
 from telegram import Update, BotCommand as TelegramBotCommand, BotCommandScopeDefault, BotCommandScopeAllGroupChats
@@ -198,18 +202,41 @@ def setup_handlers(app: Application) -> None:
         app.add_handler(handler)
 
 
+def start_web_app():
+    """
+    启动Web管理界面
+    """
+    try:
+        # 获取当前脚本所在目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        web_dir = os.path.join(current_dir, 'web')
+        app_py_path = os.path.join(web_dir, 'app.py')
+        
+        logger.info("正在启动Web管理界面...")
+        
+        # 启动web应用
+        subprocess.run([sys.executable, app_py_path], cwd=web_dir)
+    except Exception as e:
+        logger.error(f"启动Web管理界面失败: {str(e)}", exc_info=True)
+
 def main() -> None:
     """
-    主函数，初始化并启动Telegram Bot。
+    主函数，初始化并启动Telegram Bot和Web管理界面。
 
     Note:
         1. 初始化应用实例
         2. 设置命令菜单
         3. 注册消息处理器
-        4. 启动轮询
-        5. 确保资源正确释放
+        4. 启动Web管理界面（后台线程）
+        5. 启动Bot轮询
+        6. 确保资源正确释放
     """
     try:
+        # 启动Web管理界面（在后台线程中运行）
+        web_thread = threading.Thread(target=start_web_app, daemon=True)
+        web_thread.start()
+        logger.info("Web管理界面已在后台启动")
+        
         # 创建 Application 实例
         app = Application.builder().token(BOT_TOKEN).build()
 

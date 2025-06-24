@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import os
 import sqlite3
 import threading
 from sqlite3 import Error
@@ -24,7 +25,10 @@ class DatabaseConnectionPool:
     _instance: Optional['DatabaseConnectionPool'] = None
     _lock = threading.Lock()
 
-    def __new__(cls, db_file: str = "./data/data.db", max_connections: int = 5) -> 'DatabaseConnectionPool':
+    def __new__(cls, db_file: str = None, max_connections: int = 5) -> 'DatabaseConnectionPool':
+        # 优先使用环境变量中的数据库路径
+        if db_file is None:
+            db_file = os.environ.get('DB_PATH', './data/data.db')
         """
         实现单例模式，确保全局只有一个连接池实例。
 

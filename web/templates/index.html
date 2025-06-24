@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}首页概览 - CyberWaifu Bot 后台管理系统{% endblock %}
+
+{% block page_title %}系统概览{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 统计卡片 -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">总用户数</div>
+                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-2 h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">总对话数</div>
+                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_conversations }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-chat-dots fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-3 h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">消息总数</div>
+                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_dialogs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-envelope fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-4 h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">活跃群组</div>
+                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_groups }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-collection fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Token使用统计 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-bar-chart"></i> Token 使用统计</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6 text-center">
+                        <div class="h4 text-primary">{{ "{:,}".format(stats.total_input_tokens) }}</div>
+                        <div class="text-muted">输入 Tokens</div>
+                    </div>
+                    <div class="col-6 text-center">
+                        <div class="h4 text-success">{{ "{:,}".format(stats.total_output_tokens) }}</div>
+                        <div class="text-muted">输出 Tokens</div>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <div class="h5 text-info">{{ "{:,}".format(stats.total_input_tokens + stats.total_output_tokens) }}</div>
+                    <div class="text-muted">总计 Tokens</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 今日活动 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-calendar-day"></i> 今日活动</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center">
+                    <div class="h3 text-success">{{ stats.today_dialogs }}</div>
+                    <div class="text-muted">今日新增对话</div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="text-primary">活跃度</div>
+                        <div class="progress mt-2">
+                            {% set activity_rate = (stats.today_dialogs / (stats.total_dialogs or 1) * 100) %}
+                            <div class="progress-bar bg-primary" role="progressbar" 
+                                 style="width: {{ activity_rate if activity_rate <= 100 else 100 }}%"
+                                 aria-valuenow="{{ activity_rate }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ "{:.1f}".format(activity_rate) }}%
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-info">系统状态</div>
+                        <div class="mt-2">
+                            <span class="badge bg-success">正常运行</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 快速操作 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-lightning"></i> 快速操作</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('users') }}" class="btn btn-primary btn-block w-100">
+                            <i class="bi bi-people"></i> 查看用户
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('conversations') }}" class="btn btn-success btn-block w-100">
+                            <i class="bi bi-chat-dots"></i> 查看对话
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('groups') }}" class="btn btn-warning btn-block w-100">
+                            <i class="bi bi-collection"></i> 群组管理
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('config_management') }}" class="btn btn-secondary btn-block w-100">
+                             <i class="bi bi-gear"></i> 配置管理
+                         </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('search') }}" class="btn btn-info btn-block w-100">
+                            <i class="bi bi-search"></i> 搜索数据
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 系统信息 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-info-circle"></i> 系统信息</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>系统名称:</strong></td>
+                                <td>CyberWaifu Bot 管理系统</td>
+                            </tr>
+                            <tr>
+                                <td><strong>版本:</strong></td>
+                                <td>v1.0.0</td>
+                            </tr>
+                            <tr>
+                                <td><strong>运行状态:</strong></td>
+                                <td><span class="badge bg-success">正常</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>当前时间:</strong></td>
+                                <td class="current-time"></td>
+                            </tr>
+                            <tr>
+                                <td><strong>数据库:</strong></td>
+                                <td>SQLite</td>
+                            </tr>
+                            <tr>
+                                <td><strong>框架:</strong></td>
+                                <td>Flask + Bootstrap</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

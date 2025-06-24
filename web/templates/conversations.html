@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+
+{% block title %}对话记录 - CyberWaifu Bot 后台管理系统{% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.show-summary-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const convId = this.getAttribute('data-conv-id');
+                const summary = this.getAttribute('data-summary');
+                showConversationSummary(convId, summary);
+            });
+        });
+    });
+</script>
+
+{% block page_title %}对话记录{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-chat-dots"></i> 对话列表</h6>
+                <div>
+                    <!-- 搜索框 -->
+                    <form method="GET" class="d-inline-flex">
+                        <input type="text" name="search" class="form-control form-control-sm search-box me-2" 
+                               placeholder="搜索用户名/姓名/ID" value="{{ search or '' }}" style="width: 200px;">
+                        <button type="submit" class="btn btn-light btn-sm">
+                            <i class="bi bi-search"></i>
+                        </button>
+                        {% if search %}
+                        <a href="{{ url_for('conversations') }}" class="btn btn-outline-light btn-sm ms-1">
+                            <i class="bi bi-x"></i>
+                        </a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if search %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 正在显示包含 <strong>"{{ search }}"</strong> 的搜索结果
+                </div>
+                {% endif %}
+                
+                <!-- 对话表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <a href="?sort=conv_id&order={{ 'desc' if sort_by == 'conv_id' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        对话ID
+                                        {% if sort_by == 'conv_id' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=user_id&order={{ 'desc' if sort_by == 'user_id' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        用户ID
+                                        {% if sort_by == 'user_id' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>用户名</th>
+                                <th>用户姓名</th>
+                                <th>
+                                    <a href="?sort=character&order={{ 'desc' if sort_by == 'character' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        角色
+                                        {% if sort_by == 'character' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=preset&order={{ 'desc' if sort_by == 'preset' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        预设
+                                        {% if sort_by == 'preset' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=turns&order={{ 'desc' if sort_by == 'turns' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        对话轮数
+                                        {% if sort_by == 'turns' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>摘要</th>
+                                <th>
+                                    <a href="?sort=create_at&order={{ 'desc' if sort_by == 'create_at' and order == 'asc' else 'asc' }}{% if user_id %}&user_id={{ user_id }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        创建时间
+                                        {% if sort_by == 'create_at' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="?sort=update_at&order={{ 'desc' if sort_by == 'update_at' and order == 'asc' else 'asc' }}{% if user_id %}&user_id={{ user_id }}{% endif %}" 
+                                       class="text-decoration-none text-dark">
+                                        更新时间
+                                        {% if sort_by == 'update_at' %}
+                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conv in conversations %}
+                            <tr>
+                                <td><span class="badge bg-primary">{{ conv.conv_id }}</span></td>
+                                <td>
+                                    <span class="badge bg-secondary user-info-trigger" 
+                                          data-user-id="{{ conv.user_id }}" 
+                                          style="cursor: pointer;">{{ conv.user_id }}</span>
+                                </td>
+                                <td>
+                                    <span class="user-info-trigger" 
+                                          data-user-id="{{ conv.user_id }}" 
+                                          style="cursor: pointer; color: #0d6efd; text-decoration: underline;">
+                                        {{ conv.user_name or '未设置' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="text-muted">
+                                        {% if conv.first_name or conv.last_name %}
+                                            {{ (conv.first_name or '') + ' ' + (conv.last_name or '') }}
+                                        {% else %}
+                                            未设置
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ conv.character or '未设置' }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">{{ conv.preset or '默认' }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">{{ conv.turns or 0 }}</span>
+                                </td>
+                                <td>
+                                    {% if conv.summary %}
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ conv.summary }}">
+                                            {{ conv.summary }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">无摘要</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="text-muted">{{ format_datetime(conv.create_at) }}</small></td>
+                                <td><small class="text-muted">{{ format_datetime(conv.update_at) }}</small></td>
+                                <td>
+                                    {% if conv.delete_mark %}
+                                        <span class="badge bg-danger">已删除</span>
+                                    {% else %}
+                                        <span class="badge bg-success">正常</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('dialogs', conv_id=conv.conv_id) }}" 
+                                           class="btn btn-outline-primary" title="查看对话详情">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-outline-info show-summary-btn" 
+                                                data-conv-id="{{ conv.conv_id }}"
+                                                data-summary="{{ conv.summary or '' }}"
+                                                title="查看摘要">
+                                            <i class="bi bi-file-text"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success generate-summary-btn" 
+                                                data-conv-id="{{ conv.conv_id }}"
+                                                title="生成摘要">
+                                            <i class="bi bi-magic"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if total_pages > 1 %}
+                <nav aria-label="对话分页">
+                    <ul class="pagination justify-content-center">
+                        {% if page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('conversations', page=page-1, search=search) }}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ p }}</span>
+                                </li>
+                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('conversations', page=p, search=search) }}">{{ p }}</a>
+                                </li>
+                            {% elif p == 4 or p == total_pages - 3 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page < total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('conversations', page=page+1, search=search) }}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 对话摘要模态框 -->
+<div class="modal fade" id="summaryModal" tabindex="-1" aria-labelledby="summaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="summaryModalLabel">
+                    <i class="bi bi-file-text"></i> 对话摘要
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="summaryContent">
+                <!-- 摘要内容将在这里显示 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showConversationSummary(convId, summary) {
+    const modal = new bootstrap.Modal(document.getElementById('summaryModal'));
+    const content = document.getElementById('summaryContent');
+    
+    document.getElementById('summaryModalLabel').innerHTML = 
+        `<i class="bi bi-file-text"></i> 对话摘要 - ID: ${convId}`;
+    
+    if (summary && summary.trim()) {
+        content.innerHTML = `
+            <div class="card">
+                <div class="card-body">
+                    <p class="card-text">${summary}</p>
+                </div>
+            </div>
+        `;
+    } else {
+        content.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> 该对话暂无摘要信息
+            </div>
+        `;
+    }
+    
+    modal.show();
+}
+
+// 用户信息缓存
+const userInfoCache = {};
+
+// 获取用户信息
+async function fetchUserInfo(userId) {
+    if (userInfoCache[userId]) {
+        return userInfoCache[userId];
+    }
+    
+    try {
+        // 设置3秒超时的fetch请求
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const response = await fetch(`/api/user/${userId}`, {
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+            const userInfo = await response.json();
+            userInfoCache[userId] = userInfo;
+            return userInfo;
+        } else {
+            console.warn(`获取用户${userId}信息失败: HTTP ${response.status}`);
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            console.warn(`获取用户${userId}信息超时`);
+        } else {
+            console.error(`获取用户${userId}信息失败:`, error);
+        }
+    }
+    return null;
+}
+
+// 显示用户信息浮动框
+function showUserInfoTooltip(element, userInfo) {
+    // 移除已存在的浮动框
+    const existingTooltip = document.querySelector('.user-info-tooltip');
+    if (existingTooltip) {
+        existingTooltip.remove();
+    }
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'user-info-tooltip';
+    tooltip.style.cssText = `
+        position: absolute;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        max-width: 300px;
+        font-size: 14px;
+        line-height: 1.4;
+    `;
+    
+    const config = userInfo.config || {};
+    tooltip.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 8px; color: #333;">用户信息</div>
+        <div><strong>用户ID:</strong> ${userInfo.user.uid}</div>
+        <div><strong>姓名:</strong> ${userInfo.user.first_name || ''} ${userInfo.user.last_name || ''}</div>
+        <div><strong>用户名:</strong> ${userInfo.user.user_name || '未设置'}</div>
+        <div><strong>昵称:</strong> ${config.nick || '未设置'}</div>
+        <div><strong>角色:</strong> ${config.char || '未设置'}</div>
+        <div><strong>预设:</strong> ${config.preset || '默认'}</div>
+        <div><strong>对话数:</strong> ${userInfo.user.conversations || 0}</div>
+        <div><strong>对话轮数:</strong> ${userInfo.user.dialog_turns || 0}</div>
+        <div><strong>创建时间:</strong> ${new Date(userInfo.user.create_at).toLocaleString()}</div>
+    `;
+    
+    document.body.appendChild(tooltip);
+    
+    // 定位浮动框
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = (rect.left + window.scrollX) + 'px';
+    tooltip.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+    
+    // 确保浮动框不超出屏幕
+    const tooltipRect = tooltip.getBoundingClientRect();
+    if (tooltipRect.right > window.innerWidth) {
+        tooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
+    }
+    if (tooltipRect.bottom > window.innerHeight) {
+        tooltip.style.top = (rect.top + window.scrollY - tooltipRect.height - 5) + 'px';
+    }
+}
+
+// 隐藏用户信息浮动框
+function hideUserInfoTooltip() {
+    const tooltip = document.querySelector('.user-info-tooltip');
+    if (tooltip) {
+        tooltip.remove();
+    }
+}
+
+// 生成摘要
+async function generateSummary(convId, button) {
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch('/api/generate_summary', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ conversation_id: convId })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                // 刷新页面以显示新的摘要
+                location.reload();
+            } else {
+                alert('生成摘要失败: ' + (result.error || '未知错误'));
+            }
+        } else {
+            alert('生成摘要失败: 服务器错误');
+        }
+    } catch (error) {
+        console.error('生成摘要失败:', error);
+        alert('生成摘要失败: 网络错误');
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 生成摘要按钮事件
+    const generateButtons = document.querySelectorAll('.generate-summary-btn');
+    generateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const convId = this.getAttribute('data-conv-id');
+            generateSummary(convId, this);
+        });
+    });
+    
+    // 用户信息触发器事件
+    const userTriggers = document.querySelectorAll('.user-info-trigger');
+    userTriggers.forEach(trigger => {
+        let hoverTimeout;
+        
+        trigger.addEventListener('mouseenter', async function() {
+            const userId = this.getAttribute('data-user-id');
+            
+            hoverTimeout = setTimeout(async () => {
+                const userInfo = await fetchUserInfo(userId);
+                if (userInfo) {
+                    showUserInfoTooltip(this, userInfo);
+                }
+            }, 300); // 300ms延迟显示
+        });
+        
+        trigger.addEventListener('mouseleave', function() {
+            clearTimeout(hoverTimeout);
+            setTimeout(hideUserInfoTooltip, 200); // 200ms延迟隐藏
+        });
+    });
+    
+    // 点击其他地方隐藏浮动框
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.user-info-trigger') && !e.target.closest('.user-info-tooltip')) {
+            hideUserInfoTooltip();
+        }
+    });
+    
+    // 用户名现在直接从数据库获取，不需要异步加载
+});
+
+// loadUserName函数已删除，用户名现在直接从数据库获取
+
+// 自动提交搜索表单
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="user_id"]');
+    if (searchInput) {
+        let timeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                if (this.value.length >= 3 || this.value.length === 0) {
+                    this.form.submit();
+                }
+            }, 500);
+        });
+    }
+});
+</script>
+{% endblock %}

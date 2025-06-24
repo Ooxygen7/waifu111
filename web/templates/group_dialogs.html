@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block title %}群组对话 - CyberWaifu Bot 后台管理系统{% endblock %}
+
+{% block page_title %}群组对话{% endblock %}
+
+{% block content %}
+<!-- 群组信息卡片 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="bi bi-collection"></i> 群组信息 - {{ group.group_name or '未命名群组' }}
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td><strong>群组ID:</strong></td>
+                                <td><span class="badge bg-primary">{{ group.group_id }}</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>调用次数:</strong></td>
+                                <td><span class="badge bg-success">{{ group.call_count or 0 }}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-3">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td><strong>角色:</strong></td>
+                                <td><span class="badge bg-info">{{ group.char or '未设置' }}</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>预设:</strong></td>
+                                <td><span class="badge bg-warning text-dark">{{ group.preset or '默认' }}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-3">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td><strong>状态:</strong></td>
+                                <td>
+                                    {% if group.active %}
+                                        <span class="badge bg-success">活跃</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">非活跃</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>评分:</strong></td>
+                                <td>
+                                    {% if group.rate %}
+                                        {% set rate_value = group.rate * 100 %}
+                                        {% if rate_value >= 80 %}
+                                            <span class="badge bg-success">{{ "%.1f" | format(rate_value) }}%</span>
+                                        {% elif rate_value >= 60 %}
+                                            <span class="badge bg-warning text-dark">{{ "%.1f" | format(rate_value) }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ "%.1f" | format(rate_value) }}%</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary">未评分</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-3">
+                        <table class="table table-borderless table-sm">
+                            <tr>
+                                <td><strong>输入Token:</strong></td>
+                                <td><span class="text-primary">{{ "{:,}".format(group.input_token or 0) }}</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>输出Token:</strong></td>
+                                <td><span class="text-success">{{ "{:,}".format(group.output_token or 0) }}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 群组对话消息 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="bi bi-chat-dots"></i> 
+                        {% if search %}
+                            群组对话记录 - 搜索结果 "{{ search }}" (第 {{ page }} 页，共 {{ total_pages }} 页)
+                        {% else %}
+                            群组对话记录 (第 {{ page }} 页，共 {{ total_pages }} 页)
+                        {% endif %}
+                    </h6>
+                    <div>
+                        <button class="btn btn-light btn-sm" onclick="location.reload()">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新
+                        </button>
+                        <a href="{{ url_for('groups') }}" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-arrow-left"></i> 返回群组列表
+                        </a>
+                    </div>
+                </div>
+                <!-- 搜索框 -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <form method="GET" action="{{ url_for('group_dialogs', group_id=group.group_id) }}" class="d-flex">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-light">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" name="search" placeholder="搜索用户消息内容..." value="{{ search or '' }}">
+                                <button class="btn btn-success" type="submit">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                                <a href="{{ url_for('group_dialogs', group_id=group.group_id) }}" class="btn btn-outline-light">
+                                    <i class="bi bi-x-circle"></i>
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if dialogs %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 80px;">消息ID</th>
+                                <th style="width: 100px;">用户</th>
+                                <th style="width: 120px;">触发类型</th>
+                                <th>用户消息</th>
+                                <th>AI回复</th>
+                                <th style="width: 120px;">时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dialog in dialogs %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ dialog.msg_id or 'N/A' }}</span></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center text-white me-2" 
+                                             style="width: 30px; height: 30px; font-size: 12px;">
+                                            {{ dialog.msg_user_name[0] if dialog.msg_user_name else 'U' }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold" style="font-size: 12px;">{{ dialog.msg_user_name or '未知用户' }}</div>
+                                            <small class="text-muted">ID: {{ dialog.msg_user or 'N/A' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if dialog.trigger_type == 'mention' %}
+                                        <span class="badge bg-warning text-dark">@提及</span>
+                                    {% elif dialog.trigger_type == 'reply' %}
+                                        <span class="badge bg-info">回复</span>
+                                    {% elif dialog.trigger_type == 'keyword' %}
+                                        <span class="badge bg-success">关键词</span>
+                                    {% elif dialog.trigger_type == 'random' %}
+                                        <span class="badge bg-secondary">随机</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">{{ dialog.trigger_type or '未知' }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="message-content">
+                                        {% if dialog.msg_text %}
+                                            <div class="border rounded p-2 bg-light" style="max-height: 100px; overflow-y: auto;">
+                                                <small style="white-space: pre-wrap;">{{ dialog.msg_text }}</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">无消息内容</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="response-content">
+                                        {% if dialog.processed_response %}
+                                            <div class="border rounded p-2 bg-success bg-opacity-10" style="max-height: 100px; overflow-y: auto;">
+                                                <small style="white-space: pre-wrap;">{{ dialog.processed_response }}</small>
+                                            </div>
+                                            {% if dialog.raw_response and dialog.raw_response != dialog.processed_response %}
+                                            <button class="btn btn-sm btn-outline-secondary mt-1" 
+                                                    onclick="showRawResponse('{{ dialog.msg_id }}', {{ dialog.raw_response|tojson }})">
+                                                <i class="bi bi-eye"></i> 查看原始回复
+                                            </button>
+                                            {% endif %}
+                                        {% elif dialog.raw_response %}
+                                            <div class="border rounded p-2 bg-info bg-opacity-10" style="max-height: 100px; overflow-y: auto;">
+                                                <small style="white-space: pre-wrap;">{{ dialog.raw_response }}</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">无回复内容</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td><small class="text-muted">{{ format_datetime(dialog.create_at) }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if total_pages > 1 %}
+                <div class="p-3">
+                    <nav aria-label="群组对话分页">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if page > 1 %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('group_dialogs', group_id=group.group_id, page=page-1, search=search) }}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for p in range(1, total_pages + 1) %}
+                                {% if p == page %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ p }}</span>
+                                    </li>
+                                {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('group_dialogs', group_id=group.group_id, page=p, search=search) }}">{{ p }}</a>
+                                    </li>
+                                {% elif p == 4 or p == total_pages - 3 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page < total_pages %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('group_dialogs', group_id=group.group_id, page=page+1, search=search) }}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-chat-dots text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="text-muted mt-3">暂无群组对话</h5>
+                    <p class="text-muted">该群组还没有任何对话记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 原始回复模态框 -->
+<div class="modal fade" id="rawResponseModal" tabindex="-1" aria-labelledby="rawResponseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="rawResponseModalLabel">
+                    <i class="bi bi-file-text"></i> 原始回复内容
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="rawResponseContent">
+                <!-- 原始回复内容将在这里显示 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showRawResponse(msgId, rawResponse) {
+    const modal = new bootstrap.Modal(document.getElementById('rawResponseModal'));
+    const content = document.getElementById('rawResponseContent');
+    
+    document.getElementById('rawResponseModalLabel').innerHTML = 
+        `<i class="bi bi-file-text"></i> 原始回复内容 - 消息ID: ${msgId}`;
+    
+    // 安全地处理rawResponse，防止XSS
+    const safeResponse = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse);
+    content.innerHTML = `
+        <div class="card">
+            <div class="card-body">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">${safeResponse.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+}
+
+// 搜索功能已改为后端全局搜索，无需前端JavaScript处理
+
+// 消息内容展开/收起功能
+document.addEventListener('DOMContentLoaded', function() {
+    const messageContents = document.querySelectorAll('.message-content div, .response-content div');
+    messageContents.forEach(div => {
+        if (div.scrollHeight > 100) {
+            div.style.cursor = 'pointer';
+            div.title = '点击展开/收起';
+            
+            div.addEventListener('click', function() {
+                if (this.style.maxHeight === '100px') {
+                    this.style.maxHeight = 'none';
+                    this.style.overflowY = 'visible';
+                } else {
+                    this.style.maxHeight = '100px';
+                    this.style.overflowY = 'auto';
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

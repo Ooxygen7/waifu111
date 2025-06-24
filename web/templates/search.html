@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block title %}全局搜索 - CyberWaifu Bot 后台管理系统{% endblock %}
+
+{% block page_title %}全局搜索{% endblock %}
+
+{% block content %}
+<!-- 搜索表单 -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-search"></i> 全局数据搜索</h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('search') }}">
+                    <div class="row">
+                        <div class="col-md-10">
+                            <div class="mb-3">
+                                <label for="searchQuery" class="form-label">搜索关键词</label>
+                                <input type="text" class="form-control search-box" id="searchQuery" 
+                                       name="q" value="{{ query }}" placeholder="输入关键词搜索用户、群组、对话记录等..." required>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-search"></i> 搜索
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 搜索结果 -->
+{% if query %}
+    {% set total_results = (results.dialogs|length) + (results.users|length) + (results.groups|length) + (results.conversations|length) %}
+    
+    <!-- 搜索结果统计 -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> 
+                搜索关键词 "<strong>{{ query }}</strong>" 共找到 <strong>{{ total_results }}</strong> 条结果
+                {% if total_results > 0 %}
+                    （对话消息 {{ results.dialogs|length }} 条，用户 {{ results.users|length }} 个，群组 {{ results.groups|length }} 个，对话记录 {{ results.conversations|length }} 条）
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    {% if total_results > 0 %}
+        <!-- 对话消息结果 -->
+        {% if results.dialogs %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="m-0 font-weight-bold">
+                            <i class="bi bi-chat-dots"></i> 对话消息 ({{ results.dialogs|length }} 条)
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>对话ID</th>
+                                        <th>用户ID</th>
+                                        <th>角色</th>
+                                        <th>消息内容</th>
+                                        <th>轮次</th>
+                                        <th>时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for dialog in results.dialogs %}
+                                    <tr>
+                                        <td><span class="badge bg-primary">{{ dialog.conv_id }}</span></td>
+                                        <td><span class="badge bg-secondary">{{ dialog.user_id or '未知' }}</span></td>
+                                        <td>
+                                            {% if dialog.role == 'user' %}
+                                                <span class="badge bg-info"><i class="bi bi-person"></i> 用户</span>
+                                            {% else %}
+                                                <span class="badge bg-success"><i class="bi bi-robot"></i> AI</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 400px;">
+                                                {{ dialog.raw_content|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                            </div>
+                                        </td>
+                                        <td><span class="badge bg-secondary">{{ dialog.turn_order }}</span></td>
+                                        <td><small class="text-muted">{{ format_datetime(dialog.created_at) }}</small></td>
+                                        <td>
+                                            <a href="{{ url_for('dialogs', conv_id=dialog.conv_id) }}" 
+                                               class="btn btn-sm btn-outline-primary" title="查看完整对话">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 用户信息结果 -->
+        {% if results.users %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="m-0 font-weight-bold">
+                            <i class="bi bi-people"></i> 用户信息 ({{ results.users|length }} 个)
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>用户ID</th>
+                                        <th>用户名</th>
+                                        <th>姓名</th>
+                                        <th>对话数</th>
+                                        <th>消息轮次</th>
+                                        <th>注册时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in results.users %}
+                                    <tr>
+                                        <td><span class="badge bg-secondary">{{ user.uid }}</span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center text-white me-2">
+                                                    {{ user.user_name[0] if user.user_name else 'U' }}
+                                                </div>
+                                                <div>
+                                                    {{ (user.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ ((user.first_name or '') + ' ' + (user.last_name or ''))|replace(query, '<mark>' + query + '</mark>')|safe }}</td>
+                                        <td><span class="badge bg-info">{{ user.conversations or 0 }}</span></td>
+                                        <td><span class="badge bg-success">{{ user.dialog_turns or 0 }}</span></td>
+                                        <td><small class="text-muted">{{ format_datetime(user.create_at) }}</small></td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{{ url_for('conversations', search=user.uid) }}" 
+                                                   class="btn btn-outline-primary" title="查看对话">
+                                                    <i class="bi bi-chat-dots"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 群组信息结果 -->
+        {% if results.groups %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="m-0 font-weight-bold">
+                            <i class="bi bi-collection"></i> 群组信息 ({{ results.groups|length }} 个)
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>群组ID</th>
+                                        <th>群组名称</th>
+                                        <th>对话数</th>
+                                        <th>调用次数</th>
+                                        <th>角色</th>
+                                        <th>状态</th>
+                                        <th>更新时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for group in results.groups %}
+                                    <tr>
+                                        <td><span class="badge bg-primary">{{ group.group_id }}</span></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm bg-warning rounded-circle d-flex align-items-center justify-content-center text-dark me-2">
+                                                    <i class="bi bi-collection"></i>
+                                                </div>
+                                                <div>
+                                                    {{ (group.group_name or '未命名群组')|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge bg-info">{{ group.dialog_count or 0 }}</span></td>
+                                        <td><span class="badge bg-success">{{ group.call_count or 0 }}</span></td>
+                                        <td><span class="badge bg-info">{{ group.char or '未设置' }}</span></td>
+                                        <td>
+                                            {% if group.active %}
+                                                <span class="badge bg-success">活跃</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">非活跃</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><small class="text-muted">{{ format_datetime(group.update_time) }}</small></td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="{{ url_for('group_dialogs', group_id=group.group_id) }}" 
+                                                   class="btn btn-outline-primary" title="查看群组对话">
+                                                    <i class="bi bi-chat-dots"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 对话记录结果 -->
+        {% if results.conversations %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="m-0 font-weight-bold">
+                            <i class="bi bi-chat-square-text"></i> 对话记录 ({{ results.conversations|length }} 条)
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>对话ID</th>
+                                        <th>用户ID</th>
+                                        <th>用户名</th>
+                                        <th>用户姓名</th>
+                                        <th>角色</th>
+                                        <th>预设</th>
+                                        <th>对话轮数</th>
+                                        <th>摘要</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for conv in results.conversations %}
+                                    <tr>
+                                        <td><span class="badge bg-primary">{{ conv.conv_id }}</span></td>
+                                        <td><span class="badge bg-secondary">{{ conv.user_id }}</span></td>
+                                        <td>{{ (conv.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</td>
+                                        <td>
+                                            {% if conv.first_name or conv.last_name %}
+                                                {{ ((conv.first_name or '') + ' ' + (conv.last_name or ''))|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                            {% else %}
+                                                <span class="text-muted">未设置</span>
+                                            {% endif %}
+                                        </td>
+                                        <td><span class="badge bg-info">{{ (conv.character or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</span></td>
+                                        <td><span class="badge bg-warning text-dark">{{ (conv.preset or '默认')|replace(query, '<mark>' + query + '</mark>')|safe }}</span></td>
+                                        <td><span class="badge bg-success">{{ conv.turns or 0 }}</span></td>
+                                        <td>
+                                            {% if conv.summary %}
+                                                <div class="text-truncate" style="max-width: 200px;" title="{{ conv.summary }}">
+                                                    {{ conv.summary|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">无摘要</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('dialogs', conv_id=conv.conv_id) }}" 
+                                               class="btn btn-sm btn-outline-primary" title="查看对话详情">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        <!-- 无搜索结果 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-search text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted mt-3">未找到相关结果</h5>
+                        <p class="text-muted">请尝试使用其他关键词进行搜索</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% else %}
+<!-- 搜索提示 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
+                <h4 class="text-muted mt-3">全局搜索</h4>
+                <p class="text-muted mb-4">输入关键词搜索用户、群组、对话记录和消息内容</p>
+                
+                <!-- 搜索功能介绍 -->
+                <div class="row justify-content-center">
+                    <div class="col-md-10">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-chat-dots text-primary" style="font-size: 2rem;"></i>
+                                        <h6 class="mt-2">对话消息</h6>
+                                        <small class="text-muted">搜索对话内容和AI回复</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card border-success">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-people text-success" style="font-size: 2rem;"></i>
+                                        <h6 class="mt-2">用户信息</h6>
+                                        <small class="text-muted">搜索用户ID、用户名和姓名</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card border-warning">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-collection text-warning" style="font-size: 2rem;"></i>
+                                        <h6 class="mt-2">群组信息</h6>
+                                        <small class="text-muted">搜索群组ID和群组名称</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card border-secondary">
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-chat-square-text text-secondary" style="font-size: 2rem;"></i>
+                                        <h6 class="mt-2">对话记录</h6>
+                                        <small class="text-muted">搜索角色、预设和摘要</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 搜索技巧 -->
+                <div class="mt-4">
+                    <h6 class="text-primary">搜索特性</h6>
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled text-start">
+                                        <li><i class="bi bi-check-circle text-success"></i> 全局模糊搜索，一次搜索所有数据</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> 搜索结果按类型分类展示</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> 搜索结果会高亮显示关键词</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <ul class="list-unstyled text-start">
+                                        <li><i class="bi bi-check-circle text-success"></i> 每个类型最多显示50条结果</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> 支持搜索用户ID、群组ID等数字</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> 可以点击结果查看详细信息</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 自动聚焦搜索框
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchQuery');
+    if (searchInput && !searchInput.value) {
+        searchInput.focus();
+    }
+});
+
+// 搜索表单增强
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const searchInput = document.getElementById('searchQuery');
+    
+    // 回车键搜索
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            form.submit();
+        }
+    });
+    
+    // 清空搜索
+    if (searchInput.value) {
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'btn btn-outline-secondary btn-sm ms-2';
+        clearBtn.innerHTML = '<i class="bi bi-x-circle"></i> 清空';
+        clearBtn.onclick = function() {
+            searchInput.value = '';
+            window.location.href = '{{ url_for("search") }}';
+        };
+        searchInput.parentNode.appendChild(clearBtn);
+    }
+});
+</script>
+{% endblock %}

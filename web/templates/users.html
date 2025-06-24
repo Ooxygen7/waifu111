@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - CyberWaifu Bot 后台管理系统{% endblock %}
+
+
+
+{% block page_title %}用户管理{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-people"></i> 用户列表</h6>
+                <div class="d-flex">
+                    <form method="GET" class="d-inline-flex me-2">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="搜索用户..." value="{{ search_term }}">
+                        <button type="submit" class="btn btn-light btn-sm ms-1"><i class="bi bi-search"></i></button>
+                        {% if search_term %}
+                        <a href="{{ url_for('users') }}" class="btn btn-outline-light btn-sm ms-1"><i class="bi bi-x"></i></a>
+                        {% endif %}
+                    </form>
+                    <button class="btn btn-light btn-sm" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 用户表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th><a href="{{ url_for('users', sort_by='uid', sort_order=next_sort_order('uid')) }}">用户ID</a></th>
+                                <th><a href="{{ url_for('users', sort_by='user_name', sort_order=next_sort_order('user_name')) }}">用户名</a></th>
+                                <th><a href="{{ url_for('users', sort_by='first_name', sort_order=next_sort_order('first_name')) }}">姓名</a></th>
+                                <th><a href="{{ url_for('users', sort_by='conversations', sort_order=next_sort_order('conversations')) }}">对话数</a></th>
+                                <th><a href="{{ url_for('users', sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}">对话轮数</a></th>
+                                <th><a href="{{ url_for('users', sort_by='input_tokens', sort_order=next_sort_order('input_tokens')) }}">输入Token</a></th>
+                                <th><a href="{{ url_for('users', sort_by='output_tokens', sort_order=next_sort_order('output_tokens')) }}">输出Token</a></th>
+                                <th><a href="{{ url_for('users', sort_by='account_tier', sort_order=next_sort_order('account_tier')) }}">账户等级</a></th>
+                                <th><a href="{{ url_for('users', sort_by='remain_frequency', sort_order=next_sort_order('remain_frequency')) }}">剩余额度</a></th>
+                                <th><a href="{{ url_for('users', sort_by='balance', sort_order=next_sort_order('balance')) }}">余额</a></th>
+                                <th><a href="{{ url_for('users', sort_by='create_at', sort_order=next_sort_order('create_at')) }}">注册时间</a></th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ user.uid }}</span></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center text-white me-2">
+                                            {{ user.user_name[0] if user.user_name else 'U' }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ user.user_name or '未设置' }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ (user.first_name or '') + ' ' + (user.last_name or '') }}</td>
+                                <td><span class="badge bg-info">{{ user.conversations or 0 }}</span></td>
+                                <td><span class="badge bg-success">{{ user.dialog_turns or 0 }}</span></td>
+                                <td><span class="text-primary">{{ "{:,}".format((user.input_tokens or 0)|int) }}</span></td>
+                                <td><span class="text-success">{{ "{:,}".format((user.output_tokens or 0)|int) }}</span></td>
+                                <td>
+                    <span class="badge bg-info">{{ user.account_tier or 0 }}</span>
+                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ user.remain_frequency or 0 }}</span>
+                                </td>
+                                <td>
+                                    {% if user.balance %}
+                                        <span class="text-success">¥{{ "%.2f"|format(user.balance) }}</span>
+                                    {% else %}
+                                        <span class="text-muted">¥0.00</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="text-muted">{{ format_datetime(user.create_at) }}</small></td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary view-user-btn" 
+                                                data-uid="{{ user.uid }}"
+                                                title="查看详情">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning edit-user-btn" 
+                                                data-uid="{{ user.uid }}"
+                                                title="快速编辑">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <a href="{{ url_for('conversations', user_id=user.uid) }}" 
+                                           class="btn btn-outline-success" title="查看对话">
+                                            <i class="bi bi-chat-dots"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if total_pages > 1 %}
+                <nav aria-label="用户分页">
+                    <ul class="pagination justify-content-center">
+                        {% if page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('users', page=page-1) }}">
+                                    <i class="bi bi-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == page %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ p }}</span>
+                                </li>
+                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('users', page=p) }}">{{ p }}</a>
+                                </li>
+                            {% elif p == 4 or p == total_pages - 3 %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page < total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('users', page=page+1) }}">
+                                    <i class="bi bi-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 用户详情模态框 -->
+<div class="modal fade" id="userDetailModal" tabindex="-1" aria-labelledby="userDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="userDetailModalLabel">
+                    <i class="bi bi-person-circle"></i> 用户详情
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="userDetailContent">
+                <div class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 用户编辑模态框 -->
+<div class="modal fade" id="userEditModal" tabindex="-1" aria-labelledby="userEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="userEditModalLabel">
+                    <i class="bi bi-pencil-square"></i> 编辑用户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="userEditContent">
+                <form id="userEditForm">
+                    <input type="hidden" id="editUserId" name="user_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary mb-3"><i class="bi bi-person"></i> 基本信息 (users & user_config)</h6>
+                            <div class="mb-3">
+                                <label for="editUserName" class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="editUserName" name="user_name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editFirstName" class="form-label">名</label>
+                                <input type="text" class="form-control" id="editFirstName" name="first_name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editLastName" class="form-label">姓</label>
+                                <input type="text" class="form-control" id="editLastName" name="last_name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editNick" class="form-label">昵称</label>
+                                <input type="text" class="form-control" id="editNick" name="nick">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="text-success mb-3"><i class="bi bi-gear"></i> 账户设置 (users)</h6>
+                            <div class="mb-3">
+                                <label for="editAccountTier" class="form-label">账户等级</label>
+                                <input type="number" class="form-control" id="editAccountTier" name="account_tier">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editRemainFrequency" class="form-label">剩余额度</label>
+                                <input type="number" class="form-control" id="editRemainFrequency" name="remain_frequency">
+                            </div>
+                            <div class="mb-3">
+                                <label for="editBalance" class="form-label">余额</label>
+                                <input type="number" step="0.01" class="form-control" id="editBalance" name="balance">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="text-info mb-3"><i class="bi bi-sliders"></i> 配置信息 (user_config)</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editChar" class="form-label">角色 (char)</label>
+                                        <input type="text" class="form-control" id="editChar" name="char">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="editPreset" class="form-label">预设 (preset)</label>
+                                        <input type="text" class="form-control" id="editPreset" name="preset">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editApi" class="form-label">API (api)</label>
+                                        <input type="text" class="form-control" id="editApi" name="api">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="editStream" class="form-label">流式传输 (stream)</label>
+                                        <input type="text" class="form-control" id="editStream" name="stream">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" onclick="saveUserChanges()">保存更改</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function viewUserDetail(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('userDetailModal'));
+    const content = document.getElementById('userDetailContent');
+    
+    // 显示加载状态
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // 获取用户详情
+    fetch(`/api/user/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                content.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                return;
+            }
+            
+            const user = data.user;
+            const config = data.config;
+            
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary"><i class="bi bi-person"></i> 基本信息</h6>
+                        <table class="table table-borderless table-sm">
+                            <tr><td><strong>用户ID:</strong></td><td>${user.uid}</td></tr>
+                            <tr><td><strong>用户名:</strong></td><td>${user.user_name || '未设置'}</td></tr>
+                            <tr><td><strong>姓名:</strong></td><td>${(user.first_name || '') + ' ' + (user.last_name || '')}</td></tr>
+                            <tr><td><strong>注册时间:</strong></td><td>${user.create_at || '未知'}</td></tr>
+                            <tr><td><strong>最后更新:</strong></td><td>${user.update_at || '未知'}</td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="bi bi-bar-chart"></i> 使用统计</h6>
+                        <table class="table table-borderless table-sm">
+                            <tr><td><strong>对话数:</strong></td><td><span class="badge bg-info">${data.conversations_count || 0}</span></td></tr>
+                            <tr><td><strong>输入Token:</strong></td><td><span class="text-primary">${(user.input_tokens || 0).toLocaleString()}</span></td></tr>
+                            <tr><td><strong>输出Token:</strong></td><td><span class="text-success">${(user.output_tokens || 0).toLocaleString()}</span></td></tr>
+                            <tr><td><strong>剩余次数:</strong></td><td><span class="badge bg-warning">${user.remain_frequency || 0}</span></td></tr>
+                        </table>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-warning"><i class="bi bi-gear"></i> 账户信息</h6>
+                        <table class="table table-borderless table-sm">
+                            <tr><td><strong>账户等级:</strong></td><td>
+                                ${user.account_tier == 1 ? '<span class="badge bg-warning">VIP</span>' : 
+                                  user.account_tier == 2 ? '<span class="badge bg-danger">SVIP</span>' : 
+                                  '<span class="badge bg-secondary">普通</span>'}
+                            </td></tr>
+                            <tr><td><strong>余额:</strong></td><td>
+                                ${user.balance ? '<span class="text-success">¥' + user.balance.toFixed(2) + '</span>' : '<span class="text-muted">¥0.00</span>'}
+                            </td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-info"><i class="bi bi-sliders"></i> 配置信息</h6>
+                        <table class="table table-borderless table-sm">
+                            <tr><td><strong>角色:</strong></td><td>${config?.character || '未设置'}</td></tr>
+                            <tr><td><strong>预设:</strong></td><td>${config?.preset || '未设置'}</td></tr>
+                            <tr><td><strong>API密钥:</strong></td><td>${config?.api_key ? '已设置' : '未设置'}</td></tr>
+                            <tr><td><strong>模型:</strong></td><td>${config?.model || '未设置'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="/conversations?user_id=${user.uid}" class="btn btn-primary">
+                        <i class="bi bi-chat-dots"></i> 查看对话记录
+                    </a>
+                </div>
+            `;
+        })
+        .catch(error => {
+            content.innerHTML = `<div class="alert alert-danger">加载失败: ${error.message}</div>`;
+        });
+}
+
+function editUser(userId) {
+    const modal = new bootstrap.Modal(document.getElementById('userEditModal'));
+    
+    // 获取用户详情并填充表单
+    fetch(`/api/user/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('加载用户信息失败: ' + data.error);
+                return;
+            }
+            
+            const user = data.user;
+            const config = data.config || {};
+            
+            // 填充表单
+            document.getElementById('editUserId').value = user.uid;
+            document.getElementById('editUserName').value = user.user_name || '';
+            document.getElementById('editFirstName').value = user.first_name || '';
+            document.getElementById('editLastName').value = user.last_name || '';
+            document.getElementById('editAccountTier').value = user.account_tier || 0;
+            document.getElementById('editRemainFrequency').value = user.remain_frequency || 0;
+            document.getElementById('editBalance').value = user.balance || 0;
+
+            document.getElementById('editNick').value = config.nick || '';
+            document.getElementById('editChar').value = config.char || '';
+            document.getElementById('editPreset').value = config.preset || '';
+            document.getElementById('editApi').value = config.api || '';
+            document.getElementById('editStream').value = config.stream || '';
+            
+            modal.show();
+        })
+        .catch(error => {
+            alert('加载用户信息失败: ' + error.message);
+        });
+}
+
+function saveUserChanges() {
+    const form = document.getElementById('userEditForm');
+    const formData = new FormData(form);
+    const userId = formData.get('user_id');
+    
+    const userData = {
+        user_name: formData.get('user_name'),
+        first_name: formData.get('first_name'),
+        last_name: formData.get('last_name'),
+        account_tier: parseInt(formData.get('account_tier')),
+        remain_frequency: parseInt(formData.get('remain_frequency')),
+        balance: parseFloat(formData.get('balance')),
+        
+        nick: formData.get('nick'),
+        char: formData.get('char'),
+        preset: formData.get('preset'),
+        api: formData.get('api'),
+        stream: formData.get('stream')
+    };
+    
+    fetch(`/api/user/${userId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('用户信息更新成功！');
+            bootstrap.Modal.getInstance(document.getElementById('userEditModal')).hide();
+            location.reload(); // 刷新页面以显示更新后的数据
+        } else {
+            alert('更新失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        alert('更新失败: ' + error.message);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.view-user-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-uid');
+            viewUserDetail(userId);
+        });
+    });
+
+    document.querySelectorAll('.edit-user-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-uid');
+            editUser(userId);
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -240,7 +240,7 @@ class LLM:
                 client = LLM(DEFAULT_API, 'private')
                 client.build_conv_messages(conversation_id)
                 client.messages.append(
-                    {"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字\r\n"})
+                    {"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字。对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"})
                 return await client.final_response()
 
             except Exception as e:

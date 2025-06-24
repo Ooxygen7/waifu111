@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+
+{% block title %}群组管理 - CyberWaifu Bot 后台管理系统{% endblock %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.view-group-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const groupId = this.getAttribute('data-group-id');
+                viewGroupDetail(groupId);
+            });
+        });
+    });
+</script>
+
+{% block page_title %}群组管理{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold"><i class="bi bi-collection"></i> 群组列表</h6>
+                <div class="d-flex">
+                    <form method="GET" class="d-inline-flex me-2">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="搜索群组..." value="{{ search_term }}">
+                        <button type="submit" class="btn btn-dark btn-sm ms-1"><i class="bi bi-search"></i></button>
+                        {% if search_term %}
+                        <a href="{{ url_for('groups') }}" class="btn btn-outline-dark btn-sm ms-1"><i class="bi bi-x"></i></a>
+                        {% endif %}
+                    </form>
+                    <button class="btn btn-dark btn-sm" onclick="location.reload()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" id="groups-data" data-groups='{{ groups|tojson|safe }}'>
+                <!-- 群组表格 -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='group_id', sort_order=next_sort_order('group_id'), search=search_term) }}" class="text-white text-decoration-none">
+                                    群组ID
+                                    {% if sort_by == 'group_id' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='group_name', sort_order=next_sort_order('group_name'), search=search_term) }}" class="text-white text-decoration-none">
+                                    群组名称
+                                    {% if sort_by == 'group_name' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>成员列表</th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='call_count', sort_order=next_sort_order('call_count'), search=search_term) }}" class="text-white text-decoration-none">
+                                    调用次数
+                                    {% if sort_by == 'call_count' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='char', sort_order=next_sort_order('char'), search=search_term) }}" class="text-white text-decoration-none">
+                                    角色
+                                    {% if sort_by == 'char' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='api', sort_order=next_sort_order('api'), search=search_term) }}" class="text-white text-decoration-none">
+                                    API
+                                    {% if sort_by == 'api' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='preset', sort_order=next_sort_order('preset'), search=search_term) }}" class="text-white text-decoration-none">
+                                    预设
+                                    {% if sort_by == 'preset' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='rate', sort_order=next_sort_order('rate'), search=search_term) }}" class="text-white text-decoration-none">
+                                    触发几率
+                                    {% if sort_by == 'rate' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>Token使用</th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='active', sort_order=next_sort_order('active'), search=search_term) }}" class="text-white text-decoration-none">
+                                    状态
+                                    {% if sort_by == 'active' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('groups', sort_by='update_time', sort_order=next_sort_order('update_time'), search=search_term) }}" class="text-white text-decoration-none">
+                                    更新时间
+                                    {% if sort_by == 'update_time' %}
+                                        <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                        <tbody>
+                            {% for group in groups %}
+                            <tr>
+                                <td><span class="badge bg-primary">{{ group.group_id }}</span></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-warning rounded-circle d-flex align-items-center justify-content-center text-dark me-2">
+                                            <i class="bi bi-collection"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ group.group_name or '未命名群组' }}</div>
+                                            <small class="text-muted">ID: {{ group.group_id }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if group.members_list %}
+                                        <div class="text-truncate" style="max-width: 150px;" title="{{ group.members_list }}">
+                                            {{ group.members_list }}
+                                        </div>
+                                    {% else %}
+                                        <span class="text-muted">无成员</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-success">{{ group.call_count or 0 }}</span></td>
+                                <td>
+                                    <span class="badge bg-info">{{ group.char or '未设置' }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ group.api or '默认' }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-warning text-dark">{{ group.preset or '默认' }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ "%.2f"|format(group.rate or 0) }}</span>
+                                </td>
+                                <td>
+                                    <div class="text-center">
+                                        <small class="text-primary d-block">输入: {{ "{:,}".format(group.input_token or 0) }}</small>
+                                        <small class="text-success d-block">输出: {{ "{:,}".format(group.output_token or 0) }}</small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {% if group.active %}
+                                        <span class="badge bg-success">活跃</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">非活跃</span>
+                                    {% endif %}
+                                </td>
+                                <td><small class="text-muted">{{ format_datetime(group.update_time) }}</small></td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-primary view-group-btn" 
+                                                data-group-id="{{ group.group_id }}"
+                                                title="查看详情">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-warning edit-group-btn" 
+                                                data-group-id="{{ group.group_id }}"
+                                                title="编辑群组">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <a href="/group_dialogs/{{ group.group_id }}" 
+                                           class="btn btn-outline-success" title="查看对话">
+                                            <i class="bi bi-chat-dots"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if not groups %}
+                <div class="text-center py-5">
+                    <i class="bi bi-collection text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="text-muted mt-3">暂无群组数据</h5>
+                    <p class="text-muted">系统中还没有任何群组记录</p>
+                </div>
+                {% endif %}
+                
+                <!-- 分页 -->
+                {% if total_pages > 1 %}
+                <div class="d-flex justify-content-center mt-4">
+                    <nav aria-label="群组分页">
+                        <ul class="pagination">
+                            {% if page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('groups', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for p in range(1, total_pages + 1) %}
+                                {% if p == page %}
+                                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                                {% elif p >= page - 2 and p <= page + 2 %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('groups', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{ p }}</a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page < total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('groups', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 群组详情模态框 -->
+<div class="modal fade" id="groupDetailModal" tabindex="-1" aria-labelledby="groupDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="groupDetailModalLabel">
+                    <i class="bi bi-collection"></i> 群组详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="groupDetailContent">
+                <!-- 群组详情内容将在这里显示 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑群组模态框 -->
+<div class="modal fade" id="editGroupModal" tabindex="-1" aria-labelledby="editGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editGroupModalLabel">
+                    <i class="bi bi-pencil"></i> 编辑群组
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editGroupForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editGroupId" name="group_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editGroupName" class="form-label">群组名称</label>
+                                <input type="text" class="form-control" id="editGroupName" name="group_name">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editActive" class="form-label">状态</label>
+                                <select class="form-select" id="editActive" name="active">
+                                    <option value="1">活跃</option>
+                                    <option value="0">非活跃</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editChar" class="form-label">角色</label>
+                                <input type="text" class="form-control" id="editChar" name="char">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editApi" class="form-label">API</label>
+                                <input type="text" class="form-control" id="editApi" name="api">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="editPreset" class="form-label">预设</label>
+                                <input type="text" class="form-control" id="editPreset" name="preset">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editRate" class="form-label">触发几率</label>
+                        <input type="number" class="form-control" id="editRate" name="rate" step="0.01" min="0" max="1">
+                        <div class="form-text">请输入0到1之间的数值</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editMembersList" class="form-label">成员列表</label>
+                        <textarea class="form-control" id="editMembersList" name="members_list" rows="3" placeholder="用逗号分隔多个成员"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editKeywords" class="form-label">关键词</label>
+                        <textarea class="form-control" id="editKeywords" name="keywords" rows="2" placeholder="用逗号分隔多个关键词"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editDisabledTopics" class="form-label">禁用话题</label>
+                        <textarea class="form-control" id="editDisabledTopics" name="disabled_topics" rows="2" placeholder="用逗号分隔多个禁用话题"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存更改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 群组数据存储
+let groupsData = {{ groups|tojson|safe }};
+
+function viewGroupDetail(groupId) {
+    const modal = new bootstrap.Modal(document.getElementById('groupDetailModal'));
+    const content = document.getElementById('groupDetailContent');
+    
+    // 从群组数据中查找群组信息
+    const group = groupsData.find(g => g.group_id === groupId);
+    
+    if (!group) {
+        content.innerHTML = '<div class="alert alert-danger">群组信息不存在</div>';
+        modal.show();
+        return;
+    }
+    
+    document.getElementById('groupDetailModalLabel').innerHTML = 
+        `<i class="bi bi-collection"></i> 群组详情 - ${group.group_name || '未命名群组'}`;
+    
+    // 解析成员列表
+    let membersList = [];
+    if (group.members_list) {
+        membersList = group.members_list.split(',').filter(m => m.trim());
+    }
+    
+    // 解析关键词
+    let keywords = [];
+    if (group.keywords) {
+        try {
+            keywords = JSON.parse(group.keywords);
+        } catch (e) {
+            keywords = group.keywords.split(',').filter(k => k.trim());
+        }
+    }
+    
+    // 解析禁用话题
+    let disabledTopics = [];
+    if (group.disabled_topics) {
+        try {
+            disabledTopics = JSON.parse(group.disabled_topics);
+        } catch (e) {
+            disabledTopics = group.disabled_topics.split(',').filter(t => t.trim());
+        }
+    }
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-primary"><i class="bi bi-info-circle"></i> 基本信息</h6>
+                <table class="table table-borderless table-sm">
+                    <tr><td><strong>群组ID:</strong></td><td><span class="badge bg-primary">${group.group_id}</span></td></tr>
+                    <tr><td><strong>群组名称:</strong></td><td>${group.group_name || '未命名群组'}</td></tr>
+                    <tr><td><strong>成员数量:</strong></td><td><span class="badge bg-info">${membersList.length} 人</span></td></tr>
+                    <tr><td><strong>调用次数:</strong></td><td><span class="badge bg-success">${group.call_count || 0}</span></td></tr>
+                    <tr><td><strong>状态:</strong></td><td>
+                        ${group.active ? '<span class="badge bg-success">活跃</span>' : '<span class="badge bg-danger">非活跃</span>'}
+                    </td></tr>
+                    <tr><td><strong>更新时间:</strong></td><td>${group.update_time || '未知'}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-success"><i class="bi bi-gear"></i> 配置信息</h6>
+                <table class="table table-borderless table-sm">
+                    <tr><td><strong>角色:</strong></td><td><span class="badge bg-info">${group.char || '未设置'}</span></td></tr>
+                    <tr><td><strong>API:</strong></td><td><span class="badge bg-secondary">${group.api || '默认'}</span></td></tr>
+                    <tr><td><strong>预设:</strong></td><td><span class="badge bg-warning text-dark">${group.preset || '默认'}</span></td></tr>
+                    <tr><td><strong>评分:</strong></td><td>
+                        ${group.rate ? 
+                            (group.rate * 100 >= 80 ? `<span class="badge bg-success">${(group.rate * 100).toFixed(1)}%</span>` :
+                             group.rate * 100 >= 60 ? `<span class="badge bg-warning text-dark">${(group.rate * 100).toFixed(1)}%</span>` :
+                             `<span class="badge bg-danger">${(group.rate * 100).toFixed(1)}%</span>`) :
+                            '<span class="badge bg-secondary">未评分</span>'}
+                    </td></tr>
+                </table>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-warning"><i class="bi bi-bar-chart"></i> Token 使用统计</h6>
+                <table class="table table-borderless table-sm">
+                    <tr><td><strong>输入Token:</strong></td><td><span class="text-primary">${(group.input_token || 0).toLocaleString()}</span></td></tr>
+                    <tr><td><strong>输出Token:</strong></td><td><span class="text-success">${(group.output_token || 0).toLocaleString()}</span></td></tr>
+                    <tr><td><strong>总计Token:</strong></td><td><span class="text-info">${((group.input_token || 0) + (group.output_token || 0)).toLocaleString()}</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-info"><i class="bi bi-people"></i> 成员列表</h6>
+                <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                    ${membersList.length > 0 ? 
+                        membersList.map(member => `<span class="badge bg-light text-dark me-1 mb-1">${member}</span>`).join('') :
+                        '<span class="text-muted">暂无成员</span>'}
+                </div>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <h6 class="text-primary"><i class="bi bi-tags"></i> 关键词</h6>
+                <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto;">
+                    ${keywords.length > 0 ? 
+                        keywords.map(keyword => `<span class="badge bg-primary me-1 mb-1">${keyword}</span>`).join('') :
+                        '<span class="text-muted">暂无关键词</span>'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-danger"><i class="bi bi-x-circle"></i> 禁用话题</h6>
+                <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto;">
+                    ${disabledTopics.length > 0 ? 
+                        disabledTopics.map(topic => `<span class="badge bg-danger me-1 mb-1">${topic}</span>`).join('') :
+                        '<span class="text-muted">暂无禁用话题</span>'}
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <a href="/group_dialogs/${group.group_id}" class="btn btn-primary">
+                <i class="bi bi-chat-dots"></i> 查看群组对话
+            </a>
+        </div>
+    `;
+    
+    modal.show();
+}
+
+function editGroup(groupId) {
+    const modal = new bootstrap.Modal(document.getElementById('editGroupModal'));
+    const group = groupsData.find(g => g.group_id === groupId);
+    
+    if (!group) {
+        alert('群组信息不存在');
+        return;
+    }
+    
+    // 填充表单数据
+    document.getElementById('editGroupId').value = group.group_id;
+    document.getElementById('editGroupName').value = group.group_name || '';
+    document.getElementById('editActive').value = group.active ? '1' : '0';
+    document.getElementById('editChar').value = group.char || '';
+    document.getElementById('editApi').value = group.api || '';
+    document.getElementById('editPreset').value = group.preset || '';
+    document.getElementById('editRate').value = group.rate || '';
+    document.getElementById('editMembersList').value = group.members_list || '';
+    document.getElementById('editKeywords').value = group.keywords || '';
+    document.getElementById('editDisabledTopics').value = group.disabled_topics || '';
+    
+    document.getElementById('editGroupModalLabel').innerHTML = 
+        `<i class="bi bi-pencil"></i> 编辑群组 - ${group.group_name || '未命名群组'}`;
+    
+    modal.show();
+}
+
+// 事件监听器
+document.addEventListener('DOMContentLoaded', function() {
+    // 查看详情按钮
+    document.querySelectorAll('.view-group-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const groupId = parseInt(this.dataset.groupId);
+            viewGroupDetail(groupId);
+        });
+    });
+    
+    // 编辑按钮
+    document.querySelectorAll('.edit-group-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const groupId = parseInt(this.dataset.groupId);
+            editGroup(groupId);
+        });
+    });
+    
+    // 编辑表单提交
+    document.getElementById('editGroupForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const groupId = formData.get('group_id');
+        
+        fetch(`/api/groups/${groupId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(Object.fromEntries(formData))
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('群组信息更新成功！');
+                location.reload();
+            } else {
+                alert('更新失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('更新失败：网络错误');
+        });
+    });
+});
+</script>
+{% endblock %}
