@@ -130,6 +130,42 @@ class SetApiCallback(BaseCallback):
             logger.error(f"设置api失败, 错误: {str(e)}")
 
 
+class SetGroupApiCallback(BaseCallback):
+    meta = CallbackMeta(
+        name='set_group_api',
+        callback_type='group',
+        trigger='set_group_api_',
+        enabled=True
+    )
+
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+        """
+        处理群组API设置回调。
+        """
+        try:
+            # 解析回调数据：set_group_api_{api_name}_{group_id}
+            parts = data.split('_')
+            if len(parts) < 2:
+                await update.callback_query.message.edit_text("回调数据格式错误。")
+                return
+            
+            api_name = parts[0]
+            group_id = parts[1] if len(parts) > 1 else None
+            
+            if not group_id:
+                await update.callback_query.message.edit_text("群组ID缺失。")
+                return
+            
+            # 更新群组配置
+            if db.group_config_arg_update(int(group_id), 'api', api_name):
+                await update.callback_query.message.edit_text(f"群组API切换成功！当前API: {api_name}。")
+            else:
+                await update.callback_query.message.edit_text("API切换失败，请稍后重试。")
+        except Exception as e:
+            logger.error(f"设置群组API失败, 错误: {str(e)}")
+            await update.callback_query.message.edit_text("设置失败，请稍后重试。")
+
+
 class SetPresetCallback(BaseCallback):
     meta = CallbackMeta(
         name='set_preset',

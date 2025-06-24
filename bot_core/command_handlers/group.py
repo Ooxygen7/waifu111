@@ -4,6 +4,7 @@ import os
 import json
 import re
 import asyncio
+import logging
 from PIL import Image
 
 import telegram
@@ -11,7 +12,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from bot_core.callback_handlers.inline import Inline
-from utils import db_utils as db, LLM_utils as llm
+from utils import db_utils as db, LLM_utils as llm, file_utils as file
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
 from LLM_tools.tools_registry import parse_and_invoke_tool, MarketToolRegistry
@@ -190,6 +191,69 @@ class EnableTopicCommand(BaseCommand):
         except Exception as e:
             logger.error(f"处理启用话题命令失败: {str(e)}")
             await update.message.reply_text("处理启用话题命令时发生错误，请稍后重试。")
+
+
+class ApiCommand(BaseCommand):
+    meta = CommandMeta(
+        name='api',
+        command_type='group',
+        trigger='api',
+        menu_text='选择API (群组)',
+        show_in_menu=True,
+        menu_weight=21,
+        group_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        Handle the /api command to show available APIs for group (only group=0 APIs).
+        Args:
+            update: The Telegram Update object containing the user input.
+            context: The Telegram ContextTypes object for bot interaction.
+        """
+        # 获取群组信息
+        group_id = update.message.chat.id
+        
+        # 创建群组专用的 API 列表（只显示 group=0 的 API）
+        markup = self._get_group_api_list(group_id)
+        
+        if isinstance(markup, str):
+            await update.message.reply_text(markup)
+        else:
+            await update.message.reply_text("请选择一个API：", reply_markup=markup)
+        
+        # 删除命令消息
+        try:
+            await update.message.delete()
+        except Exception as e:
+            logger.warning(f"删除命令消息失败: {e}")
+    
+    def _get_group_api_list(self, group_id):
+        """
+        获取群组可用的 API 列表（只返回 group=0 的 API）
+        
+        Args:
+            group_id: 群组ID
+        """
+        try:
+            api_list = file.load_config()['api']
+            if not api_list:
+                return "没有可用的API。"
+
+            # 过滤API列表，只保留group=0的API
+            filtered_api_list = [api for api in api_list if api.get('group', 0) == 0]
+
+            if not filtered_api_list:
+                return "没有适用于群组的API。"
+
+            keyboard = [
+                [InlineKeyboardButton(api['name'], callback_data=f"set_group_api_{api['name']}_{group_id}")]
+                for api in filtered_api_list
+            ]
+            return InlineKeyboardMarkup(keyboard)
+        except Exception as e:
+            logger.error(f"获取群组API列表失败: {str(e)}")
+            return "获取API列表失败，请稍后重试。"
 
 
 class CryptoCommand(BaseCommand):

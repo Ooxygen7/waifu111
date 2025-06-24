@@ -610,6 +610,13 @@ def group_config_get(group_id: int) -> Optional[Tuple[str, str, str]]:
     return result[0] if result else False
 
 
+def group_config_arg_update(group_id: int, field: str, value: Any) -> bool:
+    """更新群组配置表中的指定字段。返回操作是否成功。"""
+    command = f"UPDATE groups SET {field} = ? WHERE group_id = ?"
+    result = revise_db(command, (value, group_id))
+    return result > 0
+
+
 def group_name_get(group_id: int) -> Optional[str]:
     command = "SELECT group_name FROM groups WHERE group_id =?"
     result = query_db(command, (group_id,))

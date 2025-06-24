@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import random
+import asyncio
 
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
@@ -10,6 +11,7 @@ from telegram.ext import ContextTypes
 from utils import db_utils as db, text_utils as txt, file_utils as file
 from utils.LLM_utils import LLM, Prompts
 from utils.logging_utils import setup_logging
+from bot_core.public_functions.error import BotError
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -213,7 +215,16 @@ class GroupConv:
         if not self.id:
             self._new()
         self.images = self._extract_images()
-        self.client = LLM(self.config.api, 'group')
+        try:
+            self.client = LLM(self.config.api, 'group')
+        except ValueError as e:
+            if "未找到名为" in str(e) and "的API配置" in str(e):
+                # API配置不存在，向用户发送友好提示
+                error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
+                asyncio.create_task(self.context.bot.send_message(self.group.id, error_msg))
+                raise BotError(f"API配置 '{self.config.api}' 不存在") from e
+            else:
+                raise e
 
     def _extract_images(self) -> list:
         """
@@ -412,7 +423,16 @@ class PrivateConv:
         # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
         self.config = Config(self.user.id)
-        self.client = LLM(self.config.api, 'private')
+        try:
+            self.client = LLM(self.config.api, 'private')
+        except ValueError as e:
+            if "未找到名为" in str(e) and "的API配置" in str(e):
+                # API配置不存在，向用户发送友好提示
+                error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
+                asyncio.create_task(self.context.bot.send_message(self.user.id, error_msg))
+                raise BotError(f"API配置 '{self.config.api}' 不存在") from e
+            else:
+                raise e
         if not self.id:
             self.new()
         # 构建 prompt
