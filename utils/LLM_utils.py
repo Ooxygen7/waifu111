@@ -28,7 +28,7 @@ class LLMClientManager:
     """
     _instance = None
     _clients: Dict[Tuple[str, str, str], openai.AsyncOpenAI] = {}  # 客户端连接池，键为(api_key, base_url, model)
-    _semaphore: asyncio.Semaphore = asyncio.Semaphore(3)  # 并发控制信号量
+    _semaphore: asyncio.Semaphore = asyncio.Semaphore(5)  # 并发控制信号量
     _lock = asyncio.Lock()  # 客户端操作锁
 
     def __new__(cls):

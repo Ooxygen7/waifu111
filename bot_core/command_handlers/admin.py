@@ -35,18 +35,32 @@ class AddFrequencyCommand(BaseCommand):
         if len(args) < 2:
             await update.message.reply_text("请以 /addf target_user_id value 的格式输入参数。")
             return
-        target_user = args[0]
-        value = int(args[1])
+        
+        try:
+            target_user = args[0]
+            value = int(args[1])
+        except ValueError:
+            await update.message.reply_text("参数格式错误，请确保额度值为有效数字。")
+            return
+            
         if target_user == 'all':
             if db.user_frequency_free(value):
                 await update.message.reply_text(f"已为所有用户添加{value}条额度")
+            else:
+                await update.message.reply_text("操作失败：无法为所有用户添加额度，请检查数据库连接。")
         else:
             if db.user_info_update(target_user, 'remain_frequency', value, True):
                 if not target_user.startswith('@'):
-                    await update.message.reply_text(
-                        f"已为{str(db.user_info_get(target_user)['user_name'])}添加{value}条额度")
+                    user_info = db.user_info_get(target_user)
+                    if user_info:
+                        await update.message.reply_text(
+                            f"已为{str(user_info['user_name'])}添加{value}条额度")
+                    else:
+                        await update.message.reply_text(f"已为用户ID {target_user}添加{value}条额度")
                 else:
                     await update.message.reply_text(f"已为{target_user}添加{value}条额度")
+            else:
+                await update.message.reply_text(f"操作失败：无法为用户 {target_user} 添加额度。可能原因：\n1. 用户不存在\n2. 数据库连接失败\n3. 参数格式错误")
 
 
 class SetTierCommand(BaseCommand):
