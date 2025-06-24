@@ -58,9 +58,35 @@ app_logger = setup_app_logging()
 from utils import db_utils as db
 from utils import LLM_utils as llm
 import asyncio
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'cyberwaifu_admin_secret_key'
+
+# 加载配置文件获取Web密码
+def get_web_password():
+    config_path = os.environ.get('CONFIG_PATH')
+    if not config_path or not os.path.exists(config_path):
+        app_logger.error("配置文件不存在")
+        return "123456"  # 默认密码
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            return config.get("WEB_PW", "123456")
+    except Exception as e:
+        app_logger.error(f"读取配置文件失败: {str(e)}")
+        return "123456"  # 默认密码
+
+# 登录验证装饰器
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login', next=request.url))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # 添加moment函数到Jinja2模板上下文
 @app.context_processor
@@ -80,7 +106,36 @@ def format_datetime(timestamp):
             return str(timestamp)
     return '未知'
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """登录页面"""
+    if 'logged_in' in session:
+        return redirect(url_for('index'))
+    
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password')
+        correct_password = get_web_password()
+        
+        if password == correct_password:
+            session['logged_in'] = True
+            next_page = request.args.get('next')
+            if next_page and next_page.startswith('/'):
+                return redirect(next_page)
+            return redirect(url_for('index'))
+        else:
+            error = '密码错误'
+    
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    """登出"""
+    session.pop('logged_in', None)
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
     """主页 - 显示统计信息"""
     # 获取统计数据
@@ -109,6 +164,7 @@ def index():
     return render_template('index.html', stats=stats)
 
 @app.route('/users')
+@login_required
 def users():
     """用户管理页面"""
     page = request.args.get('page', 1, type=int)
@@ -162,6 +218,7 @@ def users():
                          sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
 
 @app.route('/conversations')
+@login_required
 def conversations():
     """对话管理页面"""
     page = request.args.get('page', 1, type=int)
@@ -234,6 +291,7 @@ def conversations():
                          sort_by=sort_by, order=order.lower(), format_datetime=format_datetime)
 
 @app.route('/dialogs/<int:conv_id>')
+@login_required
 def dialogs(conv_id):
     """查看对话详情"""
     # 获取对话信息
@@ -266,6 +324,7 @@ def dialogs(conv_id):
                          dialogs=dialogs_list, format_datetime=format_datetime)
 
 @app.route('/groups')
+@login_required
 def groups():
     """群组管理页面"""
     page = request.args.get('page', 1, type=int)
@@ -327,6 +386,7 @@ def groups():
                          sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
 
 @app.route('/group_dialogs/<group_id>')
+@login_required
 def group_dialogs(group_id):
     # 转换group_id为整数（支持负数）
     try:
@@ -390,6 +450,7 @@ def group_dialogs(group_id):
                          page=page, total_pages=total_pages, search=search, format_datetime=format_datetime)
 
 @app.route('/api/user/<int:user_id>')
+@login_required
 def api_user_detail(user_id):
     """获取用户详细信息API"""
     user_data = db.query_db('SELECT * FROM users WHERE uid = ?', (user_id,))
@@ -419,6 +480,7 @@ def api_user_detail(user_id):
     })
 
 @app.route('/search')
+@login_required
 def search():
     """全局搜索页面"""
     query = request.args.get('q', '')
@@ -482,6 +544,7 @@ def search():
     return render_template('search.html', results=results, query=query, format_datetime=format_datetime)
 
 @app.route('/api/user/<int:user_id>/update', methods=['POST'])
+@login_required
 def api_user_update(user_id):
     """更新用户信息API"""
     try:
@@ -558,6 +621,7 @@ def api_user_update(user_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/groups/<int:group_id>', methods=['PUT'])
+@login_required
 def api_group_update(group_id):
     """更新群组信息API"""
     try:
@@ -617,11 +681,13 @@ def api_group_update(group_id):
 
 # 配置文件管理路由
 @app.route('/config')
+@login_required
 def config_management():
     """配置文件管理页面"""
     return render_template('config.html')
 
 @app.route('/api/config/list')
+@login_required
 def api_config_list():
     """获取配置文件列表"""
     try:
@@ -665,6 +731,7 @@ def api_config_list():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/read')
+@login_required
 def api_config_read():
     """读取配置文件内容"""
     try:
@@ -702,6 +769,7 @@ def api_config_read():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/save', methods=['POST'])
+@login_required
 def api_config_save():
     """保存配置文件"""
     try:
@@ -746,6 +814,7 @@ def api_config_save():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/create', methods=['POST'])
+@login_required
 def api_config_create():
     """创建新配置文件"""
     try:
@@ -786,6 +855,7 @@ def api_config_create():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/delete', methods=['POST'])
+@login_required
 def api_config_delete():
     """删除配置文件"""
     try:
@@ -821,6 +891,7 @@ def api_config_delete():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/generate_summary', methods=['POST'])
+@login_required
 def api_generate_summary():
     """生成对话摘要"""
     try:
