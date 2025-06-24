@@ -895,8 +895,22 @@ def api_config_delete():
 def api_generate_summary():
     """生成对话摘要"""
     try:
+        # 添加详细的请求日志
+        app_logger.info(f"收到生成摘要请求，Content-Type: {request.content_type}")
+        app_logger.info(f"请求数据: {request.get_data(as_text=True)}")
+        
+        # 检查Content-Type
+        if not request.is_json:
+            app_logger.error(f"请求不是JSON格式，Content-Type: {request.content_type}")
+            return jsonify({'error': '请求必须是JSON格式'}), 400
+        
         data = request.get_json()
+        if data is None:
+            app_logger.error("无法解析JSON数据")
+            return jsonify({'error': '无法解析JSON数据'}), 400
+            
         conversation_id = data.get('conversation_id')
+        app_logger.info(f"解析到的conversation_id: {conversation_id}")
         
         if not conversation_id:
             return jsonify({'error': '缺少对话ID参数'}), 400

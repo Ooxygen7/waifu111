@@ -2,10 +2,12 @@ import json
 import os
 from typing import Optional, Dict
 
-config_path = "./config/config_local.json"
-config_local = "./config/config_local.json"
-characters_path = "./characters/"
-prompt_path = "./prompts/prompts.json"
+# 获取项目根目录的绝对路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+config_path = os.path.join(project_root, "config", "config.json")
+config_local = os.path.join(project_root, "config", "config_local.json")
+characters_path = os.path.join(project_root, "characters")
+prompt_path = os.path.join(project_root, "prompts", "prompts.json")
 
 
 def load_config(config_file=config_local):
