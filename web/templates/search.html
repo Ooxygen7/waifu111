@@ -48,66 +48,185 @@
                 <i class="bi bi-info-circle"></i> 
                 搜索关键词 "<strong>{{ query }}</strong>" 共找到 <strong>{{ total_results }}</strong> 条结果
                 {% if total_results > 0 %}
-                    （对话消息 {{ results.dialogs|length }} 条，用户 {{ results.users|length }} 个，群组 {{ results.groups|length }} 个，对话记录 {{ results.conversations|length }} 条）
+                    （私聊消息 {{ results.dialogs|selectattr('type', 'equalto', 'private')|list|length }} 条，群聊消息 {{ results.dialogs|selectattr('type', 'equalto', 'group')|list|length }} 条，用户 {{ results.users|length }} 个，群组 {{ results.groups|length }} 个，对话记录 {{ results.conversations|length }} 条）
                 {% endif %}
             </div>
         </div>
     </div>
     
     {% if total_results > 0 %}
-        <!-- 对话消息结果 -->
-        {% if results.dialogs %}
+        <!-- 私聊对话消息结果 -->
+        {% if results.dialogs and results.dialogs|selectattr('type', 'equalto', 'private')|list %}
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header bg-primary text-white" data-bs-toggle="collapse" data-bs-target="#privateDialogsCollapse" aria-expanded="true" style="cursor: pointer;">
                         <h6 class="m-0 font-weight-bold">
-                            <i class="bi bi-chat-dots"></i> 对话消息 ({{ results.dialogs|length }} 条)
+                            <i class="bi bi-person-fill"></i> 私聊对话消息 ({{ results.dialogs|selectattr('type', 'equalto', 'private')|list|length }} 条)
+                            <i class="bi bi-chevron-down float-end"></i>
                         </h6>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>对话ID</th>
-                                        <th>用户ID</th>
-                                        <th>角色</th>
-                                        <th>消息内容</th>
-                                        <th>轮次</th>
-                                        <th>时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for dialog in results.dialogs %}
-                                    <tr>
-                                        <td><span class="badge bg-primary">{{ dialog.conv_id }}</span></td>
-                                        <td><span class="badge bg-secondary">{{ dialog.user_id or '未知' }}</span></td>
-                                        <td>
-                                            {% if dialog.role == 'user' %}
-                                                <span class="badge bg-info"><i class="bi bi-person"></i> 用户</span>
-                                            {% else %}
-                                                <span class="badge bg-success"><i class="bi bi-robot"></i> AI</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="text-truncate" style="max-width: 400px;">
-                                                {{ dialog.raw_content|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-secondary">{{ dialog.turn_order }}</span></td>
-                                        <td><small class="text-muted">{{ format_datetime(dialog.created_at) }}</small></td>
-                                        <td>
-                                            <a href="{{ url_for('dialogs', conv_id=dialog.conv_id) }}" 
-                                               class="btn btn-sm btn-outline-primary" title="查看完整对话">
-                                                <i class="bi bi-eye"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                    <div class="collapse show" id="privateDialogsCollapse">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>对话ID</th>
+                                            <th>角色</th>
+                                            <th>原始内容</th>
+                                            <th>处理后内容</th>
+                                            <th>轮次</th>
+                                            <th>创建时间</th>
+                                            <th>消息ID</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for dialog in results.dialogs|selectattr('type', 'equalto', 'private') %}
+                                        <tr>
+                                            <td><span class="badge bg-secondary">{{ dialog.id or '-' }}</span></td>
+                                            <td><span class="badge bg-primary">{{ dialog.conv_id }}</span></td>
+                                            <td>
+                                                {% if dialog.role == 'user' %}
+                                                    <span class="badge bg-info"><i class="bi bi-person"></i> 用户</span>
+                                                {% else %}
+                                                    <span class="badge bg-success"><i class="bi bi-robot"></i> AI</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% set raw_content = (dialog.raw_content or '')|string %}
+                                                {% if raw_content|length > 100 %}
+                                                    <div class="collapsible-text">
+                                                        <div class="text-preview">{{ (raw_content[:100] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-full collapse">{{ raw_content|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
+                                                    </div>
+                                                {% else %}
+                                                    {{ raw_content|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% set processed_content = (dialog.processed_content or '')|string %}
+                                                {% if processed_content|length > 100 %}
+                                                    <div class="collapsible-text">
+                                                        <div class="text-preview">{{ (processed_content[:100] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-full collapse">{{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
+                                                    </div>
+                                                {% else %}
+                                                    {{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                {% endif %}
+                                            </td>
+                                            <td><span class="badge bg-secondary">{{ dialog.turn_order or '-' }}</span></td>
+                                            <td><small class="text-muted">{{ format_datetime(dialog.created_at) }}</small></td>
+                                            <td><span class="badge bg-light text-dark">{{ dialog.msg_id or '-' }}</span></td>
+                                            <td>
+                                                <a href="{{ url_for('dialogs', conv_id=dialog.conv_id) }}" 
+                                                   class="btn btn-sm btn-outline-primary" title="查看完整对话">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- 群聊消息结果 -->
+        {% if results.dialogs and results.dialogs|selectattr('type', 'equalto', 'group')|list %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark" data-bs-toggle="collapse" data-bs-target="#groupDialogsCollapse" aria-expanded="true" style="cursor: pointer;">
+                        <h6 class="m-0 font-weight-bold">
+                            <i class="bi bi-people-fill"></i> 群聊消息 ({{ results.dialogs|selectattr('type', 'equalto', 'group')|list|length }} 条)
+                            <i class="bi bi-chevron-down float-end"></i>
+                        </h6>
+                    </div>
+                    <div class="collapse show" id="groupDialogsCollapse">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>群组ID</th>
+                                            <th>群组名称</th>
+                                            <th>用户ID</th>
+                                            <th>用户名称</th>
+                                            <th>触发类型</th>
+                                            <th>消息文本</th>
+                                            <th>原始响应</th>
+                                            <th>处理后响应</th>
+                                            <th>创建时间</th>
+                                            <th>消息ID</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for dialog in results.dialogs|selectattr('type', 'equalto', 'group') %}
+                                        <tr>
+                                            <td><span class="badge bg-warning">{{ dialog.group_id }}</span></td>
+                                            <td><span class="badge bg-info">{{ dialog.group_name or '-' }}</span></td>
+                                            <td><span class="badge bg-secondary">{{ dialog.msg_user or '-' }}</span></td>
+                                            <td><span class="badge bg-secondary">{{ dialog.msg_user_name or '-' }}</span></td>
+                                            <td><span class="badge bg-light text-dark">{{ dialog.trigger_type or '-' }}</span></td>
+                                            <td>
+                                                {% set msg_text = (dialog.msg_text or '')|string %}
+                                                {% if msg_text|length > 80 %}
+                                                    <div class="collapsible-text">
+                                                        <div class="text-preview">{{ (msg_text[:80] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-full collapse">{{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
+                                                    </div>
+                                                {% else %}
+                                                    {{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% set raw_response = (dialog.raw_response or '')|string %}
+                                                {% if raw_response|length > 80 %}
+                                                    <div class="collapsible-text">
+                                                        <div class="text-preview">{{ (raw_response[:80] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-full collapse">{{ raw_response|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
+                                                    </div>
+                                                {% else %}
+                                                    {{ raw_response|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% set processed_response = (dialog.processed_response or '')|string %}
+                                                {% if processed_response|length > 80 %}
+                                                    <div class="collapsible-text">
+                                                        <div class="text-preview">{{ (processed_response[:80] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-full collapse">{{ processed_response|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
+                                                    </div>
+                                                {% else %}
+                                                    {{ processed_response|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                {% endif %}
+                                            </td>
+                                            <td><small class="text-muted">{{ format_datetime(dialog.create_at) }}</small></td>
+                                            <td><span class="badge bg-light text-dark">{{ dialog.msg_id or '-' }}</span></td>
+                                            <td>
+                                                <a href="{{ url_for('group_dialogs', group_id=dialog.group_id) }}" 
+                                                   class="btn btn-sm btn-outline-warning" title="查看群聊记录">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -446,5 +565,26 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.parentNode.appendChild(clearBtn);
     }
 });
+
+// 文本展开/收起功能
+function toggleText(button) {
+    const container = button.closest('.collapsible-text');
+    const preview = container.querySelector('.text-preview');
+    const full = container.querySelector('.text-full');
+    
+    if (full.classList.contains('collapse')) {
+        // 展开
+        preview.style.display = 'none';
+        full.classList.remove('collapse');
+        full.style.display = 'block';
+        button.textContent = '收起';
+    } else {
+        // 收起
+        preview.style.display = 'block';
+        full.classList.add('collapse');
+        full.style.display = 'none';
+        button.textContent = '展开';
+    }
+}
 </script>
 {% endblock %}

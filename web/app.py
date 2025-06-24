@@ -495,20 +495,33 @@ def search():
         'conversations': []
     }
     
-    # 搜索对话消息
+    # 搜索私聊对话消息
     dialogs_data = db.query_db(
-        'SELECT d.*, c.character, c.user_id FROM dialogs d LEFT JOIN conversations c ON d.conv_id = c.conv_id WHERE d.raw_content LIKE ? OR d.processed_content LIKE ? ORDER BY d.created_at DESC LIMIT 50',
+        'SELECT d.*, c.character, c.user_id, u.user_name FROM dialogs d LEFT JOIN conversations c ON d.conv_id = c.conv_id LEFT JOIN users u ON c.user_id = u.uid WHERE d.raw_content LIKE ? OR d.processed_content LIKE ? ORDER BY d.created_at DESC',
         (f'%{query}%', f'%{query}%')
     )
     if dialogs_data:
-        dialog_columns = ['dialog_id', 'conv_id', 'role', 'raw_content', 'processed_content', 'turn_order', 'created_at', 'character', 'user_id']
+        dialog_columns = ['id', 'conv_id', 'role', 'raw_content', 'turn_order', 'created_at', 'processed_content', 'msg_id', 'character', 'user_id', 'user_name']
         for row in dialogs_data:
             dialog_dict = {dialog_columns[i]: row[i] for i in range(len(dialog_columns))}
+            dialog_dict['type'] = 'private'  # 标记为私聊消息
             results['dialogs'].append(dialog_dict)
+    
+    # 搜索群聊消息内容
+    group_dialogs_data = db.query_db(
+        'SELECT gd.*, g.group_name FROM group_dialogs gd LEFT JOIN groups g ON gd.group_id = g.group_id WHERE gd.msg_text LIKE ? OR gd.raw_response LIKE ? OR gd.processed_response LIKE ? ORDER BY gd.create_at DESC',
+        (f'%{query}%', f'%{query}%', f'%{query}%')
+    )
+    if group_dialogs_data:
+        group_dialog_columns = ['group_id', 'msg_user', 'trigger_type', 'msg_text', 'msg_user_name', 'msg_id', 'raw_response', 'processed_response', 'delete_mark', 'group_name_orig', 'create_at', 'group_name']
+        for row in group_dialogs_data:
+            group_dialog_dict = {group_dialog_columns[i]: row[i] for i in range(len(group_dialog_columns))}
+            group_dialog_dict['type'] = 'group'  # 标记为群聊消息
+            results['dialogs'].append(group_dialog_dict)
     
     # 搜索用户信息
     users_data = db.query_db(
-        'SELECT u.uid, u.first_name, u.last_name, u.user_name, u.create_at, u.conversations as conversations_orig, u.dialog_turns as dialog_turns_orig, u.update_at, u.input_tokens, u.output_tokens, u.account_tier, u.remain_frequency, u.balance, COUNT(DISTINCT c.conv_id) as conversations, SUM(CASE WHEN d.id IS NOT NULL THEN 1 ELSE 0 END) as dialog_turns FROM users u LEFT JOIN conversations c ON u.uid = c.user_id LEFT JOIN dialogs d ON c.conv_id = d.conv_id WHERE u.user_name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR CAST(u.uid AS TEXT) LIKE ? GROUP BY u.uid ORDER BY u.create_at DESC LIMIT 50',
+        'SELECT u.uid, u.first_name, u.last_name, u.user_name, u.create_at, u.conversations as conversations_orig, u.dialog_turns as dialog_turns_orig, u.update_at, u.input_tokens, u.output_tokens, u.account_tier, u.remain_frequency, u.balance, COUNT(DISTINCT c.conv_id) as conversations, SUM(CASE WHEN d.id IS NOT NULL THEN 1 ELSE 0 END) as dialog_turns FROM users u LEFT JOIN conversations c ON u.uid = c.user_id LEFT JOIN dialogs d ON c.conv_id = d.conv_id WHERE u.user_name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR CAST(u.uid AS TEXT) LIKE ? GROUP BY u.uid ORDER BY u.create_at DESC',
         (f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%')
     )
     if users_data:
@@ -521,7 +534,7 @@ def search():
     
     # 搜索群组信息
     groups_data = db.query_db(
-        'SELECT g.group_id, g.group_name, g.char, g.call_count, g.active, g.update_time, COUNT(DISTINCT gd.msg_id) as dialog_count FROM groups g LEFT JOIN group_dialogs gd ON g.group_id = gd.group_id WHERE g.group_name LIKE ? OR CAST(g.group_id AS TEXT) LIKE ? GROUP BY g.group_id ORDER BY g.update_time DESC LIMIT 50',
+        'SELECT g.group_id, g.group_name, g.char, g.call_count, g.active, g.update_time, COUNT(DISTINCT gd.msg_id) as dialog_count FROM groups g LEFT JOIN group_dialogs gd ON g.group_id = gd.group_id WHERE g.group_name LIKE ? OR CAST(g.group_id AS TEXT) LIKE ? GROUP BY g.group_id ORDER BY g.update_time DESC',
         (f'%{query}%', f'%{query}%')
     )
     if groups_data:
@@ -532,7 +545,7 @@ def search():
     
     # 搜索对话记录
     conversations_data = db.query_db(
-        'SELECT c.conv_id, c.user_id, c.character, c.preset, c.summary, c.create_at, c.update_at, u.user_name, u.first_name, u.last_name, COUNT(d.id) as turns FROM conversations c LEFT JOIN users u ON c.user_id = u.uid LEFT JOIN dialogs d ON c.conv_id = d.conv_id WHERE c.character LIKE ? OR c.preset LIKE ? OR c.summary LIKE ? OR u.user_name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR CAST(c.user_id AS TEXT) LIKE ? GROUP BY c.conv_id ORDER BY c.update_at DESC LIMIT 50',
+        'SELECT c.conv_id, c.user_id, c.character, c.preset, c.summary, c.create_at, c.update_at, u.user_name, u.first_name, u.last_name, COUNT(d.id) as turns FROM conversations c LEFT JOIN users u ON c.user_id = u.uid LEFT JOIN dialogs d ON c.conv_id = d.conv_id WHERE c.character LIKE ? OR c.preset LIKE ? OR c.summary LIKE ? OR u.user_name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR CAST(c.user_id AS TEXT) LIKE ? GROUP BY c.conv_id ORDER BY c.update_at DESC',
         (f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%')
     )
     if conversations_data:
