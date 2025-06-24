@@ -272,17 +272,21 @@ def user_info_update(userid, field: str, value: Any, increment: bool = False) ->
     :param increment: 是否为增量更新，默认为 False（直接设置值）
     :return: 更新是否成功
     """
-    if type(userid) is int:
+    try:
+        # 尝试转换为整数，如果成功则按uid处理
+        uid = int(userid)
         if increment:
             command = f"UPDATE users SET {field} = COALESCE({field}, 0) + ? WHERE uid = ?"
         else:
             command = f"UPDATE users SET {field} = ? WHERE uid = ?"
-    else:
-        userid = str(userid)[1:] if len(str(userid)) > 1 else ""
+        userid = uid
+    except ValueError:
+        # 不是数字则按用户名处理，转换为小写并去除可能的前缀
+        userid = str(userid).lower()[1:] if len(str(userid)) > 1 else ""
         if increment:
-            command = f"UPDATE users SET {field} = COALESCE({field}, 0) +? WHERE user_name =?"
+            command = f"UPDATE users SET {field} = COALESCE({field}, 0) + ? WHERE LOWER(user_name) = ?"
         else:
-            command = f"UPDATE users SET {field} =? WHERE user_name =?"
+            command = f"UPDATE users SET {field} = ? WHERE LOWER(user_name) = ?"
     result = revise_db(command, (value, userid))
     return result > 0
 

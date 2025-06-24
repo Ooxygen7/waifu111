@@ -133,7 +133,7 @@ def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 )
                 return 'keyword'
             _rd = random.random()
-            logger.debug(f"roll:{_rd}&rate:{rate}")
+            #logger.debug(f"roll:{_rd}&rate:{rate}")
             if _rd < rate:
                 logger.info(f"触发随机回复, group_name: {group_name}, user_name: {user_name}")
                 return 'random'
