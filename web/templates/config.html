@@ -8,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.css" rel="stylesheet">
     <style>
         .config-sidebar {
             height: calc(100vh - 56px);
@@ -45,6 +46,17 @@
         .CodeMirror {
             height: calc(100vh - 200px);
             border: 1px solid #dee2e6;
+        }
+        .jsoneditor-container {
+            height: calc(100vh - 200px);
+            border: 1px solid #dee2e6;
+        }
+        .editor-mode-tabs {
+            margin-bottom: 10px;
+        }
+        .editor-mode-tabs .nav-link {
+            padding: 8px 16px;
+            font-size: 14px;
         }
         .editor-toolbar {
             padding: 10px;
@@ -121,7 +133,29 @@
                 </div>
                 
                 <div class="p-3">
-                    <textarea id="jsonEditor" placeholder="请选择一个配置文件进行编辑..."></textarea>
+                    <!-- 编辑模式选择 -->
+                    <ul class="nav nav-tabs editor-mode-tabs" id="editorModeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="visual-tab" data-bs-toggle="tab" data-bs-target="#visual-editor" type="button" role="tab">
+                                <i class="fas fa-eye"></i> 可视化编辑
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-editor" type="button" role="tab">
+                                <i class="fas fa-code"></i> 代码编辑
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- 编辑器内容 -->
+                    <div class="tab-content" id="editorTabContent">
+                        <div class="tab-pane fade show active" id="visual-editor" role="tabpanel">
+                            <div id="jsoneditor" class="jsoneditor-container"></div>
+                        </div>
+                        <div class="tab-pane fade" id="code-editor" role="tabpanel">
+                            <textarea id="codeEditor" placeholder="请选择一个配置文件进行编辑..."></textarea>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -172,6 +206,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
@@ -179,13 +214,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/brace-fold.min.js"></script>
     
     <script>
-        let editor;
+        let codeEditor;
+        let jsonEditor;
         let currentFile = null;
         let fileData = {};
+        let currentMode = 'visual'; // 'visual' or 'code'
         
         // 初始化编辑器
         document.addEventListener('DOMContentLoaded', function() {
-            editor = CodeMirror.fromTextArea(document.getElementById('jsonEditor'), {
+            // 初始化代码编辑器
+            codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
                 mode: 'application/json',
                 theme: 'monokai',
                 lineNumbers: true,
@@ -197,10 +235,37 @@
                 tabSize: 2
             });
             
-            editor.on('change', function() {
+            // 初始化JSON可视化编辑器
+            const container = document.getElementById('jsoneditor');
+            const options = {
+                mode: 'tree',
+                modes: ['tree', 'view', 'form', 'code', 'text'],
+                search: true,
+                history: true,
+                onChange: function() {
+                    if (currentFile) {
+                        document.getElementById('saveBtn').disabled = false;
+                    }
+                }
+            };
+            jsonEditor = new JSONEditor(container, options);
+            
+            // 监听代码编辑器变化
+            codeEditor.on('change', function() {
                 if (currentFile) {
                     document.getElementById('saveBtn').disabled = false;
                 }
+            });
+            
+            // 监听标签页切换
+            document.getElementById('visual-tab').addEventListener('click', function() {
+                currentMode = 'visual';
+                syncFromCodeToVisual();
+            });
+            
+            document.getElementById('code-tab').addEventListener('click', function() {
+                currentMode = 'code';
+                syncFromVisualToCode();
             });
             
             refreshFileList();
@@ -281,7 +346,11 @@
                     document.getElementById('currentFileName').textContent = data.name;
                     document.getElementById('currentFileInfo').textContent = `路径: ${data.path}`;
                     
-                    editor.setValue(JSON.stringify(data.content, null, 2));
+                    // 设置两个编辑器的内容
+                    const jsonContent = JSON.stringify(data.content, null, 2);
+                    codeEditor.setValue(jsonContent);
+                    jsonEditor.set(data.content);
+                    
                     document.getElementById('saveBtn').disabled = true;
                     document.getElementById('deleteBtn').disabled = false;
                 })
@@ -299,7 +368,12 @@
             }
             
             try {
-                const content = JSON.parse(editor.getValue());
+                let content;
+                if (currentMode === 'visual') {
+                    content = jsonEditor.get();
+                } else {
+                    content = JSON.parse(codeEditor.getValue());
+                }
                 
                 fetch('/api/config/save', {
                     method: 'POST',
@@ -327,6 +401,25 @@
                 });
             } catch (e) {
                 alert('JSON格式错误: ' + e.message);
+            }
+        }
+        
+        // 编辑器同步函数
+        function syncFromCodeToVisual() {
+            try {
+                const content = JSON.parse(codeEditor.getValue());
+                jsonEditor.set(content);
+            } catch (e) {
+                console.warn('JSON格式错误，无法同步到可视化编辑器:', e.message);
+            }
+        }
+        
+        function syncFromVisualToCode() {
+            try {
+                const content = jsonEditor.get();
+                codeEditor.setValue(JSON.stringify(content, null, 2));
+            } catch (e) {
+                console.warn('无法从可视化编辑器获取内容:', e.message);
             }
         }
         

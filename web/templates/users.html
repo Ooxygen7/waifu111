@@ -108,7 +108,7 @@
                     <ul class="pagination justify-content-center">
                         {% if page > 1 %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('users', page=page-1) }}">
+                                <a class="page-link" href="{{ url_for('users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
                                     <i class="bi bi-chevron-left"></i>
                                 </a>
                             </li>
@@ -121,7 +121,7 @@
                                 </li>
                             {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('users', page=p) }}">{{ p }}</a>
+                                    <a class="page-link" href="{{ url_for('users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{ p }}</a>
                                 </li>
                             {% elif p == 4 or p == total_pages - 3 %}
                                 <li class="page-item disabled">
@@ -132,7 +132,7 @@
                         
                         {% if page < total_pages %}
                             <li class="page-item">
-                                <a class="page-link" href="{{ url_for('users', page=page+1) }}">
+                                <a class="page-link" href="{{ url_for('users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
                                     <i class="bi bi-chevron-right"></i>
                                 </a>
                             </li>

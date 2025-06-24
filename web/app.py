@@ -707,7 +707,9 @@ def api_config_list():
         import os
         import json
         
-        base_path = '/Volumes/samsung/project/cyberwaifu_bot'
+        # 动态获取项目根目录
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(current_dir)  # 上一级目录
         config_dirs = {
             'characters': os.path.join(base_path, 'characters'),
             'config': os.path.join(base_path, 'config'),
@@ -753,7 +755,8 @@ def api_config_read():
             return jsonify({'error': '缺少文件路径参数'}), 400
         
         # 安全检查：确保文件路径在允许的目录内
-        base_path = '/Volumes/samsung/project/cyberwaifu_bot'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(current_dir)  # 上一级目录
         allowed_dirs = ['characters', 'config', 'prompts']
         
         is_allowed = False
@@ -794,7 +797,8 @@ def api_config_save():
             return jsonify({'error': '缺少必要参数'}), 400
         
         # 安全检查
-        base_path = '/Volumes/samsung/project/cyberwaifu_bot'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(current_dir)  # 上一级目录
         allowed_dirs = ['characters', 'config', 'prompts']
         
         is_allowed = False
@@ -842,7 +846,8 @@ def api_config_create():
         if not filename.endswith('.json'):
             filename += '.json'
         
-        base_path = '/Volumes/samsung/project/cyberwaifu_bot'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(current_dir)  # 上一级目录
         allowed_categories = ['characters', 'config', 'prompts']
         
         if category not in allowed_categories:
@@ -879,7 +884,8 @@ def api_config_delete():
             return jsonify({'error': '缺少文件路径参数'}), 400
         
         # 安全检查
-        base_path = '/Volumes/samsung/project/cyberwaifu_bot'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        base_path = os.path.dirname(current_dir)  # 上一级目录
         allowed_dirs = ['characters', 'config', 'prompts']
         
         is_allowed = False
