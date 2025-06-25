@@ -606,7 +606,12 @@ def group_check_update(group_id: int) -> bool:
     command = "SELECT update_time FROM groups WHERE group_id = ?"
     result = query_db(command, (group_id,))
     if result:
-        update_time = datetime.datetime.strptime(str(result[0][0]), "%Y-%m-%d %H:%M:%S.%f")
+        # 尝试解析带微秒的时间格式，如果失败则尝试不带微秒的格式
+        time_str = str(result[0][0])
+        try:
+            update_time = datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S.%f")
+        except ValueError:
+            update_time = datetime.datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
         return update_time < datetime.datetime.now() - datetime.timedelta(minutes=5)
     return True
 

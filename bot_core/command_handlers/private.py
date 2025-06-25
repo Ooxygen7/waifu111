@@ -559,7 +559,17 @@ class SignCommand(BaseCommand):
                 f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
         else:
             concurrent_time = datetime.datetime.now()
-            last_sign_time = datetime.datetime.strptime(sign_info.get('last_sign'), '%Y-%m-%d %H:%M:%S.%f')
+            # 尝试解析带微秒的时间格式，如果失败则尝试不带微秒的格式
+            last_sign_str = sign_info.get('last_sign')
+            try:
+                last_sign_time = datetime.datetime.strptime(last_sign_str, '%Y-%m-%d %H:%M:%S.%f')
+            except ValueError:
+                try:
+                    last_sign_time = datetime.datetime.strptime(last_sign_str, '%Y-%m-%d %H:%M:%S')
+                except ValueError as e:
+                    logger.error(f"无法解析签到时间格式: {last_sign_str}, 错误: {e}")
+                    await update.message.reply_text("签到时间数据异常，请联系管理员。")
+                    return
             time_delta = concurrent_time - last_sign_time
             total_seconds = time_delta.total_seconds()  # 获取总秒数
             print(f"time_delta: {time_delta}, total_seconds: {total_seconds}")
