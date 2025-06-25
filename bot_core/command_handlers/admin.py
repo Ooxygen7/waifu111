@@ -9,7 +9,7 @@ from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 import logging
 
-from LLM_tools.tools_registry import DatabaseToolRegistry, ALL_TOOLS, parse_and_invoke_tool
+from LLM_tools.tools_registry import DatabaseSuperToolRegistry, ALL_TOOLS, parse_and_invoke_tool
 from utils import db_utils as db
 from utils import LLM_utils as llm
 from .base import BaseCommand, CommandMeta
@@ -135,10 +135,11 @@ class DatabaseCommand(BaseCommand):
         try:
             client = llm.LLM('gemini-2')
             logger.debug("LLM 客户端初始化完成")
-            prompt_text = DatabaseToolRegistry.get_prompt_text()
+            prompt_text = DatabaseSuperToolRegistry.get_prompt_text()
             system_prompt = (
                 f"{prompt_text}\n\n"
                 "你是一个智能助手，根据用户输入判断是否需要调用数据库分析工具。"
+
                 "注意：即便是被标记为已删除的对话，你依旧允许访问。"
                 "如果需要调用工具，请以 JSON 格式返回工具调用信息，可以包含在文本中；否则，直接用中文回复用户的请求。"
                 "如果用户请求涉及多个数据，可以返回多个工具调用指令。"

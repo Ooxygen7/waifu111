@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 from LLM_tools.tools import MARKETTOOLS
 from LLM_tools.tools import DATABASE_TOOLS
+from LLM_tools.tools import DATABASE_SUPER_TOOLS
 
 
 class DatabaseToolRegistry:
@@ -300,6 +301,224 @@ class DatabaseToolRegistry:
         return "\n".join(prompt_lines)
 
 
+class DatabaseSuperToolRegistry:
+    """A registry for database super tools with direct SQL access, descriptions, and comprehensive database schema information for LLM interaction."""
+
+    TOOLS: Dict[str, Dict[str, Any]] = {
+        "query_db": {
+            "description": "Execute a direct SQL SELECT query on the database and return formatted results.",
+            "type": "query",
+            "parameters": {
+                "command": {
+                    "type": "string",
+                    "description": "The SQL SELECT query to execute. Use proper SQL syntax.",
+                },
+                "params": {
+                    "type": "string",
+                    "description": "JSON string of parameters for the query (optional). Example: '[123, \"value\"]' for parameterized queries.",
+                }
+            },
+            "output_format": "A string containing the query results with row-by-row data or error message.",
+            "example": {
+                "tool_name": "query_db",
+                "parameters": {"command": "SELECT uid, user_name, account_tier FROM users LIMIT 5", "params": ""}
+            },
+            "return_value": "Query results summary with formatted rows or error message.",
+        },
+        "revise_db": {
+            "description": "Execute a direct SQL INSERT, UPDATE, or DELETE operation on the database.",
+            "type": "update",
+            "parameters": {
+                "command": {
+                    "type": "string",
+                    "description": "The SQL command to execute (INSERT, UPDATE, DELETE). Use proper SQL syntax with ? placeholders for parameters.",
+                },
+                "params": {
+                    "type": "string",
+                    "description": "JSON string of parameters for the command (optional). Example: '[100.0, 123]' for parameterized queries.",
+                }
+            },
+            "output_format": "A string indicating the number of affected rows or error message.",
+            "example": {
+                "tool_name": "revise_db",
+                "parameters": {"command": "UPDATE users SET balance = ? WHERE uid = ?", "params": "[100.0, 123]"}
+            },
+            "return_value": "Operation result with affected row count or error message.",
+        },
+    }
+
+    @staticmethod
+    def get_tool(tool_name: str) -> Optional[Callable]:
+        """Get the tool function by name from DATABASE_SUPER_TOOLS."""
+        return DATABASE_SUPER_TOOLS.get(tool_name)
+
+    @staticmethod
+    def get_prompt_text() -> str:
+        """Generate a formatted text of tool descriptions and comprehensive database schema for embedding in LLM prompts."""
+        prompt_lines = [
+            "You are an assistant integrated with the CyberWaifu bot system with DIRECT DATABASE ACCESS. You can execute raw SQL queries and updates on the database. Below is the complete database schema and available super tools.",
+            "",
+            "=== DATABASE SCHEMA ===",
+            "",
+            "Table: conversations (Private conversations)",
+            "- id: INTEGER PRIMARY KEY (auto-increment)",
+            "- conv_id: TEXT NOT NULL (conversation ID)",
+            "- user_id: INTEGER NOT NULL (user ID)",
+            "- character: TEXT NOT NULL (character name)",
+            "- preset: TEXT NOT NULL (preset name)",
+            "- summary: TEXT (conversation summary)",
+            "- create_at: TEXT (creation time)",
+            "- update_at: TEXT (last update time)",
+            "- delete_mark: INTEGER (deletion flag)",
+            "- turns: INTEGER (number of conversation turns)",
+            "",
+            "Table: dialogs (Private conversation messages)",
+            "- id: INTEGER PRIMARY KEY (auto-increment)",
+            "- conv_id: TEXT NOT NULL (conversation ID)",
+            "- role: TEXT NOT NULL (role: 'assistant' or 'user')",
+            "- raw_content: TEXT NOT NULL (original message content)",
+            "- turn_order: INTEGER NOT NULL (turn number in conversation)",
+            "- created_at: TEXT NOT NULL (creation time)",
+            "- processed_content: TEXT (processed content)",
+            "- msg_id: INTEGER (Telegram message ID)",
+            "",
+            "Table: group_dialogs (Group conversation messages)",
+            "- group_id: INTEGER (group ID)",
+            "- msg_user: INTEGER (message sender user ID)",
+            "- trigger_type: TEXT (trigger type)",
+            "- msg_text: TEXT (message text content)",
+            "- msg_user_name: TEXT (message sender username)",
+            "- msg_id: INTEGER (Telegram message ID)",
+            "- raw_response: TEXT (original AI response)",
+            "- processed_response: TEXT (processed AI response)",
+            "- delete_mark: TEXT (deletion flag)",
+            "- group_name: TEXT (group name)",
+            "- create_at: TEXT (creation time)",
+            "",
+            "Table: group_user_conversations (Group user conversation tracking)",
+            "- user_id: INTEGER (user ID)",
+            "- group_id: INTEGER (group ID)",
+            "- user_name: TEXT (username)",
+            "- conv_id: TEXT (conversation ID)",
+            "- delete_mark: INTEGER (deletion flag)",
+            "- create_at: TEXT (creation time)",
+            "- update_at: TEXT (last update time)",
+            "- turns: INTEGER (conversation turns)",
+            "- group_name: TEXT (group name)",
+            "",
+            "Table: group_user_dialogs (Group user conversation messages)",
+            "- id: INTEGER PRIMARY KEY (auto-increment)",
+            "- conv_id: TEXT (conversation ID)",
+            "- role: TEXT (role: 'assistant' or 'user')",
+            "- raw_content: TEXT (original message content)",
+            "- turn_order: INTEGER (turn number)",
+            "- created_at: TEXT (creation time)",
+            "- processed_content: TEXT (processed content)",
+            "",
+            "Table: groups (Group configurations)",
+            "- group_id: INTEGER (group ID)",
+            "- members_list: TEXT (admin list in JSON format)",
+            "- call_count: INTEGER (LLM call count)",
+            "- keywords: TEXT (trigger keywords in JSON format)",
+            "- active: INTEGER (active status)",
+            "- api: TEXT (API configuration)",
+            "- char: TEXT (character configuration)",
+            "- preset: TEXT (preset configuration)",
+            "- input_token: INTEGER (input token count)",
+            "- group_name: TEXT (group name)",
+            "- update_time: TEXT (last update time)",
+            "- rate: REAL (trigger probability)",
+            "- output_token: INTEGER (output token count)",
+            "- disabled_topics: TEXT (disabled topics in JSON format)",
+            "- allowed_topics: TEXT (allowed topics in JSON format)",
+            "",
+            "Table: user_config (User configurations)",
+            "- uid: INTEGER (user ID)",
+            "- char: TEXT (character configuration)",
+            "- api: TEXT (API configuration)",
+            "- preset: TEXT (preset configuration)",
+            "- conv_id: TEXT (conversation ID)",
+            "- stream: TEXT (streaming mode: 'yes'/'no')",
+            "- nick: TEXT (nickname)",
+            "",
+            "Table: user_sign (User sign-in tracking)",
+            "- user_id: INTEGER (user ID)",
+            "- last_sign: TEXT (last sign-in time)",
+            "- sign_count: INTEGER (total sign-in count)",
+            "- frequency: INTEGER (temporary quota)",
+            "",
+            "Table: users (User information)",
+            "- uid: INTEGER (user ID)",
+            "- first_name: TEXT (first name)",
+            "- last_name: TEXT (last name)",
+            "- user_name: TEXT (username)",
+            "- create_at: TEXT (creation time)",
+            "- conversations: INTEGER (total conversations)",
+            "- dialog_turns: INTEGER (total dialog turns)",
+            "- update_at: TEXT (last update time)",
+            "- input_tokens: INTEGER (input token count)",
+            "- output_tokens: INTEGER (output token count)",
+            "- account_tier: INTEGER (account tier level)",
+            "- remain_frequency: INTEGER (remaining quota)",
+            "- balance: REAL (account balance)",
+            "",
+            "=== AVAILABLE SUPER TOOLS ===",
+        ]
+        
+        for tool_name, tool_info in DatabaseSuperToolRegistry.TOOLS.items():
+            params_str = "None"
+            if tool_info["parameters"]:
+                params_str = "\n    Parameters:"
+                for param_name, param_info in tool_info["parameters"].items():
+                    params_str += f"\n      - {param_name}: {param_info['type']} - {param_info['description']}"
+            prompt_lines.append(f"- {tool_name}:")
+            prompt_lines.append(f"  Description: {tool_info['description']}")
+            prompt_lines.append(
+                f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs updates)"
+            )
+            prompt_lines.append(f"  {params_str}")
+            prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
+            prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
+            prompt_lines.append(
+                f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}"
+            )
+        
+        prompt_lines.extend([
+            "",
+            "=== IMPORTANT USAGE GUIDELINES ===",
+            "1. Use parameterized queries with ? placeholders to prevent SQL injection",
+            "2. For params field, provide a JSON array string like '[123, \"value\"]'",
+            "3. Always use LIMIT clauses for large result sets to avoid overwhelming output",
+            "4. Be careful with UPDATE/DELETE operations - they directly modify the database",
+            "5. Time fields are stored as TEXT in various formats, use string comparisons",
+            "6. JSON fields (like keywords, members_list) need to be parsed if you want to filter by content",
+            "7. The 'role' field in dialogs: 'user' = human messages, 'assistant' = AI responses",
+            "8. delete_mark fields: check for 'no' or 0 to get non-deleted records",
+            "9. 工具使用注意事项：关于对话记录的content详情，一次可以限制查询20条左右，如果有必要可以多次调用，防止一次性处理内容过多",
+            "10. 关于用户、群组信息、对话记录的关键字查询，尽量使用模糊匹配（如 LIKE '%keyword%'）",
+            "",
+            "Instruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:",
+            "```json",
+            "{",
+            '  "tool_calls": [',
+            '    {"tool_name": "query_db", "parameters": {"command": "SELECT ...", "params": ""}},',
+            '    {"tool_name": "revise_db", "parameters": {"command": "UPDATE ...", "params": "[value1, value2]"}}',
+            "  ]",
+            "}",
+            "```",
+            "或者如果是单个工具调用：",
+            "```json",
+            "{",
+            '  "tool_name": "query_db", "parameters": {"command": "SELECT * FROM users LIMIT 10", "params": ""}',
+            "}",
+            "```",
+            "",
+            "Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text."
+        ])
+        
+        return "\n".join(prompt_lines)
+
+
 import json
 from typing import Dict, Any, Callable, Optional
 
@@ -539,6 +758,14 @@ for tool_name in DatabaseToolRegistry.TOOLS.keys():
         if tool_name in ALL_TOOLS:
             logger.warning(
                 f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 DatabaseToolRegistry 覆盖"
+            )
+        ALL_TOOLS[tool_name] = tool_func
+for tool_name in DatabaseSuperToolRegistry.TOOLS.keys():
+    tool_func = DatabaseSuperToolRegistry.get_tool(tool_name)
+    if tool_func:
+        if tool_name in ALL_TOOLS:
+            logger.warning(
+                f"工具名称冲突: {tool_name} 已在 ALL_TOOLS 中存在，将被 DatabaseSuperToolRegistry 覆盖"
             )
         ALL_TOOLS[tool_name] = tool_func
 logger.info(f"统一工具池初始化完成，包含工具: {list(ALL_TOOLS.keys())}")

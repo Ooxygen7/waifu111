@@ -798,3 +798,93 @@ DATABASE_TOOLS = {
     "generate_private_conversation_summary": DatabaseTools.generate_private_conversation_summary,
     "generate_group_conversation_summary": DatabaseTools.generate_group_conversation_summary,
 }
+
+
+class DatabaseSuperTools:
+    """A collection of super tools for direct database operations that can be invoked by an LLM."""
+    
+    @staticmethod
+    async def query_db(command: str, params: str = "") -> str:
+        """
+        Execute a database query operation and return the results.
+        Description: Executes a SELECT query on the database and returns the results in a formatted string.
+        Type: Query
+        Parameters:
+            - command (string): The SQL SELECT query to execute.
+            - params (string): JSON string of parameters for the query (optional, default: "").
+        Return Value: A string containing the query results or error message.
+        Invocation: {"tool_name": "query_db", "parameters": {"command": "SELECT * FROM users LIMIT 5", "params": ""}}
+        """
+        try:
+            import json
+            from typing import Tuple
+            
+            # Parse parameters if provided
+            if params:
+                try:
+                    param_tuple = tuple(json.loads(params))
+                except (json.JSONDecodeError, TypeError):
+                    return f"Error: Invalid parameters format. Expected JSON array, got: {params}"
+            else:
+                param_tuple = ()
+            
+            # Execute query
+            result = db.query_db(command, param_tuple)
+            
+            if not result:
+                return "Query executed successfully but returned no results."
+            
+            # Format results
+            formatted_result = "Query Results:\n"
+            for i, row in enumerate(result[:100]):  # Limit to 100 rows for readability
+                formatted_result += f"Row {i+1}: {row}\n"
+            
+            if len(result) > 100:
+                formatted_result += f"... and {len(result) - 100} more rows (truncated for display)"
+            
+            return formatted_result
+            
+        except Exception as e:
+            logger.error(f"Error executing database query: {str(e)}")
+            return f"Database query failed: {str(e)}"
+    
+    @staticmethod
+    async def revise_db(command: str, params: str = "") -> str:
+        """
+        Execute a database update operation and return the number of affected rows.
+        Description: Executes an INSERT, UPDATE, or DELETE operation on the database.
+        Type: Update
+        Parameters:
+            - command (string): The SQL command to execute (INSERT, UPDATE, DELETE).
+            - params (string): JSON string of parameters for the command (optional, default: "").
+        Return Value: A string indicating the number of affected rows or error message.
+        Invocation: {"tool_name": "revise_db", "parameters": {"command": "UPDATE users SET balance = ? WHERE uid = ?", "params": "[100.0, 123]"}}
+        """
+        try:
+            import json
+            from typing import Tuple
+            
+            # Parse parameters if provided
+            if params:
+                try:
+                    param_tuple = tuple(json.loads(params))
+                except (json.JSONDecodeError, TypeError):
+                    return f"Error: Invalid parameters format. Expected JSON array, got: {params}"
+            else:
+                param_tuple = ()
+            
+            # Execute update
+            affected_rows = db.revise_db(command, param_tuple)
+            
+            return f"Database operation completed successfully. Affected rows: {affected_rows}"
+            
+        except Exception as e:
+            logger.error(f"Error executing database update: {str(e)}")
+            return f"Database update failed: {str(e)}"
+
+
+# Tool mapping for LLM invocation
+DATABASE_SUPER_TOOLS = {
+    "query_db": DatabaseSuperTools.query_db,
+    "revise_db": DatabaseSuperTools.revise_db,
+}
