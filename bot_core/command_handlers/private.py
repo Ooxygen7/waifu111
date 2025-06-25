@@ -490,7 +490,7 @@ class SettingCommand(BaseCommand):
         trigger='setting',
         menu_text='设置',
         show_in_menu=True,
-        menu_weight=0
+        menu_weight=1
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -833,7 +833,7 @@ class FeedbackCommand(BaseCommand):
         trigger='feedback',
         menu_text='发送反馈',
         show_in_menu=True,
-        menu_weight=99
+        menu_weight=0
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
