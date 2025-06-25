@@ -432,7 +432,8 @@ class MessageCommand(BaseCommand):
         try:
             await context.bot.send_message(
                 chat_id=target_user_id,
-                text=message_content
+                text=message_content,
+                parse_mode=None  # 禁用Markdown解析，避免特殊字符导致的解析错误
             )
             
             # 发送成功确认消息
