@@ -29,7 +29,7 @@ class StartCommand(BaseCommand):
         command_type='private',
         trigger='start',
         menu_text='开始使用 CyberWaifu',
-        show_in_menu=True,
+        show_in_menu=False,
         menu_weight=99
     )
 
@@ -41,7 +41,65 @@ class StartCommand(BaseCommand):
             f"使用`/c` 可获取加密货币行情分析\r\n"
             f"使用`/sign` 可签到\r\n"
             f"直接发送图片可以获取`fuck or not`的评价\r\n"
+            f"默认预设为正常模式，NSFW内容的生成质量有限\r\n"
+            f"使用`/preset`可以切换预设，如果需要NSFW内容，建议切换默认预设\r\n"
+            f"使用`/newchar [角色名]`可以创建私人角色"
         )
+
+class HelpCommand(BaseCommand):
+    meta = CommandMeta(
+        name='help',
+        command_type='private',
+        trigger='help',
+        menu_text='获取帮助',
+        show_in_menu=True,
+        menu_weight=0
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        help_text = (
+            "🤖 **CyberWaifu Bot 使用指南**\n\n"
+            "📝 **角色管理**\n"
+            "/char - 查看当前角色信息和角色列表\n"
+            "/newchar - 创建新的AI角色\n"
+            "/delchar - 删除已有角色\n"
+            "/nick - 修改当前角色的昵称\n\n"
+            "⚙️ **设置与配置**\n"
+            "/setting - 个人设置（流式输出、模型选择等）\n"
+            "/api - 查看和切换可用的API模型\n"
+            "/preset - 管理对话预设模板\n\n"
+            "💬 **对话管理**\n"
+            "/new - 开始新的对话会话\n"
+            "/save - 保存当前对话到历史记录\n"
+            "/load - 加载之前保存的对话\n"
+            "/delete - 删除指定的对话记录\n"
+            "/undo - 撤销上一条消息\n"
+            "/regen - 重新生成AI的最后一条回复\n"
+            "/stream - 切换流式输出模式\n\n"
+            "📊 **信息查看**\n"
+            "/me - 查看个人信息和使用统计\n"
+            "/status - 查看当前对话状态和系统信息\n"
+            "/sign - 每日签到获取额度奖励\n\n"
+            "🔧 **高级功能**\n"
+            "/c 或 /crypto - AI加密货币分析助手\n"
+            "/director - 导演模式（多角色对话）\n"
+            "/done - 标记当前任务为完成状态\n\n"
+            "🏠 **群聊专用指令**\n"
+            "在群聊中还可以使用以下指令：\n"
+            "/remake - 重置群聊上下文(担任)\n"
+            "/switch - 切换群聊角色\n"
+            "/rate - 设置群聊回复概率\n"
+            "/kw - 管理群聊关键词触发\n"
+            "/e - 启用群聊话题讨论\n"
+            "/d - 禁用群聊话题讨论\n"
+            "/cc - 群聊加密货币分析\n\n"
+            "💡 **使用提示**\n"
+            "• 直接发送消息即可与AI对话\n"
+            "• 大部分指令支持简写形式\n"
+            "• 在群聊中需要@机器人或回复机器人消息\n"
+            "• 管理员拥有额外的管理指令权限"
+        )
+        await update.message.reply_text(help_text, parse_mode='Markdown')
 
 
 class UndoCommand(BaseCommand):

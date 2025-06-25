@@ -496,8 +496,7 @@ class DatabaseSuperToolRegistry:
             "8. delete_mark fields: check for 'no' or 0 to get non-deleted records",
             "9. 工具使用注意事项：关于对话记录的content详情，一次可以限制查询20条左右，如果有必要可以多次调用，防止一次性处理内容过多",
             "10. 关于用户、群组信息、对话记录的关键字查询，尽量使用模糊匹配（如 LIKE '%keyword%'）",
-            "11. 对于用户的搜索，同时尝试搜索用户名、用户id、用户first_name和last_name"
-            "12. 如果输入中提到了具体的用户，请先在users表单中搜索到用户的具体信息，再执行下一步"
+            "12. 如果输入中提到了具体的用户，请先在users表单中搜索到用户的具体信息，再执行下一步。优先尝试把所有用户的用户first_name和last_name的拼接起来组合成全名，然后在所有用户的全名中模糊搜索内容，如果失败再尝试搜索用户id(应为纯数字，若输入不是纯数字则无需搜索)和用户名。",
             "",
             "Instruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:",
             "```json",
