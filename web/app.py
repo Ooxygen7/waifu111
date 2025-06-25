@@ -684,8 +684,6 @@ def api_group_update(group_id):
             params.append(data['disabled_topics'])
         
         if updates:
-            # 添加更新时间
-            updates.append('update_time = datetime(\'now\')')
             params.append(group_id)
             
             sql = f"UPDATE groups SET {', '.join(updates)} WHERE group_id = ?"
