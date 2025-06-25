@@ -824,3 +824,93 @@ class CryptoCommand(BaseCommand):
                     logger.error(f"禁用HTML后发送错误消息也失败: {deepest_e}")
                     await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
             logger.debug("已编辑占位消息，显示错误信息")
+
+
+class FeedbackCommand(BaseCommand):
+    meta = CommandMeta(
+        name='feedback',
+        command_type='private',
+        trigger='feedback',
+        menu_text='发送反馈',
+        show_in_menu=True,
+        menu_weight=99
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        处理用户反馈命令，将用户的反馈消息发送给所有管理员。
+        命令格式: /feedback <反馈内容>
+        """
+        from bot_core.public_functions.config import ADMIN
+        
+        args = context.args if hasattr(context, 'args') else []
+        
+        # 1. 参数校验
+        if not args:
+            await update.message.reply_text(
+                "❌ 请提供反馈内容！\n\n"
+                "格式：`/feedback <反馈内容>`\n\n"
+                "💡 示例：`/feedback 建议增加更多角色选择`",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # 2. 获取反馈内容（所有参数组合）
+        feedback_content = ' '.join(args)
+        
+        if not feedback_content.strip():
+            await update.message.reply_text(
+                "❌ 反馈内容不能为空！\n"
+                "请提供具体的反馈内容。",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # 3. 获取用户信息
+        info = public.update_info_get(update)
+        user_info = f"用户ID: {info['user_id']}\n用户名: {info.get('user_name', '未知')}\n昵称: {info.get('first_name', '')} {info.get('last_name', '')}"
+        
+        # 4. 构建发送给管理员的消息
+        admin_message = (
+            f"📝 **用户反馈**\n\n"
+            f"👤 **用户信息**\n{user_info}\n\n"
+            f"💬 **反馈内容**\n{feedback_content}\n\n"
+            f"🕐 **时间**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        
+        # 5. 发送反馈给所有管理员
+        success_count = 0
+        failed_count = 0
+        
+        for admin_id in ADMIN:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=admin_message,
+                    parse_mode='Markdown'
+                )
+                success_count += 1
+                logger.info(f"反馈已发送给管理员 {admin_id}")
+            except Exception as e:
+                failed_count += 1
+                logger.warning(f"向管理员 {admin_id} 发送反馈失败: {str(e)}")
+        
+        # 6. 向用户发送确认消息
+        if success_count > 0:
+            await update.message.reply_text(
+                f"✅ 反馈已成功发送给管理员！\n\n"
+                f"📝 您的反馈：{feedback_content}\n\n"
+                f"📊 发送状态：成功 {success_count} 个，失败 {failed_count} 个\n\n"
+                f"💡 感谢您的反馈，我们会认真考虑您的建议！",
+                parse_mode='Markdown'
+            )
+            
+            # 记录用户反馈日志
+            logger.info(f"用户 {info['user_id']} ({info.get('user_name', '未知')}) 发送反馈: {feedback_content}")
+        else:
+            await update.message.reply_text(
+                "❌ 反馈发送失败！\n\n"
+                "所有管理员都无法接收消息，请稍后重试或联系技术支持。",
+                parse_mode='Markdown'
+            )
+            logger.error(f"用户 {info['user_id']} 的反馈发送完全失败")

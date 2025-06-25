@@ -375,3 +375,99 @@ class ForwardCommand(BaseCommand):
                 f"❌ 发生错误：`{type(e).__name__}: {e}`",
                 parse_mode='Markdown'
             )
+
+
+class MessageCommand(BaseCommand):
+    meta = CommandMeta(
+        name='message',
+        command_type='admin',
+        trigger='msg',
+        menu_text='向指定用户发送消息',
+        show_in_menu=False,
+        menu_weight=20,
+        bot_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        处理 /msg 命令，向指定用户发送消息。
+        命令格式: /msg <用户ID> <消息内容>
+        """
+        args = context.args
+        
+        # 1. 参数校验
+        if not args or len(args) < 2:
+            await update.message.reply_text(
+                "❌ 用法错误！请提供用户ID和消息内容。\n"
+                "格式：`/msg <用户ID> <消息内容>`\n\n"
+                "💡 用户ID必须是有效的数字。\n"
+                "示例：`/msg 123456789 您好，这是一条通知消息。`",
+                parse_mode='Markdown'
+            )
+            return
+        
+        try:
+            # 尝试将第一个参数转换为整数（用户ID）
+            target_user_id = int(args[0])
+        except ValueError:
+            await update.message.reply_text(
+                "❌ 无效的用户ID！用户ID必须是有效的数字。\n"
+                "示例：`/msg 123456789 您好，这是一条通知消息。`",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # 2. 获取消息内容（从第二个参数开始的所有内容）
+        message_content = ' '.join(args[1:])
+        
+        if not message_content.strip():
+            await update.message.reply_text(
+                "❌ 消息内容不能为空！\n"
+                "请提供要发送的消息内容。",
+                parse_mode='Markdown'
+            )
+            return
+        
+        # 3. 执行消息发送操作
+        try:
+            await context.bot.send_message(
+                chat_id=target_user_id,
+                text=message_content
+            )
+            
+            # 发送成功确认消息
+            await update.message.reply_text(
+                f"✅ 消息已成功发送给用户 {target_user_id}！\n\n"
+                f"📝 发送内容：{message_content}",
+                parse_mode='Markdown'
+            )
+            
+            # 记录日志
+            logger.info(f"管理员 {update.effective_user.id} 向用户 {target_user_id} 发送消息: {message_content}")
+            
+        except TelegramError as e:
+            # 处理 Telegram API 相关错误
+            error_msg = "❌ 发送消息失败！\n\n"
+            
+            if "chat not found" in str(e).lower():
+                error_msg += "原因：找不到指定的用户或聊天。\n" \
+                           "请确认用户ID是否正确，或用户是否已与机器人建立过对话。"
+            elif "blocked" in str(e).lower():
+                error_msg += "原因：用户已阻止机器人。\n" \
+                           "无法向已阻止机器人的用户发送消息。"
+            elif "forbidden" in str(e).lower():
+                error_msg += "原因：没有权限向该用户发送消息。\n" \
+                           "可能用户未启动与机器人的对话。"
+            else:
+                error_msg += f"原因：{str(e)}"
+            
+            await update.message.reply_text(error_msg, parse_mode='Markdown')
+            logger.warning(f"向用户 {target_user_id} 发送消息失败: {str(e)}")
+            
+        except Exception as e:
+            # 捕获其他意外错误
+            await update.message.reply_text(
+                f"❌ 发生未知错误：`{type(e).__name__}: {e}`",
+                parse_mode='Markdown'
+            )
+            logger.error(f"发送消息时发生未知错误: {str(e)}", exc_info=True)
