@@ -633,11 +633,17 @@ def api_user_update(user_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/groups/<int:group_id>', methods=['PUT'])
+@app.route('/api/groups/<group_id>', methods=['PUT'])
 @login_required
 def api_group_update(group_id):
     """更新群组信息API"""
     try:
+        # 将group_id转换为整数，支持负数
+        try:
+            group_id = int(group_id)
+        except ValueError:
+            return jsonify({'success': False, 'message': '无效的群组ID'}), 400
+            
         data = request.get_json()
         
         # 检查群组是否存在
