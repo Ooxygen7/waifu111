@@ -146,6 +146,16 @@ def index():
     stats['total_conversations'] = db.query_db('SELECT COUNT(*) FROM conversations')[0][0] if db.query_db('SELECT COUNT(*) FROM conversations') else 0
     stats['total_dialogs'] = db.query_db('SELECT COUNT(*) FROM dialogs')[0][0] if db.query_db('SELECT COUNT(*) FROM dialogs') else 0
     
+    # Token统计
+    total_tokens = db.query_db('SELECT SUM(input_tokens), SUM(output_tokens) FROM users')
+    if total_tokens and total_tokens[0] and total_tokens[0][0]:
+        stats['total_input_tokens'] = total_tokens[0][0] or 0
+        stats['total_output_tokens'] = total_tokens[0][1] or 0
+    else:
+        stats['total_input_tokens'] = 0
+        stats['total_output_tokens'] = 0
+    stats['total_tokens'] = stats['total_input_tokens'] + stats['total_output_tokens']
+    
     # 今日统计
     today = datetime.now().strftime('%Y-%m-%d')
     
@@ -161,17 +171,11 @@ def index():
     today_group_dialogs = db.query_db("SELECT COUNT(*) FROM group_dialogs WHERE date(create_at) = ?", (today,))
     stats['today_group_dialogs'] = today_group_dialogs[0][0] if today_group_dialogs else 0
     
-    # 今日消耗token数 (通过对话关联用户)
-    today_tokens = db.query_db("""
-        SELECT SUM(u.input_tokens), SUM(u.output_tokens) 
-        FROM users u 
-        JOIN conversations c ON u.uid = c.user_id 
-        JOIN dialogs d ON c.conv_id = d.conv_id 
-        WHERE date(d.created_at) = ?
-    """, (today,))
-    if today_tokens and today_tokens[0] and today_tokens[0][0]:
-        stats['today_input_tokens'] = today_tokens[0][0] or 0
-        stats['today_output_tokens'] = today_tokens[0][1] or 0
+    # 今日消耗token数 (估算：基于今日对话数的比例)
+    if stats['total_dialogs'] > 0:
+        today_ratio = stats['today_dialogs'] / stats['total_dialogs']
+        stats['today_input_tokens'] = int(stats['total_input_tokens'] * today_ratio)
+        stats['today_output_tokens'] = int(stats['total_output_tokens'] * today_ratio)
         stats['today_total_tokens'] = stats['today_input_tokens'] + stats['today_output_tokens']
     else:
         stats['today_input_tokens'] = 0
@@ -212,25 +216,113 @@ def index():
     """, (today,))
     stats['active_groups'] = active_groups or []
     
-    # 用户增长趋势 (最近7天)
-    user_growth = db.query_db("""
-        SELECT date(create_at) as date, COUNT(*) as count
-        FROM users
-        WHERE date(create_at) >= date('now', '-7 days')
-        GROUP BY date(create_at)
-        ORDER BY date(create_at)
-    """)
+    # 获取时间粒度参数
+    time_range = request.args.get('time_range', '7d')  # 默认7天
+    
+    # 根据时间粒度设置查询参数
+    if time_range == '30d':
+        days_back = 30
+        user_date_format = "date(create_at)"
+        user_group_format = "date(create_at)"
+        dialog_date_format = "date(created_at)"
+        dialog_group_format = "date(created_at)"
+        group_date_format = "date(create_at)"
+        group_group_format = "date(create_at)"
+    elif time_range == '7d':
+        days_back = 7
+        user_date_format = "date(create_at)"
+        user_group_format = "date(create_at)"
+        dialog_date_format = "date(created_at)"
+        dialog_group_format = "date(created_at)"
+        group_date_format = "date(create_at)"
+        group_group_format = "date(create_at)"
+    elif time_range == '1d':
+        days_back = 1
+        user_date_format = "strftime('%H:00', create_at)"
+        user_group_format = "strftime('%H', create_at)"
+        dialog_date_format = "strftime('%H:00', created_at)"
+        dialog_group_format = "strftime('%H', created_at)"
+        group_date_format = "strftime('%H:00', create_at)"
+        group_group_format = "strftime('%H', create_at)"
+    else:
+        days_back = 7
+        user_date_format = "date(create_at)"
+        user_group_format = "date(create_at)"
+        dialog_date_format = "date(created_at)"
+        dialog_group_format = "date(created_at)"
+        group_date_format = "date(create_at)"
+        group_group_format = "date(create_at)"
+    
+    # 用户增长趋势
+    if time_range == '1d':
+        user_growth = db.query_db(f"""
+            SELECT strftime('%H:00', create_at) as date, COUNT(*) as count
+            FROM users
+            WHERE date(create_at) = date('now')
+            GROUP BY strftime('%H', create_at)
+            ORDER BY strftime('%H', create_at)
+        """)
+    else:
+        user_growth = db.query_db(f"""
+            SELECT {user_date_format} as date, COUNT(*) as count
+            FROM users
+            WHERE date(create_at) >= date('now', '-{days_back} days')
+            GROUP BY {user_group_format}
+            ORDER BY {user_group_format}
+        """)
     stats['user_growth'] = user_growth or []
     
-    # 对话活跃度趋势 (最近7天)
-    dialog_trend = db.query_db("""
-        SELECT date(created_at) as date, COUNT(*) as count
-        FROM dialogs
-        WHERE date(created_at) >= date('now', '-7 days')
-        GROUP BY date(created_at)
-        ORDER BY date(created_at)
-    """)
+    # 对话活跃度趋势
+    if time_range == '1d':
+        dialog_trend = db.query_db(f"""
+            SELECT strftime('%H:00', created_at) as date, COUNT(*) as count
+            FROM dialogs
+            WHERE date(created_at) = date('now')
+            GROUP BY strftime('%H', created_at)
+            ORDER BY strftime('%H', created_at)
+        """)
+    else:
+        dialog_trend = db.query_db(f"""
+            SELECT {dialog_date_format} as date, COUNT(*) as count
+            FROM dialogs
+            WHERE date(created_at) >= date('now', '-{days_back} days')
+            GROUP BY {dialog_group_format}
+            ORDER BY {dialog_group_format}
+        """)
     stats['dialog_trend'] = dialog_trend or []
+    
+    # Token消耗趋势 (基于对话数估算)
+    token_trend = []
+    for item in dialog_trend:
+        if stats['total_dialogs'] > 0:
+            ratio = item[1] / stats['total_dialogs']
+            estimated_tokens = int((stats['total_input_tokens'] + stats['total_output_tokens']) * ratio)
+        else:
+            estimated_tokens = 0
+        token_trend.append((item[0], estimated_tokens))
+    stats['token_trend'] = token_trend
+    
+    # 群聊活跃度趋势
+    if time_range == '1d':
+        group_trend = db.query_db(f"""
+            SELECT strftime('%H:00', create_at) as date, COUNT(*) as count
+            FROM group_dialogs
+            WHERE date(create_at) = date('now')
+            GROUP BY strftime('%H', create_at)
+            ORDER BY strftime('%H', create_at)
+        """)
+    else:
+        group_trend = db.query_db(f"""
+            SELECT {group_date_format} as date, COUNT(*) as count
+            FROM group_dialogs
+            WHERE date(create_at) >= date('now', '-{days_back} days')
+            GROUP BY {group_group_format}
+            ORDER BY {group_group_format}
+        """)
+    stats['group_trend'] = group_trend or []
+    
+    # 传递时间粒度参数给模板
+    stats['time_range'] = time_range
     
     return render_template('index.html', stats=stats)
 

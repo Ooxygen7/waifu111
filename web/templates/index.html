@@ -192,40 +192,86 @@
 
 <!-- 数据分析面板 -->
 <div class="row">
-    <!-- 用户增长趋势 -->
-    <div class="col-lg-6 mb-4">
+    <!-- 时间粒度选择器 -->
+    <div class="col-12 mb-4">
         <div class="card">
-            <div class="card-header bg-secondary text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-graph-up"></i> 用户增长趋势 (最近7天)</h6>
-            </div>
             <div class="card-body">
-                {% if stats.user_growth %}
-                    <canvas id="userGrowthChart" width="400" height="200"></canvas>
-                {% else %}
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-graph-up"></i><br>
-                        暂无用户增长数据
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-area text-info"></i>
+                        数据趋势分析
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="timeRange" id="range30d" value="30d" {% if stats.time_range == '30d' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="range30d">30天</label>
+                        
+                        <input type="radio" class="btn-check" name="timeRange" id="range7d" value="7d" {% if stats.time_range == '7d' or not stats.time_range %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="range7d">7天</label>
+                        
+                        <input type="radio" class="btn-check" name="timeRange" id="range1d" value="1d" {% if stats.time_range == '1d' %}checked{% endif %}>
+                        <label class="btn btn-outline-primary" for="range1d">24小时</label>
                     </div>
-                {% endif %}
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- 对话活跃度趋势 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-activity"></i> 对话活跃度趋势 (最近7天)</h6>
+    
+    <!-- 用户增长趋势 -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line text-primary"></i>
+                    用户增长趋势
+                </h5>
             </div>
             <div class="card-body">
-                {% if stats.dialog_trend %}
-                    <canvas id="dialogTrendChart" width="400" height="200"></canvas>
-                {% else %}
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-activity"></i><br>
-                        暂无对话活跃度数据
-                    </div>
-                {% endif %}
+                <canvas id="userGrowthChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 对话活跃度趋势 -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comments text-success"></i>
+                    对话活跃度趋势
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dialogTrendChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Token消耗趋势 -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-coins text-warning"></i>
+                    Token消耗趋势
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="tokenTrendChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 群聊活跃趋势 -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-users text-info"></i>
+                    群聊活跃趋势
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="groupTrendChart" width="400" height="200"></canvas>
             </div>
         </div>
     </div>
@@ -278,8 +324,22 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Chart.js 配置
+Chart.defaults.responsive = true;
+Chart.defaults.maintainAspectRatio = false;
+
+// 时间粒度切换功能
+document.querySelectorAll('input[name="timeRange"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        if (this.checked) {
+            const url = new URL(window.location);
+            url.searchParams.set('time_range', this.value);
+            window.location.href = url.toString();
+        }
+    });
+});
+
 // 用户增长趋势图
-{% if stats.user_growth %}
 const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
 const userGrowthChart = new Chart(userGrowthCtx, {
     type: 'line',
@@ -288,47 +348,158 @@ const userGrowthChart = new Chart(userGrowthCtx, {
         datasets: [{
             label: '新增用户',
             data: [{% for item in stats.user_growth %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.4,
+            fill: true
         }]
     },
     options: {
         responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
         scales: {
             y: {
-                beginAtZero: true
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
             }
         }
     }
 });
-{% endif %}
 
 // 对话活跃度趋势图
-{% if stats.dialog_trend %}
 const dialogTrendCtx = document.getElementById('dialogTrendChart').getContext('2d');
 const dialogTrendChart = new Chart(dialogTrendCtx, {
-    type: 'bar',
+    type: 'line',
     data: {
         labels: [{% for item in stats.dialog_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
             label: '对话数量',
             data: [{% for item in stats.dialog_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
-            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1
+            borderColor: 'rgb(40, 167, 69)',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            tension: 0.4,
+            fill: true
         }]
     },
     options: {
         responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
         scales: {
             y: {
-                beginAtZero: true
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
             }
         }
     }
 });
-{% endif %}
+
+// Token消耗趋势图
+const tokenTrendCtx = document.getElementById('tokenTrendChart').getContext('2d');
+const tokenTrendChart = new Chart(tokenTrendCtx, {
+    type: 'line',
+    data: {
+        labels: [{% for item in stats.token_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Token消耗',
+            data: [{% for item in stats.token_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderColor: 'rgb(255, 193, 7)',
+            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                },
+                ticks: {
+                    callback: function(value) {
+                        if (value >= 1000000) {
+                            return (value / 1000000).toFixed(1) + 'M';
+                        } else if (value >= 1000) {
+                            return (value / 1000).toFixed(1) + 'K';
+                        }
+                        return value;
+                    }
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            }
+        }
+    }
+});
+
+// 群聊活跃趋势图
+const groupTrendCtx = document.getElementById('groupTrendChart').getContext('2d');
+const groupTrendChart = new Chart(groupTrendCtx, {
+    type: 'line',
+    data: {
+        labels: [{% for item in stats.group_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: '群聊消息',
+            data: [{% for item in stats.group_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            borderColor: 'rgb(23, 162, 184)',
+            backgroundColor: 'rgba(23, 162, 184, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            }
+        }
+    }
+});
 
 // 实时时间显示
 function updateTime() {
