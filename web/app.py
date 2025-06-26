@@ -141,16 +141,42 @@ def index():
     # 获取统计数据
     stats = {}
     
-    # 用户统计
+    # 基础统计
     stats['total_users'] = db.query_db('SELECT COUNT(*) FROM users')[0][0] if db.query_db('SELECT COUNT(*) FROM users') else 0
     stats['total_conversations'] = db.query_db('SELECT COUNT(*) FROM conversations')[0][0] if db.query_db('SELECT COUNT(*) FROM conversations') else 0
     stats['total_dialogs'] = db.query_db('SELECT COUNT(*) FROM dialogs')[0][0] if db.query_db('SELECT COUNT(*) FROM dialogs') else 0
-    stats['total_groups'] = db.query_db('SELECT COUNT(*) FROM groups')[0][0] if db.query_db('SELECT COUNT(*) FROM groups') else 0
     
-    # 今日活跃统计
+    # 今日统计
     today = datetime.now().strftime('%Y-%m-%d')
-    today_result = db.query_db("SELECT COUNT(*) FROM dialogs WHERE date(created_at) = ?", (today,))
-    stats['today_dialogs'] = today_result[0][0] if today_result else 0
+    
+    # 今日新增对话数
+    today_conversations = db.query_db("SELECT COUNT(*) FROM conversations WHERE date(create_at) = ?", (today,))
+    stats['today_conversations'] = today_conversations[0][0] if today_conversations else 0
+    
+    # 今日新增消息数
+    today_dialogs = db.query_db("SELECT COUNT(*) FROM dialogs WHERE date(created_at) = ?", (today,))
+    stats['today_dialogs'] = today_dialogs[0][0] if today_dialogs else 0
+    
+    # 今日新增群聊消息数
+    today_group_dialogs = db.query_db("SELECT COUNT(*) FROM group_dialogs WHERE date(create_at) = ?", (today,))
+    stats['today_group_dialogs'] = today_group_dialogs[0][0] if today_group_dialogs else 0
+    
+    # 今日消耗token数 (通过对话关联用户)
+    today_tokens = db.query_db("""
+        SELECT SUM(u.input_tokens), SUM(u.output_tokens) 
+        FROM users u 
+        JOIN conversations c ON u.uid = c.user_id 
+        JOIN dialogs d ON c.conv_id = d.conv_id 
+        WHERE date(d.created_at) = ?
+    """, (today,))
+    if today_tokens and today_tokens[0] and today_tokens[0][0]:
+        stats['today_input_tokens'] = today_tokens[0][0] or 0
+        stats['today_output_tokens'] = today_tokens[0][1] or 0
+        stats['today_total_tokens'] = stats['today_input_tokens'] + stats['today_output_tokens']
+    else:
+        stats['today_input_tokens'] = 0
+        stats['today_output_tokens'] = 0
+        stats['today_total_tokens'] = 0
     
     # Token使用统计
     token_stats = db.query_db('SELECT SUM(input_tokens) as input_total, SUM(output_tokens) as output_total FROM users')
@@ -160,6 +186,51 @@ def index():
     else:
         stats['total_input_tokens'] = 0
         stats['total_output_tokens'] = 0
+    
+    # 今日最活跃用户 (按消息数排序)
+    active_users = db.query_db("""
+        SELECT u.uid, u.user_name, u.first_name, u.last_name, COUNT(d.id) as message_count
+        FROM users u
+        JOIN conversations c ON u.uid = c.user_id
+        JOIN dialogs d ON c.conv_id = d.conv_id
+        WHERE date(d.created_at) = ?
+        GROUP BY u.uid, u.user_name, u.first_name, u.last_name
+        ORDER BY message_count DESC
+        LIMIT 5
+    """, (today,))
+    stats['active_users'] = active_users or []
+    
+    # 今日最活跃群组 (按消息数排序)
+    active_groups = db.query_db("""
+        SELECT g.group_id, g.group_name, COUNT(*) as message_count
+        FROM groups g
+        JOIN group_dialogs gd ON g.group_id = gd.group_id
+        WHERE date(gd.create_at) = ?
+        GROUP BY g.group_id, g.group_name
+        ORDER BY message_count DESC
+        LIMIT 5
+    """, (today,))
+    stats['active_groups'] = active_groups or []
+    
+    # 用户增长趋势 (最近7天)
+    user_growth = db.query_db("""
+        SELECT date(create_at) as date, COUNT(*) as count
+        FROM users
+        WHERE date(create_at) >= date('now', '-7 days')
+        GROUP BY date(create_at)
+        ORDER BY date(create_at)
+    """)
+    stats['user_growth'] = user_growth or []
+    
+    # 对话活跃度趋势 (最近7天)
+    dialog_trend = db.query_db("""
+        SELECT date(created_at) as date, COUNT(*) as count
+        FROM dialogs
+        WHERE date(created_at) >= date('now', '-7 days')
+        GROUP BY date(created_at)
+        ORDER BY date(created_at)
+    """)
+    stats['dialog_trend'] = dialog_trend or []
     
     return render_template('index.html', stats=stats)
 
