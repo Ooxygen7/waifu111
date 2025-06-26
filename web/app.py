@@ -958,6 +958,30 @@ def api_generate_summary():
     except Exception as e:
         return jsonify({'error': f'生成摘要时发生错误: {str(e)}'}), 500
 
+@app.route('/api/edit_message', methods=['POST'])
+@login_required
+def edit_message():
+    """编辑消息的processed_content"""
+    try:
+        data = request.get_json()
+        dialog_id = data.get('dialog_id')
+        new_content = data.get('content', '').strip()
+        
+        if not dialog_id:
+            return jsonify({'error': '缺少消息ID'}), 400
+            
+        # 更新数据库中的processed_content
+        db.revise_db(
+            'UPDATE dialogs SET processed_content = ? WHERE id = ?',
+            (new_content, dialog_id)
+        )
+        
+        return jsonify({'success': True, 'message': '消息内容已更新'})
+        
+    except Exception as e:
+        app_logger.error(f"编辑消息失败: {str(e)}")
+        return jsonify({'error': f'编辑消息失败: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app_logger.info("启动Web管理界面，地址: http://0.0.0.0:8081")
     app.run(debug=False, host='0.0.0.0', port=8081, use_reloader=False)

@@ -5,71 +5,47 @@
 {% block page_title %}对话详情{% endblock %}
 
 {% block content %}
-<!-- 对话信息卡片 -->
-<div class="row mb-4">
+<!-- 紧凑的对话信息卡片 -->
+<div class="row mb-3">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h6 class="m-0 font-weight-bold">
-                    <i class="bi bi-info-circle"></i> 对话信息 - ID: {{ conversation.conv_id }}
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td><strong>对话ID:</strong></td>
-                                <td><span class="badge bg-primary">{{ conversation.conv_id }}</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>用户ID:</strong></td>
-                                <td><span class="badge bg-secondary">{{ conversation.user_id }}</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>角色:</strong></td>
-                                <td><span class="badge bg-info">{{ conversation.character or '未设置' }}</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>预设:</strong></td>
-                                <td><span class="badge bg-warning text-dark">{{ conversation.preset or '默认' }}</span></td>
-                            </tr>
-                        </table>
+            <div class="card-header bg-primary text-white py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="bi bi-info-circle"></i> 对话 {{ conversation.conv_id }}
+                    </h6>
+                    <div>
+                        <button class="btn btn-light btn-sm me-1" onclick="location.reload()">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <a href="{{ url_for('conversations') }}" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-arrow-left"></i> 返回
+                        </a>
                     </div>
-                    <div class="col-md-6">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td><strong>总轮次:</strong></td>
-                                <td><span class="badge bg-success">{{ conversation.turns or 0 }}</span></td>
-                            </tr>
-                            <tr>
-                                <td><strong>创建时间:</strong></td>
-                                <td><small class="text-muted">{{ format_datetime(conversation.create_at) }}</small></td>
-                            </tr>
-                            <tr>
-                                <td><strong>更新时间:</strong></td>
-                                <td><small class="text-muted">{{ format_datetime(conversation.update_at) }}</small></td>
-                            </tr>
-                            <tr>
-                                <td><strong>状态:</strong></td>
-                                <td>
-                                    {% if conversation.delete_mark %}
-                                        <span class="badge bg-danger">已删除</span>
-                                    {% else %}
-                                        <span class="badge bg-success">正常</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        </table>
+                </div>
+            </div>
+            <div class="card-body py-2">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge bg-secondary">用户: {{ conversation.user_id }}</span>
+                            <span class="badge bg-info">角色: {{ conversation.character or '未设置' }}</span>
+                            <span class="badge bg-warning text-dark">预设: {{ conversation.preset or '默认' }}</span>
+                            <span class="badge bg-success">轮次: {{ conversation.turns or 0 }}</span>
+                            {% if conversation.delete_mark %}
+                                <span class="badge bg-danger">已删除</span>
+                            {% else %}
+                                <span class="badge bg-success">正常</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <small class="text-muted">{{ format_datetime(conversation.update_at) }}</small>
                     </div>
                 </div>
                 {% if conversation.summary %}
-                <hr>
-                <div>
-                    <h6 class="text-primary"><i class="bi bi-file-text"></i> 对话摘要</h6>
-                    <div class="alert alert-light border">
-                        {{ conversation.summary }}
-                    </div>
+                <div class="mt-2">
+                    <small class="text-muted"><i class="bi bi-file-text"></i> {{ conversation.summary }}</small>
                 </div>
                 {% endif %}
             </div>
@@ -77,87 +53,62 @@
     </div>
 </div>
 
-<!-- 对话消息 -->
+<!-- iMessage风格的对话消息 -->
 <div class="row">
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <div class="card-header bg-success text-white py-2">
                 <h6 class="m-0 font-weight-bold">
                     <i class="bi bi-chat-dots"></i> 对话消息 ({{ dialogs|length }} 条)
                 </h6>
-                <div>
-                    <button class="btn btn-light btn-sm" onclick="location.reload()">
-                        <i class="bi bi-arrow-clockwise"></i> 刷新
-                    </button>
-                    <a href="{{ url_for('conversations') }}" class="btn btn-outline-light btn-sm">
-                        <i class="bi bi-arrow-left"></i> 返回列表
-                    </a>
-                </div>
             </div>
             <div class="card-body p-0">
                 {% if dialogs %}
-                <div class="chat-container" style="max-height: 70vh; overflow-y: auto;">
+                <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 15px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
                     {% for dialog in dialogs %}
-                    <div class="message-item border-bottom p-3 {% if dialog.role == 'user' %}bg-light{% endif %}">
-                        <div class="d-flex align-items-start">
-                            <div class="avatar-container me-3">
-                                {% if dialog.role == 'user' %}
-                                <div class="avatar bg-primary rounded-circle d-flex align-items-center justify-content-center text-white" 
-                                     style="width: 40px; height: 40px;">
-                                    <i class="bi bi-person"></i>
+                    <div class="message-bubble-container mb-3 {% if dialog.role == 'user' %}user-message{% else %}ai-message{% endif %}" 
+                         data-dialog-id="{{ dialog.id }}" 
+                         data-raw-content="{{ dialog.raw_content|e }}" 
+                         data-processed-content="{{ dialog.processed_content|e if dialog.processed_content else dialog.raw_content|e }}" 
+                         data-turn="{{ dialog.turn_order }}" 
+                         data-time="{{ format_datetime(dialog.created_at) }}" 
+                         data-msg-id="{{ dialog.msg_id or '' }}">
+                        
+                        {% if dialog.role == 'user' %}
+                        <!-- 用户消息 (右侧，蓝色) -->
+                        <div class="d-flex justify-content-end">
+                            <div class="message-bubble user-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
+                                <div class="message-content">
+                                    {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | safe }}
                                 </div>
-                                {% else %}
-                                <div class="avatar bg-success rounded-circle d-flex align-items-center justify-content-center text-white" 
-                                     style="width: 40px; height: 40px;">
-                                    <i class="bi bi-robot"></i>
+                                <div class="message-time" style="font-size: 0.7em; opacity: 0.8; margin-top: 2px;">
+                                    {{ format_datetime(dialog.created_at) }}
                                 </div>
-                                {% endif %}
-                            </div>
-                            <div class="message-content flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <div>
-                                        <strong class="{% if dialog.role == 'user' %}text-primary{% else %}text-success{% endif %}">
-                                            {% if dialog.role == 'user' %}
-                                                <i class="bi bi-person"></i> 用户
-                                            {% else %}
-                                                <i class="bi bi-robot"></i> AI助手
-                                            {% endif %}
-                                        </strong>
-                                        <small class="text-muted ms-2">
-                                            轮次: {{ dialog.turn_order }}
-                                            {% if dialog.msg_id %}
-                                            | 消息ID: {{ dialog.msg_id }}
-                                            {% endif %}
-                                        </small>
-                                    </div>
-                                    <small class="text-muted">{{ format_datetime(dialog.created_at) }}</small>
-                                </div>
-                                
-                                <!-- 原始内容 -->
-                                <div class="message-text">
-                                    <div class="mb-2">
-                                        <h6 class="text-secondary mb-1">
-                                            <i class="bi bi-file-text"></i> 原始内容
-                                        </h6>
-                                        <div class="border rounded p-2 bg-white">
-                                            <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ dialog.raw_content }}</pre>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- 处理后内容 -->
-                                    {% if dialog.processed_content and dialog.processed_content != dialog.raw_content %}
-                                    <div>
-                                        <h6 class="text-info mb-1">
-                                            <i class="bi bi-gear"></i> 处理后内容
-                                        </h6>
-                                        <div class="border rounded p-2 bg-info bg-opacity-10">
-                                            <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">{{ dialog.processed_content }}</pre>
-                                        </div>
-                                    </div>
-                                    {% endif %}
-                                </div>
+                                <!-- 编辑按钮 -->
+                                 <button class="btn btn-sm btn-outline-light edit-btn" style="position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; border-radius: 50%; padding: 0; font-size: 0.6em; opacity: 0; transition: opacity 0.2s;" 
+                                         onclick="event.stopPropagation(); editMessage({{ dialog.id }}, '{{ (dialog.processed_content if dialog.processed_content else dialog.raw_content)|e }}')">
+                                     <i class="bi bi-pencil"></i>
+                                 </button>
                             </div>
                         </div>
+                        {% else %}
+                        <!-- AI消息 (左侧，灰色) -->
+                        <div class="d-flex justify-content-start">
+                            <div class="message-bubble ai-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
+                                <div class="message-content">
+                                    {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | safe }}
+                                </div>
+                                <div class="message-time" style="font-size: 0.7em; opacity: 0.6; margin-top: 2px;">
+                                    {{ format_datetime(dialog.created_at) }}
+                                </div>
+                                <!-- 编辑按钮 -->
+                                 <button class="btn btn-sm btn-outline-secondary edit-btn" style="position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; border-radius: 50%; padding: 0; font-size: 0.6em; opacity: 0; transition: opacity 0.2s;" 
+                                         onclick="event.stopPropagation(); editMessage({{ dialog.id }}, '{{ (dialog.processed_content if dialog.processed_content else dialog.raw_content)|e }}')">
+                                     <i class="bi bi-pencil"></i>
+                                 </button>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -173,20 +124,82 @@
     </div>
 </div>
 
-<!-- 操作按钮 -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body text-center">
-                <a href="{{ url_for('conversations') }}" class="btn btn-secondary me-2">
-                    <i class="bi bi-arrow-left"></i> 返回对话列表
-                </a>
-                <a href="{{ url_for('conversations', user_id=conversation.user_id) }}" class="btn btn-primary me-2">
-                    <i class="bi bi-person"></i> 查看该用户的所有对话
-                </a>
-                <button class="btn btn-info" onclick="exportDialog()">
-                    <i class="bi bi-download"></i> 导出对话
-                </button>
+<!-- 消息详情模态框 -->
+<div class="modal fade" id="messageDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-chat-square-text"></i> 消息详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>角色:</strong> <span id="modal-role" class="badge"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>轮次:</strong> <span id="modal-turn" class="badge bg-secondary"></span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>时间:</strong> <span id="modal-time" class="text-muted"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>消息ID:</strong> <span id="modal-msg-id" class="text-muted"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-secondary">
+                        <i class="bi bi-file-text"></i> 原始内容
+                    </h6>
+                    <div class="border rounded p-3 bg-light">
+                        <pre id="modal-raw-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+                    </div>
+                </div>
+                
+                <div>
+                    <h6 class="text-info">
+                        <i class="bi bi-gear"></i> 处理后内容
+                    </h6>
+                    <div class="border rounded p-3 bg-info bg-opacity-10">
+                        <pre id="modal-processed-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="editCurrentMessage()">编辑内容</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑消息模态框 -->
+<div class="modal fade" id="editMessageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil"></i> 编辑消息内容
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="edit-content" class="form-label">处理后内容:</label>
+                    <textarea id="edit-content" class="form-control" rows="8" placeholder="请输入新的消息内容..."></textarea>
+                </div>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 编辑的是处理后内容，原始内容不会改变。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveMessageEdit()">保存</button>
             </div>
         </div>
     </div>
@@ -195,6 +208,129 @@
 
 {% block scripts %}
 <script>
+ let currentEditingDialogId = null;
+ let savedScrollPosition = 0;
+ 
+ // 点击消息气泡显示详情
+ document.addEventListener('DOMContentLoaded', function() {
+     // 消息气泡点击事件
+     document.querySelectorAll('.message-bubble-container').forEach(container => {
+         container.addEventListener('click', function() {
+             const dialogId = this.dataset.dialogId;
+             const rawContent = this.dataset.rawContent;
+             const processedContent = this.dataset.processedContent;
+             const turn = this.dataset.turn;
+             const time = this.dataset.time;
+             const msgId = this.dataset.msgId;
+             const role = container.classList.contains('user-message') ? '用户' : 'AI助手';
+             
+             // 填充模态框内容
+             document.getElementById('modal-role').textContent = role;
+             document.getElementById('modal-role').className = `badge ${role === '用户' ? 'bg-primary' : 'bg-success'}`;
+             document.getElementById('modal-turn').textContent = turn;
+             document.getElementById('modal-time').textContent = time;
+             document.getElementById('modal-msg-id').textContent = msgId || '无';
+             document.getElementById('modal-raw-content').textContent = rawContent;
+             document.getElementById('modal-processed-content').textContent = processedContent;
+             
+             // 保存当前对话ID
+             currentEditingDialogId = dialogId;
+             
+             // 显示模态框
+             new bootstrap.Modal(document.getElementById('messageDetailModal')).show();
+         });
+     });
+     
+     // 鼠标悬停显示编辑按钮
+     document.querySelectorAll('.message-bubble').forEach(bubble => {
+         bubble.addEventListener('mouseenter', function() {
+             const editBtn = this.querySelector('.edit-btn');
+             if (editBtn) editBtn.style.opacity = '1';
+         });
+         
+         bubble.addEventListener('mouseleave', function() {
+             const editBtn = this.querySelector('.edit-btn');
+             if (editBtn) editBtn.style.opacity = '0';
+         });
+     });
+     
+     // 自动滚动到最新消息（仅在首次加载时）
+     const chatContainer = document.querySelector('.imessage-container');
+     if (chatContainer && !sessionStorage.getItem('scrollPosition')) {
+         chatContainer.scrollTop = chatContainer.scrollHeight;
+     } else if (chatContainer && sessionStorage.getItem('scrollPosition')) {
+         // 恢复之前保存的滚动位置
+         chatContainer.scrollTop = parseInt(sessionStorage.getItem('scrollPosition'));
+         sessionStorage.removeItem('scrollPosition');
+     }
+ });
+
+// 编辑消息函数
+function editMessage(dialogId, currentContent) {
+    currentEditingDialogId = dialogId;
+    document.getElementById('edit-content').value = currentContent;
+    new bootstrap.Modal(document.getElementById('editMessageModal')).show();
+}
+
+// 从详情模态框编辑
+function editCurrentMessage() {
+    const processedContent = document.getElementById('modal-processed-content').textContent;
+    document.getElementById('edit-content').value = processedContent;
+    
+    // 关闭详情模态框，打开编辑模态框
+    bootstrap.Modal.getInstance(document.getElementById('messageDetailModal')).hide();
+    new bootstrap.Modal(document.getElementById('editMessageModal')).show();
+}
+
+// 保存编辑
+ function saveMessageEdit() {
+     const newContent = document.getElementById('edit-content').value.trim();
+     
+     if (!newContent) {
+         alert('内容不能为空');
+         return;
+     }
+     
+     if (!currentEditingDialogId) {
+         alert('无效的消息ID');
+         return;
+     }
+     
+     // 保存当前滚动位置
+     const chatContainer = document.querySelector('.imessage-container');
+     if (chatContainer) {
+         sessionStorage.setItem('scrollPosition', chatContainer.scrollTop);
+     }
+     
+     // 发送AJAX请求
+     fetch('/api/edit_message', {
+         method: 'POST',
+         headers: {
+             'Content-Type': 'application/json',
+         },
+         body: JSON.stringify({
+             dialog_id: currentEditingDialogId,
+             content: newContent
+         })
+     })
+     .then(response => response.json())
+     .then(data => {
+         if (data.success) {
+             // 关闭模态框
+             bootstrap.Modal.getInstance(document.getElementById('editMessageModal')).hide();
+             
+             // 刷新页面显示更新后的内容
+             location.reload();
+         } else {
+             alert('编辑失败: ' + (data.error || '未知错误'));
+         }
+     })
+     .catch(error => {
+         console.error('Error:', error);
+         alert('编辑失败: 网络错误');
+     });
+ }
+
 // 导出对话功能
 function exportDialog() {
     const convId = {{ conversation.conv_id }};
@@ -229,39 +365,5 @@ function exportDialog() {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 }
-
-// 自动滚动到最新消息
-document.addEventListener('DOMContentLoaded', function() {
-    const chatContainer = document.querySelector('.chat-container');
-    if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-});
-
-// 消息内容展开/收起功能
-document.addEventListener('DOMContentLoaded', function() {
-    const messageTexts = document.querySelectorAll('.message-text pre');
-    messageTexts.forEach(pre => {
-        if (pre.scrollHeight > 150) {
-            pre.style.maxHeight = '150px';
-            pre.style.overflow = 'hidden';
-            
-            const expandBtn = document.createElement('button');
-            expandBtn.className = 'btn btn-sm btn-outline-secondary mt-1';
-            expandBtn.innerHTML = '<i class="bi bi-chevron-down"></i> 展开';
-            expandBtn.onclick = function() {
-                if (pre.style.maxHeight === '150px') {
-                    pre.style.maxHeight = 'none';
-                    expandBtn.innerHTML = '<i class="bi bi-chevron-up"></i> 收起';
-                } else {
-                    pre.style.maxHeight = '150px';
-                    expandBtn.innerHTML = '<i class="bi bi-chevron-down"></i> 展开';
-                }
-            };
-            
-            pre.parentNode.appendChild(expandBtn);
-        }
-    });
-});
 </script>
 {% endblock %}
