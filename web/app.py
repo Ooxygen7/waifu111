@@ -106,6 +106,17 @@ def format_datetime(timestamp):
             return str(timestamp)
     return '未知'
 
+app.jinja_env.filters['format_datetime'] = format_datetime
+
+def highlight_search_keyword(text, keyword):
+    import re
+    if not keyword:
+        return text
+    # 使用re.IGNORECASE进行不区分大小写的匹配
+    return re.sub(f'(?i)({re.escape(keyword)})', r'<mark>\1</mark>', text)
+
+app.jinja_env.filters['highlight_search_keyword'] = highlight_search_keyword
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """登录页面"""
@@ -469,11 +480,27 @@ def dialogs(conv_id):
     conv_columns = ['id', 'conv_id', 'user_id', 'character', 'preset', 'summary', 'create_at', 'update_at', 'delete_mark', 'turns']
     conversation = {conv_columns[i]: conversation_data[0][i] for i in range(len(conv_columns))}
     
-    # 获取对话消息
-    dialogs_data = db.query_db(
-        'SELECT * FROM dialogs WHERE conv_id = ? ORDER BY turn_order ASC',
-        (conv_id,)
-    )
+    # 获取搜索关键词
+    search_keyword = request.args.get('search', '').strip()
+    
+    # 根据是否有搜索关键词决定查询方式
+    if search_keyword:
+        # 搜索模式：在对话消息中搜索关键词
+        dialogs_data = db.query_db(
+            '''SELECT * FROM dialogs 
+               WHERE conv_id = ? AND (
+                   raw_content LIKE ? OR 
+                   processed_content LIKE ?
+               ) 
+               ORDER BY turn_order ASC''',
+            (conv_id, f'%{search_keyword}%', f'%{search_keyword}%')
+        )
+    else:
+        # 正常模式：获取所有对话消息
+        dialogs_data = db.query_db(
+            'SELECT * FROM dialogs WHERE conv_id = ? ORDER BY turn_order ASC',
+            (conv_id,)
+        )
     
     # 转换对话消息为字典格式
     dialogs_list = []
@@ -484,7 +511,8 @@ def dialogs(conv_id):
             dialogs_list.append(dialog_dict)
     
     return render_template('dialogs.html', conversation=conversation, 
-                         dialogs=dialogs_list, format_datetime=format_datetime)
+                         dialogs=dialogs_list, format_datetime=format_datetime,
+                         search_keyword=search_keyword)
 
 @app.route('/groups')
 @login_required
@@ -612,6 +640,39 @@ def group_dialogs(group_id):
     return render_template('group_dialogs.html', group=group, dialogs=dialogs_list,
                          page=page, total_pages=total_pages, search=search, format_datetime=format_datetime)
 
+@app.route('/api/message_page/<group_id>/<msg_id>')
+@login_required
+def get_message_page(group_id, msg_id):
+    """获取指定消息所在的页码"""
+    try:
+        group_id = int(group_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid group ID'}), 400
+    
+    per_page = 50
+    
+    # 获取该消息的创建时间
+    msg_data = db.query_db(
+        'SELECT create_at FROM group_dialogs WHERE group_id = ? AND msg_id = ?',
+        (group_id, msg_id)
+    )
+    
+    if not msg_data:
+        return jsonify({'error': 'Message not found'}), 404
+    
+    msg_create_at = msg_data[0][0]
+    
+    # 计算在该消息之后创建的消息数量（因为按create_at DESC排序）
+    count_result = db.query_db(
+        'SELECT COUNT(*) FROM group_dialogs WHERE group_id = ? AND create_at > ?',
+        (group_id, msg_create_at)
+    )
+    
+    messages_after = count_result[0][0] if count_result else 0
+    page = (messages_after // per_page) + 1
+    
+    return jsonify({'page': page})
+
 @app.route('/api/user/<int:user_id>')
 @login_required
 def api_user_detail(user_id):
@@ -660,25 +721,31 @@ def search():
     
     # 搜索私聊对话消息
     dialogs_data = db.query_db(
-        'SELECT d.*, c.character, c.user_id, u.user_name FROM dialogs d LEFT JOIN conversations c ON d.conv_id = c.conv_id LEFT JOIN users u ON c.user_id = u.uid WHERE d.raw_content LIKE ? OR d.processed_content LIKE ? ORDER BY d.created_at DESC',
+        'SELECT d.*, c.character, c.user_id, u.user_name, u.first_name, u.last_name FROM dialogs d LEFT JOIN conversations c ON d.conv_id = c.conv_id LEFT JOIN users u ON c.user_id = u.uid WHERE d.raw_content LIKE ? OR d.processed_content LIKE ? ORDER BY d.created_at DESC',
         (f'%{query}%', f'%{query}%')
     )
     if dialogs_data:
-        dialog_columns = ['id', 'conv_id', 'role', 'raw_content', 'turn_order', 'created_at', 'processed_content', 'msg_id', 'character', 'user_id', 'user_name']
+        dialog_columns = ['id', 'conv_id', 'role', 'raw_content', 'turn_order', 'created_at', 'processed_content', 'msg_id', 'character', 'user_id', 'user_name', 'first_name', 'last_name']
         for row in dialogs_data:
             dialog_dict = {dialog_columns[i]: row[i] for i in range(len(dialog_columns))}
+            # 构建用户姓名
+            first_name = dialog_dict.get('first_name', '') or ''
+            last_name = dialog_dict.get('last_name', '') or ''
+            dialog_dict['user_name'] = f"{first_name} {last_name}".strip() or dialog_dict.get('user_name', '未设置')
             dialog_dict['type'] = 'private'  # 标记为私聊消息
             results['dialogs'].append(dialog_dict)
     
     # 搜索群聊消息内容
     group_dialogs_data = db.query_db(
-        'SELECT gd.*, g.group_name FROM group_dialogs gd LEFT JOIN groups g ON gd.group_id = g.group_id WHERE gd.msg_text LIKE ? OR gd.raw_response LIKE ? OR gd.processed_response LIKE ? ORDER BY gd.create_at DESC',
+        'SELECT gd.group_id, gd.msg_user, gd.trigger_type, gd.msg_text, gd.msg_user_name, gd.msg_id, gd.raw_response, gd.processed_response, gd.delete_mark, gd.group_name, gd.create_at, g.group_name as groups_group_name, ROW_NUMBER() OVER (ORDER BY gd.create_at DESC) as id FROM group_dialogs gd LEFT JOIN groups g ON gd.group_id = g.group_id WHERE gd.msg_text LIKE ? OR gd.raw_response LIKE ? OR gd.processed_response LIKE ? ORDER BY gd.create_at DESC',
         (f'%{query}%', f'%{query}%', f'%{query}%')
     )
     if group_dialogs_data:
-        group_dialog_columns = ['group_id', 'msg_user', 'trigger_type', 'msg_text', 'msg_user_name', 'msg_id', 'raw_response', 'processed_response', 'delete_mark', 'group_name_orig', 'create_at', 'group_name']
+        group_dialog_columns = ['group_id', 'msg_user', 'trigger_type', 'msg_text', 'msg_user_name', 'msg_id', 'raw_response', 'processed_response', 'delete_mark', 'group_name', 'create_at', 'groups_group_name', 'id']
         for row in group_dialogs_data:
             group_dialog_dict = {group_dialog_columns[i]: row[i] for i in range(len(group_dialog_columns))}
+            # 使用 groups 表的 group_name 作为主要群组名，如果没有则使用 group_dialogs 表的 group_name
+            group_dialog_dict['group_name'] = group_dialog_dict.get('groups_group_name') or group_dialog_dict.get('group_name') or '未知群组'
             group_dialog_dict['type'] = 'group'  # 标记为群聊消息
             results['dialogs'].append(group_dialog_dict)
     

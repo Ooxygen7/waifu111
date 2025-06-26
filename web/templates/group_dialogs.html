@@ -131,87 +131,109 @@
                         </form>
                     </div>
                 </div>
+                
+                <!-- 搜索结果列表 -->
+                {% if search and dialogs %}
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                             <h6 class="mb-2"><i class="bi bi-list-ul"></i> 搜索结果列表 ({{ dialogs|length }} 条匹配)</h6>
+                             <p class="mb-2 text-muted small"><i class="bi bi-info-circle"></i> 点击任意结果可跳转到完整对话页面查看上下文</p>
+                            <div class="search-results-list" style="max-height: 200px; overflow-y: auto;">
+                                {% for dialog in dialogs %}
+                                <div class="search-result-item p-2 border-bottom cursor-pointer" 
+                                     onclick="jumpToMessage('{{ dialog.msg_id }}')"
+                                     style="cursor: pointer; transition: background-color 0.2s;"
+                                     onmouseover="this.style.backgroundColor='#f8f9fa'"
+                                     onmouseout="this.style.backgroundColor='transparent'">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <small class="text-primary fw-bold">{{ dialog.msg_user_name or '未知用户' }}</small>
+                                            <span class="badge bg-secondary ms-1" style="font-size: 0.6em;">{{ dialog.trigger_type or '未知' }}</span>
+                                            <div class="text-truncate" style="max-width: 400px;">
+                                                {{ dialog.msg_text[:100] }}{% if dialog.msg_text|length > 100 %}...{% endif %}
+                                            </div>
+                                        </div>
+                                        <small class="text-muted ms-2">{{ format_datetime(dialog.create_at) }}</small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 {% if dialogs %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 80px;">消息ID</th>
-                                <th style="width: 100px;">用户</th>
-                                <th style="width: 120px;">触发类型</th>
-                                <th>用户消息</th>
-                                <th>AI回复</th>
-                                <th style="width: 120px;">时间</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for dialog in dialogs %}
-                            <tr>
-                                <td><span class="badge bg-secondary">{{ dialog.msg_id or 'N/A' }}</span></td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center text-white me-2" 
-                                             style="width: 30px; height: 30px; font-size: 12px;">
-                                            {{ dialog.msg_user_name[0] if dialog.msg_user_name else 'U' }}
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold" style="font-size: 12px;">{{ dialog.msg_user_name or '未知用户' }}</div>
-                                            <small class="text-muted">ID: {{ dialog.msg_user or 'N/A' }}</small>
-                                        </div>
+                <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 15px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
+                    {% for dialog in dialogs %}
+                    <!-- 用户消息气泡 (左侧) -->
+                    <div class="message-bubble-container mb-3 user-message" 
+                         data-dialog-id="{{ dialog.msg_id or 'N/A' }}" 
+                         data-user-name="{{ dialog.msg_user_name or '未知用户' }}"
+                         data-user-id="{{ dialog.msg_user or 'N/A' }}"
+                         data-trigger-type="{{ dialog.trigger_type or '未知' }}"
+                         data-msg-content="{{ dialog.msg_text|e }}"
+                         data-time="{{ format_datetime(dialog.create_at) }}">
+                        
+                        <div class="d-flex justify-content-start">
+                            <div class="message-bubble user-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
+                                <div class="message-content">
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <strong style="font-size: 0.85em;">{{ dialog.msg_user_name or '未知用户' }}</strong>
+                                        {% if dialog.trigger_type == 'mention' %}
+                                            <span class="badge bg-warning text-dark" style="font-size: 0.6em;">@提及</span>
+                                        {% elif dialog.trigger_type == 'reply' %}
+                                            <span class="badge bg-info" style="font-size: 0.6em;">回复</span>
+                                        {% elif dialog.trigger_type == 'keyword' %}
+                                            <span class="badge bg-success" style="font-size: 0.6em;">关键词</span>
+                                        {% elif dialog.trigger_type == 'random' %}
+                                            <span class="badge bg-secondary" style="font-size: 0.6em;">随机</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-dark" style="font-size: 0.6em;">{{ dialog.trigger_type or '未知' }}</span>
+                                        {% endif %}
                                     </div>
-                                </td>
-                                <td>
-                                    {% if dialog.trigger_type == 'mention' %}
-                                        <span class="badge bg-warning text-dark">@提及</span>
-                                    {% elif dialog.trigger_type == 'reply' %}
-                                        <span class="badge bg-info">回复</span>
-                                    {% elif dialog.trigger_type == 'keyword' %}
-                                        <span class="badge bg-success">关键词</span>
-                                    {% elif dialog.trigger_type == 'random' %}
-                                        <span class="badge bg-secondary">随机</span>
+                                    {% if dialog.msg_text %}
+                                        {{ dialog.msg_text | replace('\n', '<br>') | safe }}
                                     {% else %}
-                                        <span class="badge bg-light text-dark">{{ dialog.trigger_type or '未知' }}</span>
+                                        <span class="text-muted">无消息内容</span>
                                     {% endif %}
-                                </td>
-                                <td>
-                                    <div class="message-content">
-                                        {% if dialog.msg_text %}
-                                            <div class="border rounded p-2 bg-light" style="max-height: 100px; overflow-y: auto;">
-                                                <small style="white-space: pre-wrap;">{{ dialog.msg_text }}</small>
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">无消息内容</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="response-content">
-                                        {% if dialog.processed_response %}
-                                            <div class="border rounded p-2 bg-success bg-opacity-10" style="max-height: 100px; overflow-y: auto;">
-                                                <small style="white-space: pre-wrap;">{{ dialog.processed_response }}</small>
-                                            </div>
-                                            {% if dialog.raw_response and dialog.raw_response != dialog.processed_response %}
-                                            <button class="btn btn-sm btn-outline-secondary mt-1" 
-                                                    onclick="showRawResponse('{{ dialog.msg_id }}', {{ dialog.raw_response|tojson }})">
-                                                <i class="bi bi-eye"></i> 查看原始回复
-                                            </button>
-                                            {% endif %}
-                                        {% elif dialog.raw_response %}
-                                            <div class="border rounded p-2 bg-info bg-opacity-10" style="max-height: 100px; overflow-y: auto;">
-                                                <small style="white-space: pre-wrap;">{{ dialog.raw_response }}</small>
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted">无回复内容</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                                <td><small class="text-muted">{{ format_datetime(dialog.create_at) }}</small></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                </div>
+                                <div class="message-time" style="font-size: 0.7em; opacity: 0.6; margin-top: 2px;">
+                                    {{ format_datetime(dialog.create_at) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI回复气泡 (右侧) -->
+                    {% if dialog.processed_response or dialog.raw_response %}
+                    <div class="message-bubble-container mb-4 ai-message" 
+                         data-dialog-id="{{ dialog.msg_id or 'N/A' }}" 
+                         data-processed-response="{{ dialog.processed_response|e }}"
+                         data-raw-response="{{ dialog.raw_response|e }}"
+                         data-time="{{ format_datetime(dialog.create_at) }}">
+                        
+                        <div class="d-flex justify-content-end">
+                            <div class="message-bubble ai-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
+                                <div class="message-content">
+                                    {% if dialog.processed_response %}
+                                        {{ dialog.processed_response | replace('\n', '<br>') | safe }}
+                                    {% elif dialog.raw_response %}
+                                        {{ dialog.raw_response | replace('\n', '<br>') | safe }}
+                                    {% else %}
+                                        <span class="text-muted">无回复内容</span>
+                                    {% endif %}
+                                </div>
+                                <div class="message-time" style="font-size: 0.7em; opacity: 0.8; margin-top: 2px;">
+                                    {{ format_datetime(dialog.create_at) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
                 </div>
 
                 <!-- 分页 -->
@@ -266,53 +288,362 @@
     </div>
 </div>
 
-<!-- 原始回复模态框 -->
-<div class="modal fade" id="rawResponseModal" tabindex="-1" aria-labelledby="rawResponseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title" id="rawResponseModalLabel">
-                    <i class="bi bi-file-text"></i> 原始回复内容
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="rawResponseContent">
-                <!-- 原始回复内容将在这里显示 -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+<!-- 用户消息详情模态框 -->
+    <div class="modal fade" id="userMessageModal" tabindex="-1" aria-labelledby="userMessageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userMessageModalLabel">用户消息详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">消息ID:</label>
+                        <span id="userModalMsgId" class="text-muted"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">发送用户:</label>
+                        <span id="userModalUserName" class="text-muted"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">用户ID:</label>
+                        <span id="userModalUserId" class="text-muted"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">触发类型:</label>
+                        <span id="userModalTriggerType" class="text-muted"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">消息内容:</label>
+                        <div id="userModalContent" class="border rounded p-3 bg-light" style="white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">时间:</label>
+                        <span id="userModalTime" class="text-muted"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" id="copyForwardBtn">复制转发命令</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- AI回复详情模态框 -->
+    <div class="modal fade" id="aiResponseModal" tabindex="-1" aria-labelledby="aiResponseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aiResponseModalLabel">AI回复详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">消息ID:</label>
+                        <span id="modalMsgId" class="text-muted"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">原始回复:</label>
+                        <div id="modalRawResponse" class="border rounded p-3 bg-info bg-opacity-10" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">时间:</label>
+                        <span id="modalTime" class="text-muted"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 消息气泡样式 */
+.imessage-container {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.message-bubble {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.user-bubble {
+    background: #f1f1f1 !important;
+    color: #333 !important;
+    cursor: pointer;
+}
+
+.user-bubble::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 10px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 8px solid #f1f1f1;
+}
+
+.ai-bubble {
+    background: #007bff !important;
+    color: white !important;
+}
+
+.ai-bubble::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: 10px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 8px solid #007bff;
+}
+
+.ai-bubble:hover {
+    background: #0056b3 !important;
+    cursor: pointer;
+}
+
+.ai-bubble:hover::after {
+    border-left-color: #0056b3;
+}
+
+.message-bubble-container {
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 头像样式 */
+.avatar-sm {
+    flex-shrink: 0;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* 徽章样式 */
+.badge {
+    font-size: 0.6em;
+    border-radius: 10px;
+}
+
+/* 滚动条样式 */
+.imessage-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.imessage-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+.imessage-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+}
+
+.imessage-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .message-bubble {
+        max-width: 85% !important;
+        font-size: 0.9em;
+    }
+    
+    .avatar-sm {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 12px !important;
+    }
+    
+    .imessage-container {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .message-bubble {
+        max-width: 90% !important;
+        font-size: 0.85em;
+    }
+    
+    .avatar-sm {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 11px !important;
+    }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function showRawResponse(msgId, rawResponse) {
-    const modal = new bootstrap.Modal(document.getElementById('rawResponseModal'));
-    const content = document.getElementById('rawResponseContent');
+// 显示用户消息详情模态框
+function showUserMessageDetails(element) {
+    const container = element.closest('.user-message');
+    const msgId = container.getAttribute('data-dialog-id');
+    const userName = container.getAttribute('data-user-name');
+    const userId = container.getAttribute('data-user-id');
+    const triggerType = container.getAttribute('data-trigger-type');
+    const content = container.getAttribute('data-msg-content');
+    const time = container.getAttribute('data-time');
     
-    document.getElementById('rawResponseModalLabel').innerHTML = 
-        `<i class="bi bi-file-text"></i> 原始回复内容 - 消息ID: ${msgId}`;
+    document.getElementById('userModalMsgId').textContent = msgId;
+    document.getElementById('userModalUserName').textContent = userName;
+    document.getElementById('userModalUserId').textContent = userId;
+    document.getElementById('userModalTriggerType').textContent = triggerType;
+    document.getElementById('userModalContent').textContent = content;
+    document.getElementById('userModalTime').textContent = time;
     
-    // 安全地处理rawResponse，防止XSS
-    const safeResponse = typeof rawResponse === 'string' ? rawResponse : JSON.stringify(rawResponse);
-    content.innerHTML = `
-        <div class="card">
-            <div class="card-body">
-                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;">${safeResponse.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-            </div>
-        </div>
-    `;
+    // 设置复制转发命令按钮的点击事件
+    document.getElementById('copyForwardBtn').onclick = function() {
+        const forwardCommand = `/fw {{ group.group_id }} ${msgId}`;
+        navigator.clipboard.writeText(forwardCommand).then(function() {
+            const btn = document.getElementById('copyForwardBtn');
+            const originalText = btn.textContent;
+            btn.textContent = '已复制！';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            setTimeout(function() {
+                btn.textContent = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-primary');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('复制失败:', err);
+            alert('复制失败，请手动复制：' + forwardCommand);
+        });
+    };
     
+    const modal = new bootstrap.Modal(document.getElementById('userMessageModal'));
     modal.show();
 }
 
-// 搜索功能已改为后端全局搜索，无需前端JavaScript处理
+// 显示AI回复详情模态框
+function showAiResponseDetails(element) {
+    const container = element.closest('.ai-message');
+    const msgId = container.getAttribute('data-dialog-id');
+    const rawResponse = container.getAttribute('data-raw-response');
+    const time = container.getAttribute('data-time');
+    
+    document.getElementById('modalMsgId').textContent = msgId;
+    document.getElementById('modalRawResponse').textContent = rawResponse;
+    document.getElementById('modalTime').textContent = time;
+    
+    const modal = new bootstrap.Modal(document.getElementById('aiResponseModal'));
+    modal.show();
+}
 
-// 消息内容展开/收起功能
+// 滚动到指定消息
+function scrollToMessage(msgId) {
+    const messageElement = document.querySelector(`[data-dialog-id="${msgId}"]`);
+    if (messageElement) {
+        // 滚动到消息位置
+        messageElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+        });
+        
+        // 高亮显示消息
+        messageElement.style.backgroundColor = '#fff3cd';
+        messageElement.style.border = '2px solid #ffc107';
+        messageElement.style.borderRadius = '8px';
+        
+        // 3秒后移除高亮
+        setTimeout(() => {
+            messageElement.style.backgroundColor = '';
+            messageElement.style.border = '';
+            messageElement.style.borderRadius = '';
+        }, 3000);
+    }
+}
+
+// 跳转到指定消息（用于搜索结果）
+function jumpToMessage(msgId) {
+    // 获取当前群组ID
+    const currentUrl = window.location.pathname;
+    const groupId = currentUrl.split('/').pop();
+    
+    // 调用API获取消息所在的页码
+    fetch(`/api/message_page/${groupId}/${msgId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('获取消息页码失败:', data.error);
+                // 如果API失败，回退到原来的方法
+                const targetUrl = `/group_dialogs/${groupId}#msg-${msgId}`;
+                window.location.href = targetUrl;
+            } else {
+                // 跳转到正确的页面，并在URL中添加目标消息ID
+                const targetUrl = `/group_dialogs/${groupId}?page=${data.page}#msg-${msgId}`;
+                window.location.href = targetUrl;
+            }
+        })
+        .catch(error => {
+            console.error('API请求失败:', error);
+            // 如果请求失败，回退到原来的方法
+            const targetUrl = `/group_dialogs/${groupId}#msg-${msgId}`;
+            window.location.href = targetUrl;
+        });
+}
+
+// 页面加载完成后的初始化
 document.addEventListener('DOMContentLoaded', function() {
+    // 为所有用户消息气泡添加点击事件
+    document.querySelectorAll('.user-bubble').forEach(function(bubble) {
+        bubble.addEventListener('click', function() {
+            showUserMessageDetails(this);
+        });
+    });
+    
+    // 为所有AI回复气泡添加点击事件
+    document.querySelectorAll('.ai-bubble').forEach(function(bubble) {
+        bubble.addEventListener('click', function() {
+            showAiResponseDetails(this);
+        });
+    });
+    
+    // 检查URL锚点，如果有消息ID则滚动到该消息
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#msg-')) {
+        const msgId = hash.substring(5); // 移除 '#msg-' 前缀
+        setTimeout(() => {
+            scrollToMessage(msgId);
+        }, 500); // 延迟500ms确保页面完全加载
+    }
+    
+    // 添加鼠标悬停效果
+    document.querySelectorAll('.user-bubble, .ai-bubble').forEach(function(bubble) {
+        bubble.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.02)';
+            this.style.transition = 'transform 0.2s ease';
+        });
+        bubble.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+        });
+    });
+    
+    // 消息内容展开/收起功能
     const messageContents = document.querySelectorAll('.message-content div, .response-content div');
     messageContents.forEach(div => {
         if (div.scrollHeight > 100) {

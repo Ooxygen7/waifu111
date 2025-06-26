@@ -53,23 +53,65 @@
     </div>
 </div>
 
+<!-- 搜索功能 -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white py-2">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="bi bi-search"></i> 消息搜索
+                </h6>
+            </div>
+            <div class="card-body py-2">
+                <form method="GET" class="d-flex gap-2">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="搜索消息内容..." 
+                           value="{{ search_keyword or '' }}">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> 搜索
+                    </button>
+                    {% if search_keyword %}
+                    <a href="{{ url_for('dialogs', conv_id=conversation.conv_id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> 清除
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- iMessage风格的对话消息 -->
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-header bg-success text-white py-2">
                 <h6 class="m-0 font-weight-bold">
-                    <i class="bi bi-chat-dots"></i> 对话消息 ({{ dialogs|length }} 条)
+                    <i class="bi bi-chat-dots"></i> 
+                    {% if search_keyword %}
+                        搜索结果 ({{ dialogs|length }} 条)
+                        <small class="ms-2">关键词: "{{ search_keyword }}"</small>
+                    {% else %}
+                        对话消息 ({{ dialogs|length }} 条)
+                    {% endif %}
                 </h6>
             </div>
             <div class="card-body p-0">
+                {% if search_keyword and dialogs %}
+                <!-- 搜索结果提示 -->
+                <div class="alert alert-info m-3 mb-0">
+                    <i class="bi bi-info-circle"></i> 
+                    点击任意搜索结果可跳转到完整对话页面查看上下文
+                </div>
+                {% endif %}
                 {% if dialogs %}
                 <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 15px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
                     {% for dialog in dialogs %}
                     <div class="message-bubble-container mb-3 {% if dialog.role == 'user' %}user-message{% else %}ai-message{% endif %}" 
+                         id="msg-{{ dialog.id }}"
                          data-dialog-id="{{ dialog.id }}" 
-                         data-raw-content="{{ dialog.raw_content|e }}" 
-                         data-processed-content="{{ dialog.processed_content|e if dialog.processed_content else dialog.raw_content|e }}" 
+                         data-raw-content="{{ dialog.raw_content | e }}" 
+                         data-processed-content="{{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | e }}" 
                          data-turn="{{ dialog.turn_order }}" 
                          data-time="{{ format_datetime(dialog.created_at) }}" 
                          data-msg-id="{{ dialog.msg_id or '' }}">
@@ -79,14 +121,14 @@
                         <div class="d-flex justify-content-end">
                             <div class="message-bubble user-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
                                 <div class="message-content">
-                                    {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | safe }}
+                                    {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | highlight_search_keyword(search_keyword) | safe }}
                                 </div>
                                 <div class="message-time" style="font-size: 0.7em; opacity: 0.8; margin-top: 2px;">
                                     {{ format_datetime(dialog.created_at) }}
                                 </div>
                                 <!-- 编辑按钮 -->
                                  <button class="btn btn-sm btn-outline-light edit-btn" style="position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; border-radius: 50%; padding: 0; font-size: 0.6em; opacity: 0; transition: opacity 0.2s;" 
-                                         onclick="event.stopPropagation(); editMessage({{ dialog.id }}, '{{ (dialog.processed_content if dialog.processed_content else dialog.raw_content)|e }}')">
+                                         onclick="event.stopPropagation(); editMessage({{ dialog.id }}, `{{ ((dialog.processed_content if dialog.processed_content else dialog.raw_content) | e).replace('`', '\`') }}`)">
                                      <i class="bi bi-pencil"></i>
                                  </button>
                             </div>
@@ -96,14 +138,14 @@
                         <div class="d-flex justify-content-start">
                             <div class="message-bubble ai-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
                                 <div class="message-content">
-                                    {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | safe }}
+                                    {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | highlight_search_keyword(search_keyword) | safe }}
                                 </div>
                                 <div class="message-time" style="font-size: 0.7em; opacity: 0.6; margin-top: 2px;">
                                     {{ format_datetime(dialog.created_at) }}
                                 </div>
                                 <!-- 编辑按钮 -->
                                  <button class="btn btn-sm btn-outline-secondary edit-btn" style="position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; border-radius: 50%; padding: 0; font-size: 0.6em; opacity: 0; transition: opacity 0.2s;" 
-                                         onclick="event.stopPropagation(); editMessage({{ dialog.id }}, '{{ (dialog.processed_content if dialog.processed_content else dialog.raw_content)|e }}')">
+                                         onclick="event.stopPropagation(); editMessage({{ dialog.id }}, `{{ ((dialog.processed_content if dialog.processed_content else dialog.raw_content) | e).replace('`', '\`') }}`)">
                                      <i class="bi bi-pencil"></i>
                                  </button>
                             </div>
@@ -211,52 +253,96 @@
  let currentEditingDialogId = null;
  let savedScrollPosition = 0;
  
- // 点击消息气泡显示详情
+ // 点击消息气泡显示详情或跳转
  document.addEventListener('DOMContentLoaded', function() {
+     // 检查是否为搜索模式
+     const isSearchMode = new URLSearchParams(window.location.search).has('search');
+     
      // 消息气泡点击事件
      document.querySelectorAll('.message-bubble-container').forEach(container => {
          container.addEventListener('click', function() {
-             const dialogId = this.dataset.dialogId;
-             const rawContent = this.dataset.rawContent;
-             const processedContent = this.dataset.processedContent;
-             const turn = this.dataset.turn;
-             const time = this.dataset.time;
-             const msgId = this.dataset.msgId;
-             const role = container.classList.contains('user-message') ? '用户' : 'AI助手';
-             
-             // 填充模态框内容
-             document.getElementById('modal-role').textContent = role;
-             document.getElementById('modal-role').className = `badge ${role === '用户' ? 'bg-primary' : 'bg-success'}`;
-             document.getElementById('modal-turn').textContent = turn;
-             document.getElementById('modal-time').textContent = time;
-             document.getElementById('modal-msg-id').textContent = msgId || '无';
-             document.getElementById('modal-raw-content').textContent = rawContent;
-             document.getElementById('modal-processed-content').textContent = processedContent;
-             
-             // 保存当前对话ID
-             currentEditingDialogId = dialogId;
-             
-             // 显示模态框
-             new bootstrap.Modal(document.getElementById('messageDetailModal')).show();
+             if (isSearchMode) {
+                 // 搜索模式：跳转到完整对话页面并高亮该消息
+                 const dialogId = this.dataset.dialogId;
+                 const convId = {{ conversation.conv_id | tojson | safe }};
+                 const targetUrl = `/dialogs/${convId}#msg-${dialogId}`;
+                 window.location.href = targetUrl;
+             } else {
+                 // 正常模式：显示消息详情
+                 const dialogId = this.dataset.dialogId;
+                 const rawContent = this.dataset.rawContent;
+                 const processedContent = this.dataset.processedContent;
+                 const turn = this.dataset.turn;
+                 const time = this.dataset.time;
+                 const msgId = this.dataset.msgId || '';
+                 const role = container.classList.contains('user-message') ? '用户' : 'AI助手';
+                 
+                 // 填充模态框内容
+                 document.getElementById('modal-role').textContent = role;
+                 document.getElementById('modal-role').className = 'badge ' + (role === '用户' ? 'bg-primary' : 'bg-success');
+                 document.getElementById('modal-turn').textContent = turn;
+                 document.getElementById('modal-time').textContent = time;
+                 document.getElementById('modal-msg-id').textContent = msgId || '无';
+                 document.getElementById('modal-raw-content').textContent = rawContent;
+                 document.getElementById('modal-processed-content').textContent = processedContent;
+                 
+                 // 保存当前对话ID
+                 currentEditingDialogId = dialogId;
+                 
+                 // 显示模态框
+                 new bootstrap.Modal(document.getElementById('messageDetailModal')).show();
+             }
          });
      });
      
-     // 鼠标悬停显示编辑按钮
+     // 鼠标悬停显示编辑按钮或跳转提示
      document.querySelectorAll('.message-bubble').forEach(bubble => {
          bubble.addEventListener('mouseenter', function() {
-             const editBtn = this.querySelector('.edit-btn');
-             if (editBtn) editBtn.style.opacity = '1';
+             if (isSearchMode) {
+                 // 搜索模式：添加跳转提示样式
+                 this.style.cursor = 'pointer';
+                 this.style.transform = 'scale(1.02)';
+                 this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+             } else {
+                 // 正常模式：显示编辑按钮
+                 const editBtn = this.querySelector('.edit-btn');
+                 if (editBtn) editBtn.style.opacity = '1';
+             }
          });
          
          bubble.addEventListener('mouseleave', function() {
-             const editBtn = this.querySelector('.edit-btn');
-             if (editBtn) editBtn.style.opacity = '0';
+             if (isSearchMode) {
+                 // 搜索模式：移除跳转提示样式
+                 this.style.transform = '';
+                 this.style.boxShadow = '';
+             } else {
+                 // 正常模式：隐藏编辑按钮
+                 const editBtn = this.querySelector('.edit-btn');
+                 if (editBtn) editBtn.style.opacity = '0';
+             }
          });
      });
      
-     // 自动滚动到最新消息（仅在首次加载时）
+     // 为搜索模式下的消息添加初始样式
+     if (isSearchMode) {
+         document.querySelectorAll('.message-bubble-container').forEach(container => {
+             container.style.cursor = 'pointer';
+             container.title = '点击跳转到完整对话页面';
+         });
+     }
+     
+     // 自动滚动到最新消息或目标消息
      const chatContainer = document.querySelector('.imessage-container');
-     if (chatContainer && !sessionStorage.getItem('scrollPosition')) {
+     
+     // 检查URL中是否有消息锚点
+     const hash = window.location.hash;
+     if (hash && hash.startsWith('#msg-')) {
+         // 延迟执行以确保页面完全加载
+         setTimeout(() => {
+             scrollToMessage(hash.substring(1)); // 移除#号
+         }, 500);
+     } else if (chatContainer && !sessionStorage.getItem('scrollPosition')) {
+         // 自动滚动到最新消息（仅在首次加载时）
          chatContainer.scrollTop = chatContainer.scrollHeight;
      } else if (chatContainer && sessionStorage.getItem('scrollPosition')) {
          // 恢复之前保存的滚动位置
@@ -264,6 +350,30 @@
          sessionStorage.removeItem('scrollPosition');
      }
  });
+
+// 滚动到指定消息并高亮
+function scrollToMessage(msgId) {
+    const targetElement = document.getElementById(msgId);
+    if (targetElement) {
+        // 滚动到目标元素
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // 添加高亮效果
+        targetElement.style.transition = 'all 0.3s ease';
+        targetElement.style.backgroundColor = '#fff3cd';
+        targetElement.style.border = '2px solid #ffc107';
+        targetElement.style.borderRadius = '10px';
+        targetElement.style.padding = '5px';
+        
+        // 3秒后移除高亮效果
+        setTimeout(() => {
+            targetElement.style.backgroundColor = '';
+            targetElement.style.border = '';
+            targetElement.style.borderRadius = '';
+            targetElement.style.padding = '';
+        }, 3000);
+    }
+}
 
 // 编辑消息函数
 function editMessage(dialogId, currentContent) {
@@ -333,25 +443,25 @@ function editCurrentMessage() {
 
 // 导出对话功能
 function exportDialog() {
-    const convId = {{ conversation.conv_id }};
-    const dialogs = {{ dialogs|tojson|safe }};
+    const convId = {{ conversation.conv_id | tojson | safe }};
+    const dialogs = {{ dialogs | tojson | safe }};
     
-    let exportText = `对话ID: ${convId}\n`;
-    exportText += `用户ID: {{ conversation.user_id }}\n`;
-    exportText += `角色: {{ conversation.character or '未设置' }}\n`;
-    exportText += `预设: {{ conversation.preset or '默认' }}\n`;
-    exportText += `创建时间: {{ format_datetime(conversation.create_at) }}\n`;
-    exportText += `总轮次: {{ conversation.turns or 0 }}\n`;
-    exportText += `\n${'='.repeat(50)}\n\n`;
+    let exportText = '对话ID: ' + convId + '\n';
+    exportText += '用户ID: ' + {{ conversation.user_id | tojson | safe }} + '\n';
+    exportText += '角色: ' + {{ (conversation.character or '未设置') | tojson | safe }} + '\n';
+    exportText += '预设: ' + {{ (conversation.preset or '默认') | tojson | safe }} + '\n';
+    exportText += '创建时间: ' + {{ format_datetime(conversation.create_at) | tojson | safe }} + '\n';
+    exportText += '总轮次: ' + {{ (conversation.turns or 0) | tojson | safe }} + '\n';
+    exportText += '\n' + '='.repeat(50) + '\n\n';
     
     dialogs.forEach(dialog => {
         const role = dialog.role === 'user' ? '用户' : 'AI助手';
-        exportText += `[${role}] - 轮次 ${dialog.turn_order} - ${dialog.created_at}\n`;
-        exportText += `${dialog.raw_content}\n`;
+        exportText += '[' + role + '] - 轮次 ' + dialog.turn_order + ' - ' + dialog.created_at + '\n';
+        exportText += dialog.raw_content + '\n';
         if (dialog.processed_content && dialog.processed_content !== dialog.raw_content) {
-            exportText += `[处理后]: ${dialog.processed_content}\n`;
+            exportText += '[处理后]: ' + dialog.processed_content + '\n';
         }
-        exportText += `\n${'-'.repeat(30)}\n\n`;
+        exportText += '\n' + '-'.repeat(30) + '\n\n';
     });
     
     // 创建下载链接
@@ -359,7 +469,7 @@ function exportDialog() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `conversation_${convId}_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = 'conversation_' + convId + '_' + new Date().toISOString().slice(0, 10) + '.txt';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

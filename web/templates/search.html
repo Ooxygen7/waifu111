@@ -72,10 +72,10 @@
                                 <table class="table table-hover">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>ID</th>
                                             <th>对话ID</th>
                                             <th>角色</th>
-                                            <th>原始内容</th>
+                                            <th>用户姓名</th>
+                                            <th>用户ID</th>
                                             <th>处理后内容</th>
                                             <th>轮次</th>
                                             <th>创建时间</th>
@@ -86,7 +86,6 @@
                                     <tbody>
                                         {% for dialog in results.dialogs|selectattr('type', 'equalto', 'private') %}
                                         <tr>
-                                            <td><span class="badge bg-secondary">{{ dialog.id or '-' }}</span></td>
                                             <td><span class="badge bg-primary">{{ dialog.conv_id }}</span></td>
                                             <td>
                                                 {% if dialog.role == 'user' %}
@@ -95,23 +94,13 @@
                                                     <span class="badge bg-success"><i class="bi bi-robot"></i> AI</span>
                                                 {% endif %}
                                             </td>
+                                            <td>{{ (dialog.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</td>
+                                            <td><span class="badge bg-secondary">{{ dialog.user_id or '-' }}</span></td>
                                             <td>
-                                                {% set raw_content = (dialog.raw_content or '')|string %}
-                                                {% if raw_content|length > 100 %}
+                                                {% set processed_content = (dialog.processed_content or dialog.raw_content or '')|string %}
+                                                {% if processed_content|length > 150 %}
                                                     <div class="collapsible-text">
-                                                        <div class="text-preview">{{ (raw_content[:100] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                        <div class="text-full collapse">{{ raw_content|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
-                                                    </div>
-                                                {% else %}
-                                                    {{ raw_content|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% set processed_content = (dialog.processed_content or '')|string %}
-                                                {% if processed_content|length > 100 %}
-                                                    <div class="collapsible-text">
-                                                        <div class="text-preview">{{ (processed_content[:100] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-preview">{{ (processed_content[:150] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
                                                         <div class="text-full collapse">{{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
                                                         <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
                                                     </div>
@@ -123,10 +112,17 @@
                                             <td><small class="text-muted">{{ format_datetime(dialog.created_at) }}</small></td>
                                             <td><span class="badge bg-light text-dark">{{ dialog.msg_id or '-' }}</span></td>
                                             <td>
-                                                <a href="{{ url_for('dialogs', conv_id=dialog.conv_id) }}" 
-                                                   class="btn btn-sm btn-outline-primary" title="查看完整对话">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <a href="{{ url_for('dialogs', conv_id=dialog.conv_id) }}#msg-{{ dialog.id }}" 
+                                                       class="btn btn-outline-primary" title="查看完整对话">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    <button class="btn btn-outline-secondary" 
+                                                            onclick="copyForwardCommand('{{ dialog.user_id }}', '{{ dialog.msg_id }}')"
+                                                            title="复制转发指令">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -157,14 +153,11 @@
                                 <table class="table table-hover">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>群组ID</th>
-                                            <th>群组名称</th>
-                                            <th>用户ID</th>
-                                            <th>用户名称</th>
-                                            <th>触发类型</th>
-                                            <th>消息文本</th>
-                                            <th>原始响应</th>
-                                            <th>处理后响应</th>
+                                            <th>ID</th>
+                                            <th>群组名</th>
+                                            <th>用户姓名</th>
+                                            <th style="width: 20%;">消息文本</th>
+                                            <th style="width: 30%;">处理后响应</th>
                                             <th>创建时间</th>
                                             <th>消息ID</th>
                                             <th>操作</th>
@@ -173,16 +166,14 @@
                                     <tbody>
                                         {% for dialog in results.dialogs|selectattr('type', 'equalto', 'group') %}
                                         <tr>
-                                            <td><span class="badge bg-warning">{{ dialog.group_id }}</span></td>
+                                            <td><span class="badge bg-secondary">{{ dialog.id or '-' }}</span></td>
                                             <td><span class="badge bg-info">{{ dialog.group_name or '-' }}</span></td>
-                                            <td><span class="badge bg-secondary">{{ dialog.msg_user or '-' }}</span></td>
-                                            <td><span class="badge bg-secondary">{{ dialog.msg_user_name or '-' }}</span></td>
-                                            <td><span class="badge bg-light text-dark">{{ dialog.trigger_type or '-' }}</span></td>
-                                            <td>
+                                            <td><span class="badge bg-success">{{ dialog.msg_user_name or '-' }}</span></td>
+                                            <td style="width: 20%;">
                                                 {% set msg_text = (dialog.msg_text or '')|string %}
-                                                {% if msg_text|length > 80 %}
+                                                {% if msg_text|length > 150 %}
                                                     <div class="collapsible-text">
-                                                        <div class="text-preview">{{ (msg_text[:80] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-preview">{{ (msg_text[:150] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
                                                         <div class="text-full collapse">{{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
                                                         <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
                                                     </div>
@@ -190,23 +181,11 @@
                                                     {{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}
                                                 {% endif %}
                                             </td>
-                                            <td>
-                                                {% set raw_response = (dialog.raw_response or '')|string %}
-                                                {% if raw_response|length > 80 %}
+                                            <td style="width: 30%;">
+                                                {% set processed_response = (dialog.processed_response or dialog.raw_response or '')|string %}
+                                                {% if processed_response|length > 200 %}
                                                     <div class="collapsible-text">
-                                                        <div class="text-preview">{{ (raw_response[:80] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                        <div class="text-full collapse">{{ raw_response|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                        <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
-                                                    </div>
-                                                {% else %}
-                                                    {{ raw_response|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% set processed_response = (dialog.processed_response or '')|string %}
-                                                {% if processed_response|length > 80 %}
-                                                    <div class="collapsible-text">
-                                                        <div class="text-preview">{{ (processed_response[:80] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-preview">{{ (processed_response[:200] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
                                                         <div class="text-full collapse">{{ processed_response|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
                                                         <button class="btn btn-sm btn-link p-0 toggle-text" onclick="toggleText(this)">展开</button>
                                                     </div>
@@ -217,10 +196,18 @@
                                             <td><small class="text-muted">{{ format_datetime(dialog.create_at) }}</small></td>
                                             <td><span class="badge bg-light text-dark">{{ dialog.msg_id or '-' }}</span></td>
                                             <td>
-                                                <a href="{{ url_for('group_dialogs', group_id=dialog.group_id) }}" 
-                                                   class="btn btn-sm btn-outline-warning" title="查看群聊记录">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-outline-primary" 
+                                                            onclick="jumpToGroupMessage('{{ dialog.group_id }}', '{{ dialog.msg_id }}')"
+                                                            title="查看群聊记录">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-secondary" 
+                                                            onclick="copyForwardCommand('{{ dialog.group_id }}', '{{ dialog.msg_id }}')"
+                                                            title="复制转发指令">
+                                                        <i class="bi bi-clipboard"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -585,6 +572,115 @@ function toggleText(button) {
         full.style.display = 'none';
         button.textContent = '展开';
     }
+}
+
+// 复制转发指令功能
+function copyForwardCommand(targetId, msgId) {
+    const command = `/fw ${targetId} ${msgId}`;
+    
+    // 使用现代的 Clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(command).then(function() {
+            showToast('转发指令已复制到剪贴板: ' + command, 'success');
+        }).catch(function(err) {
+            console.error('复制失败:', err);
+            fallbackCopyTextToClipboard(command);
+        });
+    } else {
+        // 降级方案
+        fallbackCopyTextToClipboard(command);
+    }
+}
+
+// 降级复制方案
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showToast('转发指令已复制到剪贴板: ' + text, 'success');
+        } else {
+            showToast('复制失败，请手动复制: ' + text, 'error');
+        }
+    } catch (err) {
+        console.error('复制失败:', err);
+        showToast('复制失败，请手动复制: ' + text, 'error');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+// 显示提示消息
+function showToast(message, type = 'info') {
+    // 创建提示元素
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; opacity: 0; transition: opacity 0.3s;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // 显示动画
+    setTimeout(() => {
+        toast.style.opacity = '1';
+    }, 10);
+    
+    // 自动隐藏
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                document.body.removeChild(toast);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// 跳转到群聊消息（获取正确的页码）
+function jumpToGroupMessage(groupId, msgId) {
+    console.log('jumpToGroupMessage called with:', groupId, msgId);
+    
+    // 调用API获取消息所在的页码
+    fetch(`/api/message_page/${groupId}/${msgId}`)
+        .then(response => {
+            console.log('API response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('API response data:', data);
+            if (data.error) {
+                console.error('获取消息页码失败:', data.error);
+                // 如果API失败，回退到原来的方法
+                const targetUrl = `/group_dialogs/${groupId}#msg-${msgId}`;
+                console.log('Fallback URL:', targetUrl);
+                window.location.href = targetUrl;
+            } else {
+                // 跳转到正确的页面，并在URL中添加目标消息ID
+                const targetUrl = `/group_dialogs/${groupId}?page=${data.page}#msg-${msgId}`;
+                console.log('Target URL:', targetUrl);
+                window.location.href = targetUrl;
+            }
+        })
+        .catch(error => {
+            console.error('API请求失败:', error);
+            // 如果请求失败，回退到原来的方法
+            const targetUrl = `/group_dialogs/${groupId}#msg-${msgId}`;
+            console.log('Error fallback URL:', targetUrl);
+            window.location.href = targetUrl;
+        });
 }
 </script>
 {% endblock %}
