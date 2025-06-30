@@ -9,6 +9,8 @@ from PIL import Image
 from telegram import Update
 from telegram.ext import ContextTypes
 import logging
+
+import bot_core.public_functions.messages
 from utils import db_utils as db
 from utils import LLM_utils
 from utils.logging_utils import setup_logging
@@ -78,7 +80,7 @@ async def group_keyword_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except Exception as e:
                 print(f"清除按钮失败: {e}")
-        await context.bot.send_message(
+        await bot_core.public_functions.messages.send_message(
             chat_id=update.message.chat.id,
             text=f"已成功添加关键词：{', '.join(new_keywords)}"
         )
@@ -246,28 +248,18 @@ async def _process_image_analysis(update: Update, context: ContextTypes.DEFAULT_
         
         # 发送包含图片和文本的回复消息
         try:
+            from bot_core.public_functions.messages import send_message
             with open(filepath, 'rb') as photo_file:
-                await context.bot.send_photo(
+                await send_message(
+                    context=context,
                     chat_id=update.message.chat.id,
-                    photo=photo_file,
-                    caption=response,
-                    parse_mode="markdown",
-                    reply_to_message_id=update.message.message_id
+                    message_content=response,
+                    parse="markdown",
+                    photo=photo_file
                 )
         except Exception as e:
-            # 如果markdown解析失败，禁用markdown重试
-            try:
-                with open(filepath, 'rb') as photo_file:
-                    await context.bot.send_photo(
-                        chat_id=update.message.chat.id,
-                        photo=photo_file,
-                        caption=response,
-                        parse_mode=None,
-                        reply_to_message_id=update.message.message_id
-                    )
-            except Exception as e2:
-                # 如果仍然失败，发送纯文本错误信息
-                await update.message.reply_text(f"图片分析失败：{str(e2)}")
+            # 如果发送失败，发送纯文本错误信息
+            await update.message.reply_text(f"图片分析失败：{str(e)}")
         
     except Exception as e:
         # 如果出错，删除占位消息并发送错误信息

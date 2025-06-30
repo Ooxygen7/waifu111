@@ -10,7 +10,8 @@ from PIL import Image
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-
+from bot_core.public_functions.messages import send_message
+import bot_core.public_functions.messages
 from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db, LLM_utils as llm, file_utils as file
 from utils.logging_utils import setup_logging
@@ -832,24 +833,16 @@ class FuckCommand(BaseCommand):
             
             # 回复原图片消息（不重新发送图片，只发送文本评价）
             try:
-                await context.bot.send_message(
+                
+                await send_message(
+                    context=context,
                     chat_id=update.message.chat.id,
-                    text=response,
-                    parse_mode="HTML",
-                    reply_to_message_id=replied_message.message_id
+                    message_content=response,
+                    parse="HTML"
                 )
             except Exception as e:
-                # 如果HTML解析失败，禁用解析重试
-                try:
-                    await context.bot.send_message(
-                        chat_id=update.message.chat.id,
-                        text=response,
-                        parse_mode=None,
-                        reply_to_message_id=replied_message.message_id
-                    )
-                except Exception as e2:
-                    # 如果仍然失败，发送纯文本错误信息
-                    await update.message.reply_text(f"图片分析失败：{str(e2)}")
+                # 如果发送失败，发送纯文本错误信息
+                await update.message.reply_text(f"图片分析失败：{str(e)}")
             
         except Exception as e:
             # 如果出错，删除占位消息并发送错误信息

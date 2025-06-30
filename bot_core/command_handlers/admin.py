@@ -9,6 +9,7 @@ from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 import logging
 
+import bot_core.public_functions.messages
 from LLM_tools.tools_registry import DatabaseSuperToolRegistry, ALL_TOOLS, parse_and_invoke_tool
 from utils import db_utils as db
 from utils import LLM_utils as llm
@@ -430,7 +431,7 @@ class MessageCommand(BaseCommand):
         
         # 3. 执行消息发送操作
         try:
-            await context.bot.send_message(
+            await bot_core.public_functions.messages.send_message(
                 chat_id=target_user_id,
                 text=message_content,
                 parse_mode=None  # 禁用Markdown解析，避免特殊字符导致的解析错误

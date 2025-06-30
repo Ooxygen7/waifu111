@@ -11,6 +11,7 @@ import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
+import bot_core.public_functions.messages
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
 from bot_core.public_functions.conversation import PrivateConv
@@ -42,7 +43,7 @@ class StartCommand(BaseCommand):
             f"使用`/sign` 可签到\r\n"
             f"直接发送图片可以获取`fuck or not`的评价\r\n"
             f"默认预设为正常模式，NSFW内容的生成质量有限\r\n"
-            f"使用`/preset`可以切换预设，如果需要NSFW内容，建议切换默认预设\r\n"
+            f"使用`/preset`可以切换预设，如果需要NSFW内容，建议替换默认预设为其它模式\r\n"
             f"使用`/newchar [角色名]`可以创建私人角色"
         )
 
@@ -78,7 +79,6 @@ class HelpCommand(BaseCommand):
             "/stream - 切换流式输出模式\n\n"
             "📊 **信息查看**\n"
             "/me - 查看个人信息和使用统计\n"
-            "/status - 查看当前对话状态和系统信息\n"
             "/sign - 每日签到获取额度奖励\n\n"
             "🔧 **高级功能**\n"
             "/c 或 /crypto - AI加密货币分析助手\n"
@@ -147,6 +147,7 @@ class MeCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
+        info = public.update_info_get(update)
         result = (
             f"您好，{info['user_name']}！\r\n"
             f"您的帐户等级是`{info['tier']}`；\r\n"
@@ -154,6 +155,7 @@ class MeCommand(BaseCommand):
             f"您的临时额度还有`{db.user_sign_info_get(info['user_id']).get('frequency')}`条(上限100)；\r\n"
             f"您的余额是`{info['balance']}`；\r\n"
             f"您的对话昵称是`{info['user_nick']}`。\r\n"
+            f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
 
         )
         await update.message.reply_text(f"{result}", parse_mode='MarkDown')
@@ -234,21 +236,7 @@ class RegenCommand(BaseCommand):
         await update.message.delete()
 
 
-class StatusCommand(BaseCommand):
-    meta = CommandMeta(
-        name='status',
-        command_type='private',
-        trigger='status',
-        menu_text='查看当前状态',
-        show_in_menu=True,
-        menu_weight=99
-    )
 
-    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        info = public.update_info_get(update)
-        result = f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
-        await update.message.reply_text(result, parse_mode='MarkDown')
-        await update.message.delete()
 
 
 class CharCommand(BaseCommand):
@@ -884,7 +872,7 @@ class FeedbackCommand(BaseCommand):
         
         for admin_id in ADMIN:
             try:
-                await context.bot.send_message(
+                await bot_core.public_functions.messages.send_message(
                     chat_id=admin_id,
                     text=admin_message,
                     parse_mode='Markdown'

@@ -10,6 +10,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
+import bot_core.public_functions.messages
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.base import BaseCallback, CallbackMeta
 from bot_core.public_functions.error import BotError
@@ -537,7 +538,7 @@ class SettingsCallback(BaseCallback):
 
         elif data == 'character_new':
             info = public.update_info_get(update)
-            await context.bot.send_message(info['user_id'], "请使用 /newchar char_name 的格式创建角色")
+            await bot_core.public_functions.messages.send_message(info['user_id'], "请使用 /newchar char_name 的格式创建角色")
 
         elif data == 'character_delete':
             info = public.update_info_get(update)
@@ -596,7 +597,7 @@ class DirectorCallback(BaseCallback):
                 print(f'执行{data}耗时{etime - stime}秒')
             else:
                 logger.warning(f"未知的导演模式回调数据: {data}, user_id: {user_id}")
-                await context.bot.send_message(user_id, "未知的操作，请返回主菜单。")
+                await bot_core.public_functions.messages.send_message(user_id, "未知的操作，请返回主菜单。")
                 await self._send_menu(context, user_id, self.menu_manager.get_main_menu_id(), query=query)
 
     async def _send_menu(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, menu_id: str, query=None):
@@ -604,7 +605,7 @@ class DirectorCallback(BaseCallback):
         menu_meta = self.menu_manager.get_menu_meta(menu_id)
         if not menu_meta:
             logger.warning(f"未知的菜单ID: {menu_id}, user_id: {user_id}")
-            await context.bot.send_message(user_id, "菜单未找到，返回主菜单。")
+            await bot_core.public_functions.messages.send_message(user_id, "菜单未找到，返回主菜单。")
             menu_id = self.menu_manager.get_main_menu_id()
             # menu_meta = self.menu_manager.get_menu_meta(menu_id)
 
@@ -614,11 +615,11 @@ class DirectorCallback(BaseCallback):
             if query:
                 await query.edit_message_text(description_text, reply_markup=reply_markup)
             else:
-                await context.bot.send_message(user_id, description_text, reply_markup=reply_markup)
+                await bot_core.public_functions.messages.send_message(user_id, description_text, reply_markup=reply_markup)
 
         except BadRequest as e:
             logger.warning(f"编辑消息失败: {str(e)}, user_id: {user_id}")
-            await context.bot.send_message(user_id, description_text, reply_markup=reply_markup)
+            await bot_core.public_functions.messages.send_message(user_id, description_text, reply_markup=reply_markup)
 
     async def _handle_action(self, action_data: str, context: ContextTypes.DEFAULT_TYPE, user_id: int, query,
                              update=None):

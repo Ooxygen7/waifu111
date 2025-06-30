@@ -8,6 +8,9 @@ from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
+import bot_core.public_functions.messages
+from bot_core.public_functions.messages import update_message, finalize_message
+
 from utils import db_utils as db, text_utils as txt, file_utils as file
 from utils.LLM_utils import LLM, Prompts
 from utils.logging_utils import setup_logging
@@ -221,7 +224,7 @@ class GroupConv:
             if "未找到名为" in str(e) and "的API配置" in str(e):
                 # API配置不存在，向用户发送友好提示
                 error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
-                asyncio.create_task(self.context.bot.send_message(self.group.id, error_msg))
+                asyncio.create_task(bot_core.public_functions.messages.send_message(self.group.id, error_msg))
                 raise BotError(f"API配置 '{self.config.api}' 不存在") from e
             else:
                 raise e
@@ -328,7 +331,7 @@ class GroupConv:
         logger.debug(f"<最终prompts>: {self.prompt_obj.content}")
         response = await self.client.final_response()
         self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
-        await _finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
+        await finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
         self._update_usage_info()  # 更新使用信息
 
     def _new(self):
@@ -429,7 +432,7 @@ class PrivateConv:
             if "未找到名为" in str(e) and "的API配置" in str(e):
                 # API配置不存在，向用户发送友好提示
                 error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
-                asyncio.create_task(self.context.bot.send_message(self.user.id, error_msg))
+                asyncio.create_task(bot_core.public_functions.messages.send_message(self.user.id, error_msg))
                 raise BotError(f"API配置 '{self.config.api}' 不存在") from e
             else:
                 raise e
@@ -455,11 +458,11 @@ class PrivateConv:
             save (bool, optional): 是否保存对话记录到数据库. 默认为 True.
         """
         if self.user.frequency > 0 or self.user.tmp_frequency > 0:
-            self.placeholder = await self.context.bot.send_message(self.user.id, "思考中...")
+            self.placeholder =  await self.update.message.reply_text("思考中")
             logger.info(f"输入：{self.input.text_raw}")
             _task = asyncio.create_task(self._response_to_user(save))
         else:
-            await self.context.bot.send_message(self.user.id, "你的额度已用尽，联系 @xi_cuicui")
+            await bot_core.public_functions.messages.send_message(self.user.id, "你的额度已用尽，联系 @xi_cuicui")
 
     async def regen(self):
         """
@@ -564,13 +567,13 @@ class PrivateConv:
             current_time = asyncio.get_event_loop().time()
             # 每 4 秒或内容显著变化时更新消息
             if current_time - last_update_time >= 4.0 and response != last_updated_content:
-                await _update_message(response, self.placeholder)
+                await update_message(response, self.placeholder)
                 last_updated_content = response
                 last_update_time = current_time
             # 短暂让出事件循环控制权，避免长时间占用
             await asyncio.sleep(0.01)
         self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
-        await _finalize_message(self.placeholder, self.output.text_processed)
+        await finalize_message(self.placeholder, self.output.text_processed)
         if save:
             await self._save()
 
@@ -610,63 +613,3 @@ class PrivateConv:
             db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)
 
 
-async def _update_message(text, placeholder):
-    try:
-        # Telegram 单条消息最大长度限制4096字符，保险起见用4000
-        max_len = 4000
-        if len(text) > max_len:
-            text = text[-max_len:]
-        await placeholder.edit_text(text, parse_mode="markdown")
-    except BadRequest as e:
-        logger.warning(f"Markdown 解析错误: {str(e)}, 禁用 Markdown 重试")
-        try:
-            await placeholder.edit_text(text, parse_mode=None)
-        except Exception as e2:
-            logger.error(f"再次尝试发送消息失败: {e2}")
-            placeholder.edit_text(f"Failed: {e2}")
-    except TelegramError as e:
-        if "Message is not modified" in str(e):
-            logger.debug(f"消息内容未变化，跳过更新: {str(e)}")
-            placeholder.edit_text(f"Failed: {e}")
-        else:
-            logger.error(f"更新消息时出错: {str(e)}")
-            placeholder.edit_text(f"Failed: {e}")
-
-
-async def _finalize_message(sent_message, cleared_response: str) -> None:
-    """
-    最终更新消息内容，确保显示最终的处理后的响应。
-    Args:
-        sent_message: 已发送的消息对象。
-        cleared_response (str): 处理后的最终响应内容。
-    """
-    max_len = 4000
-    try:
-        # Telegram 单条消息最大长度限制4096字符，保险起见用4000
-        if len(cleared_response) <= max_len:
-            await sent_message.edit_text(cleared_response, parse_mode="markdown")
-            logger.debug(f"使用了markdown")
-        else:
-            # 超长时分两段发送，先发前半段，再发后半段
-            await sent_message.edit_text(cleared_response[:max_len], parse_mode="markdown")
-            await sent_message.reply_text(cleared_response[max_len:], parse_mode="markdown")
-        logger.info(f"输出：\r\n{cleared_response}")
-    except BadRequest as e:
-        logger.warning(f"Markdown 解析错误: {str(e)}, 禁用 Markdown 重试")
-        try:
-            if len(cleared_response) <= max_len:
-                await sent_message.edit_text(cleared_response, parse_mode=None)
-            else:
-                await sent_message.edit_text(cleared_response[:max_len], parse_mode=None)
-                await sent_message.reply_text(cleared_response[max_len:], parse_mode=None)
-            logger.info(f"输出：\r\n{cleared_response}")
-        except Exception as e2:
-            logger.error(f"再次尝试发送消息失败: {e2}")
-            await sent_message.edit_text(f"Failed: {e2}")
-    except TelegramError as e:
-        if "Message is not modified" in str(e):
-            logger.debug(f"最终更新时消息内容未变化，跳过更新: {str(e)}")
-            await sent_message.edit_text(f"Failed: {e}")
-        else:
-            logger.error(f"最终更新消息时出错: {str(e)}")
-            await sent_message.edit_text(f"Failed: {e}")
