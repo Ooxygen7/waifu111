@@ -15,6 +15,7 @@ import bot_core.public_functions.messages
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
 from bot_core.public_functions.conversation import PrivateConv
+from bot_core.public_functions.messages import send_split_message, send_error_message
 from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
@@ -712,65 +713,8 @@ class CryptoCommand(BaseCommand):
                         iteration_message_text += "\n".join(tool_results_html)
                         logger.debug(f"已添加工具结果到当前轮次消息")
                 
-                # 检查消息长度，如果超过4000字符则分割发送
-                TELEGRAM_MESSAGE_LIMIT = 4000
-                if len(iteration_message_text) > TELEGRAM_MESSAGE_LIMIT:
-                    # 分割消息
-                    parts = []
-                    current_part = ""
-                    lines = iteration_message_text.split('\n')
-                    
-                    for line in lines:
-                        if len(current_part + line + '\n') > TELEGRAM_MESSAGE_LIMIT:
-                            if current_part:
-                                parts.append(current_part.strip())
-                                current_part = line + '\n'
-                            else:
-                                # 单行就超过限制，强制截断
-                                parts.append(line[:TELEGRAM_MESSAGE_LIMIT-50] + "...")
-                        else:
-                            current_part += line + '\n'
-                    
-                    if current_part:
-                        parts.append(current_part.strip())
-                    
-                    # 发送分割后的消息
-                    for i, part in enumerate(parts):
-                        try:
-                            if i == 0:
-                                # 更新当前轮次的占位消息
-                                await placeholder_message.edit_text(part, parse_mode="HTML")
-                            else:
-                                # 发送新消息
-                                await update.message.reply_text(part, parse_mode="HTML")
-                            logger.debug(f"已发送第{iteration}轮消息部分 {i+1}/{len(parts)}")
-                        except telegram.error.BadRequest as e:
-                            logger.warning(f"HTML解析失败，尝试文本模式: {e}")
-                            try:
-                                if i == 0:
-                                    await placeholder_message.edit_text(part, parse_mode=None)
-                                else:
-                                    await update.message.reply_text(part, parse_mode=None)
-                            except Exception as inner_e:
-                                logger.error(f"文本模式发送也失败: {inner_e}", exc_info=True)
-                                error_msg = f"第{iteration}轮第{i+1}部分消息发送失败"
-                                if i == 0:
-                                    await placeholder_message.edit_text(error_msg)
-                                else:
-                                    await update.message.reply_text(error_msg)
-                else:
-                    # 消息长度正常，直接更新占位消息
-                    try:
-                        await placeholder_message.edit_text(iteration_message_text, parse_mode="HTML")
-                        logger.debug(f"已更新第{iteration}轮占位消息，显示结果")
-                    except telegram.error.BadRequest as e:
-                        logger.warning(f"HTML解析失败，尝试文本模式: {e}")
-                        try:
-                            await placeholder_message.edit_text(iteration_message_text, parse_mode=None)
-                            logger.debug(f"已成功使用文本模式更新第{iteration}轮占位消息")
-                        except Exception as inner_e:
-                            logger.error(f"文本模式更新也失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text(f"第{iteration}轮处理完成，但内容显示失败")
+                # 使用统一的消息发送函数
+                await send_split_message(update, iteration_message_text, placeholder_message, iteration)
                 
                 if had_tool_calls:
                     current_messages.append({
@@ -793,14 +737,8 @@ class CryptoCommand(BaseCommand):
             
             # 如果循环结束但仍有工具调用，说明达到最大迭代次数
             if iteration >= max_iterations:
-                try:
-                    await update.message.reply_text(
-                        "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！",
-                        parse_mode="HTML"
-                    )
-                except Exception as e:
-                    logger.error(f"发送最大迭代提示失败: {e}", exc_info=True)
-                    await update.message.reply_text("分析轮次已达上限，请重新发起请求。")
+                max_iteration_msg = "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！"
+                await send_split_message(update, max_iteration_msg)
             # --- 结束最终结果更新的错误处理 ---
         except Exception as e:
             logger.error(f"处理 /c 命令时发生错误: {str(e)}", exc_info=True)
@@ -808,16 +746,7 @@ class CryptoCommand(BaseCommand):
             if len(error_message) > 200:
                 error_message = error_message[:200] + "..."
             error_message = f"处理请求时发生错误: <code>{error_message}</code>"
-            try:
-                # 发送新的错误消息
-                await update.message.reply_text(error_message, parse_mode="HTML")
-            except Exception as inner_e:
-                logger.warning(f"发送错误消息时HTML解析失败，尝试禁用HTML: {inner_e}")
-                try:
-                    await update.message.reply_text(error_message, parse_mode=None)
-                except Exception as deepest_e:
-                    logger.error(f"禁用HTML后发送错误消息也失败: {deepest_e}")
-                    await update.message.reply_text("处理请求时发生未知错误，且无法格式化错误信息。")
+            await send_error_message(update, error_message)
             logger.debug("已发送错误消息")
 
 
