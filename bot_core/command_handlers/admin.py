@@ -1,16 +1,10 @@
-import asyncio
-import json
-import re
-import time
-
-import telegram
 from telegram import Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 import logging
 
 import bot_core.public_functions.messages
-from LLM_tools.tools_registry import DatabaseSuperToolRegistry, ALL_TOOLS, parse_and_invoke_tool
+from LLM_tools.tools_registry import DatabaseSuperToolRegistry, parse_and_invoke_tool
 from bot_core.public_functions.messages import send_split_message, send_error_message
 from utils import db_utils as db
 from utils import LLM_utils as llm
@@ -37,14 +31,14 @@ class AddFrequencyCommand(BaseCommand):
         if len(args) < 2:
             await update.message.reply_text("请以 /addf target_user_id value 的格式输入参数。")
             return
-        
+
         try:
             target_user = args[0]
             value = int(args[1])
         except ValueError:
             await update.message.reply_text("参数格式错误，请确保额度值为有效数字。")
             return
-            
+
         if target_user == 'all':
             if db.user_frequency_free(value):
                 await update.message.reply_text(f"已为所有用户添加{value}条额度")
@@ -62,7 +56,8 @@ class AddFrequencyCommand(BaseCommand):
                 else:
                     await update.message.reply_text(f"已为{target_user}添加{value}条额度")
             else:
-                await update.message.reply_text(f"操作失败：无法为用户 {target_user} 添加额度。可能原因：\n1. 用户不存在\n2. 数据库连接失败\n3. 参数格式错误")
+                await update.message.reply_text(
+                    f"操作失败：无法为用户 {target_user} 添加额度。可能原因：\n1. 用户不存在\n2. 数据库连接失败\n3. 参数格式错误")
 
 
 class SetTierCommand(BaseCommand):
@@ -160,25 +155,25 @@ class DatabaseCommand(BaseCommand):
             # 因为 handle 函数已经发送了初始的 "处理中..." 消息
             while iteration < max_iterations:
                 iteration += 1
-                
+
                 # 为每次迭代发送一条新的占位消息
                 placeholder_message = await update.message.reply_text(
                     f"🔄 第 {iteration} 轮分析中...",
                     parse_mode="HTML"
                 )
-                
+
                 client.set_messages(current_messages)
                 logger.debug(f"已设置 messages (当前会话): {current_messages}")
                 ai_response = await client.final_response()
                 logger.info(f"LLM 原始响应: {ai_response}")
-                
+
                 # 调用共享的 parse_and_invoke_tool 函数
                 llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
                     await parse_and_invoke_tool(ai_response)
-                
+
                 # 为当前轮次构建消息内容（LLM文本 + 工具结果）
                 iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
-                
+
                 # 添加LLM文本部分
                 if llm_text_part:
                     if "<" in llm_text_part and ">" in llm_text_part:
@@ -186,11 +181,11 @@ class DatabaseCommand(BaseCommand):
                     else:
                         iteration_message_text += f"<b>脆脆鲨:</b> {llm_text_part.strip()}\n\n"
                     logger.debug(f"脆脆鲨文本部分: {llm_text_part.strip()}")
-                
+
                 # 添加工具调用结果
                 if had_tool_calls:
                     logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
-                    
+
                     # 处理工具结果，使用HTML格式
                     tool_results_html = []
                     for res in tool_results_for_llm_feedback:
@@ -200,18 +195,18 @@ class DatabaseCommand(BaseCommand):
                             trimmed_result = tool_result[:2000] + "..."
                         else:
                             trimmed_result = tool_result
-                        
+
                         # 使用可展开引用块创建折叠的工具结果
                         tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
                         tool_results_html.append(tool_html)
-                    
+
                     if tool_results_html:
                         iteration_message_text += "\n".join(tool_results_html)
                         logger.debug(f"已添加工具结果到当前轮次消息")
-                
+
                 # 使用统一的消息发送函数
                 await send_split_message(update, iteration_message_text, placeholder_message, iteration)
-                
+
                 if had_tool_calls:
                     current_messages.append({
                         "role": "assistant",
@@ -230,10 +225,11 @@ class DatabaseCommand(BaseCommand):
                     # 没有工具调用，这是最终回复，结束循环
                     logger.info(f"第{iteration}轮未调用工具，脆脆鲨给出最终回复: {llm_text_part}")
                     break  # 没有工具调用，结束循环
-            
+
             # 如果循环结束但仍有工具调用，说明达到最大迭代次数
             if iteration >= max_iterations:
-                await send_error_message(update, "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！")
+                await send_error_message(update,
+                                         "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！")
         except Exception as e:
             logger.error(f"处理 /database 命令时发生错误: {str(e)}", exc_info=True)
             error_message = str(e)
@@ -242,6 +238,7 @@ class DatabaseCommand(BaseCommand):
             error_message = f"处理请求时发生错误: <code>{error_message}</code>"
             await send_error_message(update, error_message, placeholder_message)
             logger.debug("已编辑占位消息，显示错误信息")
+
 
 class ForwardCommand(BaseCommand):
     meta = CommandMeta(
@@ -293,7 +290,7 @@ class ForwardCommand(BaseCommand):
                 from_chat_id=source_chat_id,
                 message_id=message_id
             )
-            #await update.message.reply_text("✅ 消息已成功转发！")
+            # await update.message.reply_text("✅ 消息已成功转发！")
 
         except Exception as e:
             # 捕获其他非 Telegram API 的意外错误
@@ -320,7 +317,7 @@ class MessageCommand(BaseCommand):
         命令格式: /msg <用户ID> <消息内容>
         """
         args = context.args
-        
+
         # 1. 参数校验
         if not args or len(args) < 2:
             await update.message.reply_text(
@@ -331,7 +328,7 @@ class MessageCommand(BaseCommand):
                 parse_mode='Markdown'
             )
             return
-        
+
         try:
             # 尝试将第一个参数转换为整数（用户ID）
             target_user_id = int(args[0])
@@ -342,10 +339,10 @@ class MessageCommand(BaseCommand):
                 parse_mode='Markdown'
             )
             return
-        
+
         # 2. 获取消息内容（从第二个参数开始的所有内容）
         message_content = ' '.join(args[1:])
-        
+
         if not message_content.strip():
             await update.message.reply_text(
                 "❌ 消息内容不能为空！\n"
@@ -353,44 +350,40 @@ class MessageCommand(BaseCommand):
                 parse_mode='Markdown'
             )
             return
-        
+
         # 3. 执行消息发送操作
         try:
-            await bot_core.public_functions.messages.send_message(
-                chat_id=target_user_id,
-                text=message_content,
-                parse_mode=None  # 禁用Markdown解析，避免特殊字符导致的解析错误
-            )
-            
+            await bot_core.public_functions.messages.send_message(context, target_user_id, message_content)
+
             # 发送成功确认消息
             await update.message.reply_text(
                 f"✅ 消息已成功发送给用户 {target_user_id}！\n\n"
                 f"📝 发送内容：{message_content}",
                 parse_mode='Markdown'
             )
-            
+
             # 记录日志
             logger.info(f"管理员 {update.effective_user.id} 向用户 {target_user_id} 发送消息: {message_content}")
-            
+
         except TelegramError as e:
             # 处理 Telegram API 相关错误
             error_msg = "❌ 发送消息失败！\n\n"
-            
+
             if "chat not found" in str(e).lower():
                 error_msg += "原因：找不到指定的用户或聊天。\n" \
-                           "请确认用户ID是否正确，或用户是否已与机器人建立过对话。"
+                             "请确认用户ID是否正确，或用户是否已与机器人建立过对话。"
             elif "blocked" in str(e).lower():
                 error_msg += "原因：用户已阻止机器人。\n" \
-                           "无法向已阻止机器人的用户发送消息。"
+                             "无法向已阻止机器人的用户发送消息。"
             elif "forbidden" in str(e).lower():
                 error_msg += "原因：没有权限向该用户发送消息。\n" \
-                           "可能用户未启动与机器人的对话。"
+                             "可能用户未启动与机器人的对话。"
             else:
                 error_msg += f"原因：{str(e)}"
-            
+
             await update.message.reply_text(error_msg, parse_mode='Markdown')
             logger.warning(f"向用户 {target_user_id} 发送消息失败: {str(e)}")
-            
+
         except Exception as e:
             # 捕获其他意外错误
             await update.message.reply_text(

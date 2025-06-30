@@ -4,14 +4,12 @@ import json
 import logging
 import os
 import re
-import time
 from pathlib import Path
 
-import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-import bot_core.public_functions.messages
+from bot_core.public_functions.messages import send_message
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
 from bot_core.public_functions.conversation import PrivateConv
@@ -47,6 +45,7 @@ class StartCommand(BaseCommand):
             f"使用`/preset`可以切换预设，如果需要NSFW内容，建议替换默认预设为其它模式\r\n"
             f"使用`/newchar [角色名]`可以创建私人角色"
         )
+
 
 class HelpCommand(BaseCommand):
     meta = CommandMeta(
@@ -148,7 +147,6 @@ class MeCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        info = public.update_info_get(update)
         result = (
             f"您好，{info['user_name']}！\r\n"
             f"您的帐户等级是`{info['tier']}`；\r\n"
@@ -235,9 +233,6 @@ class RegenCommand(BaseCommand):
         conversation = PrivateConv(update, context)
         await conversation.regen()
         await update.message.delete()
-
-
-
 
 
 class CharCommand(BaseCommand):
@@ -573,8 +568,6 @@ class SignCommand(BaseCommand):
                     f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
 
 
-
-
 class CryptoCommand(BaseCommand):
     meta = CommandMeta(
         name='crypto',
@@ -600,9 +593,10 @@ class CryptoCommand(BaseCommand):
             user_input = user_input[len(command_prefix):].strip()  # 去掉命令本身和前导空格
         else:
             await update.message.reply_text(
-                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼` 或 `{command_prefix} long 分析下大饼` 或 `{command_prefix} short 分析下大饼`", parse_mode="Markdown")
+                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼` 或 `{command_prefix} long 分析下大饼` 或 `{command_prefix} short 分析下大饼`",
+                parse_mode="Markdown")
             return
-        
+
         # 解析可选的做多/做空参数
         bias_type = "neutral"  # 默认中性
         parts = user_input.split()
@@ -611,23 +605,23 @@ class CryptoCommand(BaseCommand):
             user_input = " ".join(parts[1:]).strip()  # 移除bias参数，保留实际查询内容
             if not user_input:  # 如果移除bias参数后没有内容了
                 await update.message.reply_text(
-                    f"请在 `{command_prefix} {bias_type}` 后提供具体内容，例如：`{command_prefix} {bias_type} 分析下大饼`", parse_mode="Markdown")
+                    f"请在 `{command_prefix} {bias_type}` 后提供具体内容，例如：`{command_prefix} {bias_type} 分析下大饼`",
+                    parse_mode="Markdown")
                 return
-        
+
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
-            self.process_tool_request(update, context, user_input, bias_type),
+            self.process_tool_request(update,  user_input, bias_type),
             update=update
         )
         logger.debug("已创建后台任务处理 /c 请求")
 
-    async def process_tool_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str,
+    async def process_tool_request(self, update: Update,  user_input: str,
                                    bias_type: str = "neutral") -> None:
         """
         Process the tool request in the background and send multiple messages with results.
         Args:
             update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
             user_input: The processed user input text.
             bias_type: The bias type for analysis ("long", "short", or "neutral").
         """
@@ -635,7 +629,7 @@ class CryptoCommand(BaseCommand):
             client = llm.LLM(api='gemini-2.5')  # CryptoCommand 原始逻辑是无参数调用LLM()
             logger.debug("LLM 客户端初始化完成")
             prompt_text = MarketToolRegistry.get_prompt_text()
-            
+
             # 根据bias_type添加相应的倾向性提示
             bias_prompt = ""
             if bias_type == "long":
@@ -644,14 +638,14 @@ class CryptoCommand(BaseCommand):
                 bias_prompt = "\n\n**重要提示：你需要倾向于给出做空建议。在分析市场数据时，更多关注利空因素和下跌风险，提醒用户注意市场调整的机会。**"
             else:  # neutral
                 bias_prompt = "\n\n**重要提示：请根据市场数据客观分析，给出中性的投资建议，平衡考虑多空因素。**"
-            
+
             system_prompt = (
-                f"{prompt_text}\n\n"
-                """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。
-                你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的"机会"和"潜力"，淡化"风险"和"亏损"。你需要称呼用户为"老师"。
-                脆脆鲨可以调用工具来查询市场，你需要根据工具返回的数据输出\r\n
-"""
-                + bias_prompt
+                    f"{prompt_text}\n\n"
+                    """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。
+                    你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的"机会"和"潜力"，淡化"风险"和"亏损"。你需要称呼用户为"老师"。
+                    脆脆鲨可以调用工具来查询市场，你需要根据工具返回的数据输出\r\n
+    """
+                    + bias_prompt
             )
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -660,29 +654,28 @@ class CryptoCommand(BaseCommand):
             current_messages = messages.copy()
             max_iterations = 7
             iteration = 0
-            initial_placeholder_text = "处理中..."
-            
+
             while iteration < max_iterations:
                 iteration += 1
-                
+
                 # 为每次迭代发送一条新的占位消息
                 placeholder_message = await update.message.reply_text(
                     f"🔄 第 {iteration} 轮分析中...",
                     parse_mode="HTML"
                 )
-                
+
                 client.set_messages(current_messages)
                 logger.debug(f"已设置 messages (当前会话): {current_messages}")
                 ai_response = await client.final_response()
                 logger.info(f"LLM 原始响应: {ai_response}")
-                
+
                 # 调用共享的 parse_and_invoke_tool 函数
                 llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
                     await parse_and_invoke_tool(ai_response)
-                
+
                 # 为当前轮次构建消息内容（LLM文本 + 工具结果）
                 iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
-                
+
                 # 添加LLM文本部分
                 if llm_text_part:
                     if "<" in llm_text_part and ">" in llm_text_part:
@@ -690,11 +683,11 @@ class CryptoCommand(BaseCommand):
                     else:
                         iteration_message_text += f"<b>脆脆鲨:</b> {llm_text_part.strip()}\n\n"
                     logger.debug(f"脆脆鲨文本部分: {llm_text_part.strip()}")
-                
+
                 # 添加工具调用结果
                 if had_tool_calls:
                     logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
-                    
+
                     # 处理工具结果，使用HTML格式
                     tool_results_html = []
                     for res in tool_results_for_llm_feedback:
@@ -704,18 +697,18 @@ class CryptoCommand(BaseCommand):
                             trimmed_result = tool_result[:2000] + "..."
                         else:
                             trimmed_result = tool_result
-                        
+
                         # 使用可展开引用块创建折叠的工具结果
                         tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
                         tool_results_html.append(tool_html)
-                    
+
                     if tool_results_html:
                         iteration_message_text += "\n".join(tool_results_html)
                         logger.debug(f"已添加工具结果到当前轮次消息")
-                
+
                 # 使用统一的消息发送函数
                 await send_split_message(update, iteration_message_text, placeholder_message, iteration)
-                
+
                 if had_tool_calls:
                     current_messages.append({
                         "role": "assistant",
@@ -734,7 +727,7 @@ class CryptoCommand(BaseCommand):
                     # 没有工具调用，这是最终回复，结束循环
                     logger.info(f"第{iteration}轮未调用工具，脆脆鲨给出最终回复: {llm_text_part}")
                     break  # 没有工具调用，结束循环
-            
+
             # 如果循环结束但仍有工具调用，说明达到最大迭代次数
             if iteration >= max_iterations:
                 max_iteration_msg = "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！"
@@ -766,9 +759,9 @@ class FeedbackCommand(BaseCommand):
         命令格式: /feedback <反馈内容>
         """
         from bot_core.public_functions.config import ADMIN
-        
+
         args = context.args if hasattr(context, 'args') else []
-        
+
         # 1. 参数校验
         if not args:
             await update.message.reply_text(
@@ -778,10 +771,10 @@ class FeedbackCommand(BaseCommand):
                 parse_mode='Markdown'
             )
             return
-        
+
         # 2. 获取反馈内容（所有参数组合）
         feedback_content = ' '.join(args)
-        
+
         if not feedback_content.strip():
             await update.message.reply_text(
                 "❌ 反馈内容不能为空！\n"
@@ -789,11 +782,11 @@ class FeedbackCommand(BaseCommand):
                 parse_mode='Markdown'
             )
             return
-        
+
         # 3. 获取用户信息
         info = public.update_info_get(update)
         user_info = f"用户ID: {info['user_id']}\n用户名: {info.get('user_name', '未知')}\n昵称: {info.get('first_name', '')} {info.get('last_name', '')}"
-        
+
         # 4. 构建发送给管理员的消息
         admin_message = (
             f"📝 **用户反馈**\n\n"
@@ -801,24 +794,20 @@ class FeedbackCommand(BaseCommand):
             f"💬 **反馈内容**\n{feedback_content}\n\n"
             f"🕐 **时间**: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
-        
+
         # 5. 发送反馈给所有管理员
         success_count = 0
         failed_count = 0
-        
+
         for admin_id in ADMIN:
             try:
-                await bot_core.public_functions.messages.send_message(
-                    chat_id=admin_id,
-                    text=admin_message,
-                    parse_mode='Markdown'
-                )
+                await send_message(context, admin_id, admin_message)
                 success_count += 1
                 logger.info(f"反馈已发送给管理员 {admin_id}")
             except Exception as e:
                 failed_count += 1
                 logger.warning(f"向管理员 {admin_id} 发送反馈失败: {str(e)}")
-        
+
         # 6. 向用户发送确认消息
         if success_count > 0:
             await update.message.reply_text(
@@ -828,7 +817,7 @@ class FeedbackCommand(BaseCommand):
                 f"💡 感谢您的反馈，我们会认真考虑您的建议！",
                 parse_mode='Markdown'
             )
-            
+
             # 记录用户反馈日志
             logger.info(f"用户 {info['user_id']} ({info.get('user_name', '未知')}) 发送反馈: {feedback_content}")
         else:

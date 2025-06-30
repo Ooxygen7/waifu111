@@ -1,4 +1,4 @@
-import logging
+
 import time
 import os
 import json
@@ -7,11 +7,9 @@ import asyncio
 import logging
 from PIL import Image
 
-import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot_core.public_functions.messages import send_message, send_split_message, send_error_message
-import bot_core.public_functions.messages
 from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db, LLM_utils as llm, file_utils as file
 from utils.logging_utils import setup_logging
