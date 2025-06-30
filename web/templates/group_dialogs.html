@@ -2,7 +2,12 @@
 
 {% block title %}群组对话 - CyberWaifu Bot 后台管理系统{% endblock %}
 
-{% block page_title %}群组对话{% endblock %}
+{% block page_title %}
+群组对话
+<button type="button" class="btn btn-outline-primary btn-sm ms-3" onclick="exportGroupConversation()">
+    <i class="bi bi-download"></i> 导出
+</button>
+{% endblock %}
 
 {% block content %}
 <!-- 群组信息卡片 -->
@@ -166,10 +171,10 @@
             </div>
             <div class="card-body p-0">
                 {% if dialogs %}
-                <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 15px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
+                <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 10px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
                     {% for dialog in dialogs %}
                     <!-- 用户消息气泡 (左侧) -->
-                    <div class="message-bubble-container mb-3 user-message" 
+                    <div class="message-bubble-container mb-2 user-message" 
                          data-dialog-id="{{ dialog.msg_id or 'N/A' }}" 
                          data-user-name="{{ dialog.msg_user_name or '未知用户' }}"
                          data-user-id="{{ dialog.msg_user or 'N/A' }}"
@@ -178,10 +183,10 @@
                          data-time="{{ format_datetime(dialog.create_at) }}">
                         
                         <div class="d-flex justify-content-start">
-                            <div class="message-bubble user-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
+                            <div class="message-bubble user-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 12px; padding: 6px 10px; position: relative; cursor: pointer; word-wrap: break-word; font-size: 0.85em; line-height: 1.3;">
                                 <div class="message-content">
                                     <div class="d-flex align-items-center gap-2 mb-1">
-                                        <strong style="font-size: 0.85em;">{{ dialog.msg_user_name or '未知用户' }}</strong>
+                                        <strong style="font-size: 0.8em;">{{ dialog.msg_user_name or '未知用户' }}</strong>
                                         {% if dialog.trigger_type == 'mention' %}
                                             <span class="badge bg-warning text-dark" style="font-size: 0.6em;">@提及</span>
                                         {% elif dialog.trigger_type == 'reply' %}
@@ -200,7 +205,7 @@
                                         <span class="text-muted">无消息内容</span>
                                     {% endif %}
                                 </div>
-                                <div class="message-time" style="font-size: 0.7em; opacity: 0.6; margin-top: 2px;">
+                                <div class="message-time" style="font-size: 0.65em; opacity: 0.6; margin-top: 1px;">
                                     {{ format_datetime(dialog.create_at) }}
                                 </div>
                             </div>
@@ -209,14 +214,14 @@
                     
                     <!-- AI回复气泡 (右侧) -->
                     {% if dialog.processed_response or dialog.raw_response %}
-                    <div class="message-bubble-container mb-4 ai-message" 
+                    <div class="message-bubble-container mb-2 ai-message" 
                          data-dialog-id="{{ dialog.msg_id or 'N/A' }}" 
                          data-processed-response="{{ dialog.processed_response|e }}"
                          data-raw-response="{{ dialog.raw_response|e }}"
                          data-time="{{ format_datetime(dialog.create_at) }}">
                         
                         <div class="d-flex justify-content-end">
-                            <div class="message-bubble ai-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 18px; padding: 8px 12px; position: relative; cursor: pointer; word-wrap: break-word;">
+                            <div class="message-bubble ai-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 12px; padding: 6px 10px; position: relative; cursor: pointer; word-wrap: break-word; font-size: 0.85em; line-height: 1.3;">
                                 <div class="message-content">
                                     {% if dialog.processed_response %}
                                         {{ dialog.processed_response | replace('\n', '<br>') | safe }}
@@ -498,6 +503,14 @@
 
 {% block scripts %}
 <script>
+// 群组数据
+window.groupData = {
+    group_id: {{ group.group_id | tojson | safe }},
+    group_name: {{ group.group_name | tojson | safe }},
+    char: {{ group.char | tojson | safe }},
+    preset: {{ group.preset | tojson | safe }}
+};
+
 // 显示用户消息详情模态框
 function showUserMessageDetails(element) {
     const container = element.closest('.user-message');
@@ -659,8 +672,113 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.style.overflowY = 'auto';
                 }
             });
-        }
+        });
     });
 });
+
+// 导出群组对话为JSON
+function exportGroupConversation() {
+    const groupId = window.groupData.group_id;
+    const groupName = window.groupData.group_name || '未命名群组';
+    const char = window.groupData.char || '未设置';
+    const preset = window.groupData.preset || '默认';
+    
+    // 收集所有对话数据
+    const conversations = [];
+    const userMessages = document.querySelectorAll('.user-message');
+    const aiMessages = document.querySelectorAll('.ai-message');
+    
+    // 合并用户消息和AI回复，按时间排序
+    const allMessages = [];
+    
+    userMessages.forEach(msg => {
+        const dialogId = msg.getAttribute('data-dialog-id');
+        const userName = msg.getAttribute('data-user-name');
+        const userId = msg.getAttribute('data-user-id');
+        const triggerType = msg.getAttribute('data-trigger-type');
+        const msgContent = msg.getAttribute('data-msg-content');
+        const time = msg.getAttribute('data-time');
+        
+        allMessages.push({
+            type: 'user',
+            dialog_id: dialogId,
+            user_name: userName,
+            user_id: userId,
+            trigger_type: triggerType,
+            content: msgContent,
+            time: time
+        });
+    });
+    
+    aiMessages.forEach(msg => {
+        const dialogId = msg.getAttribute('data-dialog-id');
+        const processedResponse = msg.getAttribute('data-processed-response');
+        const rawResponse = msg.getAttribute('data-raw-response');
+        const time = msg.getAttribute('data-time');
+        
+        allMessages.push({
+            type: 'ai',
+            dialog_id: dialogId,
+            processed_response: processedResponse,
+            raw_response: rawResponse,
+            time: time
+        });
+    });
+    
+    // 按对话ID分组
+    const groupedMessages = {};
+    allMessages.forEach(msg => {
+        if (!groupedMessages[msg.dialog_id]) {
+            groupedMessages[msg.dialog_id] = [];
+        }
+        groupedMessages[msg.dialog_id].push(msg);
+    });
+    
+    // 构建最终的导出数据
+    const exportData = {
+        group_info: {
+            group_id: groupId,
+            group_name: groupName,
+            character: char,
+            preset: preset,
+            export_time: new Date().toISOString()
+        },
+        conversations: Object.keys(groupedMessages).map(dialogId => {
+            const messages = groupedMessages[dialogId];
+            const userMsg = messages.find(m => m.type === 'user');
+            const aiMsg = messages.find(m => m.type === 'ai');
+            
+            return {
+                dialog_id: dialogId,
+                user_message: userMsg ? {
+                    user_name: userMsg.user_name,
+                    user_id: userMsg.user_id,
+                    trigger_type: userMsg.trigger_type,
+                    content: userMsg.content,
+                    time: userMsg.time
+                } : null,
+                ai_response: aiMsg ? {
+                    processed_response: aiMsg.processed_response,
+                    raw_response: aiMsg.raw_response,
+                    time: aiMsg.time
+                } : null
+            };
+        })
+    };
+    
+    // 创建并下载JSON文件
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    const date = new Date().toISOString().split('T')[0];
+    a.download = `group_conversation_${groupId}_${date}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 </script>
 {% endblock %}

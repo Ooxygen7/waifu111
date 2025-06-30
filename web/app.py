@@ -397,8 +397,8 @@ def conversations():
     """对话管理页面"""
     page = request.args.get('page', 1, type=int)
     search = request.args.get('search', '', type=str).strip()
-    sort_by = request.args.get('sort', 'update_at')
-    order = request.args.get('order', 'desc')
+    sort_by = request.args.get('sort_by', 'update_at')
+    sort_order = request.args.get('sort_order', 'desc')
     per_page = 20
     offset = (page - 1) * per_page
     
@@ -408,7 +408,7 @@ def conversations():
         sort_by = 'update_at'
     
     # 确保排序方向安全
-    order = 'ASC' if order.lower() == 'asc' else 'DESC'
+    order = 'ASC' if sort_order.lower() == 'asc' else 'DESC'
     
     # 使用JOIN查询获取用户信息
     query = '''
@@ -460,9 +460,15 @@ def conversations():
             conv_dict = {columns[i]: row[i] for i in range(len(columns))}
             conversations_list.append(conv_dict)
     
+    def next_sort_order(column):
+        if column == sort_by:
+            return 'asc' if sort_order == 'desc' else 'desc'
+        return 'desc'
+    
     return render_template('conversations.html', conversations=conversations_list, 
                          page=page, total_pages=total_pages, search=search, 
-                         sort_by=sort_by, order=order.lower(), format_datetime=format_datetime)
+                         sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order, 
+                         format_datetime=format_datetime)
 
 @app.route('/dialogs/<int:conv_id>')
 @login_required

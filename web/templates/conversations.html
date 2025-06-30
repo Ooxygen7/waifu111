@@ -51,68 +51,68 @@
                         <thead class="table-light">
                             <tr>
                                 <th>
-                                    <a href="?sort=conv_id&order={{ 'desc' if sort_by == 'conv_id' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='conv_id', sort_order=next_sort_order('conv_id'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         对话ID
                                         {% if sort_by == 'conv_id' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>
                                 <th>
-                                    <a href="?sort=user_id&order={{ 'desc' if sort_by == 'user_id' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='user_id', sort_order=next_sort_order('user_id'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         用户ID
                                         {% if sort_by == 'user_id' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>
                                 <th>用户名</th>
                                 <th>用户姓名</th>
                                 <th>
-                                    <a href="?sort=character&order={{ 'desc' if sort_by == 'character' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='character', sort_order=next_sort_order('character'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         角色
                                         {% if sort_by == 'character' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>
                                 <th>
-                                    <a href="?sort=preset&order={{ 'desc' if sort_by == 'preset' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='preset', sort_order=next_sort_order('preset'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         预设
                                         {% if sort_by == 'preset' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>
                                 <th>
-                                    <a href="?sort=turns&order={{ 'desc' if sort_by == 'turns' and order == 'asc' else 'asc' }}{% if search %}&search={{ search }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='turns', sort_order=next_sort_order('turns'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         对话轮数
                                         {% if sort_by == 'turns' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>
                                 <th>摘要</th>
                                 <th>
-                                    <a href="?sort=create_at&order={{ 'desc' if sort_by == 'create_at' and order == 'asc' else 'asc' }}{% if user_id %}&user_id={{ user_id }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='create_at', sort_order=next_sort_order('create_at'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         创建时间
                                         {% if sort_by == 'create_at' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>
                                 <th>
-                                    <a href="?sort=update_at&order={{ 'desc' if sort_by == 'update_at' and order == 'asc' else 'asc' }}{% if user_id %}&user_id={{ user_id }}{% endif %}" 
+                                    <a href="{{ url_for('conversations', sort_by='update_at', sort_order=next_sort_order('update_at'), search=search) }}" 
                                        class="text-decoration-none text-dark">
                                         更新时间
                                         {% if sort_by == 'update_at' %}
-                                            <i class="bi bi-arrow-{{ 'up' if order == 'asc' else 'down' }}"></i>
+                                            <i class="bi bi-arrow-{{ 'up' if sort_order == 'ASC' else 'down' }}"></i>
                                         {% endif %}
                                     </a>
                                 </th>

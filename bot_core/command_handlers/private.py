@@ -8,7 +8,7 @@ from pathlib import Path
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-
+from bot_core.public_functions.messages import LLMToolHandler
 from bot_core.public_functions.messages import send_message
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
@@ -625,122 +625,33 @@ class CryptoCommand(BaseCommand):
             user_input: The processed user input text.
             bias_type: The bias type for analysis ("long", "short", or "neutral").
         """
-        try:
-            client = llm.LLM(api='gemini-2.5')  # CryptoCommand 原始逻辑是无参数调用LLM()
-            logger.debug("LLM 客户端初始化完成")
-            prompt_text = MarketToolRegistry.get_prompt_text()
+        
+        # 根据bias_type添加相应的倾向性提示
+        bias_prompt = ""
+        if bias_type == "long":
+            bias_prompt = "\n\n**重要提示：你需要倾向于给出做多建议。在分析市场数据时，更多关注利好因素和上涨潜力，适当淡化风险因素。鼓励用户抓住上涨机会。**"
+        elif bias_type == "short":
+            bias_prompt = "\n\n**重要提示：你需要倾向于给出做空建议。在分析市场数据时，更多关注利空因素和下跌风险，提醒用户注意市场调整的机会。**"
+        else:  # neutral
+            bias_prompt = "\n\n**重要提示：请根据市场数据客观分析，给出中性的投资建议，平衡考虑多空因素。**"
 
-            # 根据bias_type添加相应的倾向性提示
-            bias_prompt = ""
-            if bias_type == "long":
-                bias_prompt = "\n\n**重要提示：你需要倾向于给出做多建议。在分析市场数据时，更多关注利好因素和上涨潜力，适当淡化风险因素。鼓励用户抓住上涨机会。**"
-            elif bias_type == "short":
-                bias_prompt = "\n\n**重要提示：你需要倾向于给出做空建议。在分析市场数据时，更多关注利空因素和下跌风险，提醒用户注意市场调整的机会。**"
-            else:  # neutral
-                bias_prompt = "\n\n**重要提示：请根据市场数据客观分析，给出中性的投资建议，平衡考虑多空因素。**"
-
-            system_prompt = (
-                    f"{prompt_text}\n\n"
-                    """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。
+        character_prompt = """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。
                     你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的"机会"和"潜力"，淡化"风险"和"亏损"。你需要称呼用户为"老师"。
                     脆脆鲨可以调用工具来查询市场，你需要根据工具返回的数据输出\r\n
     """
-                    + bias_prompt
-            )
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"用户输入: {user_input}"}
-            ]
-            current_messages = messages.copy()
-            max_iterations = 7
-            iteration = 0
-
-            while iteration < max_iterations:
-                iteration += 1
-
-                # 为每次迭代发送一条新的占位消息
-                placeholder_message = await update.message.reply_text(
-                    f"🔄 第 {iteration} 轮分析中...",
-                    parse_mode="HTML"
-                )
-
-                client.set_messages(current_messages)
-                logger.debug(f"已设置 messages (当前会话): {current_messages}")
-                ai_response = await client.final_response()
-                logger.info(f"LLM 原始响应: {ai_response}")
-
-                # 调用共享的 parse_and_invoke_tool 函数
-                llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
-                    await parse_and_invoke_tool(ai_response)
-
-                # 为当前轮次构建消息内容（LLM文本 + 工具结果）
-                iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
-
-                # 添加LLM文本部分
-                if llm_text_part:
-                    if "<" in llm_text_part and ">" in llm_text_part:
-                        iteration_message_text += f"{llm_text_part.strip()}\n\n"
-                    else:
-                        iteration_message_text += f"<b>脆脆鲨:</b> {llm_text_part.strip()}\n\n"
-                    logger.debug(f"脆脆鲨文本部分: {llm_text_part.strip()}")
-
-                # 添加工具调用结果
-                if had_tool_calls:
-                    logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
-
-                    # 处理工具结果，使用HTML格式
-                    tool_results_html = []
-                    for res in tool_results_for_llm_feedback:
-                        tool_name = res.get('tool_name', '未知工具')
-                        tool_result = str(res.get('result', ''))
-                        if len(tool_result) > 2000:  # 截断限制2000字符
-                            trimmed_result = tool_result[:2000] + "..."
-                        else:
-                            trimmed_result = tool_result
-
-                        # 使用可展开引用块创建折叠的工具结果
-                        tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
-                        tool_results_html.append(tool_html)
-
-                    if tool_results_html:
-                        iteration_message_text += "\n".join(tool_results_html)
-                        logger.debug(f"已添加工具结果到当前轮次消息")
-
-                # 使用统一的消息发送函数
-                await send_split_message(update, iteration_message_text, placeholder_message, iteration)
-
-                if had_tool_calls:
-                    current_messages.append({
-                        "role": "assistant",
-                        "content": ai_response
-                    })
-                    feedback_content_to_llm = "工具调用结果:\n" + "\n".join(
-                        [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in
-                         tool_results_for_llm_feedback]
-                    )
-                    current_messages.append({
-                        "role": "user",
-                        "content": feedback_content_to_llm
-                    })
-                    logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
-                else:
-                    # 没有工具调用，这是最终回复，结束循环
-                    logger.info(f"第{iteration}轮未调用工具，脆脆鲨给出最终回复: {llm_text_part}")
-                    break  # 没有工具调用，结束循环
-
-            # 如果循环结束但仍有工具调用，说明达到最大迭代次数
-            if iteration >= max_iterations:
-                max_iteration_msg = "<b>⚠️ 脆脆鲨提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！"
-                await send_split_message(update, max_iteration_msg)
-            # --- 结束最终结果更新的错误处理 ---
-        except Exception as e:
-            logger.error(f"处理 /c 命令时发生错误: {str(e)}", exc_info=True)
-            error_message = str(e)
-            if len(error_message) > 200:
-                error_message = error_message[:200] + "..."
-            error_message = f"处理请求时发生错误: <code>{error_message}</code>"
-            await send_error_message(update, error_message)
-            logger.debug("已发送错误消息")
+        
+        # 使用LLMToolHandler处理请求
+        handler = LLMToolHandler(llm_api='gemini-2.5', max_iterations=7)
+        prompt_text = MarketToolRegistry.get_prompt_text()
+        
+        await handler.process_tool_request(
+            update=update,
+            user_input=user_input,
+            prompt_text=prompt_text,
+            character_prompt=character_prompt,
+            bias_prompt=bias_prompt,
+            character_name="脆脆鲨"
+        )
 
 
 class FeedbackCommand(BaseCommand):
