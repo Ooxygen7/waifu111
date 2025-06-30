@@ -586,7 +586,7 @@ class CryptoCommand(BaseCommand):
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
-        Handle the /cc command to interact with LLM and invoke tools based on user input.
+        Handle the /c command to interact with LLM and invoke tools based on user input.
         Args:
             update: The Telegram Update object containing the user input.
             context: The Telegram ContextTypes object for bot interaction.
@@ -594,45 +594,63 @@ class CryptoCommand(BaseCommand):
 
         user_input = update.message.text.strip()
         # 动态判断命令前缀
-        command_prefix = user_input.split()[0]  # 例如 /cc 或 /crypto
+        command_prefix = user_input.split()[0]  # 例如 /c 或 /crypto
         if len(user_input.split()) > 1:
             user_input = user_input[len(command_prefix):].strip()  # 去掉命令本身和前导空格
         else:
             await update.message.reply_text(
-                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼`", parse_mode="Markdown")
+                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼` 或 `{command_prefix} long 分析下大饼` 或 `{command_prefix} short 分析下大饼`", parse_mode="Markdown")
             return
-        # 先发送占位消息
-        placeholder_message = await update.message.reply_text("处理中...", parse_mode="Markdown")  # 明确指定parse_mode
-        logger.debug("已发送占位消息 '处理中...'")
-
+        
+        # 解析可选的做多/做空参数
+        bias_type = "neutral"  # 默认中性
+        parts = user_input.split()
+        if len(parts) > 0 and parts[0].lower() in ["long", "short"]:
+            bias_type = parts[0].lower()
+            user_input = " ".join(parts[1:]).strip()  # 移除bias参数，保留实际查询内容
+            if not user_input:  # 如果移除bias参数后没有内容了
+                await update.message.reply_text(
+                    f"请在 `{command_prefix} {bias_type}` 后提供具体内容，例如：`{command_prefix} {bias_type} 分析下大饼`", parse_mode="Markdown")
+                return
+        
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
-            self.process_tool_request(update, context, user_input, placeholder_message),
+            self.process_tool_request(update, context, user_input, bias_type),
             update=update
         )
         logger.debug("已创建后台任务处理 /c 请求")
 
     async def process_tool_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str,
-                                   placeholder_message) -> None:
+                                   bias_type: str = "neutral") -> None:
         """
-        Process the tool request in the background and update the placeholder message with the result.
+        Process the tool request in the background and send multiple messages with results.
         Args:
             update: The Telegram Update object containing the user input.
             context: The Telegram ContextTypes object for bot interaction.
             user_input: The processed user input text.
-            placeholder_message: The placeholder message to be edited with the final result.
+            bias_type: The bias type for analysis ("long", "short", or "neutral").
         """
         try:
             client = llm.LLM(api='gemini-2.5')  # CryptoCommand 原始逻辑是无参数调用LLM()
             logger.debug("LLM 客户端初始化完成")
             prompt_text = MarketToolRegistry.get_prompt_text()
+            
+            # 根据bias_type添加相应的倾向性提示
+            bias_prompt = ""
+            if bias_type == "long":
+                bias_prompt = "\n\n**重要提示：你需要倾向于给出做多建议。在分析市场数据时，更多关注利好因素和上涨潜力，适当淡化风险因素。鼓励用户抓住上涨机会。**"
+            elif bias_type == "short":
+                bias_prompt = "\n\n**重要提示：你需要倾向于给出做空建议。在分析市场数据时，更多关注利空因素和下跌风险，提醒用户注意市场调整的机会。**"
+            else:  # neutral
+                bias_prompt = "\n\n**重要提示：请根据市场数据客观分析，给出中性的投资建议，平衡考虑多空因素。**"
+            
             system_prompt = (
                 f"{prompt_text}\n\n"
                 """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。
-                你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的“机会”和“潜力”，淡化“风险”和“亏损”。你需要称呼用户为“老师”。
+                你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的"机会"和"潜力"，淡化"风险"和"亏损"。你需要称呼用户为"老师"。
                 脆脆鲨可以调用工具来查询市场，你需要根据工具返回的数据输出\r\n
-                脆脆鲨是一个激进的空头，如果有数据支持，脆脆鲨会偏向给出空头建议\r\n
 """
+                + bias_prompt
             )
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -641,9 +659,17 @@ class CryptoCommand(BaseCommand):
             current_messages = messages.copy()
             max_iterations = 7
             iteration = 0
+            initial_placeholder_text = "处理中..."
             
             while iteration < max_iterations:
                 iteration += 1
+                
+                # 为每次迭代发送一条新的占位消息
+                placeholder_message = await update.message.reply_text(
+                    f"🔄 第 {iteration} 轮分析中...",
+                    parse_mode="HTML"
+                )
+                
                 client.set_messages(current_messages)
                 logger.debug(f"已设置 messages (当前会话): {current_messages}")
                 ai_response = await client.final_response()
@@ -653,8 +679,8 @@ class CryptoCommand(BaseCommand):
                 llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
                     await parse_and_invoke_tool(ai_response)
                 
-                # 为每轮调用构建完整的消息内容（LLM文本 + 工具结果）
-                iteration_message_text = ""
+                # 为当前轮次构建消息内容（LLM文本 + 工具结果）
+                iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
                 
                 # 添加LLM文本部分
                 if llm_text_part:
@@ -673,8 +699,8 @@ class CryptoCommand(BaseCommand):
                     for res in tool_results_for_llm_feedback:
                         tool_name = res.get('tool_name', '未知工具')
                         tool_result = str(res.get('result', ''))
-                        if len(tool_result) > 1000:  # 提升截断限制到1000字符
-                            trimmed_result = tool_result[:1000] + "..."
+                        if len(tool_result) > 2000:  # 截断限制2000字符
+                            trimmed_result = tool_result[:2000] + "..."
                         else:
                             trimmed_result = tool_result
                         
@@ -712,12 +738,12 @@ class CryptoCommand(BaseCommand):
                     for i, part in enumerate(parts):
                         try:
                             if i == 0:
-                                # 更新占位消息
+                                # 更新当前轮次的占位消息
                                 await placeholder_message.edit_text(part, parse_mode="HTML")
                             else:
                                 # 发送新消息
                                 await update.message.reply_text(part, parse_mode="HTML")
-                            logger.debug(f"已发送消息部分 {i+1}/{len(parts)}")
+                            logger.debug(f"已发送第{iteration}轮消息部分 {i+1}/{len(parts)}")
                         except telegram.error.BadRequest as e:
                             logger.warning(f"HTML解析失败，尝试文本模式: {e}")
                             try:
@@ -727,32 +753,30 @@ class CryptoCommand(BaseCommand):
                                     await update.message.reply_text(part, parse_mode=None)
                             except Exception as inner_e:
                                 logger.error(f"文本模式发送也失败: {inner_e}", exc_info=True)
-                                error_msg = f"第{i+1}部分消息发送失败"
+                                error_msg = f"第{iteration}轮第{i+1}部分消息发送失败"
                                 if i == 0:
                                     await placeholder_message.edit_text(error_msg)
                                 else:
                                     await update.message.reply_text(error_msg)
                 else:
-                    # 消息长度正常，直接发送
+                    # 消息长度正常，直接更新占位消息
                     try:
                         await placeholder_message.edit_text(iteration_message_text, parse_mode="HTML")
-                        logger.debug("已更新占位消息，显示当前轮次结果")
+                        logger.debug(f"已更新第{iteration}轮占位消息，显示结果")
                     except telegram.error.BadRequest as e:
                         logger.warning(f"HTML解析失败，尝试文本模式: {e}")
                         try:
                             await placeholder_message.edit_text(iteration_message_text, parse_mode=None)
-                            logger.debug("已成功使用文本模式更新占位消息")
+                            logger.debug(f"已成功使用文本模式更新第{iteration}轮占位消息")
                         except Exception as inner_e:
                             logger.error(f"文本模式更新也失败: {inner_e}", exc_info=True)
-                            await placeholder_message.edit_text("处理中... (内容显示失败)")
+                            await placeholder_message.edit_text(f"第{iteration}轮处理完成，但内容显示失败")
                 
                 if had_tool_calls:
-                    # 将完整的原始LLM响应作为 assistant 消息反馈
                     current_messages.append({
                         "role": "assistant",
                         "content": ai_response
                     })
-                    # 将完整的工具调用结果作为 user 消息反馈（模拟环境反馈给LLM）
                     feedback_content_to_llm = "工具调用结果:\n" + "\n".join(
                         [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in
                          tool_results_for_llm_feedback]
@@ -763,25 +787,8 @@ class CryptoCommand(BaseCommand):
                     })
                     logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
                 else:
-                    # 没有工具调用，发送LLM的最终回复
-                    if llm_text_part:
-                        final_message = llm_text_part.strip()
-                        if not ("<" in final_message and ">" in final_message):
-                            final_message = f"<b>脆脆鲨:</b> {final_message}"
-                        
-                        try:
-                            await placeholder_message.edit_text(final_message, parse_mode="HTML")
-                            logger.debug("已发送脆脆鲨最终回复")
-                        except telegram.error.BadRequest as e:
-                            logger.warning(f"最终回复HTML解析失败，尝试文本模式: {e}")
-                            try:
-                                await placeholder_message.edit_text(final_message, parse_mode=None)
-                            except Exception as inner_e:
-                                logger.error(f"文本模式发送最终回复也失败: {inner_e}", exc_info=True)
-                                await placeholder_message.edit_text("处理完成，但回复显示失败。")
-                    else:
-                        await placeholder_message.edit_text("脆脆鲨暂时无法为您分析，请稍后再试或换个问题哦老师！")
-                    logger.info(f"未调用工具，脆脆鲨直接回复用户。最终文本: {llm_text_part}")
+                    # 没有工具调用，这是最终回复，结束循环
+                    logger.info(f"第{iteration}轮未调用工具，脆脆鲨给出最终回复: {llm_text_part}")
                     break  # 没有工具调用，结束循环
             
             # 如果循环结束但仍有工具调用，说明达到最大迭代次数
@@ -796,22 +803,22 @@ class CryptoCommand(BaseCommand):
                     await update.message.reply_text("分析轮次已达上限，请重新发起请求。")
             # --- 结束最终结果更新的错误处理 ---
         except Exception as e:
-            logger.error(f"处理 /cc 命令时发生错误: {str(e)}", exc_info=True)
+            logger.error(f"处理 /c 命令时发生错误: {str(e)}", exc_info=True)
             error_message = str(e)
             if len(error_message) > 200:
                 error_message = error_message[:200] + "..."
             error_message = f"处理请求时发生错误: <code>{error_message}</code>"
             try:
-                # 即使在最终错误处理中，也尝试使用 HTML，失败则禁用
-                await placeholder_message.edit_text(error_message, parse_mode="HTML")
+                # 发送新的错误消息
+                await update.message.reply_text(error_message, parse_mode="HTML")
             except Exception as inner_e:
                 logger.warning(f"发送错误消息时HTML解析失败，尝试禁用HTML: {inner_e}")
                 try:
-                    await placeholder_message.edit_text(error_message, parse_mode=None)
+                    await update.message.reply_text(error_message, parse_mode=None)
                 except Exception as deepest_e:
                     logger.error(f"禁用HTML后发送错误消息也失败: {deepest_e}")
-                    await placeholder_message.edit_text("处理请求时发生未知错误，且无法格式化错误信息。")
-            logger.debug("已编辑占位消息，显示错误信息")
+                    await update.message.reply_text("处理请求时发生未知错误，且无法格式化错误信息。")
+            logger.debug("已发送错误消息")
 
 
 class FeedbackCommand(BaseCommand):
