@@ -679,6 +679,74 @@ def get_message_page(group_id, msg_id):
     
     return jsonify({'page': page})
 
+@app.route('/api/export_group_dialogs/<group_id>')
+@login_required
+def export_group_dialogs(group_id):
+    """导出完整的群组对话数据"""
+    try:
+        group_id = int(group_id)
+    except ValueError:
+        return jsonify({'error': 'Invalid group ID'}), 400
+    
+    # 获取群组信息
+    group_data = db.query_db('SELECT * FROM groups WHERE group_id = ?', (group_id,))
+    
+    if not group_data:
+        return jsonify({'error': '群组不存在'}), 404
+    
+    # 转换群组信息为字典
+    group_columns = ['group_id', 'members_list', 'call_count', 'keywords', 'active', 'api', 'char', 
+                    'preset', 'input_token', 'group_name', 'update_time', 'rate', 'output_token', 'disabled_topics']
+    group = {group_columns[i]: group_data[0][i] for i in range(len(group_columns))}
+    
+    # 获取所有对话数据（不分页）
+    dialogs_data = db.query_db(
+        'SELECT * FROM group_dialogs WHERE group_id = ? ORDER BY create_at ASC',
+        (group_id,)
+    )
+    
+    # 转换对话数据为字典格式
+    conversations = []
+    if dialogs_data:
+        dialog_columns = ['group_id', 'msg_user', 'trigger_type', 'msg_text', 'msg_user_name', 
+                         'msg_id', 'raw_response', 'processed_response', 'delete_mark', 'group_name', 'create_at']
+        
+        for row in dialogs_data:
+            dialog_dict = {dialog_columns[i]: row[i] for i in range(len(dialog_columns))}
+            
+            # 构建对话记录
+            conversation = {
+                'dialog_id': dialog_dict['msg_id'],
+                'user_message': {
+                    'content': dialog_dict['msg_text'],
+                    'user_name': dialog_dict['msg_user_name'],
+                    'user_id': dialog_dict['msg_user'],
+                    'trigger_type': dialog_dict['trigger_type'],
+                    'time': dialog_dict['create_at']
+                },
+                'ai_response': {
+                    'processed_response': dialog_dict['processed_response'],
+                    'raw_response': dialog_dict['raw_response'],
+                    'time': dialog_dict['create_at']
+                }
+            }
+            conversations.append(conversation)
+    
+    # 构建导出数据
+    export_data = {
+        'group_info': {
+            'group_id': group['group_id'],
+            'group_name': group['group_name'] or '未命名群组',
+            'character': group['char'] or '未设置',
+            'preset': group['preset'] or '默认',
+            'export_time': datetime.now().isoformat(),
+            'total_conversations': len(conversations)
+        },
+        'conversations': conversations
+    }
+    
+    return jsonify(export_data)
+
 @app.route('/api/user/<int:user_id>')
 @login_required
 def api_user_detail(user_id):

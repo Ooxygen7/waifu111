@@ -175,6 +175,7 @@
                     {% for dialog in dialogs %}
                     <!-- 用户消息气泡 (左侧) -->
                     <div class="message-bubble-container mb-2 user-message" 
+                         id="msg-{{ dialog.msg_id or 'N/A' }}"
                          data-dialog-id="{{ dialog.msg_id or 'N/A' }}" 
                          data-user-name="{{ dialog.msg_user_name or '未知用户' }}"
                          data-user-id="{{ dialog.msg_user or 'N/A' }}"
@@ -215,6 +216,7 @@
                     <!-- AI回复气泡 (右侧) -->
                     {% if dialog.processed_response or dialog.raw_response %}
                     <div class="message-bubble-container mb-2 ai-message" 
+                         id="msg-{{ dialog.msg_id or 'N/A' }}-ai"
                          data-dialog-id="{{ dialog.msg_id or 'N/A' }}" 
                          data-processed-response="{{ dialog.processed_response|e }}"
                          data-raw-response="{{ dialog.raw_response|e }}"
@@ -239,6 +241,15 @@
                     </div>
                     {% endif %}
                     {% endfor %}
+                </div>
+
+                <!-- 导出按钮 -->
+                <div class="p-3 border-top">
+                    <div class="d-flex justify-content-center">
+                        <button class="btn btn-outline-success btn-sm" onclick="exportGroupConversation()">
+                            <i class="bi bi-download"></i> 导出完整对话记录
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 分页 -->
@@ -511,83 +522,51 @@ window.groupData = {
     preset: {{ group.preset | tojson | safe }}
 };
 
-// 显示用户消息详情模态框
-function showUserMessageDetails(element) {
-    const container = element.closest('.user-message');
-    const msgId = container.getAttribute('data-dialog-id');
-    const userName = container.getAttribute('data-user-name');
-    const userId = container.getAttribute('data-user-id');
-    const triggerType = container.getAttribute('data-trigger-type');
-    const content = container.getAttribute('data-msg-content');
-    const time = container.getAttribute('data-time');
-    
-    document.getElementById('userModalMsgId').textContent = msgId;
-    document.getElementById('userModalUserName').textContent = userName;
-    document.getElementById('userModalUserId').textContent = userId;
-    document.getElementById('userModalTriggerType').textContent = triggerType;
-    document.getElementById('userModalContent').textContent = content;
-    document.getElementById('userModalTime').textContent = time;
-    
-    // 设置复制转发命令按钮的点击事件
-    document.getElementById('copyForwardBtn').onclick = function() {
-        const forwardCommand = `/fw {{ group.group_id }} ${msgId}`;
-        navigator.clipboard.writeText(forwardCommand).then(function() {
-            const btn = document.getElementById('copyForwardBtn');
-            const originalText = btn.textContent;
-            btn.textContent = '已复制！';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-success');
-            setTimeout(function() {
-                btn.textContent = originalText;
-                btn.classList.remove('btn-success');
-                btn.classList.add('btn-primary');
-            }, 2000);
-        }).catch(function(err) {
-            console.error('复制失败:', err);
-            alert('复制失败，请手动复制：' + forwardCommand);
-        });
-    };
-    
-    const modal = new bootstrap.Modal(document.getElementById('userMessageModal'));
-    modal.show();
-}
+let currentEditingDialogId = null;
+let savedScrollPosition = 0;
 
-// 显示AI回复详情模态框
-function showAiResponseDetails(element) {
-    const container = element.closest('.ai-message');
-    const msgId = container.getAttribute('data-dialog-id');
-    const rawResponse = container.getAttribute('data-raw-response');
-    const time = container.getAttribute('data-time');
+// 导出群组对话为JSON
+async function exportGroupConversation() {
+            const groupData = window.groupData;
+            const exportBtn = document.querySelector('button[onclick="exportGroupConversation()"]');
     
-    document.getElementById('modalMsgId').textContent = msgId;
-    document.getElementById('modalRawResponse').textContent = rawResponse;
-    document.getElementById('modalTime').textContent = time;
+    // 显示加载状态
+    const originalText = exportBtn.innerHTML;
+    exportBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 导出中...';
+    exportBtn.disabled = true;
     
-    const modal = new bootstrap.Modal(document.getElementById('aiResponseModal'));
-    modal.show();
-}
-
-// 滚动到指定消息
-function scrollToMessage(msgId) {
-    const messageElement = document.querySelector(`[data-dialog-id="${msgId}"]`);
-    if (messageElement) {
-        // 滚动到消息位置
-        messageElement.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center' 
-        });
+    try {
+        // 调用后端API获取完整的群组对话数据
+        const response = await fetch(`/api/export_group_dialogs/${groupData.group_id}`);
         
-        // 高亮显示消息
-        messageElement.style.backgroundColor = '#fff3cd';
-        messageElement.style.border = '2px solid #ffc107';
-        messageElement.style.borderRadius = '8px';
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '导出失败');
+        }
         
-        // 3秒后移除高亮
-        setTimeout(() => {
-            messageElement.style.backgroundColor = '';
-            messageElement.style.border = '';
-            messageElement.style.borderRadius = '';
-        }, 3000);
+        const exportData = await response.json();
+        
+        // 创建并下载JSON文件
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `群组对话_${exportData.group_info.group_name || '未命名群组'}_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // 显示成功消息
+        alert(`成功导出 ${exportData.group_info.total_conversations} 条对话记录！`);
+        
+    } catch (error) {
+        console.error('导出失败:', error);
+        alert('导出失败: ' + error.message);
+    } finally {
+        // 恢复按钮状态
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
     }
 }
 
@@ -620,165 +599,155 @@ function jumpToMessage(msgId) {
         });
 }
 
-// 页面加载完成后的初始化
+// 点击消息气泡显示详情或跳转
 document.addEventListener('DOMContentLoaded', function() {
-    // 为所有用户消息气泡添加点击事件
-    document.querySelectorAll('.user-bubble').forEach(function(bubble) {
-        bubble.addEventListener('click', function() {
-            showUserMessageDetails(this);
+    // 检查是否为搜索模式
+    const isSearchMode = new URLSearchParams(window.location.search).has('search');
+    
+    // 消息气泡点击事件
+     document.querySelectorAll('.message-bubble-container').forEach(container => {
+         container.addEventListener('click', function() {
+             if (isSearchMode) {
+                 // 搜索模式：跳转到完整对话页面并高亮该消息
+                 const dialogId = this.dataset.dialogId;
+                 const groupId = window.groupData.group_id;
+                 const targetUrl = `/group_dialogs/${groupId}#msg-${dialogId}`;
+                 window.location.href = targetUrl;
+             } else {
+                 // 正常模式：显示消息详情
+                 const dialogId = this.dataset.dialogId;
+                 const time = this.dataset.time;
+                 
+                 if (this.classList.contains('user-message')) {
+                     // 用户消息详情
+                     const userName = this.dataset.userName;
+                     const userId = this.dataset.userId;
+                     const triggerType = this.dataset.triggerType;
+                     const msgContent = this.dataset.msgContent;
+                    
+                    // 填充用户消息模态框内容
+                    document.getElementById('userModalMsgId').textContent = dialogId || 'N/A';
+                    document.getElementById('userModalUserName').textContent = userName || '未知用户';
+                    document.getElementById('userModalUserId').textContent = userId || 'N/A';
+                    document.getElementById('userModalTriggerType').textContent = triggerType || '未知';
+                    document.getElementById('userModalContent').textContent = msgContent || '无消息内容';
+                    document.getElementById('userModalTime').textContent = time || '未知时间';
+                    
+                    // 设置复制转发命令按钮的点击事件
+                    document.getElementById('copyForwardBtn').onclick = function() {
+                        const forwardCommand = `/fw ${window.groupData.group_id} ${dialogId}`;
+                        navigator.clipboard.writeText(forwardCommand).then(function() {
+                            const btn = document.getElementById('copyForwardBtn');
+                            const originalText = btn.textContent;
+                            btn.textContent = '已复制！';
+                            btn.classList.remove('btn-primary');
+                            btn.classList.add('btn-success');
+                            setTimeout(function() {
+                                btn.textContent = originalText;
+                                btn.classList.remove('btn-success');
+                                btn.classList.add('btn-primary');
+                            }, 2000);
+                        }).catch(function(err) {
+                            console.error('复制失败:', err);
+                            alert('复制失败，请手动复制：' + forwardCommand);
+                        });
+                    };
+                    
+                    // 显示用户消息模态框
+                    new bootstrap.Modal(document.getElementById('userMessageModal')).show();
+                } else if (this.classList.contains('ai-message')) {
+                     // AI回复详情
+                     const processedResponse = this.dataset.processedResponse;
+                     const rawResponse = this.dataset.rawResponse;
+                    
+                    // 填充AI回复模态框内容
+                     document.getElementById('modalMsgId').textContent = dialogId || 'N/A';
+                     document.getElementById('modalTime').textContent = time || '未知时间';
+                     
+                     // 优先显示处理后的回复，如果没有则显示原始回复
+                     const responseContent = processedResponse || rawResponse || '无回复内容';
+                     document.getElementById('modalRawResponse').textContent = responseContent;
+                    
+                    // 显示AI回复模态框
+                    new bootstrap.Modal(document.getElementById('aiResponseModal')).show();
+                }
+            }
         });
     });
     
-    // 为所有AI回复气泡添加点击事件
-    document.querySelectorAll('.ai-bubble').forEach(function(bubble) {
-        bubble.addEventListener('click', function() {
-            showAiResponseDetails(this);
+    // 鼠标悬停显示跳转提示或高亮效果
+    document.querySelectorAll('.message-bubble').forEach(bubble => {
+        bubble.addEventListener('mouseenter', function() {
+            if (isSearchMode) {
+                // 搜索模式：添加跳转提示样式
+                this.style.cursor = 'pointer';
+                this.style.transform = 'scale(1.02)';
+                this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+            } else {
+                // 正常模式：添加悬停效果
+                this.style.cursor = 'pointer';
+                this.style.transform = 'scale(1.01)';
+                this.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+            }
+        });
+        
+        bubble.addEventListener('mouseleave', function() {
+            // 移除悬停效果
+            this.style.transform = '';
+            this.style.boxShadow = '';
         });
     });
     
-    // 检查URL锚点，如果有消息ID则滚动到该消息
-    const hash = window.location.hash;
-    if (hash && hash.startsWith('#msg-')) {
-        const msgId = hash.substring(5); // 移除 '#msg-' 前缀
-        setTimeout(() => {
-            scrollToMessage(msgId);
-        }, 500); // 延迟500ms确保页面完全加载
+    // 为搜索模式下的消息添加初始样式
+    if (isSearchMode) {
+        document.querySelectorAll('.message-bubble-container').forEach(container => {
+            container.style.cursor = 'pointer';
+            container.title = '点击跳转到完整对话页面';
+        });
     }
     
-    // 添加鼠标悬停效果
-    document.querySelectorAll('.user-bubble, .ai-bubble').forEach(function(bubble) {
-        bubble.addEventListener('mouseenter', function() {
-            this.style.transform = 'scale(1.02)';
-            this.style.transition = 'transform 0.2s ease';
-        });
-        bubble.addEventListener('mouseleave', function() {
-            this.style.transform = 'scale(1)';
-        });
-    });
+    // 自动滚动到最新消息或目标消息
+    const chatContainer = document.querySelector('.imessage-container');
     
-    // 消息内容展开/收起功能
-    const messageContents = document.querySelectorAll('.message-content div, .response-content div');
-    messageContents.forEach(div => {
-        if (div.scrollHeight > 100) {
-            div.style.cursor = 'pointer';
-            div.title = '点击展开/收起';
-            
-            div.addEventListener('click', function() {
-                if (this.style.maxHeight === '100px') {
-                    this.style.maxHeight = 'none';
-                    this.style.overflowY = 'visible';
-                } else {
-                    this.style.maxHeight = '100px';
-                    this.style.overflowY = 'auto';
-                }
-            });
-        });
-    });
+    // 检查URL中是否有消息锚点
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#msg-')) {
+        // 延迟执行以确保页面完全加载
+        setTimeout(() => {
+            scrollToMessage(hash.substring(1)); // 移除#号
+        }, 500);
+    } else if (chatContainer && !sessionStorage.getItem('scrollPosition')) {
+        // 自动滚动到最新消息（仅在首次加载时）
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    } else if (chatContainer && sessionStorage.getItem('scrollPosition')) {
+        // 恢复之前保存的滚动位置
+        chatContainer.scrollTop = parseInt(sessionStorage.getItem('scrollPosition'));
+        sessionStorage.removeItem('scrollPosition');
+    }
 });
 
-// 导出群组对话为JSON
-function exportGroupConversation() {
-    const groupId = window.groupData.group_id;
-    const groupName = window.groupData.group_name || '未命名群组';
-    const char = window.groupData.char || '未设置';
-    const preset = window.groupData.preset || '默认';
-    
-    // 收集所有对话数据
-    const conversations = [];
-    const userMessages = document.querySelectorAll('.user-message');
-    const aiMessages = document.querySelectorAll('.ai-message');
-    
-    // 合并用户消息和AI回复，按时间排序
-    const allMessages = [];
-    
-    userMessages.forEach(msg => {
-        const dialogId = msg.getAttribute('data-dialog-id');
-        const userName = msg.getAttribute('data-user-name');
-        const userId = msg.getAttribute('data-user-id');
-        const triggerType = msg.getAttribute('data-trigger-type');
-        const msgContent = msg.getAttribute('data-msg-content');
-        const time = msg.getAttribute('data-time');
+// 滚动到指定消息并高亮
+function scrollToMessage(msgId) {
+    const targetElement = document.getElementById(msgId);
+    if (targetElement) {
+        // 滚动到目标元素
+        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        allMessages.push({
-            type: 'user',
-            dialog_id: dialogId,
-            user_name: userName,
-            user_id: userId,
-            trigger_type: triggerType,
-            content: msgContent,
-            time: time
-        });
-    });
-    
-    aiMessages.forEach(msg => {
-        const dialogId = msg.getAttribute('data-dialog-id');
-        const processedResponse = msg.getAttribute('data-processed-response');
-        const rawResponse = msg.getAttribute('data-raw-response');
-        const time = msg.getAttribute('data-time');
+        // 添加高亮效果
+        targetElement.style.transition = 'all 0.3s ease';
+        targetElement.style.backgroundColor = '#fff3cd';
+        targetElement.style.border = '2px solid #ffc107';
+        targetElement.style.borderRadius = '10px';
+        targetElement.style.padding = '5px';
         
-        allMessages.push({
-            type: 'ai',
-            dialog_id: dialogId,
-            processed_response: processedResponse,
-            raw_response: rawResponse,
-            time: time
-        });
-    });
-    
-    // 按对话ID分组
-    const groupedMessages = {};
-    allMessages.forEach(msg => {
-        if (!groupedMessages[msg.dialog_id]) {
-            groupedMessages[msg.dialog_id] = [];
-        }
-        groupedMessages[msg.dialog_id].push(msg);
-    });
-    
-    // 构建最终的导出数据
-    const exportData = {
-        group_info: {
-            group_id: groupId,
-            group_name: groupName,
-            character: char,
-            preset: preset,
-            export_time: new Date().toISOString()
-        },
-        conversations: Object.keys(groupedMessages).map(dialogId => {
-            const messages = groupedMessages[dialogId];
-            const userMsg = messages.find(m => m.type === 'user');
-            const aiMsg = messages.find(m => m.type === 'ai');
-            
-            return {
-                dialog_id: dialogId,
-                user_message: userMsg ? {
-                    user_name: userMsg.user_name,
-                    user_id: userMsg.user_id,
-                    trigger_type: userMsg.trigger_type,
-                    content: userMsg.content,
-                    time: userMsg.time
-                } : null,
-                ai_response: aiMsg ? {
-                    processed_response: aiMsg.processed_response,
-                    raw_response: aiMsg.raw_response,
-                    time: aiMsg.time
-                } : null
-            };
-        })
-    };
-    
-    // 创建并下载JSON文件
-    const jsonStr = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    const date = new Date().toISOString().split('T')[0];
-    a.download = `group_conversation_${groupId}_${date}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+        // 3秒后移除高亮效果
+        setTimeout(() => {
+            targetElement.style.backgroundColor = '';
+            targetElement.style.border = '';
+            targetElement.style.borderRadius = '';
+            targetElement.style.padding = '';
+        }, 3000);
+    }
 }
 </script>
 {% endblock %}
