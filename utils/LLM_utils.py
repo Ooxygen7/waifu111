@@ -1,26 +1,27 @@
-import asyncio, re, json
+import asyncio
+import re
 import base64
 import logging
 import time
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional
 import httpx
 import openai
 import tiktoken
-from utils import db_utils as db
-from utils import file_utils as file
-from utils.file_utils import load_data_from_file, load_character_from_file
 from utils.logging_utils import setup_logging
+from utils.config_utils import get_config, get_path, get_api_config, DEFAULT_API, DEFAULT_CHAR
+
+# 避免循环导入
+import utils.db_utils as db
+import utils.file_utils as file
 
 setup_logging()
 logger = logging.getLogger(__name__)
-DEFAULT_API = 'gemini-2'
-default_char = 'cuicuishark_public'
 
 
 class LLMClientManager:
     """
     LLM客户端管理器，采用单例模式管理多个LLM客户端连接
-    
+
     特性:
     - 线程安全的客户端创建和获取
     - 并发控制(最大并发数为3)
@@ -28,7 +29,7 @@ class LLMClientManager:
     """
     _instance = None
     _clients: Dict[Tuple[str, str, str], openai.AsyncOpenAI] = {}  # 客户端连接池，键为(api_key, base_url, model)
-    _semaphore: asyncio.Semaphore = asyncio.Semaphore(5)  # 并发控制信号量
+    _semaphore: asyncio.Semaphore = asyncio.Semaphore(get_config("api.semaphore_limit", 5))  # 并发控制信号量
     _lock = asyncio.Lock()  # 客户端操作锁
 
     def __new__(cls):
@@ -39,15 +40,15 @@ class LLMClientManager:
     async def get_client(self, api_key: str, base_url: str, model: str) -> openai.AsyncOpenAI:
         """
         获取或创建LLM客户端
-        
+
         Args:
             api_key: API密钥
             base_url: API基础URL
             model: 模型名称
-            
+
         Returns:
             openai.AsyncOpenAI: 配置好的异步客户端
-            
+
         Raises:
             ValueError: 客户端初始化失败时抛出
         """
@@ -83,7 +84,7 @@ llm_client_manager = LLMClientManager()
 
 class LLM:
     def __init__(self, api=DEFAULT_API, chat_type='private'):
-        self.key, self.base_url, self.model = file.get_api_config(api)
+        self.key, self.base_url, self.model = get_api_config(api)
         self.client = None
         self.messages = []
         self.chat_type = chat_type
@@ -104,10 +105,12 @@ class LLM:
         if not dialog_history:
             return None
 
-        if self.chat_type == 'group':  # 如果 type 是 'group'，限制为最近的 5 轮对话
-            dialog_history = dialog_history[-10:]
+        if self.chat_type == 'group':  # 如果 type 是 'group'，限制对话历史
+            group_limit = get_config("dialog.group_history_limit", 10)
+            dialog_history = dialog_history[-group_limit:]
         if self.chat_type == 'private':
-            dialog_history = dialog_history[-70:]
+            private_limit = get_config("dialog.private_history_limit", 70)
+            dialog_history = dialog_history[-private_limit:]
 
         messages = []
         for role, turn_order, content in dialog_history:
@@ -144,7 +147,6 @@ class LLM:
         else:
             self.messages.append({"role": "user", "content": user_content})
 
-
     def set_messages(self, messages):
         self.messages = messages
 
@@ -161,7 +163,7 @@ class LLM:
                 response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=self.messages,
-                    max_tokens=8000,
+                    max_tokens=get_config("api.max_tokens", 8000),
                     stream=stream
                 )
                 if stream:
@@ -240,7 +242,8 @@ class LLM:
                 client = LLM(DEFAULT_API, 'private')
                 client.build_conv_messages(conversation_id)
                 client.messages.append(
-                    {"role": "user", "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字。对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"})
+                    {"role": "user",
+                     "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字。对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"})
                 return await client.final_response()
 
             except Exception as e:
@@ -340,7 +343,7 @@ class PromptCache:
         """初始化缓存"""
         self.prompt_data_cache = {}  # 提示数据缓存
         self.character_cache = {}  # 角色数据缓存
-        self.cache_ttl = 3600  # 缓存过期时间（秒）
+        self.cache_ttl = get_config("cache.ttl", 3600)  # 缓存过期时间（秒）
 
     def get_prompt_data(self, file_path: str) -> Optional[Dict]:
         """获取提示数据，如果缓存中没有或已过期则从文件加载"""
@@ -391,7 +394,8 @@ prompt_cache = PromptCache()
 
 class Prompts:
     def __init__(self, preset, user_input=None, char=None):
-        self.data = prompt_cache.get_prompt_data('./prompts/prompts.json')
+        prompt_path = get_path("prompt_path")
+        self.data = prompt_cache.get_prompt_data(prompt_path)
         self.char = char
         self.char_txt = prompt_cache.get_character(self.char)
         self.preset = preset
@@ -411,20 +415,20 @@ class Prompts:
         从 preset_list 中找到匹配的 preset 模板，并加载各个部分的提示内容。
         """
         preset_list = self.data.get("prompt_set_list", [])
-        #logger.debug(f"preset list: {preset_list}")
+        # logger.debug(f"preset list: {preset_list}")
         target_template = None
         # 查找匹配的 preset 模板
         for template in preset_list:
             if template.get("name") == self.preset:
                 target_template = template
-                #logger.debug(f"<UNK> target_template : {target_template}>")
+                # logger.debug(f"<UNK> target_template : {target_template}>")
                 break
         if not target_template:
             logger.warning(f"Warning: Preset {self.preset} not found in prompt_set_list")
             return
         # 从模板中提取 combine 字段的各个部分
         combine_data = target_template.get("combine", {})
-        #logger.debug(f"combine_data: {combine_data}")
+        # logger.debug(f"combine_data: {combine_data}")
         # 定义要处理的提示部分类型及其对应的 combine 数据
         prompt_parts = {
             "System": combine_data.get("System"),
@@ -435,14 +439,13 @@ class Prompts:
             "Jailbreak": combine_data.get("Jailbreak"),
             "Others": combine_data.get("Others"),
         }
-        #logger.debug(f"<UNK> prompt_parts: {str(prompt_parts)}")
+        # logger.debug(f"<UNK> prompt_parts: {str(prompt_parts)}")
         # 遍历每个提示部分，动态传递类型和 combine 数据
         for prompt_part_type, combine in prompt_parts.items():
             logger.debug(f"<准备构建> {prompt_part_type}: {combine}")
             self._load_prompt_content(prompt_part_type, combine)
         self._insert_char()
         self._insert_input()
-
 
     def _load_prompt_content(self, prompt_part_type, combine):
         PROMPT_PART_CONFIG = {
@@ -455,7 +458,7 @@ class Prompts:
             "Others": {"tag": "others", "description": "还有一些额外要求："},
         }
         if combine is None or not isinstance(combine, list) or not combine:
-            #logger.debug(f"<数据无效> 返回")
+            # logger.debug(f"<数据无效> 返回")
             return
         # 检查 prompt_part_type 是否有效
         config = PROMPT_PART_CONFIG.get(prompt_part_type)
@@ -466,9 +469,9 @@ class Prompts:
         tag = config["tag"]
         description = config["description"]
         # 从数据中获取对应的提示部分
-        #logger.debug(f"<搜索> prompt_part_type: {prompt_part_type}")
+        # logger.debug(f"<搜索> prompt_part_type: {prompt_part_type}")
         prompts = self.data.get("prompts").get(prompt_part_type)
-        #logger.debug(f"<读取预设内容> prompts: {str(prompts)}")
+        # logger.debug(f"<读取预设内容> prompts: {str(prompts)}")
         if not prompts:
             print(f"Warning: No prompts found for type: {prompt_part_type}")
             return  # 如果没有 prompts，直接返回，不设置属性

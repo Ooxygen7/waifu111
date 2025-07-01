@@ -8,16 +8,18 @@ from sqlite3 import Error
 from typing import Any, List, Optional, Tuple
 
 from utils.logging_utils import setup_logging
+from utils.config_utils import get_config, get_path
 
 setup_logging()
 logger = logging.getLogger(__name__)
-# --- 默认配置项 (建议未来迁移到专门的配置文件) ---
-DEFAULT_API = 'gemini-2'  # 默认使用的LLM API
-DEFAULT_PRESET = 'Default_meeting'  # 默认预设名称
-DEFAULT_CHAR = 'cuicuishark_public'  # 默认角色名称
-DEFAULT_STREAM = 'no'  # 默认是否开启流式传输 ('yes'/'no')
-DEFAULT_FREQUENCY = 200  # 用户默认的每日免费使用次数
-DEFAULT_BALANCE = 1.5  # 用户默认的初始余额
+
+# 从配置系统获取默认值
+DEFAULT_API = get_config("api.default_api")  # 默认使用的LLM API
+DEFAULT_PRESET = get_config("user.default_preset")  # 默认预设名称
+DEFAULT_CHAR = get_config("user.default_char")  # 默认角色名称
+DEFAULT_STREAM = get_config("user.default_stream")  # 默认是否开启流式传输 ('yes'/'no')
+DEFAULT_FREQUENCY = get_config("user.default_frequency")  # 用户默认的每日免费使用次数
+DEFAULT_BALANCE = get_config("user.default_balance")  # 用户默认的初始余额
 
 
 class DatabaseConnectionPool:
@@ -25,10 +27,14 @@ class DatabaseConnectionPool:
     _instance: Optional['DatabaseConnectionPool'] = None
     _lock = threading.Lock()
 
-    def __new__(cls, db_file: str = None, max_connections: int = 5) -> 'DatabaseConnectionPool':
-        # 优先使用环境变量中的数据库路径
+    def __new__(cls, db_file: str = None, max_connections: int = None) -> 'DatabaseConnectionPool':
+        # 优先使用传入的参数，其次是环境变量，最后是配置文件
         if db_file is None:
-            db_file = os.environ.get('DB_PATH', './data/data.db')
+            db_file = os.environ.get('DB_PATH', get_config("database.default_path"))
+
+        # 获取最大连接数
+        if max_connections is None:
+            max_connections = get_config("database.max_connections", 5)
         """
         实现单例模式，确保全局只有一个连接池实例。
 
@@ -720,10 +726,11 @@ def group_info_update(group_id: int, field: str, value: Any, increase=False) -> 
 
 
 def group_rate_get(group_id: int) -> float:
-    """获取指定群组的回复频率 (rate)。如果未设置或查询失败，返回默认值0.05。"""
+    """获取指定群组的回复频率 (rate)。如果未设置或查询失败，返回配置中的默认值。"""
     command = f"SELECT rate from groups where group_id = ?"
     result = query_db(command, (group_id,))
-    return result[0][0] if result and result[0] and result[0][0] is not None else 0.05
+    default_rate = get_config("group.default_rate", 0.05)
+    return result[0][0] if result and result[0] and result[0][0] is not None else default_rate
 
 
 def group_disabled_topics_get(group_id: int) -> List[str]:
@@ -763,13 +770,16 @@ def user_sign_info_create(user_id: int) -> bool:
     """创建指定用户签到记录。返回操作是否成功。"""
     command = f"INSERT INTO user_sign (user_id,last_sign,sign_count,frequency) VALUES (?,?,?,?)"
     time = str(datetime.datetime.now())
-    result = revise_db(command, (user_id, time, 1, 50))
+    default_frequency = get_config("sign.default_frequency", 50)
+    result = revise_db(command, (user_id, time, 1, default_frequency))
     return result > 0
 
 
 def user_sign(user_id: int) -> bool:
     """用户签到"""
-    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = MIN(COALESCE(frequency, 0) + 50, 100) WHERE user_id =?"
+    default_frequency = get_config("sign.default_frequency", 50)
+    max_frequency = get_config("sign.max_frequency", 100)
+    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = MIN(COALESCE(frequency, 0) + {default_frequency}, {max_frequency}) WHERE user_id =?"
     time = str(datetime.datetime.now())
     result = revise_db(command, (time, user_id))
     return result > 0

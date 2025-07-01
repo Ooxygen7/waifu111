@@ -1,0 +1,38 @@
+{
+  "api": {
+    "default_api": "gemini-2",
+    "max_tokens": 8000,
+    "semaphore_limit": 5
+  },
+  "user": {
+    "default_char": "cuicuishark_public",
+    "default_preset": "Default_meeting",
+    "default_stream": "no",
+    "default_frequency": 200,
+    "default_balance": 1.5
+  },
+  "dialog": {
+    "private_history_limit": 70,
+    "group_history_limit": 10
+  },
+  "cache": {
+    "ttl": 3600
+  },
+  "group": {
+    "default_rate": 0.05
+  },
+  "sign": {
+    "default_frequency": 50,
+    "max_frequency": 100
+  },
+  "database": {
+    "default_path": "./data/data.db",
+    "max_connections": 5
+  },
+  "paths": {
+    "config_path": "./config/config.json",
+    "config_local": "./config/config_local.json",
+    "characters_path": "./characters",
+    "prompt_path": "./prompts/prompts.json"
+  }
+}
