@@ -525,8 +525,87 @@ window.groupData = {
 let currentEditingDialogId = null;
 let savedScrollPosition = 0;
 
-// 导出群组对话为JSON
-async function exportGroupConversation() {
+// 兼容性复制到剪贴板函数
+        function copyToClipboard(text, buttonId) {
+            const btn = buttonId ? document.getElementById(buttonId) : null;
+            const originalText = btn ? btn.textContent : '';
+            
+            // 显示复制中状态
+            if (btn) {
+                btn.textContent = '复制中...';
+                btn.disabled = true;
+            }
+            
+            // 优先尝试现代 Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showCopySuccess(btn, originalText);
+                }).catch(function(err) {
+                    console.warn('Clipboard API 失败，尝试传统方法:', err);
+                    fallbackCopyTextToClipboard(text, btn, originalText);
+                });
+            } else {
+                // 回退到传统方法
+                fallbackCopyTextToClipboard(text, btn, originalText);
+            }
+        }
+        
+        // 传统复制方法（兼容旧浏览器和非HTTPS环境）
+        function fallbackCopyTextToClipboard(text, btn, originalText) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            
+            // 避免滚动到底部
+            textArea.style.top = '0';
+            textArea.style.left = '0';
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showCopySuccess(btn, originalText);
+                } else {
+                    showCopyError(text, btn, originalText);
+                }
+            } catch (err) {
+                console.error('传统复制方法也失败:', err);
+                showCopyError(text, btn, originalText);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // 显示复制成功状态
+        function showCopySuccess(btn, originalText) {
+            if (btn) {
+                btn.textContent = '已复制！';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-success');
+                btn.disabled = false;
+                setTimeout(function() {
+                    btn.textContent = originalText;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-primary');
+                }, 2000);
+            }
+        }
+        
+        // 显示复制错误状态
+        function showCopyError(text, btn, originalText) {
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+            alert('复制失败，请手动复制以下内容：\n\n' + text);
+        }
+
+        // 导出群组对话为JSON
+        async function exportGroupConversation() {
             const groupData = window.groupData;
             const exportBtn = document.querySelector('button[onclick="exportGroupConversation()"]');
     
@@ -636,21 +715,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // 设置复制转发命令按钮的点击事件
                     document.getElementById('copyForwardBtn').onclick = function() {
                         const forwardCommand = `/fw ${window.groupData.group_id} ${dialogId}`;
-                        navigator.clipboard.writeText(forwardCommand).then(function() {
-                            const btn = document.getElementById('copyForwardBtn');
-                            const originalText = btn.textContent;
-                            btn.textContent = '已复制！';
-                            btn.classList.remove('btn-primary');
-                            btn.classList.add('btn-success');
-                            setTimeout(function() {
-                                btn.textContent = originalText;
-                                btn.classList.remove('btn-success');
-                                btn.classList.add('btn-primary');
-                            }, 2000);
-                        }).catch(function(err) {
-                            console.error('复制失败:', err);
-                            alert('复制失败，请手动复制：' + forwardCommand);
-                        });
+                        copyToClipboard(forwardCommand, 'copyForwardBtn');
                     };
                     
                     // 显示用户消息模态框
