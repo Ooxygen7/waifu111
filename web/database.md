@@ -81,7 +81,6 @@ CREATE TABLE groups (
     rate            REAL, -- 触发几率
     output_token    integer, -- 输出令牌数量
     disabled_topics TEXT, -- 被禁用话题
-    allowed_topics  TEXT -- 允许的话题
 );
 
 CREATE TABLE "user_config"
