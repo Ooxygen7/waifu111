@@ -356,7 +356,7 @@ class PromptCache:
                 return data
 
         # 从文件加载数据
-        data = load_data_from_file(file_path)
+        data = file.load_data_from_file(file_path)
         if data:
             self.prompt_data_cache[file_path] = (current_time, data)
         return data
@@ -372,7 +372,7 @@ class PromptCache:
                 return data
 
         # 从文件加载数据
-        data = load_character_from_file(character_name)
+        data = file.load_character_from_file(character_name)
         if data:
             self.character_cache[character_name] = (current_time, data)
         return data
