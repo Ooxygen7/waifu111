@@ -611,36 +611,33 @@ class FuckCommand(BaseCommand):
             with open(txt_filepath, 'w', encoding='utf-8') as f:
                 f.write(response)
             
-            # 删除占位消息
-            await context.bot.delete_message(
-                chat_id=update.message.chat.id,
-                message_id=placeholder_msg.message_id
-            )
-            
-            # 回复原图片消息（不重新发送图片，只发送文本评价）
+            # 直接编辑占位消息，而不是删除后重新发送
             try:
-                
-                await send_message(
-                    context=context,
+                await context.bot.edit_message_text(
+                    text=response,
                     chat_id=update.message.chat.id,
-                    message_content=response,
-                    parse="HTML"
+                    message_id=placeholder_msg.message_id,
+                    parse_mode="HTML"
                 )
             except Exception as e:
                 # 如果发送失败，发送纯文本错误信息
                 await update.message.reply_text(f"图片分析失败：{str(e)}")
             
         except Exception as e:
-            # 如果出错，删除占位消息并发送错误信息
+            # 如果出错，编辑占位消息显示错误信息
             try:
-                await context.bot.delete_message(
+                await context.bot.edit_message_text(
+                    text=f"图片分析失败：{str(e)}",
                     chat_id=update.message.chat.id,
                     message_id=placeholder_msg.message_id
                 )
-            except:
-                pass  # 如果删除失败，忽略错误
-            
-            await update.message.reply_text(f"图片分析失败：{str(e)}")
+            except Exception as ex:
+                logger.error(f"编辑消息失败：{ex}")
+                # 如果编辑失败，尝试回复一条新消息
+                try:
+                    await update.message.reply_text(f"图片分析失败：{str(e)}")
+                except:
+                    pass  # 如果回复也失败，忽略错误
     
     async def _image_to_base64(self, filepath: str) -> str:
         """将图片文件转换为base64编码。
