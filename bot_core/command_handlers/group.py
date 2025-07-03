@@ -431,8 +431,8 @@ class FuckCommand(BaseCommand):
         command_args = context.args if context.args else []
         hard_mode = 'hard' in command_args
         
-        # 发送占位消息
-        placeholder_msg = await update.message.reply_text("正在分析，请稍候...")
+        # 发送占位消息，回复原始图片所在的消息
+        placeholder_msg = await replied_message.reply_text("正在分析，请稍候...")
         
         # 创建异步任务处理后续逻辑
         _task = asyncio.create_task(self._process_fuck_analysis(update, context, placeholder_msg, replied_message, hard_mode))
@@ -620,8 +620,8 @@ class FuckCommand(BaseCommand):
                     parse_mode="HTML"
                 )
             except Exception as e:
-                # 如果发送失败，发送纯文本错误信息
-                await update.message.reply_text(f"图片分析失败：{str(e)}")
+                # 如果发送失败，发送纯文本错误信息，回复原始图片所在的消息
+                await replied_message.reply_text(f"图片分析失败：{str(e)}")
             
         except Exception as e:
             # 如果出错，编辑占位消息显示错误信息
@@ -635,7 +635,7 @@ class FuckCommand(BaseCommand):
                 logger.error(f"编辑消息失败：{ex}")
                 # 如果编辑失败，尝试回复一条新消息
                 try:
-                    await update.message.reply_text(f"图片分析失败：{str(e)}")
+                    await replied_message.reply_text(f"图片分析失败：{str(e)}")
                 except:
                     pass  # 如果回复也失败，忽略错误
     
