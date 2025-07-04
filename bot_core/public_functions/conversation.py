@@ -9,7 +9,7 @@ from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
 import bot_core.public_functions.messages
-from bot_core.public_functions.messages import update_message, finalize_message
+from bot_core.public_functions.messages import update_message, finalize_message,send_message
 
 from utils import db_utils as db, text_utils as txt, file_utils as file
 from utils.LLM_utils import LLM, Prompts
@@ -224,7 +224,7 @@ class GroupConv:
             if "未找到名为" in str(e) and "的API配置" in str(e):
                 # API配置不存在，向用户发送友好提示
                 error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
-                asyncio.create_task(bot_core.public_functions.messages.send_message(self.group.id, error_msg))
+                asyncio.create_task(send_message(self.context, self.group.id, error_msg))
                 raise BotError(f"API配置 '{self.config.api}' 不存在") from e
             else:
                 raise e
@@ -432,7 +432,7 @@ class PrivateConv:
             if "未找到名为" in str(e) and "的API配置" in str(e):
                 # API配置不存在，向用户发送友好提示
                 error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
-                asyncio.create_task(bot_core.public_functions.messages.send_message(self.user.id, error_msg))
+                asyncio.create_task(send_message(self.context, self.user.id, error_msg))
                 raise BotError(f"API配置 '{self.config.api}' 不存在") from e
             else:
                 raise e
@@ -458,11 +458,16 @@ class PrivateConv:
             save (bool, optional): 是否保存对话记录到数据库. 默认为 True.
         """
         if self.user.frequency > 0 or self.user.tmp_frequency > 0:
-            self.placeholder =  await self.update.message.reply_text("思考中")
+            # 检查是否是从回调查询触发的
+            if self.update.message:
+                self.placeholder = await self.update.message.reply_text("思考中")
+            else:
+                # 如果是从回调查询触发的，直接发送新消息
+                self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="思考中")
             logger.info(f"输入：{self.input.text_raw}")
             _task = asyncio.create_task(self._response_to_user(save))
         else:
-            await bot_core.public_functions.messages.send_message(self.user.id, "你的额度已用尽，联系 @xi_cuicui")
+            await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
 
     async def regen(self):
         """
