@@ -248,18 +248,18 @@ class MarketTools:
             logger.error(f"Error fetching historical data for {symbol} on {exchange}: {str(e)}")
             return f"Failed to fetch historical data for {symbol} on {exchange}: {str(e)}"
     @staticmethod
-    async def get_order_book(symbol: str = "BTC/USDT",
-                             limit: int = 10, exchange: str = "binance") -> str:
+    async def get_market_depth(symbol: str = "BTC/USDT",
+                             depth: int = 10, exchange: str = "binance") -> str:
         """
-        Fetch the current order book for a cryptocurrency pair.
-        Description: Retrieves the bid and ask data from the order book of a specified trading pair.
+        Fetch the market depth data for a cryptocurrency pair.
+        Description: Retrieves detailed order book depth data showing buy/sell pressure at different price levels.
         Type: Query
         Parameters:
             - symbol (string): The trading pair symbol (e.g., BTC/USDT).
-            - limit (integer): Number of bid/ask entries to fetch (default: 10).
+            - depth (integer): Depth of order book to analyze (default: 10).
             - exchange (string): The exchange to query (default: binance).
-        Return Value: A string summarizing the top bids and asks from the order book.
-        Invocation: {"tool_name": "get_order_book", "parameters": {"symbol": "BTC/USDT", "limit": 10, "exchange": "binance"}}
+        Return Value: A string summarizing the market depth with buy/sell pressure analysis.
+        Invocation: {"tool_name": "get_market_depth", "parameters": {"symbol": "BTC/USDT", "depth": 10, "exchange": "binance"}}
         """
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
@@ -276,11 +276,11 @@ class MarketTools:
             
             try:
                 # 尝试获取永续合约订单簿
-                order_book = await exchange_instance.fetch_order_book(try_symbol, limit=limit)
+                order_book = await exchange_instance.fetch_order_book(try_symbol, limit=depth*5)  # 获取更多数据以便分析
                 symbol = try_symbol  # 如果成功，更新使用的符号
             except Exception:
                 # 如果永续合约获取失败，回退到原始符号
-                order_book = await exchange_instance.fetch_order_book(symbol, limit=limit)
+                order_book = await exchange_instance.fetch_order_book(symbol, limit=depth*5)
             
             # 获取当前价格（中间价）
             if len(order_book.get('bids', [])) > 0 and len(order_book.get('asks', [])) > 0:
@@ -292,67 +292,146 @@ class MarketTools:
             else:
                 current_price = 0
             
-            # 计算价格范围（当前价格的正负10%）
-            price_range_low = current_price * 0.9
-            price_range_high = current_price * 1.1
+            # 计算买卖压力
+            bids = order_book.get('bids', [])
+            asks = order_book.get('asks', [])
             
-            # 过滤并合并订单簿数据
-            all_bids = [bid for bid in order_book.get('bids', []) if bid[0] >= price_range_low]
-            all_asks = [ask for ask in order_book.get('asks', []) if ask[0] <= price_range_high]
+            # 计算累计量和价格区间
+            bid_levels = []
+            ask_levels = []
             
-            # 如果数据太多，进行合并处理
+            # 处理买单（按价格降序）
+            total_bid_volume = 0
+            for i, (price, amount) in enumerate(bids[:depth]):
+                total_bid_volume += amount
+                bid_levels.append({
+                    "price": price,
+                    "amount": amount,
+                    "cumulative": total_bid_volume,
+                    "distance": ((current_price - price) / current_price) * 100  # 距离当前价格的百分比
+                })
+            
+            # 处理卖单（按价格升序）
+            total_ask_volume = 0
+            for i, (price, amount) in enumerate(asks[:depth]):
+                total_ask_volume += amount
+                ask_levels.append({
+                    "price": price,
+                    "amount": amount,
+                    "cumulative": total_ask_volume,
+                    "distance": ((price - current_price) / current_price) * 100  # 距离当前价格的百分比
+                })
+            
+            # 计算买卖压力比率
+            buy_sell_ratio = total_bid_volume / total_ask_volume if total_ask_volume > 0 else float('inf')
+            
+            # 分析市场深度，使用中文输出
+            if buy_sell_ratio > 1.5:
+                pressure_analysis = f"强烈买入压力 (买/卖比率: {buy_sell_ratio:.2f})"
+            elif buy_sell_ratio < 0.67:
+                pressure_analysis = f"强烈卖出压力 (买/卖比率: {buy_sell_ratio:.2f})"
+            else:
+                pressure_analysis = f"买卖压力平衡 (买/卖比率: {buy_sell_ratio:.2f})"
+            
+            # 分析价格支撑/阻力位
+            support_levels = []
+            resistance_levels = []
+            
+            # 寻找支撑位（买单集中的价格区间）
+            for i in range(1, len(bid_levels)-1):
+                if bid_levels[i]["amount"] > bid_levels[i-1]["amount"] and bid_levels[i]["amount"] > bid_levels[i+1]["amount"]:
+                    support_levels.append(bid_levels[i]["price"])
+            
+            # 寻找阻力位（卖单集中的价格区间）
+            for i in range(1, len(ask_levels)-1):
+                if ask_levels[i]["amount"] > ask_levels[i-1]["amount"] and ask_levels[i]["amount"] > ask_levels[i+1]["amount"]:
+                    resistance_levels.append(ask_levels[i]["price"])
+            
+            # 限制支撑/阻力位数量
+            support_levels = support_levels[:3]
+            resistance_levels = resistance_levels[:3]
+            
+            # 格式化输出
+            # 确定价格的小数位数
+            decimal_places = 0
+            if bids:
+                price_str = str(bids[0][0])
+                if '.' in price_str:
+                    decimal_places = len(price_str.split('.')[1])
+            
+            # 使用动态格式化字符串保持原始精度
+            price_format = f"{{:.{decimal_places}f}}"
+            
+            # 合并深度数据到5档，减少返回内容长度
             merged_bids = []
             merged_asks = []
             
-            # 确定价格区间数量（最多显示10个区间）
-            num_intervals = min(10, len(all_bids), len(all_asks))
-            if num_intervals > 0:
-                # 计算价格区间
-                bid_interval = (current_price - price_range_low) / num_intervals if num_intervals > 0 else 0
-                ask_interval = (price_range_high - current_price) / num_intervals if num_intervals > 0 else 0
-                
-                # 合并买单
-                for i in range(num_intervals):
-                    interval_low = current_price - (i + 1) * bid_interval
-                    interval_high = current_price - i * bid_interval
-                    interval_bids = [b for b in all_bids if interval_low <= b[0] < interval_high]
-                    if interval_bids:
-                        avg_price = sum(b[0] for b in interval_bids) / len(interval_bids)
-                        total_amount = sum(b[1] for b in interval_bids)
-                        merged_bids.append([avg_price, total_amount])
-                
-                # 合并卖单
-                for i in range(num_intervals):
-                    interval_low = current_price + i * ask_interval
-                    interval_high = current_price + (i + 1) * ask_interval
-                    interval_asks = [a for a in all_asks if interval_low <= a[0] < interval_high]
-                    if interval_asks:
-                        avg_price = sum(a[0] for a in interval_asks) / len(interval_asks)
-                        total_amount = sum(a[1] for a in interval_asks)
-                        merged_asks.append([avg_price, total_amount])
+            # 如果深度大于5，则合并为5档
+            if len(bid_levels) > 5:
+                # 计算每档的平均值
+                for i in range(5):
+                    start_idx = i * (len(bid_levels) // 5)
+                    end_idx = (i + 1) * (len(bid_levels) // 5) if i < 4 else len(bid_levels)
+                    
+                    avg_price = sum(level['price'] for level in bid_levels[start_idx:end_idx]) / (end_idx - start_idx)
+                    total_amount = sum(level['amount'] for level in bid_levels[start_idx:end_idx])
+                    avg_distance = sum(level['distance'] for level in bid_levels[start_idx:end_idx]) / (end_idx - start_idx)
+                    cumulative = bid_levels[end_idx-1]['cumulative'] if end_idx > 0 and end_idx <= len(bid_levels) else 0
+                    
+                    merged_bids.append({
+                        "price": avg_price,
+                        "amount": total_amount,
+                        "cumulative": cumulative,
+                        "distance": avg_distance
+                    })
+            else:
+                merged_bids = bid_levels
             
-            # 如果合并后没有数据，使用原始数据的前几个
-            if not merged_bids and all_bids:
-                merged_bids = all_bids[:5]
-            if not merged_asks and all_asks:
-                merged_asks = all_asks[:5]
+            # 同样处理卖单
+            if len(ask_levels) > 5:
+                for i in range(5):
+                    start_idx = i * (len(ask_levels) // 5)
+                    end_idx = (i + 1) * (len(ask_levels) // 5) if i < 4 else len(ask_levels)
+                    
+                    avg_price = sum(level['price'] for level in ask_levels[start_idx:end_idx]) / (end_idx - start_idx)
+                    total_amount = sum(level['amount'] for level in ask_levels[start_idx:end_idx])
+                    avg_distance = sum(level['distance'] for level in ask_levels[start_idx:end_idx]) / (end_idx - start_idx)
+                    cumulative = ask_levels[end_idx-1]['cumulative'] if end_idx > 0 and end_idx <= len(ask_levels) else 0
+                    
+                    merged_asks.append({
+                        "price": avg_price,
+                        "amount": total_amount,
+                        "cumulative": cumulative,
+                        "distance": avg_distance
+                    })
+            else:
+                merged_asks = ask_levels
+            
+            # 格式化合并后的买单和卖单信息
+            bid_str = "\n".join([f"  - 价格区间: {price_format.format(level['price'])} USDT, 总量: {level['amount']:.4f}, 累计: {level['cumulative']:.4f}, 距当前价: {level['distance']:.2f}%" 
+                                for level in merged_bids])
+            ask_str = "\n".join([f"  - 价格区间: {price_format.format(level['price'])} USDT, 总量: {level['amount']:.4f}, 累计: {level['cumulative']:.4f}, 距当前价: {level['distance']:.2f}%" 
+                                for level in merged_asks])
+            
+            # 格式化支撑位和阻力位，使用中文输出
+            support_str = ", ".join([price_format.format(price) for price in support_levels]) if support_levels else "未检测到"
+            resistance_str = ", ".join([price_format.format(price) for price in resistance_levels]) if resistance_levels else "未检测到"
             
             await exchange_instance.close()
             
-            # 保持原始精度输出
-            bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in
-                                 merged_bids]) if merged_bids else "No bids available."
-            ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in
-                                 merged_asks]) if merged_asks else "No asks available."
-            
+            # 简化输出格式，使用中文，减少内容长度
             return (
-                f"Order book for {symbol} on {exchange} (covering ±10% of current price {current_price}):\n"
-                f"Bids (Buy Orders):\n{bid_str}\n"
-                f"Asks (Sell Orders):\n{ask_str}"
+                f"**{symbol} 在 {exchange} 的市场深度分析**\n\n"
+                f"当前价格: {price_format.format(current_price)} USDT\n\n"
+                f"**市场压力分析:**\n{pressure_analysis}\n\n"
+                f"**潜在支撑位(USDT):** {support_str}\n"
+                f"**潜在阻力位(USDT):** {resistance_str}\n\n"
+                f"**买单(合并5档):**\n{bid_str}\n\n"
+                f"**卖单(合并5档):**\n{ask_str}"
             )
         except Exception as e:
-            logger.error(f"Error fetching order book for {symbol} on {exchange}: {str(e)}")
-            return f"Failed to fetch order book for {symbol} on {exchange}: {str(e)}"
+            logger.error(f"Error fetching market depth for {symbol} on {exchange}: {str(e)}")
+            return f"获取 {symbol} 在 {exchange} 的市场深度数据失败: {str(e)}"
     @staticmethod
     async def get_top_movers( limit: int = 5,
                              exchange: str = "binance") -> str:
@@ -480,7 +559,7 @@ class MarketTools:
 MARKETTOOLS = {
     "get_coin_index": MarketTools.get_coin_index,  # 替换了多个工具
     "get_historical_data": MarketTools.get_historical_data,
-    "get_order_book": MarketTools.get_order_book,
+    "get_market_depth": MarketTools.get_market_depth,
     "get_top_movers": MarketTools.get_top_movers,
     "get_candlestick_data": MarketTools.get_candlestick_data,
 }

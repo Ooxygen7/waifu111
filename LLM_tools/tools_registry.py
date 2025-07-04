@@ -604,33 +604,33 @@ class MarketToolRegistry:
             },
             "return_value": "Historical data summary (e.g., 'Historical data for BTC/USDT on binance...')",
         },
-        "get_order_book": {
-            "description": "Fetch the current order book for a cryptocurrency pair.",
+        "get_market_depth": {
+            "description": "Fetch the market depth data for a cryptocurrency pair showing buy/sell pressure at different price levels.",
             "type": "query",
             "parameters": {
                 "symbol": {
                     "type": "string",
                     "description": "The trading pair symbol (e.g., BTC/USDT).",
                 },
-                "limit": {
+                "depth": {
                     "type": "integer",
-                    "description": "Number of bid/ask entries to fetch (default: 10).",
+                    "description": "Depth of order book to analyze (default: 10).",
                 },
                 "exchange": {
                     "type": "string",
                     "description": "The exchange to query (default: binance).",
                 },
             },
-            "output_format": "A string summarizing the top bids and asks from the order book.",
+            "output_format": "A string summarizing the market depth with buy/sell pressure analysis and potential support/resistance levels.",
             "example": {
-                "tool_name": "get_order_book",
+                "tool_name": "get_market_depth",
                 "parameters": {
                     "symbol": "BTC/USDT",
-                    "limit": 10,
+                    "depth": 10,
                     "exchange": "binance",
                 },
             },
-            "return_value": "Order book summary (e.g., 'Order book for BTC/USDT on binance...')",
+            "return_value": "Market depth analysis (e.g., 'Market Depth Analysis for BTC/USDT on binance with buy/sell pressure and support/resistance levels')",
         },
         "get_top_movers": {
             "description": "Fetch the top movers (biggest price changes) on a specified exchange.",
