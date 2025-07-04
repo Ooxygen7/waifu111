@@ -41,33 +41,69 @@ class MarketTools:
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
             if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
+                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'bybit', 'okx', 'gateio', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
+            # 尝试获取永续合约数据
+            try_symbol = symbol
+            if '/USDT' in symbol and not symbol.endswith(':USDT'):
+                # 尝试将现货符号转换为永续合约符号
+                base_symbol = symbol.split('/')[0]
+                try_symbol = f"{base_symbol}/USDT:USDT"
+            
+            try:
+                # 尝试获取永续合约数据
+                ohlcv = await exchange_instance.fetch_ohlcv(try_symbol, timeframe, limit=limit)
+                symbol = try_symbol  # 如果成功，更新使用的符号
+            except Exception:
+                # 如果永续合约获取失败，回退到原始符号
+                ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+                
             if not ohlcv:
                 return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
+                
             closes = np.array([candle[4] for candle in ohlcv])
             volumes = [candle[5] for candle in ohlcv]
+            
+            # 确定价格和交易量的小数位数
+            price_decimal_places = 0
+            volume_decimal_places = 0
+            if len(closes) > 0:
+                price_str = str(closes[0])
+                if '.' in price_str:
+                    price_decimal_places = len(price_str.split('.')[1])
+            if len(volumes) > 0:
+                volume_str = str(volumes[0])
+                if '.' in volume_str:
+                    volume_decimal_places = len(volume_str.split('.')[1])
+            
+            # 使用动态格式化字符串保持原始精度
+            price_format = f"{{:.{price_decimal_places}f}}"
+            volume_format = f"{{:.{volume_decimal_places}f}}"
+            
             # Current Price
             current_price = closes[-1]
+            
             # Market Trends
             first_price = closes[0]
             price_change = closes[-1] - closes[0]
             percentage_change = (price_change / first_price) * 100 if first_price != 0 else 0
             trend = "bullish" if price_change > 0 else "bearish" if price_change < 0 else "neutral"
             trend_desc = (
-                f"The price has increased by {price_change:.2f} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
+                f"The price has increased by {price_format.format(price_change)} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
                 if trend == "bullish" else
-                f"The price has decreased by {abs(price_change):.2f} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
+                f"The price has decreased by {price_format.format(abs(price_change))} USDT ({percentage_change:.2f}%) over the last {limit} {timeframe} periods."
                 if trend == "bearish" else
                 f"The price has remained stable over the last {limit} {timeframe} periods."
             )
+            
             # Volume Analysis
             avg_volume = sum(volumes) / len(volumes)
             max_volume = max(volumes)
             min_volume = min(volumes)
             recent_volume = volumes[-1]
             volume_trend = "above average" if recent_volume > avg_volume else "below average"
+            
             # RSI Calculation
             period = period_rsi
             if len(ohlcv) < period:
@@ -101,6 +137,7 @@ class MarketTools:
                     "Neutral"
                 )
                 rsi_result = f"{current_rsi:.2f} ({interpretation})" if interpretation else f"{current_rsi:.2f}"
+            
             # SMA Calculation
             period = period_sma
             if len(ohlcv) < period:
@@ -110,7 +147,8 @@ class MarketTools:
             else:
                 sma = sum(closes[-period:]) / period
                 sma_trend = "above SMA (bullish signal)" if current_price > sma else "below SMA (bearish signal)"
-                sma_result = f"{sma:.2f} USDT, current price is {sma_trend}"
+                sma_result = f"{price_format.format(sma)} USDT, current price is {sma_trend}"
+            
             # MACD Calculation
             if len(ohlcv) < 26:
                 macd_result = f"Insufficient historical data to calculate MACD. Need at least 26 data points, but only have {len(ohlcv)}"
@@ -129,13 +167,14 @@ class MarketTools:
                     "Bullish crossover (buy signal)" if current_macd > current_signal else
                     "Bearish crossover (sell signal)"
                 )
-                macd_result = f"MACD={current_macd:.2f}, Signal={current_signal:.2f} ({macd_interpretation})" if macd_interpretation else f"MACD={current_macd:.2f}, Signal={current_signal:.2f}"
+                macd_result = f"MACD={price_format.format(current_macd)}, Signal={price_format.format(current_signal)} ({macd_interpretation})" if macd_interpretation else f"MACD={price_format.format(current_macd)}, Signal={price_format.format(current_signal)}"
+            
             await exchange_instance.close()
             return (
                 f"**Coin Index Analysis for {symbol} on {exchange} (timeframe: {timeframe}, limit: {limit}):**\n"
-                f"- Current Price: {current_price:.2f} USDT\n"
+                f"- Current Price: {price_format.format(current_price)} USDT\n"
                 f"- Market Trend: {trend.capitalize()} - {trend_desc}\n"
-                f"- Volume Analysis: Avg={avg_volume:.2f}, High={max_volume:.2f}, Low={min_volume:.2f}, Recent={recent_volume:.2f} ({volume_trend})\n"
+                f"- Volume Analysis: Avg={volume_format.format(avg_volume)}, High={volume_format.format(max_volume)}, Low={volume_format.format(min_volume)}, Recent={volume_format.format(recent_volume)} ({volume_trend})\n"
                 f"- RSI ({period_rsi}): {rsi_result}\n"
                 f"- SMA ({period_sma}): {sma_result}\n"
                 f"- MACD: {macd_result}"
@@ -161,21 +200,49 @@ class MarketTools:
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
             if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
+                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'bybit', 'okx', 'gateio', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
+            # 尝试获取永续合约数据
+            try_symbol = symbol
+            if '/USDT' in symbol and not symbol.endswith(':USDT'):
+                # 尝试将现货符号转换为永续合约符号
+                base_symbol = symbol.split('/')[0]
+                try_symbol = f"{base_symbol}/USDT:USDT"
+            
+            try:
+                # 尝试获取永续合约数据
+                ohlcv = await exchange_instance.fetch_ohlcv(try_symbol, timeframe, limit=limit)
+                symbol = try_symbol  # 如果成功，更新使用的符号
+            except Exception:
+                # 如果永续合约获取失败，回退到原始符号
+                ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+                
             if not ohlcv:
                 return f"No historical data found for {symbol} on {exchange} with timeframe {timeframe}."
+                
             closes = [candle[4] for candle in ohlcv]
             avg_price = sum(closes) / len(closes)
             max_price = max(closes)
             min_price = min(closes)
+            
+            # 确定价格的小数位数
+            decimal_places = 0
+            if closes:
+                # 检查第一个收盘价的字符串表示，确定小数位数
+                price_str = str(closes[0])
+                if '.' in price_str:
+                    decimal_places = len(price_str.split('.')[1])
+            
+            # 使用动态格式化字符串保持原始精度
+            format_str = f"{{:.{decimal_places}f}}"
+            
             await exchange_instance.close()
             return (
                 f"Historical data for {symbol} on {exchange} (timeframe: {timeframe}, last {limit} candles):\n"
-                f"- Average Close Price: {avg_price:.2f} USDT\n"
-                f"- Highest Close Price: {max_price:.2f} USDT\n"
-                f"- Lowest Close Price: {min_price:.2f} USDT"
+                f"- Average Close Price: {format_str.format(avg_price)} USDT\n"
+                f"- Highest Close Price: {format_str.format(max_price)} USDT\n"
+                f"- Lowest Close Price: {format_str.format(min_price)} USDT"
             )
         except Exception as e:
             logger.error(f"Error fetching historical data for {symbol} on {exchange}: {str(e)}")
@@ -197,18 +264,89 @@ class MarketTools:
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
             if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
+                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'bybit', 'okx', 'gateio', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
-            order_book = await exchange_instance.fetch_order_book(symbol, limit=limit)
-            bids = order_book.get('bids', [])[:5]
-            asks = order_book.get('asks', [])[:5]
+            
+            # 尝试获取永续合约数据
+            try_symbol = symbol
+            if '/USDT' in symbol and not symbol.endswith(':USDT'):
+                # 尝试将现货符号转换为永续合约符号
+                base_symbol = symbol.split('/')[0]
+                try_symbol = f"{base_symbol}/USDT:USDT"
+            
+            try:
+                # 尝试获取永续合约订单簿
+                order_book = await exchange_instance.fetch_order_book(try_symbol, limit=limit)
+                symbol = try_symbol  # 如果成功，更新使用的符号
+            except Exception:
+                # 如果永续合约获取失败，回退到原始符号
+                order_book = await exchange_instance.fetch_order_book(symbol, limit=limit)
+            
+            # 获取当前价格（中间价）
+            if len(order_book.get('bids', [])) > 0 and len(order_book.get('asks', [])) > 0:
+                current_price = (order_book['bids'][0][0] + order_book['asks'][0][0]) / 2
+            elif len(order_book.get('bids', [])) > 0:
+                current_price = order_book['bids'][0][0]
+            elif len(order_book.get('asks', [])) > 0:
+                current_price = order_book['asks'][0][0]
+            else:
+                current_price = 0
+            
+            # 计算价格范围（当前价格的正负10%）
+            price_range_low = current_price * 0.9
+            price_range_high = current_price * 1.1
+            
+            # 过滤并合并订单簿数据
+            all_bids = [bid for bid in order_book.get('bids', []) if bid[0] >= price_range_low]
+            all_asks = [ask for ask in order_book.get('asks', []) if ask[0] <= price_range_high]
+            
+            # 如果数据太多，进行合并处理
+            merged_bids = []
+            merged_asks = []
+            
+            # 确定价格区间数量（最多显示10个区间）
+            num_intervals = min(10, len(all_bids), len(all_asks))
+            if num_intervals > 0:
+                # 计算价格区间
+                bid_interval = (current_price - price_range_low) / num_intervals if num_intervals > 0 else 0
+                ask_interval = (price_range_high - current_price) / num_intervals if num_intervals > 0 else 0
+                
+                # 合并买单
+                for i in range(num_intervals):
+                    interval_low = current_price - (i + 1) * bid_interval
+                    interval_high = current_price - i * bid_interval
+                    interval_bids = [b for b in all_bids if interval_low <= b[0] < interval_high]
+                    if interval_bids:
+                        avg_price = sum(b[0] for b in interval_bids) / len(interval_bids)
+                        total_amount = sum(b[1] for b in interval_bids)
+                        merged_bids.append([avg_price, total_amount])
+                
+                # 合并卖单
+                for i in range(num_intervals):
+                    interval_low = current_price + i * ask_interval
+                    interval_high = current_price + (i + 1) * ask_interval
+                    interval_asks = [a for a in all_asks if interval_low <= a[0] < interval_high]
+                    if interval_asks:
+                        avg_price = sum(a[0] for a in interval_asks) / len(interval_asks)
+                        total_amount = sum(a[1] for a in interval_asks)
+                        merged_asks.append([avg_price, total_amount])
+            
+            # 如果合并后没有数据，使用原始数据的前几个
+            if not merged_bids and all_bids:
+                merged_bids = all_bids[:5]
+            if not merged_asks and all_asks:
+                merged_asks = all_asks[:5]
+            
             await exchange_instance.close()
+            
+            # 保持原始精度输出
             bid_str = "\n".join([f"  - Bid: {price} USDT, Amount: {amount}" for price, amount in
-                                 bids]) if bids else "No bids available."
+                                 merged_bids]) if merged_bids else "No bids available."
             ask_str = "\n".join([f"  - Ask: {price} USDT, Amount: {amount}" for price, amount in
-                                 asks]) if asks else "No asks available."
+                                 merged_asks]) if merged_asks else "No asks available."
+            
             return (
-                f"Order book for {symbol} on {exchange} (top entries):\n"
+                f"Order book for {symbol} on {exchange} (covering ±10% of current price {current_price}):\n"
                 f"Bids (Buy Orders):\n{bid_str}\n"
                 f"Asks (Sell Orders):\n{ask_str}"
             )
@@ -231,18 +369,40 @@ class MarketTools:
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
             if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
+                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'bybit', 'okx', 'gateio', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
             tickers = await exchange_instance.fetch_tickers()
-            movers = sorted(
-                [(symbol, data['percentage']) for symbol, data in tickers.items() if
-                 'percentage' in data and data['percentage'] is not None],
-                key=lambda x: abs(x[1]),
-                reverse=True
-            )[:limit]
+            
+            # 优先考虑永续合约
+            futures_symbols = [symbol for symbol in tickers.keys() if ':USDT' in symbol]
+            
+            # 如果有永续合约，优先使用永续合约数据
+            if futures_symbols:
+                # 过滤只保留永续合约数据
+                futures_tickers = {symbol: data for symbol, data in tickers.items() if symbol in futures_symbols}
+                movers = sorted(
+                    [(symbol, data['percentage']) for symbol, data in futures_tickers.items() if
+                     'percentage' in data and data['percentage'] is not None],
+                    key=lambda x: abs(x[1]),
+                    reverse=True
+                )[:limit]
+            else:
+                # 如果没有永续合约，使用所有数据
+                movers = sorted(
+                    [(symbol, data['percentage']) for symbol, data in tickers.items() if
+                     'percentage' in data and data['percentage'] is not None],
+                    key=lambda x: abs(x[1]),
+                    reverse=True
+                )[:limit]
+            
             await exchange_instance.close()
-            mover_str = "\n".join([f"  - {symbol}: {pct:.2f}% change" for symbol, pct in movers])
-            return f"Top {limit} movers on {exchange} (24h percentage change):\n{mover_str}"
+            
+            # 保持原始精度输出百分比变化
+            mover_str = "\n".join([f"  - {symbol}: {pct}% change" for symbol, pct in movers])
+            
+            # 添加说明是否使用了永续合约数据
+            contract_type = "永续合约" if futures_symbols else "现货"
+            return f"Top {limit} movers on {exchange} (24h percentage change, {contract_type}):\n{mover_str}"
         except Exception as e:
             logger.error(f"Error fetching top movers on {exchange}: {str(e)}")
             return f"Failed to fetch top movers on {exchange}: {str(e)}"
@@ -264,17 +424,50 @@ class MarketTools:
         try:
             exchange_class = getattr(ccxt, exchange.lower(), None)
             if not exchange_class:
-                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'coinbase', etc."
+                return f"Unsupported exchange: {exchange}. Supported exchanges include 'binance', 'bybit', 'okx', 'gateio', etc."
             exchange_instance = exchange_class({'enableRateLimit': True})
-            ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
+            # 尝试获取永续合约数据
+            try_symbol = symbol
+            if '/USDT' in symbol and not symbol.endswith(':USDT'):
+                # 尝试将现货符号转换为永续合约符号
+                base_symbol = symbol.split('/')[0]
+                try_symbol = f"{base_symbol}/USDT:USDT"
+            
+            try:
+                # 尝试获取永续合约数据
+                ohlcv = await exchange_instance.fetch_ohlcv(try_symbol, timeframe, limit=limit)
+                symbol = try_symbol  # 如果成功，更新使用的符号
+            except Exception:
+                # 如果永续合约获取失败，回退到原始符号
+                ohlcv = await exchange_instance.fetch_ohlcv(symbol, timeframe, limit=limit)
+                
             if not ohlcv:
                 return f"No candlestick data found for {symbol} on {exchange} with timeframe {timeframe}."
+                
+            # 确定价格的小数位数
+            decimal_places = {}
+            for i, candle in enumerate(ohlcv):
+                for j in range(1, 6):  # 检查开盘、最高、最低、收盘价和交易量
+                    if j not in decimal_places:
+                        decimal_places[j] = 0
+                    # 检查数字的字符串表示，确定小数位数
+                    value_str = str(candle[j])
+                    if '.' in value_str:
+                        dp = len(value_str.split('.')[1])
+                        decimal_places[j] = max(decimal_places[j], dp)
+            
             # 限制返回的条目数，避免输出过长，仅展示最新的几条数据
             display_limit = min(40, len(ohlcv))
+            
+            # 使用动态格式化字符串保持原始精度
             candlestick_str = "\n".join([
-                f"  - Time: {candle[0]}, Open: {candle[1]:.2f}, High: {candle[2]:.2f}, Low: {candle[3]:.2f}, Close: {candle[4]:.2f}, Volume: {candle[5]:.2f}"
+                f"  - Time: {candle[0]}, Open: {candle[1]:.{decimal_places.get(1, 2)}f}, "
+                f"High: {candle[2]:.{decimal_places.get(2, 2)}f}, Low: {candle[3]:.{decimal_places.get(3, 2)}f}, "
+                f"Close: {candle[4]:.{decimal_places.get(4, 2)}f}, Volume: {candle[5]:.{decimal_places.get(5, 2)}f}"
                 for candle in ohlcv[-display_limit:]
             ])
+            
             await exchange_instance.close()
             return (
                 f"Candlestick data for {symbol} on {exchange} (timeframe: {timeframe}, showing last {display_limit} of {len(ohlcv)} candles):\n"

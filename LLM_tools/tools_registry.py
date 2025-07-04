@@ -719,7 +719,16 @@ class MarketToolRegistry:
         prompt_lines.append("""\nImportant Analysis Guideline: For every market analysis request, you MUST include the 'get_candlestick_data' 
         tool as the foundation for visualizing or understanding price movements. Additionally, combine it with 2-3 other relevant tools 
         (e.g., 'get_coin_index', 'get_historical_data',  or 'get_order_book') to provide a comprehensive analysis. 
-        Ensure that the tools selected are complementary and cover different aspects of the market (e.g., trend, momentum, volume). 
+        Ensure that the tools selected are complementary and cover different aspects of the market (e.g., trend, momentum, volume).
+        
+        Data Source Recommendations:
+        1. The system will automatically prioritize perpetual futures contracts (e.g., BTC/USDT:USDT) over spot markets when available.
+        2. If data is not available on Binance, the system will try alternative exchanges like Bybit, OKX, or Gate.io.
+        3. When analyzing specific coins, you can directly request the symbol in spot format (e.g., BTC/USDT), and the system will 
+           automatically attempt to retrieve futures data first.
+        4. The order book data now covers a wider price range (±10% of current price) with merged orders for better readability.
+        5. All numerical data maintains the original precision from the exchange.
+        
         If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. 
         Use the following format:
          ```json
