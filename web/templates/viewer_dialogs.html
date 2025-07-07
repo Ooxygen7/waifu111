@@ -1,0 +1,363 @@
+{% extends "viewer_base.html" %}
+
+{% block title %}对话详情 - CyberWaifu Bot 浏览系统{% endblock %}
+
+{% block page_title %}
+对话详情 
+<small class="text-muted">ID: {{ conv_id }}</small>
+{% endblock %}
+
+{% block content %}
+<!-- 对话信息卡片 -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-info-circle"></i> 对话信息
+                </h6>
+            </div>
+            <div class="col-auto">
+                <a href="{{ url_for('viewer_conversations') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> 返回列表
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td class="fw-bold">对话ID:</td>
+                        <td><span class="badge bg-primary">{{ conversation[1] }}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">用户:</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                    <i class="bi bi-person text-white"></i>
+                                </div>
+                                <div>
+                                    <div>{{ conversation[11] or conversation[10] or '未知用户' }}</div>
+                                    <small class="text-muted">ID: {{ conversation[2] }}</small>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">角色:</td>
+                        <td>
+                            {% if conversation[3] %}
+                                <span class="badge bg-info">{{ conversation[3] }}</span>
+                            {% else %}
+                                <span class="text-muted">未设置</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td class="fw-bold">预设:</td>
+                        <td>
+                            {% if conversation[4] %}
+                                <span class="badge bg-warning">{{ conversation[4] }}</span>
+                            {% else %}
+                                <span class="text-muted">未设置</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">轮次:</td>
+                        <td><span class="badge bg-success">{{ conversation[9] or 0 }}</span></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">创建时间:</td>
+                        <td><small class="text-muted">{{ conversation[6] }}</small></td>
+                    </tr>
+                    <tr>
+                        <td class="fw-bold">更新时间:</td>
+                        <td><small class="text-muted">{{ conversation[7] }}</small></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        {% if conversation[5] %}
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <strong>对话摘要:</strong> {{ conversation[5] }}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 搜索和分页控制 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="bi bi-chat-text"></i> 对话记录 
+                    {% if dialogs %}
+                        <small class="text-muted">(共 {{ dialogs|length }} 条)</small>
+                    {% endif %}
+                </h6>
+            </div>
+            <div class="col-auto">
+                <form method="GET" class="d-flex">
+                    <input type="text" name="search" class="form-control search-box me-2" 
+                           placeholder="搜索对话内容..." value="{{ search }}" style="width: 250px;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    {% if search %}
+                    <a href="{{ url_for('viewer_dialogs', conv_id=conv_id) }}" class="btn btn-outline-secondary ms-2">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if dialogs %}
+<!-- iMessage风格的对话消息 -->
+<div class="card">
+    <div class="card-header bg-success text-white py-2">
+        <h6 class="m-0 font-weight-bold">
+            <i class="bi bi-chat-dots"></i> 
+            {% if search %}
+                搜索结果 ({{ dialogs|length }} 条)
+                <small class="ms-2">关键词: "{{ search }}"</small>
+            {% else %}
+                对话消息 ({{ dialogs|length }} 条)
+            {% endif %}
+        </h6>
+    </div>
+    <div class="card-body p-0">
+
+        <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 10px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
+            {% for dialog in dialogs %}
+            <div class="message-bubble-container mb-1 {% if dialog.role == 'user' %}user-message{% else %}ai-message{% endif %}" 
+                 id="msg-{{ dialog.id }}"
+                 data-dialog-id="{{ dialog.id }}" 
+                 data-raw-content="{{ dialog.raw_content | e }}" 
+                 data-processed-content="{{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | e }}" 
+                 data-turn="{{ dialog.turn_order }}" 
+                 data-time="{{ format_datetime(dialog.created_at) }}" 
+                 data-msg-id="{{ dialog.msg_id or '' }}">
+                
+                {% if dialog.role == 'user' %}
+                <!-- 用户消息 (右侧，蓝色) -->
+                <div class="d-flex justify-content-end">
+                    <div class="message-bubble user-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 12px; padding: 6px 10px; position: relative; cursor: pointer; word-wrap: break-word; font-size: 0.85em; line-height: 1.3;">
+                        <div class="message-content">
+                            {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | highlight_search_keyword(search_keyword) | safe }}
+                        </div>
+                        <div class="message-time" style="font-size: 0.65em; opacity: 0.8; margin-top: 1px;">
+                            {{ format_datetime(dialog.created_at) }}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- AI消息 (左侧，灰色) -->
+                <div class="d-flex justify-content-start">
+                    <div class="message-bubble ai-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 12px; padding: 6px 10px; position: relative; cursor: pointer; word-wrap: break-word; font-size: 0.85em; line-height: 1.3;">
+                        <div class="message-content">
+                            {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | highlight_search_keyword(search_keyword) | safe }}
+                        </div>
+                        <div class="message-time" style="font-size: 0.65em; opacity: 0.6; margin-top: 1px;">
+                            {{ format_datetime(dialog.created_at) }}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+    
+<!-- 分页 -->
+{% if total_pages > 1 %}
+<div class="card mt-4">
+    <div class="card-body">
+        <nav aria-label="对话记录分页">
+            <ul class="pagination justify-content-center mb-0">
+                {% if page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=page-1, search=search) }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                <li class="page-item {{ 'active' if p == page else '' }}">
+                    <a class="page-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=p, search=search) }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=page+1, search=search) }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- 空状态显示 -->
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-chat-text" style="font-size: 4rem; color: #dee2e6;"></i>
+        <h5 class="mt-3 text-muted">暂无对话记录</h5>
+        {% if search %}
+        <p class="text-muted">没有找到匹配 "{{ search }}" 的对话内容</p>
+        <a href="{{ url_for('viewer_dialogs', conv_id=conv_id) }}" class="btn btn-primary">清除搜索</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 消息详情模态框 -->
+<div class="modal fade" id="messageDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-chat-square-text"></i> 消息详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>角色:</strong> <span id="modal-role" class="badge"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>轮次:</strong> <span id="modal-turn" class="badge bg-secondary"></span>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>时间:</strong> <span id="modal-time" class="text-muted"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>消息ID:</strong> <span id="modal-msg-id" class="text-muted"></span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-secondary">
+                        <i class="bi bi-file-text"></i> 原始内容
+                    </h6>
+                    <div class="border rounded p-3 bg-light">
+                        <pre id="modal-raw-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+                    </div>
+                </div>
+                
+                <div>
+                    <h6 class="text-info">
+                        <i class="bi bi-gear"></i> 处理后内容
+                    </h6>
+                    <div class="border rounded p-3 bg-info bg-opacity-10">
+                        <pre id="modal-processed-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 点击消息气泡显示详情
+document.addEventListener('DOMContentLoaded', function() {
+    // 消息气泡点击事件
+    document.querySelectorAll('.message-bubble-container').forEach(container => {
+        container.addEventListener('click', function() {
+            const dialogId = this.dataset.dialogId;
+            const rawContent = this.dataset.rawContent;
+            const processedContent = this.dataset.processedContent;
+            const turn = this.dataset.turn;
+            const time = this.dataset.time;
+            const msgId = this.dataset.msgId || '';
+            const role = container.classList.contains('user-message') ? '用户' : 'AI助手';
+            
+            // 填充模态框内容
+            document.getElementById('modal-role').textContent = role;
+            document.getElementById('modal-role').className = 'badge ' + (role === '用户' ? 'bg-primary' : 'bg-success');
+            document.getElementById('modal-turn').textContent = turn;
+            document.getElementById('modal-time').textContent = time;
+            document.getElementById('modal-msg-id').textContent = msgId || '无';
+            document.getElementById('modal-raw-content').textContent = rawContent;
+            document.getElementById('modal-processed-content').textContent = processedContent;
+            
+            // 显示模态框
+            new bootstrap.Modal(document.getElementById('messageDetailModal')).show();
+        });
+    });
+    
+    // 鼠标悬停效果
+    document.querySelectorAll('.message-bubble').forEach(bubble => {
+        bubble.addEventListener('mouseenter', function() {
+            this.style.cursor = 'pointer';
+            this.style.transform = 'scale(1.02)';
+            this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+        });
+        
+        bubble.addEventListener('mouseleave', function() {
+            this.style.transform = '';
+            this.style.boxShadow = '';
+        });
+    });
+    
+    // 自动滚动到最新消息
+    const chatContainer = document.querySelector('.imessage-container');
+    if (chatContainer) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+});
+</script>
+
+<style>
+.user-message, .assistant-message {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+
+.avatar-sm {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+}
+
+mark {
+    background-color: #fff3cd;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+.message-bubble {
+    transition: all 0.2s ease;
+}
+</style>
+{% endblock %}

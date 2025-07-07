@@ -1,0 +1,200 @@
+{% extends "viewer_base.html" %}
+
+{% block title %}用户列表 - CyberWaifu Bot 浏览系统{% endblock %}
+
+{% block page_title %}用户列表{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="row align-items-center">
+            <div class="col">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-people"></i> 用户管理</h6>
+            </div>
+            <div class="col-auto">
+                <form method="GET" class="d-flex">
+                    <input type="text" name="search" class="form-control search-box me-2" 
+                           placeholder="搜索用户ID、用户名..." value="{{ search_term }}" style="width: 250px;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    {% if search_term %}
+                    <a href="{{ url_for('viewer_users') }}" class="btn btn-outline-secondary ms-2">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if users %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
+                               class="text-decoration-none text-dark">
+                                用户ID
+                                {% if sort_by == 'uid' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
+                               class="text-decoration-none text-dark">
+                                用户名
+                                {% if sort_by == 'user_name' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>姓名</th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
+                               class="text-decoration-none text-dark">
+                                对话数
+                                {% if sort_by == 'conversations' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
+                               class="text-decoration-none text-dark">
+                                消息数
+                                {% if sort_by == 'dialog_turns' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
+                               class="text-decoration-none text-dark">
+                                注册时间
+                                {% if sort_by == 'create_at' %}
+                                    <i class="bi bi-arrow-{{ 'up' if sort_order == 'asc' else 'down' }}"></i>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-primary">{{ user.uid }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                    <i class="bi bi-person text-white"></i>
+                                </div>
+                                <span class="fw-bold">{{ user.user_name or '未设置' }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.first_name or user.last_name %}
+                                {{ user.first_name or '' }} {{ user.last_name or '' }}
+                            {% else %}
+                                <span class="text-muted">未设置</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ user.conversations or 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-success">{{ user.dialog_turns or 0 }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ format_datetime(user.create_at) }}</small>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('viewer_conversations', search=user.uid) }}" 
+                               class="btn btn-sm btn-outline-primary" title="查看对话">
+                                <i class="bi bi-chat-dots"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="用户列表分页">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page > 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('viewer_users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                    <li class="page-item {{ 'active' if p == page else '' }}">
+                        <a class="page-link" href="{{ url_for('viewer_users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{ p }}</a>
+                    </li>
+                    {% endfor %}
+                    
+                    {% if page < total_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('viewer_users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 4rem; color: #dee2e6;"></i>
+            <h5 class="mt-3 text-muted">暂无用户数据</h5>
+            {% if search_term %}
+            <p class="text-muted">没有找到匹配 "{{ search_term }}" 的用户</p>
+            <a href="{{ url_for('viewer_users') }}" class="btn btn-primary">清除搜索</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 统计信息 -->
+{% if users %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h5 class="text-primary">{{ users|length }}</h5>
+                        <small class="text-muted">当前页用户数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h5 class="text-success">{{ users|map(attribute='conversations')|select('number')|sum or 0 }}</h5>
+                        <small class="text-muted">当前页总对话数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h5 class="text-info">{{ users|map(attribute='dialog_turns')|select('number')|sum or 0 }}</h5>
+                        <small class="text-muted">当前页总消息数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h5 class="text-warning">{{ (users|map(attribute='input_tokens')|select('number')|sum or 0) + (users|map(attribute='output_tokens')|select('number')|sum or 0) }}</h5>
+                        <small class="text-muted">当前页总Token数</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

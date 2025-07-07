@@ -1,0 +1,145 @@
+{% extends "viewer_base.html" %}
+
+{% block title %}浏览者首页 - CyberWaifu Bot{% endblock %}
+
+{% block page_title %}数据概览{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 统计卡片 -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">总用户数</div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ stats.total_users }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people text-white" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-2 h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">总对话数</div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ stats.total_conversations }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-chat-dots text-white" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-3 h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">总消息数</div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ stats.total_dialogs }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-chat-text text-white" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-2 h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-white text-uppercase mb-1">今日对话</div>
+                        <div class="h5 mb-0 font-weight-bold text-white">{{ stats.today_conversations }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-day text-white" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 今日活跃用户 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-trophy"></i> 今日最活跃用户</h6>
+            </div>
+            <div class="card-body">
+                {% if stats.active_users %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>用户</th>
+                                    <th>消息数</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in stats.active_users %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                <i class="bi bi-person text-white"></i>
+                                            </div>
+                                            <div>
+                                                <div class="fw-bold">{{ user[2] or user[1] or '未知用户' }}</div>
+                                                <small class="text-muted">ID: {{ user[0] }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ user[4] }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-2">今日暂无活跃用户</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速操作 -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="bi bi-lightning"></i> 快速操作</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <a href="{{ url_for('viewer_users') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="bi bi-people me-2"></i>查看用户列表
+                    </a>
+                    <a href="{{ url_for('viewer_conversations') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="bi bi-chat-dots me-2"></i>浏览对话记录
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
