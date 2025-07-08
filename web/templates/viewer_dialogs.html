@@ -1,6 +1,6 @@
 {% extends "viewer_base.html" %}
 
-{% block title %}对话详情 - CyberWaifu Bot 浏览系统{% endblock %}
+{% block title %}对话详情 - 查看器{% endblock %}
 
 {% block page_title %}
 对话详情 
@@ -9,86 +9,86 @@
 
 {% block content %}
 <!-- 对话信息卡片 -->
-<div class="card mb-4">
+<div class="info-card">
     <div class="card-header">
-        <div class="row align-items-center">
-            <div class="col">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-info-circle"></i> 对话信息
+        <div class="header-row">
+            <div class="header-title">
+                <h6 class="title-text">
+                    <i class="icon-info-circle"></i> 对话信息
                 </h6>
             </div>
-            <div class="col-auto">
-                <a href="{{ url_for('viewer_conversations') }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> 返回列表
+            <div class="header-actions">
+                <a href="{{ url_for('viewer_conversations') }}" class="back-button">
+                    <i class="icon-arrow-left"></i> 返回列表
                 </a>
             </div>
         </div>
     </div>
     <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <table class="table table-borderless table-sm">
+        <div class="info-grid">
+            <div class="info-column">
+                <table class="info-table">
                     <tr>
-                        <td class="fw-bold">对话ID:</td>
-                        <td><span class="badge bg-primary">{{ conversation[1] }}</span></td>
+                        <td class="label-cell">对话ID:</td>
+                        <td><span class="tag primary">{{ conversation[1] }}</span></td>
                     </tr>
                     <tr>
-                        <td class="fw-bold">用户:</td>
+                        <td class="label-cell">用户:</td>
                         <td>
-                            <div class="d-flex align-items-center">
-                                <div class="avatar-sm bg-secondary rounded-circle d-flex align-items-center justify-content-center me-2">
-                                    <i class="bi bi-person text-white"></i>
+                            <div class="user-info">
+                                <div class="user-avatar">
+                                    <i class="icon-person"></i>
                                 </div>
                                 <div>
                                     <div>{{ conversation[11] or conversation[10] or '未知用户' }}</div>
-                                    <small class="text-muted">ID: {{ conversation[2] }}</small>
+                                    <small class="subtle-text">ID: {{ conversation[2] }}</small>
                                 </div>
                             </div>
                         </td>
                     </tr>
                     <tr>
-                        <td class="fw-bold">角色:</td>
+                        <td class="label-cell">角色:</td>
                         <td>
                             {% if conversation[3] %}
-                                <span class="badge bg-info">{{ conversation[3] }}</span>
+                                <span class="tag info">{{ conversation[3] }}</span>
                             {% else %}
-                                <span class="text-muted">未设置</span>
+                                <span class="subtle-text">未设置</span>
                             {% endif %}
                         </td>
                     </tr>
                 </table>
             </div>
-            <div class="col-md-6">
-                <table class="table table-borderless table-sm">
+            <div class="info-column">
+                <table class="info-table">
                     <tr>
-                        <td class="fw-bold">预设:</td>
+                        <td class="label-cell">预设:</td>
                         <td>
                             {% if conversation[4] %}
-                                <span class="badge bg-warning">{{ conversation[4] }}</span>
+                                <span class="tag warning">{{ conversation[4] }}</span>
                             {% else %}
-                                <span class="text-muted">未设置</span>
+                                <span class="subtle-text">未设置</span>
                             {% endif %}
                         </td>
                     </tr>
                     <tr>
-                        <td class="fw-bold">轮次:</td>
-                        <td><span class="badge bg-success">{{ conversation[9] or 0 }}</span></td>
+                        <td class="label-cell">轮次:</td>
+                        <td><span class="tag success">{{ conversation[9] or 0 }}</span></td>
                     </tr>
                     <tr>
-                        <td class="fw-bold">创建时间:</td>
-                        <td><small class="text-muted">{{ conversation[6] }}</small></td>
+                        <td class="label-cell">创建时间:</td>
+                        <td><small class="subtle-text">{{ conversation[6] }}</small></td>
                     </tr>
                     <tr>
-                        <td class="fw-bold">更新时间:</td>
-                        <td><small class="text-muted">{{ conversation[7] }}</small></td>
+                        <td class="label-cell">更新时间:</td>
+                        <td><small class="subtle-text">{{ conversation[7] }}</small></td>
                     </tr>
                 </table>
             </div>
         </div>
         {% if conversation[5] %}
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="alert alert-info">
+        <div class="summary-section">
+            <div class="summary-container">
+                <div class="summary-box">
                     <strong>对话摘要:</strong> {{ conversation[5] }}
                 </div>
             </div>
@@ -98,27 +98,27 @@
 </div>
 
 <!-- 搜索和分页控制 -->
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="row align-items-center">
-            <div class="col">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="bi bi-chat-text"></i> 对话记录 
+<div class="control-panel">
+    <div class="control-content">
+        <div class="control-row">
+            <div class="title-container">
+                <h6 class="section-title">
+                    <i class="icon-chat-text"></i> 对话记录 
                     {% if dialogs %}
-                        <small class="text-muted">(共 {{ dialogs|length }} 条)</small>
+                        <small class="subtle-text">(共 {{ dialogs|length }} 条)</small>
                     {% endif %}
                 </h6>
             </div>
-            <div class="col-auto">
-                <form method="GET" class="d-flex">
-                    <input type="text" name="search" class="form-control search-box me-2" 
-                           placeholder="搜索对话内容..." value="{{ search }}" style="width: 250px;">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-search"></i>
+            <div class="search-container">
+                <form method="GET" class="search-form">
+                    <input type="text" name="search" class="search-input" 
+                           placeholder="搜索对话内容..." value="{{ search }}">
+                    <button type="submit" class="search-button">
+                        <i class="icon-search"></i>
                     </button>
                     {% if search %}
-                    <a href="{{ url_for('viewer_dialogs', conv_id=conv_id) }}" class="btn btn-outline-secondary ms-2">
-                        <i class="bi bi-x-circle"></i>
+                    <a href="{{ url_for('viewer_dialogs', conv_id=conv_id) }}" class="clear-button">
+                        <i class="icon-x-circle"></i>
                     </a>
                     {% endif %}
                 </form>
@@ -128,24 +128,12 @@
 </div>
 
 {% if dialogs %}
-<!-- iMessage风格的对话消息 -->
-<div class="card">
-    <div class="card-header bg-success text-white py-2">
-        <h6 class="m-0 font-weight-bold">
-            <i class="bi bi-chat-dots"></i> 
-            {% if search %}
-                搜索结果 ({{ dialogs|length }} 条)
-                <small class="ms-2">关键词: "{{ search }}"</small>
-            {% else %}
-                对话消息 ({{ dialogs|length }} 条)
-            {% endif %}
-        </h6>
-    </div>
-    <div class="card-body p-0">
-
-        <div class="imessage-container" style="max-height: 75vh; overflow-y: auto; padding: 10px; background: linear-gradient(to bottom, #e5ddd5, #f0f0f0);">
+<!-- 对话内容 -->
+<div class="chat-container">
+    <div class="chat-content">
+        <div class="message-list">
             {% for dialog in dialogs %}
-            <div class="message-bubble-container mb-1 {% if dialog.role == 'user' %}user-message{% else %}ai-message{% endif %}" 
+            <div class="message-bubble-container {% if dialog.role == 'user' %}user-message{% else %}ai-message{% endif %}" 
                  id="msg-{{ dialog.id }}"
                  data-dialog-id="{{ dialog.id }}" 
                  data-raw-content="{{ dialog.raw_content | e }}" 
@@ -156,24 +144,24 @@
                 
                 {% if dialog.role == 'user' %}
                 <!-- 用户消息 (右侧，蓝色) -->
-                <div class="d-flex justify-content-end">
-                    <div class="message-bubble user-bubble" style="max-width: 70%; background: #007bff; color: white; border-radius: 12px; padding: 6px 10px; position: relative; cursor: pointer; word-wrap: break-word; font-size: 0.85em; line-height: 1.3;">
+                <div class="message-row user-message">
+                    <div class="message-bubble user-bubble">
                         <div class="message-content">
                             {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | highlight_search_keyword(search_keyword) | safe }}
                         </div>
-                        <div class="message-time" style="font-size: 0.65em; opacity: 0.8; margin-top: 1px;">
+                        <div class="message-time">
                             {{ format_datetime(dialog.created_at) }}
                         </div>
                     </div>
                 </div>
                 {% else %}
                 <!-- AI消息 (左侧，灰色) -->
-                <div class="d-flex justify-content-start">
-                    <div class="message-bubble ai-bubble" style="max-width: 70%; background: #f1f1f1; color: #333; border-radius: 12px; padding: 6px 10px; position: relative; cursor: pointer; word-wrap: break-word; font-size: 0.85em; line-height: 1.3;">
+                <div class="message-row ai-message">
+                    <div class="message-bubble ai-bubble">
                         <div class="message-content">
                             {{ (dialog.processed_content if dialog.processed_content else dialog.raw_content) | replace('\n', '<br>') | highlight_search_keyword(search_keyword) | safe }}
                         </div>
-                        <div class="message-time" style="font-size: 0.65em; opacity: 0.6; margin-top: 1px;">
+                        <div class="message-time">
                             {{ format_datetime(dialog.created_at) }}
                         </div>
                     </div>
@@ -187,28 +175,28 @@
     
 <!-- 分页 -->
 {% if total_pages > 1 %}
-<div class="card mt-4">
-    <div class="card-body">
-        <nav aria-label="对话记录分页">
-            <ul class="pagination justify-content-center mb-0">
+<div class="pagination-container">
+    <div class="pagination-content">
+        <nav class="pagination-nav">
+            <ul class="pagination">
                 {% if page > 1 %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=page-1, search=search) }}">
-                        <i class="bi bi-chevron-left"></i>
+                <li class="pagination-item">
+                    <a class="pagination-link prev" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=page-1, search=search) }}">
+                        <i class="icon-chevron-left"></i>
                     </a>
                 </li>
                 {% endif %}
                 
                 {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
-                <li class="page-item {{ 'active' if p == page else '' }}">
-                    <a class="page-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=p, search=search) }}">{{ p }}</a>
+                <li class="pagination-item {{ 'active' if p == page else '' }}">
+                    <a class="pagination-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=p, search=search) }}">{{ p }}</a>
                 </li>
                 {% endfor %}
                 
                 {% if page < total_pages %}
-                <li class="page-item">
-                    <a class="page-link" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=page+1, search=search) }}">
-                        <i class="bi bi-chevron-right"></i>
+                <li class="pagination-item">
+                    <a class="pagination-link next" href="{{ url_for('viewer_dialogs', conv_id=conv_id, page=page+1, search=search) }}">
+                        <i class="icon-chevron-right"></i>
                     </a>
                 </li>
                 {% endif %}
@@ -220,66 +208,67 @@
 
 {% else %}
 <!-- 空状态显示 -->
-<div class="card">
-    <div class="card-body text-center py-5">
-        <i class="bi bi-chat-text" style="font-size: 4rem; color: #dee2e6;"></i>
-        <h5 class="mt-3 text-muted">暂无对话记录</h5>
+<div class="empty-state">
+    <div class="empty-content">
+        <i class="icon-chat-text empty-icon"></i>
+        <h5 class="empty-title">暂无对话记录</h5>
         {% if search %}
-        <p class="text-muted">没有找到匹配 "{{ search }}" 的对话内容</p>
-        <a href="{{ url_for('viewer_dialogs', conv_id=conv_id) }}" class="btn btn-primary">清除搜索</a>
+        <p class="empty-message">没有找到匹配 "{{ search }}" 的对话内容</p>
+        <a href="{{ url_for('viewer_dialogs', conv_id=conv_id) }}" class="clear-search-button">清除搜索</a>
         {% endif %}
     </div>
 </div>
 {% endif %}
 
 <!-- 消息详情模态框 -->
-<div class="modal fade" id="messageDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+<div class="modal" id="messageDetailModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-container">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="bi bi-chat-square-text"></i> 消息详情
+                    <i class="icon-chat-square-text"></i> 消息详情
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="modal-close" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>角色:</strong> <span id="modal-role" class="badge"></span>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>角色:</strong> <span id="modal-role" class="tag"></span>
                     </div>
-                    <div class="col-md-6">
-                        <strong>轮次:</strong> <span id="modal-turn" class="badge bg-secondary"></span>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>时间:</strong> <span id="modal-time" class="text-muted"></span>
-                    </div>
-                    <div class="col-md-6">
-                        <strong>消息ID:</strong> <span id="modal-msg-id" class="text-muted"></span>
+                    <div class="info-item">
+                        <strong>轮次:</strong> <span id="modal-turn" class="tag secondary"></span>
                     </div>
                 </div>
-                
-                <div class="mb-3">
-                    <h6 class="text-secondary">
-                        <i class="bi bi-file-text"></i> 原始内容
-                    </h6>
-                    <div class="border rounded p-3 bg-light">
-                        <pre id="modal-raw-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>时间:</strong> <span id="modal-time" class="subtle-text"></span>
+                    </div>
+                    <div class="info-item">
+                        <strong>消息ID:</strong> <span id="modal-msg-id" class="subtle-text"></span>
                     </div>
                 </div>
                 
-                <div>
-                    <h6 class="text-info">
-                        <i class="bi bi-gear"></i> 处理后内容
+                <div class="content-section">
+                    <h6 class="section-title secondary">
+                        <i class="icon-file-text"></i> 原始内容
                     </h6>
-                    <div class="border rounded p-3 bg-info bg-opacity-10">
-                        <pre id="modal-processed-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
+                    <div class="content-box raw">
+                        <pre id="modal-raw-content"></pre>
+                    </div>
+                </div>
+                
+                <div class="content-section">
+                    <h6 class="section-title info">
+                        <i class="icon-gear"></i> 处理后内容
+                    </h6>
+                    <div class="content-box processed">
+                        <pre id="modal-processed-content"></pre>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="button secondary" id="closeModalBtn">关闭</button>
             </div>
         </div>
     </div>
@@ -290,6 +279,21 @@
 <script>
 // 点击消息气泡显示详情
 document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('messageDetailModal');
+    const closeModal = document.getElementById('closeModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const modalOverlay = document.querySelector('.modal-overlay');
+    
+    // 关闭模态框的函数
+    function hideModal() {
+        modal.style.display = 'none';
+    }
+    
+    // 关闭按钮点击事件
+    closeModal.addEventListener('click', hideModal);
+    closeModalBtn.addEventListener('click', hideModal);
+    modalOverlay.addEventListener('click', hideModal);
+    
     // 消息气泡点击事件
     document.querySelectorAll('.message-bubble-container').forEach(container => {
         container.addEventListener('click', function() {
@@ -303,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 填充模态框内容
             document.getElementById('modal-role').textContent = role;
-            document.getElementById('modal-role').className = 'badge ' + (role === '用户' ? 'bg-primary' : 'bg-success');
+            document.getElementById('modal-role').className = 'tag ' + (role === '用户' ? 'primary' : 'success');
             document.getElementById('modal-turn').textContent = turn;
             document.getElementById('modal-time').textContent = time;
             document.getElementById('modal-msg-id').textContent = msgId || '无';
@@ -311,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('modal-processed-content').textContent = processedContent;
             
             // 显示模态框
-            new bootstrap.Modal(document.getElementById('messageDetailModal')).show();
+            modal.style.display = 'block';
         });
     });
     
@@ -330,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // 自动滚动到最新消息
-    const chatContainer = document.querySelector('.imessage-container');
+    const chatContainer = document.querySelector('.message-list');
     if (chatContainer) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
@@ -338,26 +342,169 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.user-message, .assistant-message {
-    white-space: pre-wrap;
+/* 消息样式 */
+.message-list {
+    height: 600px;
+    overflow-y: auto;
+    padding: 15px;
+    background: linear-gradient(to bottom, #f5f5f5, #ffffff);
+}
+
+.message-bubble-container {
+    margin-bottom: 10px;
+}
+
+.message-row {
+    display: flex;
+}
+
+.user-message {
+    justify-content: flex-end;
+}
+
+.ai-message {
+    justify-content: flex-start;
+}
+
+.message-bubble {
+    max-width: 70%;
+    border-radius: 12px;
+    padding: 8px 12px;
+    position: relative;
+    cursor: pointer;
     word-wrap: break-word;
-    line-height: 1.5;
+    font-size: 0.85em;
+    line-height: 1.4;
+    transition: all 0.2s ease;
 }
 
-.avatar-sm {
-    width: 40px;
-    height: 40px;
-    font-size: 1rem;
+.user-bubble {
+    background: #0084ff;
+    color: white;
 }
 
+.ai-bubble {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.message-time {
+    font-size: 0.65em;
+    opacity: 0.8;
+    margin-top: 3px;
+}
+
+/* 高亮标记 */
 mark {
     background-color: #fff3cd;
     padding: 2px 4px;
     border-radius: 3px;
 }
 
-.message-bubble {
-    transition: all 0.2s ease;
+/* 模态框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+}
+
+.modal-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 800px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1002;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.2em;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+.content-section {
+    margin-bottom: 20px;
+}
+
+.content-box {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.content-box.raw {
+    background-color: #f8f9fa;
+}
+
+.content-box.processed {
+    background-color: #e8f4f8;
+}
+
+.content-box pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    margin: 0;
+}
+
+/* 按钮样式 */
+.button {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.button.secondary {
+    background-color: #6c757d;
+    color: white;
 }
 </style>
 {% endblock %}
