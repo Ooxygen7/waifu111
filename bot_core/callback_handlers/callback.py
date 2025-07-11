@@ -226,6 +226,141 @@ class DelConversationCallback(BaseCallback):
         await update.callback_query.message.edit_text(f"删除对话成功！删除了对话: {data}。")
 
 
+class DialogShowCallback(BaseCallback):
+    meta = CallbackMeta(
+        name='dialog_show',
+        callback_type='private',
+        trigger='dialog_show_',
+        enabled=True
+    )
+
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+        """
+        处理对话详情显示回调，显示summary并提供加载和删除按钮。
+        """
+        try:
+            conv_id = int(data)
+            # 获取对话详情
+            conv_info = db.conversation_private_get(conv_id)
+            if not conv_info:
+                await update.callback_query.message.edit_text("对话不存在或已被删除。")
+                return
+            
+            # 获取对话的summary
+            conv_list = db.user_conversations_get_for_dialog(update.callback_query.from_user.id)
+            summary = "暂无摘要"
+            for conv in conv_list or []:
+                if conv[0] == conv_id:
+                    summary = conv[4] if conv[4] else "暂无摘要"
+                    break
+            
+            # 创建加载和删除按钮
+            keyboard = [
+                [InlineKeyboardButton("加载对话", callback_data=f"dialog_load_{conv_id}")],
+                [InlineKeyboardButton("删除对话", callback_data=f"dialog_delete_{conv_id}")],
+                [InlineKeyboardButton("返回列表", callback_data="dialog_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # 编辑消息显示summary
+            await update.callback_query.message.edit_text(
+                f"对话摘要：\n{summary}",
+                reply_markup=reply_markup
+            )
+        except Exception as e:
+            logger.error(f"显示对话详情失败, 错误: {str(e)}")
+            await update.callback_query.message.edit_text("获取对话详情失败，请稍后重试。")
+
+
+class DialogLoadCallback(BaseCallback):
+    meta = CallbackMeta(
+        name='dialog_load',
+        callback_type='private',
+        trigger='dialog_load_',
+        enabled=True
+    )
+
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+        """
+        处理对话加载回调。
+        """
+        try:
+            conv_id = int(data)
+            info = public.update_info_get(update)
+            
+            # 获取对话信息
+            conv_info = db.conversation_private_get(conv_id)
+            if not conv_info:
+                await update.callback_query.message.edit_text("对话不存在或已被删除。")
+                return
+            
+            character, preset = conv_info
+            
+            # 更新用户配置
+            db.user_config_arg_update(info['user_id'], 'conv_id', conv_id)
+            db.user_config_arg_update(info['user_id'], 'char', character)
+            db.user_config_arg_update(info['user_id'], 'preset', preset)
+            
+            await update.callback_query.message.edit_text(
+                f"对话加载成功！\n角色: {character.split('_')[0]}\n预设: {preset}"
+            )
+        except Exception as e:
+            logger.error(f"加载对话失败, 错误: {str(e)}")
+            await update.callback_query.message.edit_text("加载对话失败，请稍后重试。")
+
+
+class DialogDeleteCallback(BaseCallback):
+    meta = CallbackMeta(
+        name='dialog_delete',
+        callback_type='private',
+        trigger='dialog_delete_',
+        enabled=True
+    )
+
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+        """
+        处理对话删除回调。
+        """
+        try:
+            conv_id = int(data)
+            if db.conversation_private_delete(conv_id):
+                await update.callback_query.message.edit_text("对话删除成功！")
+            else:
+                await update.callback_query.message.edit_text("对话删除失败，请稍后重试。")
+        except Exception as e:
+            logger.error(f"删除对话失败, 错误: {str(e)}")
+            await update.callback_query.message.edit_text("删除对话失败，请稍后重试。")
+
+
+class DialogBackCallback(BaseCallback):
+    meta = CallbackMeta(
+        name='dialog_back',
+        callback_type='private',
+        trigger='dialog_back',
+        enabled=True
+    )
+
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = None) -> None:
+        """
+        处理返回对话列表回调。
+        """
+        try:
+            from .inline import Inline
+            info = public.update_info_get(update)
+            markup = Inline.print_dialog_conversations(info['user_id'])
+            
+            if markup == "没有可用的对话。":
+                await update.callback_query.message.edit_text(markup)
+            else:
+                await update.callback_query.message.edit_text(
+                    "请选择一个对话：",
+                    reply_markup=markup
+                )
+        except Exception as e:
+            logger.error(f"返回对话列表失败, 错误: {str(e)}")
+            await update.callback_query.message.edit_text("返回列表失败，请稍后重试。")
+
+
 class GroupCharCallback(BaseCallback):
     meta = CallbackMeta(
         name='group_char',

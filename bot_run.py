@@ -175,6 +175,7 @@ def setup_handlers(app: Application) -> None:
     admin_handlers = CommandHandlers.get_command_handlers(['admin'], tg_filters=filters.ChatType.PRIVATE)
     group_handlers = CommandHandlers.get_command_handlers(['group'],
                                                           tg_filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP)
+    command_handlers = private_handlers + admin_handlers + group_handlers
 
     # 消息处理器
     message_handlers = [
@@ -190,14 +191,14 @@ def setup_handlers(app: Application) -> None:
     ]
 
     # 注册所有命令处理器
-    for handler in private_handlers + group_handlers + admin_handlers:
+    for handler in command_handlers:
         app.add_handler(handler)
 
     # 创建并添加回调处理器
-    callback_handler = create_callback_handler(['bot_core.callback_handlers'])  # 修改模块名
+    callback_handler = create_callback_handler(['bot_core.callback_handlers'])
     app.add_handler(CallbackQueryHandler(callback_handler.handle_callback_query))
 
-    # 添加消息处理器（确保在最后添加）
+    # 添加消息处理器
     for handler in message_handlers:
         app.add_handler(handler)
 
