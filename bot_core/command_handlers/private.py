@@ -305,7 +305,7 @@ class NickCommand(BaseCommand):
         trigger='nick',
         menu_text='设置你的昵称',
         show_in_menu=True,
-        menu_weight=4
+        menu_weight=44
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -394,7 +394,7 @@ class ApiCommand(BaseCommand):
         command_type='private',
         trigger='api',
         menu_text='选择API',
-        show_in_menu=False,
+        show_in_menu=True,
         menu_weight=13
     )
 
@@ -493,7 +493,7 @@ class SettingCommand(BaseCommand):
         command_type='private',
         trigger='setting',
         menu_text='设置',
-        show_in_menu=True,
+        show_in_menu=False,
         menu_weight=1
     )
 
