@@ -39,3 +39,5 @@ data.db
 # User-specific configurations
 config/config_local.json
 data/data.db
+代码优化计划.md
+.gitignore

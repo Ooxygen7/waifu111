@@ -243,7 +243,7 @@ class LLM:
                 client.build_conv_messages(conversation_id)
                 client.messages.append(
                     {"role": "user",
-                     "content": "请你总结我们到现在为止的对话，输出话题名称，不要超过20字。对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"})
+                     "content": "请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n只输出三段内容，不要输出任何多余的内容，格式如下：\r\n关键词\r\n4-5个和故事有关的关键词\r\n故事总结：交代整体的时间地点人物事件要素，200字左右\r\n最近互动：总结最近4轮对话，用户和角色在做什么"})
                 return await client.final_response()
 
             except Exception as e:

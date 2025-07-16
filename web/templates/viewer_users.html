@@ -1,0 +1,521 @@
+{% extends "viewer_base.html" %}
+
+{% block title %}用户列表 - CyberWaifu Bot 浏览系统{% endblock %}
+
+{% block page_title %}用户列表{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="header-container">
+            <div class="header-title">
+                <h3><i class="icon">👥</i> 用户管理</h3>
+            </div>
+            <div class="search-container">
+                <form method="GET" class="search-form">
+                    <input type="text" name="search" class="search-input" 
+                           placeholder="搜索用户ID、用户名..." value="{{ search_term }}">
+                    <button type="submit" class="search-button">
+                        🔍
+                    </button>
+                    {% if search_term %}
+                    <a href="{{ url_for('viewer_users') }}" class="clear-button">
+                        ✕
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if users %}
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
+                               class="sort-link">
+                                用户ID
+                                {% if sort_by == 'uid' %}
+                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
+                               class="sort-link">
+                                用户名
+                                {% if sort_by == 'user_name' %}
+                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>姓名</th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
+                               class="sort-link">
+                                对话数
+                                {% if sort_by == 'conversations' %}
+                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
+                               class="sort-link">
+                                消息数
+                                {% if sort_by == 'dialog_turns' %}
+                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
+                               class="sort-link">
+                                注册时间
+                                {% if sort_by == 'create_at' %}
+                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
+                                {% endif %}
+                            </a>
+                        </th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <span class="badge primary">{{ user.uid }}</span>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="avatar">
+                                    <i class="avatar-icon">👤</i>
+                                </div>
+                                <span class="username">{{ user.user_name or '未设置' }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.first_name or user.last_name %}
+                                {{ user.first_name or '' }} {{ user.last_name or '' }}
+                            {% else %}
+                                <span class="text-muted">未设置</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge info">{{ user.conversations or 0 }}</span>
+                        </td>
+                        <td>
+                            <span class="badge success">{{ user.dialog_turns or 0 }}</span>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ format_datetime(user.create_at) }}</small>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('viewer_conversations', search=user.uid) }}" 
+                               class="action-button" title="查看对话">
+                                💬
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <div class="pagination">
+                {% if page > 1 %}
+                <a class="page-item" href="{{ url_for('viewer_users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
+                    &laquo;
+                </a>
+                {% endif %}
+                
+                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('viewer_users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
+                    {{ p }}
+                </a>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <a class="page-item" href="{{ url_for('viewer_users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
+                    &raquo;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <h5 class="empty-title">暂无用户数据</h5>
+            {% if search_term %}
+            <p class="empty-text">没有找到匹配 "{{ search_term }}" 的用户</p>
+            <a href="{{ url_for('viewer_users') }}" class="action-button primary">清除搜索</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 统计信息 -->
+{% if users %}
+<div class="stats-container">
+    <div class="stats-card">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h5 class="stat-value primary">{{ users|length }}</h5>
+                <small class="stat-label">当前页用户数</small>
+            </div>
+            <div class="stat-item">
+                <h5 class="stat-value success">{{ users|map(attribute='conversations')|select('number')|sum or 0 }}</h5>
+                <small class="stat-label">当前页总对话数</small>
+            </div>
+            <div class="stat-item">
+                <h5 class="stat-value info">{{ users|map(attribute='dialog_turns')|select('number')|sum or 0 }}</h5>
+                <small class="stat-label">当前页总消息数</small>
+            </div>
+            <div class="stat-item">
+                <h5 class="stat-value warning">{{ (users|map(attribute='input_tokens')|select('number')|sum or 0) + (users|map(attribute='output_tokens')|select('number')|sum or 0) }}</h5>
+                <small class="stat-label">当前页总Token数</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+    .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    
+    .card-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .card-body {
+        padding: 0;
+    }
+    
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .header-title h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        color: #333;
+    }
+    
+    .header-title .icon {
+        margin-right: 8px;
+        font-style: normal;
+    }
+    
+    .search-container {
+        flex: 0 0 300px;
+    }
+    
+    .search-form {
+        display: flex;
+        position: relative;
+    }
+    
+    .search-input {
+        flex: 1;
+        padding: 8px 15px;
+        border: 1px solid #ddd;
+        border-radius: 20px 0 0 20px;
+        font-size: 0.9rem;
+        outline: none;
+    }
+    
+    .search-input:focus {
+        border-color: #4facfe;
+        box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
+    }
+    
+    .search-button {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border: none;
+        padding: 0 15px;
+        border-radius: 0 20px 20px 0;
+        cursor: pointer;
+    }
+    
+    .clear-button {
+        background: #f5f5f5;
+        color: #666;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+        text-decoration: none;
+    }
+    
+    .clear-button:hover {
+        background: #e0e0e0;
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .data-table th {
+        background: #f8f9fa;
+        padding: 12px 15px;
+        text-align: left;
+        font-weight: 500;
+        color: #333;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .data-table td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        vertical-align: middle;
+    }
+    
+    .data-table tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .sort-link {
+        color: #333;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .sort-icon {
+        margin-left: 5px;
+    }
+    
+    .badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
+    }
+    
+    .badge.primary {
+        background-color: #e6f7ff;
+        color: #1890ff;
+    }
+    
+    .badge.info {
+        background-color: #e6fffb;
+        color: #13c2c2;
+    }
+    
+    .badge.success {
+        background-color: #f6ffed;
+        color: #52c41a;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+    }
+    
+    .avatar {
+        width: 32px;
+        height: 32px;
+        background-color: #f0f0f0;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+    }
+    
+    .avatar-icon {
+        font-style: normal;
+        font-size: 16px;
+    }
+    
+    .username {
+        font-weight: 500;
+    }
+    
+    .text-muted {
+        color: #999;
+    }
+    
+    .action-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background-color: #f0f0f0;
+        color: #333;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+    
+    .action-button:hover {
+        background-color: #e0e0e0;
+    }
+    
+    .action-button.primary {
+        background-color: #1890ff;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+    }
+    
+    .action-button.primary:hover {
+        background-color: #40a9ff;
+    }
+    
+    .pagination-container {
+        padding: 15px;
+        display: flex;
+        justify-content: center;
+    }
+    
+    .pagination {
+        display: flex;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .page-item {
+        margin: 0 3px;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        background-color: #f5f5f5;
+        color: #333;
+        text-decoration: none;
+    }
+    
+    .page-item:hover {
+        background-color: #e0e0e0;
+    }
+    
+    .page-item.active {
+        background-color: #1890ff;
+        color: white;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        color: #ddd;
+        margin-bottom: 15px;
+    }
+    
+    .empty-title {
+        color: #666;
+        margin-bottom: 10px;
+    }
+    
+    .empty-text {
+        color: #999;
+        margin-bottom: 20px;
+    }
+    
+    .stats-container {
+        margin-top: 20px;
+    }
+    
+    .stats-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        padding: 20px;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    
+    .stat-value.primary {
+        color: #1890ff;
+    }
+    
+    .stat-value.success {
+        color: #52c41a;
+    }
+    
+    .stat-value.info {
+        color: #13c2c2;
+    }
+    
+    .stat-value.warning {
+        color: #faad14;
+    }
+    
+    .stat-label {
+        color: #999;
+        font-size: 0.85rem;
+    }
+    
+    @media (max-width: 768px) {
+        .header-container {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .search-container {
+            width: 100%;
+            flex: none;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}

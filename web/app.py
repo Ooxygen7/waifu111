@@ -64,20 +64,29 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = 'cyberwaifu_admin_secret_key'
 
-# 加载配置文件获取Web密码
-def get_web_password():
+# 加载配置文件获取密码和管理员ID
+def get_config():
     config_path = os.environ.get('CONFIG_PATH')
     if not config_path or not os.path.exists(config_path):
         app_logger.error("配置文件不存在")
-        return "123456"  # 默认密码
+        return {"WEB_PW": "123456", "VIEWER_PW": "viewer123", "ADMIN": [7007822593]}
     
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
-            return config.get("WEB_PW", "123456")
+            return {
+                "WEB_PW": config.get("WEB_PW", "123456"),
+                "VIEWER_PW": config.get("VIEWER_PW", "viewer123"),
+                "ADMIN": config.get("ADMIN", [7007822593])
+            }
     except Exception as e:
         app_logger.error(f"读取配置文件失败: {str(e)}")
-        return "123456"  # 默认密码
+        return {"WEB_PW": "123456", "VIEWER_PW": "viewer123", "ADMIN": [7007822593]}
+
+def get_admin_ids():
+    """获取管理员ID列表"""
+    config = get_config()
+    return config["ADMIN"]
 
 # 登录验证装饰器
 def login_required(f):
@@ -88,12 +97,36 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# 添加moment函数到Jinja2模板上下文
+# 管理员权限验证装饰器
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login', next=request.url))
+        if session.get('user_role') != 'admin':
+            flash('您没有权限访问此页面，请使用管理员账号登录', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# 浏览者权限验证装饰器
+def viewer_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session:
+            return redirect(url_for('login', next=request.url))
+        if session.get('user_role') != 'viewer':
+            flash('您没有权限访问此页面，请使用浏览者账号登录', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# 添加moment函数和内置函数到Jinja2模板上下文
 @app.context_processor
 def inject_moment():
     def moment():
         return datetime.now()
-    return dict(moment=moment)
+    return dict(moment=moment, max=max, min=min, range=range)
 
 def format_datetime(timestamp):
     """格式化时间戳"""
@@ -121,19 +154,31 @@ app.jinja_env.filters['highlight_search_keyword'] = highlight_search_keyword
 def login():
     """登录页面"""
     if 'logged_in' in session:
-        return redirect(url_for('index'))
+        if session.get('user_role') == 'admin':
+            return redirect(url_for('index'))
+        elif session.get('user_role') == 'viewer':
+            return redirect(url_for('viewer_index'))
+        else:
+            # 清除无效的session
+            session.pop('logged_in', None)
+            session.pop('user_role', None)
     
     error = None
     if request.method == 'POST':
         password = request.form.get('password')
-        correct_password = get_web_password()
+        config = get_config()
         
-        if password == correct_password:
+        if password == config['WEB_PW']:
             session['logged_in'] = True
+            session['user_role'] = 'admin'
             next_page = request.args.get('next')
             if next_page and next_page.startswith('/'):
                 return redirect(next_page)
             return redirect(url_for('index'))
+        elif password == config['VIEWER_PW']:
+            session['logged_in'] = True
+            session['user_role'] = 'viewer'
+            return redirect(url_for('viewer_index'))
         else:
             error = '密码错误'
     
@@ -143,10 +188,11 @@ def login():
 def logout():
     """登出"""
     session.pop('logged_in', None)
+    session.pop('user_role', None)
     return redirect(url_for('login'))
 
 @app.route('/')
-@login_required
+@admin_required
 def index():
     """主页 - 显示统计信息"""
     # 获取统计数据
@@ -337,8 +383,261 @@ def index():
     
     return render_template('index.html', stats=stats)
 
+# 浏览者路由
+@app.route('/viewer')
+@viewer_required
+def viewer_index():
+    """浏览者首页 - 显示基础统计信息（过滤管理员数据）"""
+    admin_ids = get_admin_ids()
+    admin_ids_str = ','.join(map(str, admin_ids))
+    
+    # 获取统计数据（排除管理员）
+    stats = {}
+    
+    # 基础统计（排除管理员）
+    stats['total_users'] = db.query_db(f'SELECT COUNT(*) FROM users WHERE uid NOT IN ({admin_ids_str})')[0][0] if db.query_db(f'SELECT COUNT(*) FROM users WHERE uid NOT IN ({admin_ids_str})') else 0
+    stats['total_conversations'] = db.query_db(f'SELECT COUNT(*) FROM conversations WHERE user_id NOT IN ({admin_ids_str})')[0][0] if db.query_db(f'SELECT COUNT(*) FROM conversations WHERE user_id NOT IN ({admin_ids_str})') else 0
+    stats['total_dialogs'] = db.query_db(f'SELECT COUNT(*) FROM dialogs d JOIN conversations c ON d.conv_id = c.conv_id WHERE c.user_id NOT IN ({admin_ids_str})')[0][0] if db.query_db(f'SELECT COUNT(*) FROM dialogs d JOIN conversations c ON d.conv_id = c.conv_id WHERE c.user_id NOT IN ({admin_ids_str})') else 0
+    
+    # 今日统计
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # 今日新增对话数（排除管理员）
+    today_conversations = db.query_db(f"SELECT COUNT(*) FROM conversations WHERE date(create_at) = ? AND user_id NOT IN ({admin_ids_str})", (today,))
+    stats['today_conversations'] = today_conversations[0][0] if today_conversations else 0
+    
+    # 今日新增消息数（排除管理员）
+    today_dialogs = db.query_db(f"SELECT COUNT(*) FROM dialogs d JOIN conversations c ON d.conv_id = c.conv_id WHERE date(d.created_at) = ? AND c.user_id NOT IN ({admin_ids_str})", (today,))
+    stats['today_dialogs'] = today_dialogs[0][0] if today_dialogs else 0
+    
+    # 今日最活跃用户（排除管理员）
+    active_users = db.query_db(f"""
+        SELECT u.uid, u.user_name, u.first_name, u.last_name, COUNT(d.id) as message_count
+        FROM users u
+        JOIN conversations c ON u.uid = c.user_id
+        JOIN dialogs d ON c.conv_id = d.conv_id
+        WHERE date(d.created_at) = ? AND u.uid NOT IN ({admin_ids_str})
+        GROUP BY u.uid, u.user_name, u.first_name, u.last_name
+        ORDER BY message_count DESC
+        LIMIT 5
+    """, (today,))
+    stats['active_users'] = active_users or []
+    
+    return render_template('viewer_index.html', stats=stats)
+
+@app.route('/viewer/users')
+@viewer_required
+def viewer_users():
+    """浏览者用户列表页面（排除管理员和群聊）"""
+    admin_ids = get_admin_ids()
+    admin_ids_str = ','.join(map(str, admin_ids))
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    offset = (page - 1) * per_page
+    search_term = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'create_at')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    query = f'SELECT * FROM users WHERE uid NOT IN ({admin_ids_str})'
+    params = []
+    if search_term:
+        query += ' AND (uid LIKE ? OR user_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?)'
+        search_param = f'%{search_term}%'
+        params.extend([search_param, search_param, search_param, search_param])
+
+    if sort_by and sort_order:
+        query += f' ORDER BY {sort_by} {sort_order}'
+
+    query += ' LIMIT ? OFFSET ?'
+    params.extend([per_page, offset])
+
+    users_data = db.query_db(query, tuple(params))
+
+    count_query = f'SELECT COUNT(*) FROM users WHERE uid NOT IN ({admin_ids_str})'
+    count_params = []
+    if search_term:
+        count_query += ' AND (uid LIKE ? OR user_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?)'
+        count_params.extend([search_param, search_param, search_param, search_param])
+
+    total_result = db.query_db(count_query, tuple(count_params))
+    total_users = total_result[0][0] if total_result else 0
+    total_pages = (total_users + per_page - 1) // per_page
+
+    users_list = []
+    if users_data:
+        columns = ['uid', 'first_name', 'last_name', 'user_name', 'create_at', 'conversations', 
+                  'dialog_turns', 'update_at', 'input_tokens', 'output_tokens', 'account_tier', 
+                  'remain_frequency', 'balance']
+        for row in users_data:
+            user_dict = {columns[i]: row[i] for i in range(len(columns))}
+            users_list.append(user_dict)
+
+    def next_sort_order(column):
+        if column == sort_by:
+            return 'asc' if sort_order == 'desc' else 'desc'
+        return 'desc'
+
+    return render_template('viewer_users.html', users=users_list, page=page, total_pages=total_pages, 
+                         format_datetime=format_datetime, search_term=search_term, 
+                         sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
+
+@app.route('/viewer/conversations')
+@viewer_required
+def viewer_conversations():
+    """浏览者对话管理页面（排除管理员）"""
+    admin_ids = get_admin_ids()
+    admin_ids_str = ','.join(map(str, admin_ids))
+    
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str).strip()
+    sort_by = request.args.get('sort_by', 'update_at')
+    sort_order = request.args.get('sort_order', 'desc')
+    per_page = 20
+    offset = (page - 1) * per_page
+    
+    # 允许的排序字段
+    allowed_sort_fields = ['conv_id', 'user_id', 'character', 'preset', 'turns', 'create_at', 'update_at']
+    if sort_by not in allowed_sort_fields:
+        sort_by = 'update_at'
+    
+    # 确保排序方向安全
+    order = 'ASC' if sort_order.lower() == 'asc' else 'DESC'
+    
+    # 使用JOIN查询获取用户信息（排除管理员）
+    query = f'''
+        SELECT c.id, c.conv_id, c.user_id, c.character, c.preset, c.summary, 
+               c.create_at, c.update_at, c.delete_mark, c.turns,
+               u.first_name, u.last_name, u.user_name
+        FROM conversations c
+        LEFT JOIN users u ON c.user_id = u.uid
+        WHERE c.user_id NOT IN ({admin_ids_str})
+    '''
+    params = []
+    
+    # 添加搜索条件
+    if search:
+        query += ''' AND (u.user_name LIKE ? OR 
+                           u.first_name LIKE ? OR 
+                           u.last_name LIKE ? OR 
+                           CAST(c.user_id AS TEXT) LIKE ?)'''
+        search_param = f'%{search}%'
+        params.extend([search_param, search_param, search_param, search_param])
+    
+    query += f' ORDER BY c.{sort_by} {order} LIMIT ? OFFSET ?'
+    params.extend([per_page, offset])
+    
+    conversations_data = db.query_db(query, tuple(params))
+    
+    # 获取总数
+    count_query = f'SELECT COUNT(*) FROM conversations c LEFT JOIN users u ON c.user_id = u.uid WHERE c.user_id NOT IN ({admin_ids_str})'
+    count_params = []
+    if search:
+        count_query += ''' AND (u.user_name LIKE ? OR 
+                               u.first_name LIKE ? OR 
+                               u.last_name LIKE ? OR 
+                               CAST(c.user_id AS TEXT) LIKE ?)'''
+        count_params.extend([search_param, search_param, search_param, search_param])
+    
+    total_result = db.query_db(count_query, tuple(count_params))
+    total_conversations = total_result[0][0] if total_result else 0
+    total_pages = (total_conversations + per_page - 1) // per_page
+    
+    conversations_list = []
+    if conversations_data:
+        columns = ['id', 'conv_id', 'user_id', 'character', 'preset', 'summary', 
+                  'create_at', 'update_at', 'delete_mark', 'turns', 
+                  'first_name', 'last_name', 'user_name']
+        for row in conversations_data:
+            conv_dict = {columns[i]: row[i] for i in range(len(columns))}
+            conversations_list.append(conv_dict)
+    
+    def next_sort_order(column):
+        if column == sort_by:
+            return 'asc' if sort_order == 'desc' else 'desc'
+        return 'desc'
+    
+    return render_template('viewer_conversations.html', conversations=conversations_list, 
+                         page=page, total_pages=total_pages, search=search, 
+                         sort_by=sort_by, sort_order=sort_order, 
+                         next_sort_order=next_sort_order)
+
+@app.route('/viewer/dialogs/<conv_id>')
+@viewer_required
+def viewer_dialogs(conv_id):
+    """浏览者对话详情页面（排除管理员对话）"""
+    admin_ids = get_admin_ids()
+    admin_ids_str = ','.join(map(str, admin_ids))
+    
+    # 检查对话是否属于管理员
+    conv_check = db.query_db(f'SELECT user_id FROM conversations WHERE conv_id = ? AND user_id NOT IN ({admin_ids_str})', (conv_id,))
+    if not conv_check:
+        flash('对话不存在或您没有权限查看', 'error')
+        return redirect(url_for('viewer_conversations'))
+    
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str).strip()
+    per_page = 50
+    offset = (page - 1) * per_page
+    
+    # 获取对话信息
+    conversation = db.query_db('''
+        SELECT c.*, u.first_name, u.last_name, u.user_name 
+        FROM conversations c 
+        LEFT JOIN users u ON c.user_id = u.uid 
+        WHERE c.conv_id = ?
+    ''', (conv_id,))
+    
+    if not conversation:
+        flash('对话不存在', 'error')
+        return redirect(url_for('viewer_conversations'))
+    
+    conversation = conversation[0]
+    
+    # 获取对话记录
+    # 根据是否有搜索关键词决定查询方式
+    if search:
+        # 搜索模式：在对话消息中搜索关键词
+        query = '''SELECT * FROM dialogs 
+                   WHERE conv_id = ? AND (
+                       raw_content LIKE ? OR 
+                       processed_content LIKE ?
+                   ) 
+                   ORDER BY turn_order ASC LIMIT ? OFFSET ?'''
+        search_param = f'%{search}%'
+        params = [conv_id, search_param, search_param, per_page, offset]
+    else:
+        # 正常模式：获取所有对话消息
+        query = 'SELECT * FROM dialogs WHERE conv_id = ? ORDER BY turn_order ASC LIMIT ? OFFSET ?'
+        params = [conv_id, per_page, offset]
+    
+    dialogs_data = db.query_db(query, tuple(params))
+    
+    # 获取总数
+    count_query = 'SELECT COUNT(*) FROM dialogs WHERE conv_id = ?'
+    count_params = [conv_id]
+    if search:
+        count_query += ' AND (raw_content LIKE ? OR processed_content LIKE ?)'
+        count_params.extend([search_param, search_param])
+    
+    total_result = db.query_db(count_query, tuple(count_params))
+    total_dialogs = total_result[0][0] if total_result else 0
+    total_pages = (total_dialogs + per_page - 1) // per_page
+    
+    dialogs_list = []
+    if dialogs_data:
+        columns = ['id', 'conv_id', 'role', 'raw_content', 'turn_order', 'created_at', 
+                  'processed_content', 'msg_id']
+        for row in dialogs_data:
+            dialog_dict = {columns[i]: row[i] for i in range(len(columns))}
+            dialogs_list.append(dialog_dict)
+    
+    return render_template('viewer_dialogs.html', conversation=conversation, 
+                         dialogs=dialogs_list, page=page, total_pages=total_pages, 
+                         search=search, search_keyword=search, conv_id=conv_id, format_datetime=format_datetime)
+
 @app.route('/users')
-@login_required
+@admin_required
 def users():
     """用户管理页面"""
     page = request.args.get('page', 1, type=int)
@@ -392,7 +691,7 @@ def users():
                          sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
 
 @app.route('/conversations')
-@login_required
+@admin_required
 def conversations():
     """对话管理页面"""
     page = request.args.get('page', 1, type=int)
@@ -471,7 +770,7 @@ def conversations():
                          format_datetime=format_datetime)
 
 @app.route('/dialogs/<int:conv_id>')
-@login_required
+@admin_required
 def dialogs(conv_id):
     """查看对话详情"""
     # 获取对话信息
@@ -521,7 +820,7 @@ def dialogs(conv_id):
                          search_keyword=search_keyword)
 
 @app.route('/groups')
-@login_required
+@admin_required
 def groups():
     """群组管理页面"""
     page = request.args.get('page', 1, type=int)
@@ -583,7 +882,7 @@ def groups():
                          sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
 
 @app.route('/group_dialogs/<group_id>')
-@login_required
+@admin_required
 def group_dialogs(group_id):
     # 转换group_id为整数（支持负数）
     try:
@@ -647,7 +946,7 @@ def group_dialogs(group_id):
                          page=page, total_pages=total_pages, search=search, format_datetime=format_datetime)
 
 @app.route('/api/message_page/<group_id>/<msg_id>')
-@login_required
+@admin_required
 def get_message_page(group_id, msg_id):
     """获取指定消息所在的页码"""
     try:
@@ -680,7 +979,7 @@ def get_message_page(group_id, msg_id):
     return jsonify({'page': page})
 
 @app.route('/api/export_group_dialogs/<group_id>')
-@login_required
+@admin_required
 def export_group_dialogs(group_id):
     """导出完整的群组对话数据"""
     try:
@@ -748,7 +1047,7 @@ def export_group_dialogs(group_id):
     return jsonify(export_data)
 
 @app.route('/api/user/<int:user_id>')
-@login_required
+@admin_required
 def api_user_detail(user_id):
     """获取用户详细信息API"""
     user_data = db.query_db('SELECT * FROM users WHERE uid = ?', (user_id,))
@@ -778,7 +1077,7 @@ def api_user_detail(user_id):
     })
 
 @app.route('/search')
-@login_required
+@admin_required
 def search():
     """全局搜索页面"""
     query = request.args.get('q', '')
@@ -861,7 +1160,7 @@ def search():
     return render_template('search.html', results=results, query=query, format_datetime=format_datetime)
 
 @app.route('/api/user/<int:user_id>/update', methods=['POST'])
-@login_required
+@admin_required
 def api_user_update(user_id):
     """更新用户信息API"""
     try:
@@ -938,7 +1237,7 @@ def api_user_update(user_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/groups/<group_id>', methods=['PUT'])
-@login_required
+@admin_required
 def api_group_update(group_id):
     """更新群组信息API"""
     try:
@@ -1002,13 +1301,13 @@ def api_group_update(group_id):
 
 # 配置文件管理路由
 @app.route('/config')
-@login_required
+@admin_required
 def config_management():
     """配置文件管理页面"""
     return render_template('config.html')
 
 @app.route('/api/config/list')
-@login_required
+@admin_required
 def api_config_list():
     """获取配置文件列表"""
     try:
@@ -1054,7 +1353,7 @@ def api_config_list():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/read')
-@login_required
+@admin_required
 def api_config_read():
     """读取配置文件内容"""
     try:
@@ -1093,7 +1392,7 @@ def api_config_read():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/save', methods=['POST'])
-@login_required
+@admin_required
 def api_config_save():
     """保存配置文件"""
     try:
@@ -1139,7 +1438,7 @@ def api_config_save():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/create', methods=['POST'])
-@login_required
+@admin_required
 def api_config_create():
     """创建新配置文件"""
     try:
@@ -1181,7 +1480,7 @@ def api_config_create():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/config/delete', methods=['POST'])
-@login_required
+@admin_required
 def api_config_delete():
     """删除配置文件"""
     try:
@@ -1218,7 +1517,7 @@ def api_config_delete():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/generate_summary', methods=['POST'])
-@login_required
+@admin_required
 def api_generate_summary():
     """生成对话摘要"""
     try:
@@ -1263,7 +1562,7 @@ def api_generate_summary():
         return jsonify({'error': f'生成摘要时发生错误: {str(e)}'}), 500
 
 @app.route('/api/edit_message', methods=['POST'])
-@login_required
+@admin_required
 def edit_message():
     """编辑消息的processed_content"""
     try:

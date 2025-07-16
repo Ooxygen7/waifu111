@@ -99,6 +99,44 @@ class Inline:
             raise BotError(f"获取用户对话列表失败: {str(e)}")
 
     @staticmethod
+    def print_dialog_conversations(user_id: int) -> Union[str, InlineKeyboardMarkup]:
+        """
+        显示用户对话列表，用于dialog命令。显示格式为{角色名}-{对话轮数}-{更新时间}。
+
+        Args:
+            user_id (int): Telegram用户id。
+
+        Returns:
+            Union[str, InlineKeyboardMarkup]: 如果没有对话返回提示，否则返回键盘标记。
+        """
+        try:
+            conv_list = db.user_conversations_get_for_dialog(user_id)
+            logger.info(f"获取用户对话列表(dialog), user_id: {user_id}")
+            if not conv_list:
+                return "没有可用的对话。"
+            
+            keyboard = []
+            for conv in conv_list:
+                conv_id, character, turns, update_at, summary = conv
+                # 格式化更新时间，只显示日期和时间
+                try:
+                    from datetime import datetime
+                    update_time = datetime.fromisoformat(update_at).strftime("%m-%d %H:%M")
+                except:
+                    update_time = update_at[:16] if len(update_at) > 16 else update_at
+                
+                # 显示格式：{角色名}-{对话轮数}-{更新时间}
+                display_text = f"{character.split('_')[0]}-{turns}轮-{update_time}"
+                keyboard.append([
+                    InlineKeyboardButton(display_text, callback_data=f"dialog_show_{conv_id}")
+                ])
+            
+            return InlineKeyboardMarkup(keyboard)
+        except Exception as e:
+            logger.error(f"获取用户对话列表失败(dialog), user_id: {user_id}, 错误: {str(e)}")
+            raise BotError(f"获取用户对话列表失败: {str(e)}")
+
+    @staticmethod
     def print_char_list(operate_type: str, chat_type: str, _id: int) -> Union[str, InlineKeyboardMarkup]:
         """
         筛选角色列表。

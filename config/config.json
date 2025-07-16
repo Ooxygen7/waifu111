@@ -28,5 +28,7 @@
     }
   ],
   "TG_TOKEN" : "",
-  "ADMIN":[]
+  "ADMIN":[],
+    "WEB_PW": "123456",
+  "VIEWER_PW": "654321"
 }

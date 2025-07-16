@@ -8,7 +8,7 @@ from LLM_tools.tools_registry import parse_and_invoke_tool
 setup_logging()
 logger = logging.getLogger(__name__)
 
-async def update_message(text, placeholder):
+async def update_message(text:str, placeholder):
     try:
         # Telegram 单条消息最大长度限制4096字符，保险起见用4000
         max_len = 4000
@@ -31,7 +31,7 @@ async def update_message(text, placeholder):
             placeholder.edit_text(f"Failed: {e}")
 
 
-async def finalize_message(sent_message, cleared_response: str, parse:str = "markdown") -> None:
+async def finalize_message(sent_message, text: str, parse:str = "markdown") -> None:
     """
     最终更新消息内容，确保显示最终的处理后的响应。
     Args:
@@ -41,23 +41,23 @@ async def finalize_message(sent_message, cleared_response: str, parse:str = "mar
     max_len = 4000
     try:
         # Telegram 单条消息最大长度限制4096字符，保险起见用4000
-        if len(cleared_response) <= max_len:
-            await sent_message.edit_text(cleared_response, parse_mode=parse)
+        if len(text) <= max_len:
+            await sent_message.edit_text(text, parse_mode=parse)
             logger.debug(f"使用了{parse}")
         else:
             # 超长时分两段发送，先发前半段，再发后半段
-            await sent_message.edit_text(cleared_response[:max_len], parse_mode=parse)
-            await sent_message.reply_text(cleared_response[max_len:], parse_mode=parse)
-        logger.info(f"输出：\r\n{cleared_response}")
+            await sent_message.edit_text(text[:max_len], parse_mode=parse)
+            await sent_message.reply_text(text[max_len:], parse_mode=parse)
+        logger.info(f"输出：\r\n{text}")
     except BadRequest as e:
         logger.warning(f"{parse} 解析错误: {str(e)}, 禁用 {parse} 重试")
         try:
-            if len(cleared_response) <= max_len:
-                await sent_message.edit_text(cleared_response, parse_mode=None)
+            if len(text) <= max_len:
+                await sent_message.edit_text(text, parse_mode=None)
             else:
-                await sent_message.edit_text(cleared_response[:max_len], parse_mode=None)
-                await sent_message.reply_text(cleared_response[max_len:], parse_mode=None)
-            logger.info(f"输出：\r\n{cleared_response}")
+                await sent_message.edit_text(text[:max_len], parse_mode=None)
+                await sent_message.reply_text(text[max_len:], parse_mode=None)
+            logger.info(f"输出：\r\n{text}")
         except Exception as e2:
             logger.error(f"再次尝试发送消息失败: {e2}")
             await sent_message.edit_text(f"Failed: {e2}")
