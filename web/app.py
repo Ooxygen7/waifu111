@@ -1561,6 +1561,7 @@ def api_generate_summary():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
+        app_logger.error(f"生成摘要时发生错误: {str(e)}")
         return jsonify({'error': f'生成摘要时发生错误: {str(e)}'}), 500
 
 @app.route('/api/edit_message', methods=['POST'])
