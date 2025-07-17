@@ -305,7 +305,7 @@ class NickCommand(BaseCommand):
         trigger='nick',
         menu_text='设置你的昵称',
         show_in_menu=True,
-        menu_weight=4
+        menu_weight=44
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -394,7 +394,7 @@ class ApiCommand(BaseCommand):
         command_type='private',
         trigger='api',
         menu_text='选择API',
-        show_in_menu=False,
+        show_in_menu=True,
         menu_weight=13
     )
 
@@ -467,13 +467,33 @@ class DeleteCommand(BaseCommand):
         await update.message.delete()
 
 
+class DialogCommand(BaseCommand):
+    meta = CommandMeta(
+        name='dialog',
+        command_type='private',
+        trigger='dialog',
+        menu_text='对话管理',
+        show_in_menu=True,
+        menu_weight=5
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        info = public.update_info_get(update)
+        markup = Inline.print_dialog_conversations(info['user_id'])
+        if markup == "没有可用的对话。":
+            await update.message.reply_text(markup)
+        else:
+            await update.message.reply_text("请选择一个对话：", reply_markup=markup)
+        await update.message.delete()
+
+
 class SettingCommand(BaseCommand):
     meta = CommandMeta(
         name='setting',
         command_type='private',
         trigger='setting',
         menu_text='设置',
-        show_in_menu=True,
+        show_in_menu=False,
         menu_weight=1
     )
 

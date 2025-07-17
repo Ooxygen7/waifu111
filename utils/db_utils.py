@@ -223,7 +223,14 @@ def user_config_check(userid: int) -> bool:
 
 def user_conversations_get(userid: int) -> Optional[List[Tuple]]:
     """获取用户未标记为删除的私聊对话列表。返回 (conv_id, character, summary) 元组的列表。"""
-    command = "SELECT conv_id, character, summary FROM conversations WHERE user_id = ? AND delete_mark = 'no'"
+    command = "SELECT conv_id, character, summary,update_at,turns FROM conversations WHERE user_id = ? AND delete_mark = 'no'"
+    result = query_db(command, (userid,))
+    return result if result else None
+
+
+def user_conversations_get_for_dialog(userid: int) -> Optional[List[Tuple]]:
+    """获取用户未标记为删除的私聊对话列表，用于dialog命令。返回 (conv_id, character, turns, update_at, summary) 元组的列表。"""
+    command = "SELECT conv_id, character, turns, update_at, summary FROM conversations WHERE user_id = ? AND delete_mark = 'no' ORDER BY update_at DESC"
     result = query_db(command, (userid,))
     return result if result else None
 

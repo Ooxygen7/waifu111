@@ -146,7 +146,7 @@ class DatabaseCommand(BaseCommand):
             prompt_text=prompt_text,
             character_prompt=character_prompt,
             bias_prompt="",  # 数据库助手不需要bias_prompt
-            character_name="数据库助手"
+            character_name="cyberwaifu"
         )
 
 
