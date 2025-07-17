@@ -44,20 +44,23 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     try:
         if isinstance(error, telegram.error.BadRequest):
             logger.error(f"Telegram API错误: {str(error)}，用户ID: {user_id}，聊天ID: {chat_id}", exc_info=True)
-            error_message = "发送消息时发生错误，请稍后重试。"
+            error_message = f"发送消息时发生错误，请稍后重试。\n\n<details><summary>详细错误信息</summary>\n\n{str(error)[:3000]}\n</details>"
         elif isinstance(error, BotError):
             logger.error(f"Bot运行错误: {str(error)}，用户ID: {user_id}，聊天ID: {chat_id}", exc_info=True)
-            error_message = "Bot运行出现错误，请稍后重试。"
+            error_message = f"Bot运行出现错误，请稍后重试。\n\n<details><summary>详细错误信息</summary>\n\n{str(error)[:3000]}\n</details>"
         elif isinstance(error, ConfigError):
             logger.error(f"配置错误: {str(error)}，用户ID: {user_id}，聊天ID: {chat_id}", exc_info=True)
-            error_message = "Bot配置出现错误，请联系管理员。"
+            error_message = f"Bot配置出现错误，请联系管理员。\n\n<details><summary>详细错误信息</summary>\n\n{str(error)[:3000]}\n</details>"
         else:
             logger.error(f"未处理的错误: {str(error)}，用户ID: {user_id}，聊天ID: {chat_id}", exc_info=True)
-            error_message = "发生未知错误，请稍后重试。"
+            error_message = f"发生未知错误，请稍后重试。\n\n<details><summary>详细错误信息</summary>\n\n{str(error)[:3000]}\n</details>"
 
         # 仅在有效的消息上下文中发送错误提示
         if update and update.message and not context.user_data.get('error_notified'):
-            await update.message.reply_text(error_message, parse_mode=None)
+            try:
+                await update.message.reply_text(error_message, parse_mode="HTML")
+            except telegram.error.BadRequest:
+                await update.message.reply_text(error_message, parse_mode=None)
             context.user_data['error_notified'] = True  # 标记已发送错误消息
     except Exception as e:
         # 确保错误处理器本身的错误不会导致程序崩溃
