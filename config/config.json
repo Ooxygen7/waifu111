@@ -29,6 +29,7 @@
   ],
   "TG_TOKEN" : "",
   "ADMIN":[],
-    "WEB_PW": "123456",
-  "VIEWER_PW": "654321"
+  "WEB_PW": "123456",
+  "VIEWER_PW": "654321",
+  "fuck_or_not_api": "gemini-2"
 }

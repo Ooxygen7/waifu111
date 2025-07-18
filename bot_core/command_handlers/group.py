@@ -570,7 +570,9 @@ class FuckCommand(BaseCommand):
             ]
             
             # 创建LLM实例并获取回复
-            llm_instance = llm.LLM()
+            from utils.config_utils import get_config
+            fuck_api = get_config("fuck_or_not_api", "gemini-2")  # 从配置文件读取API，默认使用gemini-2
+            llm_instance = llm.LLM(api=fuck_api)
             llm_instance.set_messages(messages)
             response = await llm_instance.final_response()
             
