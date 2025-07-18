@@ -206,18 +206,11 @@
                     </div>
                 </div>
                 
-                <div>
-                    <h6 class="text-info">
-                        <i class="bi bi-gear"></i> 处理后内容
-                    </h6>
-                    <div class="border rounded p-3 bg-info bg-opacity-10">
-                        <pre id="modal-processed-content" style="white-space: pre-wrap; font-family: inherit; margin: 0;"></pre>
-                    </div>
-                </div>
+
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                <button type="button" class="btn btn-primary" onclick="editCurrentMessage()">编辑内容</button>
+                <button type="button" class="btn btn-primary" id="editMessageDetailBtn">编辑内容</button>
             </div>
         </div>
     </div>
@@ -300,7 +293,6 @@
                  document.getElementById('modal-time').textContent = time;
                  document.getElementById('modal-msg-id').textContent = msgId || '无';
                  document.getElementById('modal-raw-content').textContent = rawContent;
-                 document.getElementById('modal-processed-content').textContent = processedContent;
                  
                  // 保存当前对话ID
                  currentEditingDialogId = dialogId;
@@ -349,6 +341,9 @@
      
      // 自动滚动到最新消息或目标消息
      const chatContainer = document.querySelector('.imessage-container');
+
+     // 为消息详情模态框的编辑按钮添加事件监听器
+     document.getElementById('editMessageDetailBtn').addEventListener('click', editCurrentMessage);
      
      // 检查URL中是否有消息锚点
      const hash = window.location.hash;
@@ -400,8 +395,8 @@ function editMessage(dialogId, currentContent) {
 
 // 从详情模态框编辑
 function editCurrentMessage() {
-    const processedContent = document.getElementById('modal-processed-content').textContent;
-    document.getElementById('edit-content').value = processedContent;
+    const rawContent = document.getElementById('modal-raw-content').textContent;
+    document.getElementById('edit-content').value = rawContent;
     
     // 关闭详情模态框，打开编辑模态框
     bootstrap.Modal.getInstance(document.getElementById('messageDetailModal')).hide();

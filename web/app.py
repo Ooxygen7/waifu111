@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 import sys
 import os
 import json
 import time
 import logging
 from datetime import datetime
+from functools import wraps
+import asyncio
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 
 # 添加项目根目录到Python路径
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -57,9 +59,9 @@ app_logger = setup_app_logging()
 
 from utils import db_utils as db
 from utils import LLM_utils as llm
-import asyncio
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from functools import wraps
+
+
+
 
 app = Flask(__name__)
 app.secret_key = 'cyberwaifu_admin_secret_key'
@@ -943,7 +945,7 @@ def group_dialogs(group_id):
             dialogs_list.append(dialog_dict)
     
     return render_template('group_dialogs.html', group=group, dialogs=dialogs_list,
-                         page=page, total_pages=total_pages, search=search, format_datetime=format_datetime)
+                         page=page, total_pages=total_pages, search=search if search else None, format_datetime=format_datetime)
 
 @app.route('/api/message_page/<group_id>/<msg_id>')
 @admin_required
@@ -1559,6 +1561,7 @@ def api_generate_summary():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
+        app_logger.error(f"生成摘要时发生错误: {str(e)}")
         return jsonify({'error': f'生成摘要时发生错误: {str(e)}'}), 500
 
 @app.route('/api/edit_message', methods=['POST'])
