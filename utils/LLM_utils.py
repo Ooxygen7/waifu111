@@ -1,18 +1,19 @@
 import asyncio
-import re
 import base64
 import logging
+import re
 import time
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
+
 import httpx
 import openai
 import tiktoken
-from utils.logging_utils import setup_logging
-from utils.config_utils import get_config, get_path, get_api_config, DEFAULT_API, DEFAULT_CHAR
 
 # 避免循环导入
 import utils.db_utils as db
 import utils.file_utils as file
+from utils.config_utils import DEFAULT_API, get_api_config, get_config, get_path
+from utils.logging_utils import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -27,9 +28,14 @@ class LLMClientManager:
     - 并发控制(最大并发数为3)
     - 客户端连接池管理
     """
+
     _instance = None
-    _clients: Dict[Tuple[str, str, str], openai.AsyncOpenAI] = {}  # 客户端连接池，键为(api_key, base_url, model)
-    _semaphore: asyncio.Semaphore = asyncio.Semaphore(get_config("api.semaphore_limit", 5))  # 并发控制信号量
+    _clients: Dict[Tuple[str, str, str], openai.AsyncOpenAI] = (
+        {}
+    )  # 客户端连接池，键为(api_key, base_url, model)
+    _semaphore: asyncio.Semaphore = asyncio.Semaphore(
+        get_config("api.semaphore_limit", 5)
+    )  # 并发控制信号量
     _lock = asyncio.Lock()  # 客户端操作锁
 
     def __new__(cls):
@@ -37,7 +43,9 @@ class LLMClientManager:
             cls._instance = super(LLMClientManager, cls).__new__(cls)
         return cls._instance
 
-    async def get_client(self, api_key: str, base_url: str, model: str) -> openai.AsyncOpenAI:
+    async def get_client(
+        self, api_key: str, base_url: str, model: str
+    ) -> openai.AsyncOpenAI:
         """
         获取或创建LLM客户端
 
@@ -58,9 +66,7 @@ class LLMClientManager:
                 try:
                     http_client = httpx.AsyncClient()
                     self._clients[client_key] = openai.AsyncOpenAI(
-                        api_key=api_key,
-                        base_url=base_url,
-                        http_client=http_client
+                        api_key=api_key, base_url=base_url, http_client=http_client
                     )
                 except Exception as e:
                     raise ValueError(f"客户端初始化失败: {str(e)}")
@@ -83,7 +89,7 @@ llm_client_manager = LLMClientManager()
 
 
 class LLM:
-    def __init__(self, api=DEFAULT_API, chat_type='private'):
+    def __init__(self, api=DEFAULT_API, chat_type="private"):
         self.key, self.base_url, self.model = get_api_config(api)
         self.client = None
         self.messages = []
@@ -93,22 +99,22 @@ class LLM:
 
     def build_conv_messages(self, conv_id=0):
         """
-                    构建符合OpenAI API要求的消息列表
-                    Args:
-                        conv_id: 对话ID
-                    Returns:
-                        list: 格式化后的消息列表，包含role和content字段
-                    """
+        构建符合OpenAI API要求的消息列表
+        Args:
+            conv_id: 对话ID
+        Returns:
+            list: 格式化后的消息列表，包含role和content字段
+        """
         dialog_history = db.dialog_content_load(conv_id, self.chat_type)
         self.conv_id = conv_id
         # print(f"对象conv_id已储存：{self.conv_id}")
         if not dialog_history:
             return None
 
-        if self.chat_type == 'group':  # 如果 type 是 'group'，限制对话历史
+        if self.chat_type == "group":  # 如果 type 是 'group'，限制对话历史
             group_limit = get_config("dialog.group_history_limit", 10)
             dialog_history = dialog_history[-group_limit:]
-        if self.chat_type == 'private':
+        if self.chat_type == "private":
             private_limit = get_config("dialog.private_history_limit", 70)
             dialog_history = dialog_history[-private_limit:]
 
@@ -116,33 +122,32 @@ class LLM:
         for role, turn_order, content in dialog_history:
             formatted_role = role.lower()
             if formatted_role in ["user", "assistant"] and content:
-                messages.append({
-                    "role": formatted_role,
-                    "content": content
-                })
+                messages.append({"role": formatted_role, "content": content})
         self.messages = messages
         return None
 
     async def embedd_all_text(self, images: list = None, context=None, group_id=None):
-        if self.chat_type == 'private':
+        if self.chat_type == "private":
             # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_private_get(self.conv_id)
-        elif self.chat_type == 'group':
+        elif self.chat_type == "group":
             char, _ = db.conversation_group_config_get(self.conv_id, group_id)
         split_prompts = Prompts.split_prompts(self.prompts)
-        self.messages.insert(0, {"role": "system", "content": split_prompts['system']})
-        user_content = split_prompts['user']
+        self.messages.insert(0, {"role": "system", "content": split_prompts["system"]})
+        user_content = split_prompts["user"]
         if images and context:
             content_list = [{"type": "text", "text": user_content}]
             for img in images:
                 base64_img = await self.convert_file_id_to_base64(img, context)
                 if base64_img:
-                    content_list.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
+                    content_list.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{base64_img['mime_type']};base64,{base64_img['data']}"
+                            },
                         }
-                    })
+                    )
             self.messages.append({"role": "user", "content": content_list})
         else:
             self.messages.append({"role": "user", "content": user_content})
@@ -157,18 +162,24 @@ class LLM:
         self.key, self.base_url, self.model = file.get_api_config(DEFAULT_API)
 
     async def response(self, stream: bool = False):
-        self.client = await llm_client_manager.get_client(self.key, self.base_url, self.model)
+        self.client = await llm_client_manager.get_client(
+            self.key, self.base_url, self.model
+        )
         async with llm_client_manager.semaphore:
             try:
                 response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=self.messages,
                     max_tokens=get_config("api.max_tokens", 8000),
-                    stream=stream
+                    stream=stream,
                 )
                 if stream:
                     async for chunk in response:
-                        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                        if (
+                            chunk.choices
+                            and chunk.choices[0].delta
+                            and chunk.choices[0].delta.content
+                        ):
                             yield chunk.choices[0].delta.content
                 else:
                     yield response.choices[0].message.content
@@ -177,7 +188,7 @@ class LLM:
 
     async def final_response(self):
         response_chunks = []
-        response = ''
+        response = ""
         async for chunk in self.response():
             response_chunks.append(chunk)
             response = "".join(response_chunks)
@@ -203,20 +214,23 @@ class LLM:
             mime_type = "image/jpeg"  # 默认值
             if cfg_file.file_path:
                 file_path_lower = cfg_file.file_path.lower()
-                if file_path_lower.endswith('.png'):
+                if file_path_lower.endswith(".png"):
                     mime_type = "image/png"
-                elif file_path_lower.endswith('.gif'):
+                elif file_path_lower.endswith(".gif"):
                     mime_type = "image/gif"
-                elif file_path_lower.endswith('.jpg') or file_path_lower.endswith('.jpeg'):
+                elif file_path_lower.endswith(".jpg") or file_path_lower.endswith(
+                    ".jpeg"
+                ):
                     mime_type = "image/jpeg"
-                elif file_path_lower.endswith('.webp'):
+                elif file_path_lower.endswith(".webp"):
                     mime_type = "image/webp"
                 else:
                     # 如果无法从扩展名确定 MIME 类型，可以使用文件头检测（可选）
                     from magic import from_buffer
+
                     mime_type = from_buffer(file_data, mime=True) or "image/jpeg"
             # 转换为 Base64
-            base64_data = base64.b64encode(file_data).decode('utf-8')
+            base64_data = base64.b64encode(file_data).decode("utf-8")
             return {"mime_type": mime_type, "data": base64_data}
         except Exception as e:
             print(f"转换 file_id 到 Base64 失败: {str(e)}")
@@ -239,11 +253,14 @@ class LLM:
         async with llm_client_manager.semaphore:
             try:
                 # 构建对话历史
-                client = LLM(DEFAULT_API, 'private')
+                client = LLM(DEFAULT_API, "private")
                 client.build_conv_messages(conversation_id)
                 client.messages.append(
-                    {"role": "user",
-                     "content": "请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n只输出三段内容，不要输出任何多余的内容，格式如下：\r\n关键词\r\n4-5个和故事有关的关键词\r\n故事总结：交代整体的时间地点人物事件要素，200字左右\r\n最近互动：总结最近4轮对话，用户和角色在做什么"})
+                    {
+                        "role": "user",
+                        "content": "请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n只输出三段内容，不要输出任何多余的内容，格式如下：\r\n关键词\r\n4-5个和故事有关的关键词\r\n故事总结：交代整体的时间地点人物事件要素，200字左右\r\n最近互动：总结最近4轮对话，用户和角色在做什么",
+                    }
+                )
                 return await client.final_response()
 
             except Exception as e:
@@ -298,9 +315,9 @@ class LLM:
                 # 构建对话历史
                 history = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": character_description}
+                    {"role": "user", "content": character_description},
                 ]
-                client = LLM(DEFAULT_API, 'private')
+                client = LLM(DEFAULT_API, "private")
                 client.set_messages(history)
                 client.set_default_client()
                 result = await client.final_response()
@@ -331,6 +348,7 @@ class LLM:
 
 class PromptCache:
     """提示缓存管理类，使用单例模式实现。"""
+
     _instance = None
 
     def __new__(cls):
@@ -407,7 +425,7 @@ class Prompts:
         self.jailbreak_txt = None
         self.others_txt = None
         self.input = user_input
-        self.content = ''
+        self.content = ""
         self.load_prompt_part()
 
     def load_prompt_part(self):
@@ -424,7 +442,9 @@ class Prompts:
                 # logger.debug(f"<UNK> target_template : {target_template}>")
                 break
         if not target_template:
-            logger.warning(f"Warning: Preset {self.preset} not found in prompt_set_list")
+            logger.warning(
+                f"Warning: Preset {self.preset} not found in prompt_set_list"
+            )
             return
         # 从模板中提取 combine 字段的各个部分
         combine_data = target_template.get("combine", {})
@@ -450,8 +470,11 @@ class Prompts:
     def _load_prompt_content(self, prompt_part_type, combine):
         PROMPT_PART_CONFIG = {
             "System": {"tag": "system", "description": ""},
-            'COT': {'tag': 'COT', 'description': "以下是你在输出前需要思考的内容"},
-            "Control": {"tag": "format", "description": "以下是对于输出内容的要求，请务必遵守："},
+            "COT": {"tag": "COT", "description": "以下是你在输出前需要思考的内容"},
+            "Control": {
+                "tag": "format",
+                "description": "以下是对于输出内容的要求，请务必遵守：",
+            },
             "Sample": {"tag": "sample", "description": "以下是一些可以参考的文本："},
             "Function": {"tag": "function", "description": "以下是一些额外的要求："},
             "Jailbreak": {"tag": "notice", "description": "以下是你需要注意的事项："},
@@ -476,14 +499,18 @@ class Prompts:
             print(f"Warning: No prompts found for type: {prompt_part_type}")
             return  # 如果没有 prompts，直接返回，不设置属性
         # 构建 name 到 content 的索引，加速查找
-        prompt_dict = {part.get("name", ""): part.get("content", "") for part in prompts}
+        prompt_dict = {
+            part.get("name", ""): part.get("content", "") for part in prompts
+        }
         # 按 combine 列表的顺序拼接内容
         content_text = ""
         for fragment in combine:
             if fragment in prompt_dict:
                 content_text += f"{prompt_dict[fragment]}\r\n"
             else:
-                print(f"Warning: Fragment {fragment} not found in {prompt_part_type} prompts")
+                print(
+                    f"Warning: Fragment {fragment} not found in {prompt_part_type} prompts"
+                )
         # 使用独立函数构建带标签的内容
         content = self.build_tagged_content(tag, description, content_text)
         # 动态设置属性
@@ -493,31 +520,39 @@ class Prompts:
 
     def _insert_char(self):
         char_txt = prompt_cache.get_character(self.char)
-        char_tag = self.build_tagged_content("Character", "以下是你需要扮演的内容", char_txt)
-        self.content = self.insert_text(self.content, char_tag, '</COT>\r\n', 'after')
+        char_tag = self.build_tagged_content(
+            "Character", "以下是你需要扮演的内容", char_txt
+        )
+        self.content = self.insert_text(self.content, char_tag, "</COT>\r\n", "after")
 
     def _insert_input(self):
         """从用户输入中提取特殊控制标记，返回清理后的输入和控制内容。"""
-        pattern = r'<([^>]+)>'  # 正则表达式：匹配 <something> 但不包括嵌套
+        pattern = r"<([^>]+)>"  # 正则表达式：匹配 <something> 但不包括嵌套
         match = re.search(pattern, self.input)
         if not match:
-            tagged_content = self.build_tagged_content("user_input", "以下是用户最新输入：", self.input)
+            tagged_content = self.build_tagged_content(
+                "user_input", "以下是用户最新输入：", self.input
+            )
             self.content += tagged_content
             return
 
         special_str = match.group(1).strip()  # 提取标签名，并移除空白字符
-        cleaned_input = re.sub(pattern, '', self.input, count=1)  # count=1 表示只替换第一个匹配
+        cleaned_input = re.sub(
+            pattern, "", self.input, count=1
+        )  # count=1 表示只替换第一个匹配
 
         # 构建 plot_control 部分的内容
         plot_content = self.build_tagged_content(
             "plot_control",
             "以下是剧情发展方向或对内容的要求，甚至有一些超现实内容，请你务必遵守",
-            special_str
+            special_str,
         )
         self.content += plot_content
 
         # 构建 user_input 部分的内容
-        user_input_content = self.build_tagged_content("user_input", "以下是用户最新输入：", cleaned_input)
+        user_input_content = self.build_tagged_content(
+            "user_input", "以下是用户最新输入：", cleaned_input
+        )
         self.content += user_input_content
 
     @staticmethod
@@ -536,7 +571,11 @@ class Prompts:
             mode_lower = "after"  # 默认使用 'after'
         if mode_lower == "before":
             return raw_text[:index] + insert_text + raw_text[index:]
-        return raw_text[:index + len(position)] + insert_text + raw_text[index + len(position):]
+        return (
+            raw_text[: index + len(position)]
+            + insert_text
+            + raw_text[index + len(position) :]
+        )
 
     @staticmethod
     def build_tagged_content(tag="", description="", content_text=""):
@@ -545,17 +584,24 @@ class Prompts:
     @staticmethod
     def split_prompts(text):
         """
-           将提示文本分割为系统和用户部分，并保持用户内容的原文顺序。
+        将提示文本分割为系统和用户部分，并保持用户内容的原文顺序。
 
-           Args:
-               text (str): 输入的字符串，包含HTML标签包裹的文本。
+        Args:
+            text (str): 输入的字符串，包含HTML标签包裹的文本。
 
-           Returns:
-               dict: 包含两个键的字典：
-                   - "system": 系统部分的文本（不包含用户标签内容）
-                   - "user": 用户部分的文本（包含用户相关标签及其内容，按原文顺序排列）
-           """
-        user_msg_tags = ['<user_input>', '<plot_control>', '<format>', '<sample>', '<market>', '<group_messages>']
+        Returns:
+            dict: 包含两个键的字典：
+                - "system": 系统部分的文本（不包含用户标签内容）
+                - "user": 用户部分的文本（包含用户相关标签及其内容，按原文顺序排列）
+        """
+        user_msg_tags = [
+            "<user_input>",
+            "<plot_control>",
+            "<format>",
+            "<sample>",
+            "<market>",
+            "<group_messages>",
+        ]
         system_content = text
         user_content = ""
 
@@ -570,7 +616,9 @@ class Prompts:
             earliest_tag = None
             for tag in user_msg_tags:
                 start_pos = text.find(tag, current_pos)
-                if start_pos != -1 and (earliest_start == -1 or start_pos < earliest_start):
+                if start_pos != -1 and (
+                    earliest_start == -1 or start_pos < earliest_start
+                ):
                     earliest_start = start_pos
                     earliest_tag = tag
 
@@ -578,13 +626,13 @@ class Prompts:
                 break
 
             # 查找对应的结束标签
-            end_tag = earliest_tag.replace('<', '</')
+            end_tag = earliest_tag.replace("<", "</")
             end_pos = text.find(end_tag, earliest_start + len(earliest_tag))
             if end_pos == -1:  # 没找到结束标签
                 break
 
             # 提取用户标签内容（包含标签本身）
-            user_part = text[earliest_start:end_pos + len(end_tag)]
+            user_part = text[earliest_start : end_pos + len(end_tag)]
             found_user_parts.append(user_part)
 
             current_pos = end_pos + len(end_tag)
@@ -593,7 +641,7 @@ class Prompts:
         if found_user_parts:
             user_content = "\n".join(found_user_parts)
             for part in found_user_parts:
-                system_content = system_content.replace(part, '')
+                system_content = system_content.replace(part, "")
             system_content = system_content.strip()  # 去除多余的空白
 
         # 如果没有用户内容，system_content保持不变
