@@ -1,15 +1,14 @@
 import json
 import os
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-# 使用配置工具模块
-from utils.config_utils import get_path, get_api_config, get_api_multiple, get_config
+from utils.config_utils import ADMIN_LIST, BOT_TOKEN, get_config, get_path
 
 # 获取项目根目录的绝对路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def load_config(config_file=None):
+def load_config():
     """
     从配置系统获取配置
     返回：包含 token, api, admin 的字典，或在出错时返回 None
@@ -18,7 +17,6 @@ def load_config(config_file=None):
     """
     try:
         # 使用新的配置系统
-        from utils.config_utils import get_config, BOT_TOKEN, ADMIN_LIST
 
         # 获取API列表
         API_LIST = get_config("api_list", [])
@@ -26,13 +24,13 @@ def load_config(config_file=None):
             raise ValueError("配置中未找到 api_list")
 
         # 返回与旧版相同格式的配置字典
-        return {'token': BOT_TOKEN, 'api': API_LIST, 'admin': ADMIN_LIST}
+        return {"token": BOT_TOKEN, "api": API_LIST, "admin": ADMIN_LIST}
     except Exception as e:
         print(f"加载配置时出错: {str(e)}")
         return None
 
 
-def list_all_characters(char_dir: str = None) -> list[str]:
+def list_all_characters(char_dir: Optional[str] = None) -> list[str]:
     """
     列出所有可用角色
     :param char_dir: 角色文件目录，如果为None则使用配置中的路径
@@ -50,7 +48,7 @@ def list_all_characters(char_dir: str = None) -> list[str]:
     return result
 
 
-def load_char(char_file_name: str, char_dir: str = None):
+def load_char(char_file_name: str, char_dir: Optional[str] = None):
     """
     加载指定的角色文件。
     :param char_file_name: 角色文件名 (例如 'my_character.json')
@@ -66,7 +64,7 @@ def load_char(char_file_name: str, char_dir: str = None):
             print(f"错误: 角色文件 {file_path} 不存在。")
             return None
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             char_data = json.load(f)
             return char_data
     except json.JSONDecodeError as e:
@@ -77,7 +75,7 @@ def load_char(char_file_name: str, char_dir: str = None):
         return None
 
 
-def load_prompts(prompt_file: str = None):
+def load_prompts(prompt_file: Optional[str] = None):
     """
     加载预设文件
 
@@ -91,49 +89,13 @@ def load_prompts(prompt_file: str = None):
         prompt_file = get_path("prompt_path")
 
     try:
-        with open(prompt_file, 'r', encoding='utf-8') as f:
+        with open(prompt_file, "r", encoding="utf-8") as f:
             prompt_data = json.load(f)
-            return prompt_data.get('prompt_set_list', [])
+            return prompt_data.get("prompt_set_list", [])
     except Exception as e:
         print(f"读取预设文件失败: {str(e)}")
         return None
 
-
-def get_api_multiple(api_name=None):
-    """
-    获取API的multiple值
-
-    注意：此函数保留是为了向后兼容，新代码应直接使用 config_utils.get_api_multiple
-
-    Args:
-        api_name: API名称，如果为None则使用默认API
-
-    Returns:
-        int: multiple值，默认为1
-    """
-    # 直接使用config_utils中的函数
-    from utils.config_utils import get_api_multiple as config_get_api_multiple
-    return config_get_api_multiple(api_name)
-
-
-def get_api_config(api_name: str = None) -> tuple[str, str, str]:
-    """
-    根据API名称获取对应的配置信息
-
-    注意：此函数保留是为了向后兼容，新代码应直接使用 config_utils.get_api_config
-
-    Args:
-        api_name: API配置名称，如果为None则使用默认API
-
-    Returns:
-        Tuple[str, str, str]: 返回(api_key, base_url, model)三元组
-
-    Raises:
-        ValueError: 当找不到对应API配置时抛出
-    """
-    # 直接使用config_utils中的函数
-    from utils.config_utils import get_api_config as config_get_api_config
-    return config_get_api_config(api_name)
 
 
 def load_data_from_file(file_path: str) -> Optional[Dict]:
@@ -142,7 +104,7 @@ def load_data_from_file(file_path: str) -> Optional[Dict]:
         print(f"错误: 文件 '{file_path}' 不存在。")
         return None
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)  # 加载并返回数据
     except json.JSONDecodeError as e:
         print(f"错误: JSON 文件格式错误 - {e}")

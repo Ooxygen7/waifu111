@@ -159,7 +159,7 @@ class LLM:
         self.prompts = prompts
 
     def set_default_client(self):
-        self.key, self.base_url, self.model = file.get_api_config(DEFAULT_API)
+        self.key, self.base_url, self.model = get_api_config(DEFAULT_API)
 
     async def response(self, stream: bool = False):
         self.client = await llm_client_manager.get_client(

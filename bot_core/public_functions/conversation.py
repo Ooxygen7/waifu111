@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
-import bot_core.public_functions.messages
+from utils.config_utils import get_api_multiple
 from bot_core.public_functions.messages import update_message, finalize_message,send_message
 
 from utils import db_utils as db, text_utils as txt, file_utils as file
@@ -138,7 +138,7 @@ class Config:
         info = db.user_config_get(user_id)
         self.char, self.preset = info.get('char'), info.get('preset')
         self.stream = db.user_stream_get(user_id)
-        self.multiple = file.get_api_multiple(self.api)  # 从文件中获取API多路复用信息
+        self.multiple = get_api_multiple(self.api)  # 从文件中获取API倍率信息
 
 
 class Group:
