@@ -383,7 +383,7 @@ class DoneCommand(BaseCommand):
                         del tg_context.bot_data['newchar_state'][uid]
 
             _task = asyncio.create_task(
-                _generate_char(placeholder_message, desc, save_dir, char_name, user_id, context))
+                _generate_char(placeholder_message, f"角色名称：{char_name}\r\n角色描述：{desc}", save_dir, char_name, user_id, context))
         except Exception as e:
             await update.message.reply_text(f"初始化保存过程时发生错误：{str(e)}")
 
