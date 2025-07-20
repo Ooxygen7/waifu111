@@ -622,7 +622,7 @@ def dialog_turn_get(conv_id: int, chat_type: str = "private") -> int:
 
 
 def dialog_content_load(
-    conv_id: int, chat_type: str = "private"
+    conv_id: int, chat_type: str = "private",raw:bool=False
 ) -> Optional[List[Tuple]]:
     """
     加载指定会话的对话内容。
@@ -630,7 +630,7 @@ def dialog_content_load(
     Args:
         conv_id: 会话ID
         chat_type: 对话类型，'private' 或 'group'，其他类型将默认查询私聊对话表
-
+        raw: 是否返回原始内容，默认为False，返回处理后的内容
     Returns:
         Optional[List[Tuple]]: 对话内容列表 (role, turn_order, processed_content)，如果不存在则返回None
     """
@@ -642,8 +642,10 @@ def dialog_content_load(
             print(
                 f"警告: 未知的 chat_type '{chat_type}' 在 dialog_content_load 中，默认查询 '{table_name}' 表。"
             )
-
-    command = f"SELECT role, turn_order, processed_content FROM {table_name} WHERE conv_id = ?"
+    if raw:
+        command = f"SELECT role, turn_order, raw_content FROM {table_name} WHERE conv_id = ?"
+    else:
+        command = f"SELECT role, turn_order, processed_content FROM {table_name} WHERE conv_id = ?"
     result = query_db(command, (conv_id,))
     return result if result else None
 

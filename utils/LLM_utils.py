@@ -12,6 +12,7 @@ import tiktoken
 # 避免循环导入
 import utils.db_utils as db
 import utils.file_utils as file
+from utils.text_utils import extract_tag_content
 from utils.config_utils import DEFAULT_API, get_api_config, get_config, get_path
 from utils.logging_utils import setup_logging
 
@@ -125,6 +126,14 @@ class LLM:
                 messages.append({"role": formatted_role, "content": content})
         self.messages = messages
         return None
+    
+    def build_conv_messages_for_summary(self,conv_id=0,start:int=0,end:int=0):
+        dialog_history = db.dialog_content_load(conv_id, self.chat_type)
+        if not dialog_history:
+            return None
+        if start == 0 and end == 0:
+            end = len(dialog_history)
+        dialog_history = dialog_history[start:end]
 
     async def embedd_all_text(self, images: list = None, context=None, group_id=None):
         if self.chat_type == "private":
@@ -237,12 +246,15 @@ class LLM:
             return {}
 
     @staticmethod
-    async def generate_summary(conversation_id: int) -> str:
+    async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0) -> str:
         """
         生成对话总结
 
         Args:
             conversation_id: 对话ID
+            summary_type: 总结类型，save:保存总结，zip:压缩总结
+            start: 开始位置
+            end: 结束位置
 
         Returns:
             str: 生成的总结文本
@@ -254,17 +266,31 @@ class LLM:
             try:
                 # 构建对话历史
                 client = LLM(DEFAULT_API, "private")
-                client.build_conv_messages(conversation_id)
-                client.messages.append(
-                    {
-                        "role": "user",
-                        "content": f"请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
-                                   f"只输出三段内容，不要输出任何多余的内容，格式如下："
-                                   f"\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
-                                   f"故事总结：交代整体的时间地点人物事件要素，200字左右\r\n"
-                                   f"最近互动：总结最近4轮对话，用户和角色在做什么",
-                    }
-                )
+                
+                if summary_type == 'save':
+                    client.build_conv_messages(conversation_id)
+                    client.messages.append(
+                        {
+                            "role": "user",
+                            "content": f"请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
+                                    f"只输出三段内容，不要输出任何多余的内容，格式如下："
+                                    f"\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
+                                    f"故事总结：交代整体的时间地点人物事件要素，200字左右\r\n"
+                                    f"最近互动：总结最近4轮对话，用户和角色在做什么"
+                        }
+                    )
+                elif summary_type == 'zip':
+                    client.build_conv_messages_for_summary(conversation_id,start,end)
+                    client.messages.append(
+                        {
+                            "role": "user",
+                            "content": f"请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
+                                    f"只输出指定内容，不要输出任何多余的内容，格式如下："
+                                    f"\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
+                                    f"故事总结：类似电影解说的文本，让读者快速了解故事发展到了哪里，1000字左右\r\n"
+                                    
+                        }
+                    )
                 return await client.final_response()
 
             except Exception as e:
@@ -332,7 +358,7 @@ class LLM:
                 raise ValueError(f"生成角色失败: {str(e)}")
 
     @staticmethod
-    def calculate_token_count(text: str | None) -> int:
+    def calculate_token_count(text: str) -> int:
         """
         计算文本的token数量
 

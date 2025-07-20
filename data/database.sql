@@ -123,4 +123,12 @@ create table users
     remain_frequency integer,
     balance          REAL
 );
+create table dialog_summary
+(
+    conv_id      integer not null,
+    summary_id   integer,
+    summary_area ANY,
+    content      TEXT
+);
+
 
