@@ -40,6 +40,9 @@ class LLMClientManager:
     _lock = asyncio.Lock()  # 客户端操作锁
 
     def __new__(cls):
+        """
+        实现单例模式，确保只有一个LLMClientManager实例。
+        """
         if cls._instance is None:
             cls._instance = super(LLMClientManager, cls).__new__(cls)
         return cls._instance
@@ -74,14 +77,22 @@ class LLMClientManager:
             return self._clients[client_key]
 
     async def close_all_clients(self):
+        """
+        关闭所有已创建的LLM客户端连接并清空连接池。
+        """
         async with self._lock:
             for client in self._clients.values():
                 await client.close()
             self._clients.clear()
-            # print("所有LLM客户端已关闭")
 
     @property
     def semaphore(self) -> asyncio.Semaphore:
+        """
+        获取用于控制并发请求的信号量。
+        
+        Returns:
+            asyncio.Semaphore: 并发信号量。
+        """
         return self._semaphore
 
 
@@ -90,7 +101,17 @@ llm_client_manager = LLMClientManager()
 
 
 class LLM:
+    """
+    LLM类用于处理与大型语言模型（LLM）的交互，包括构建消息、发送请求和处理响应。
+    """
     def __init__(self, api=DEFAULT_API, chat_type="private"):
+        """
+        初始化LLM实例。
+
+        Args:
+            api (str): API名称，默认为DEFAULT_API。
+            chat_type (str): 聊天类型，'private' 或 'group'。
+        """
         self.key, self.base_url, self.model = get_api_config(api)
         self.client = None
         self.messages = []
@@ -127,7 +148,18 @@ class LLM:
         self.messages = messages
         return None
     
-    def build_conv_messages_for_summary(self,conv_id=0,start:int=0,end:int=0):
+    def build_conv_messages_for_summary(self, conv_id: int = 0, start: int = 0, end: int = 0):
+        """
+        为消息摘要构建符合OpenAI API要求的消息列表。
+
+        Args:
+            conv_id (int): 对话ID。
+            start (int): 对话历史的起始索引。
+            end (int): 对话历史的结束索引。
+
+        Returns:
+            list: 格式化后的消息列表，包含role和content字段。
+        """
         dialog_history = db.dialog_content_load(conv_id, self.chat_type)
         if not dialog_history:
             return None
@@ -136,6 +168,14 @@ class LLM:
         dialog_history = dialog_history[start:end]
 
     async def embedd_all_text(self, images: list = None, context=None, group_id=None):
+        """
+        将所有文本（包括图像和上下文）嵌入到消息列表中。
+
+        Args:
+            images (list, optional): 图像列表。默认为None。
+            context (any, optional): 上下文信息。默认为None。
+            group_id (any, optional): 群组ID。默认为None。
+        """
         if self.chat_type == "private":
             # print(f"正在查询{self.conv_id}")
             char, _ = db.conversation_private_get(self.conv_id)
@@ -162,15 +202,42 @@ class LLM:
             self.messages.append({"role": "user", "content": user_content})
 
     def set_messages(self, messages):
+        """
+        设置LLM实例的消息列表。
+
+        Args:
+            messages (list): 消息列表。
+        """
         self.messages = messages
 
     def set_prompt(self, prompts):
+        """
+        设置LLM实例的提示。
+
+        Args:
+            prompts (any): 提示内容。
+        """
         self.prompts = prompts
 
     def set_default_client(self):
+        """
+        将LLM实例的API配置重置为默认API。
+        """
         self.key, self.base_url, self.model = get_api_config(DEFAULT_API)
 
     async def response(self, stream: bool = False):
+        """
+        向LLM发送请求并获取响应。
+
+        Args:
+            stream (bool): 是否以流式方式获取响应。默认为False。
+
+        Yields:
+            str: 响应内容。
+
+        Raises:
+            RuntimeError: API调用失败时抛出。
+        """
         self.client = await llm_client_manager.get_client(
             self.key, self.base_url, self.model
         )
@@ -196,6 +263,12 @@ class LLM:
                 raise RuntimeError(f"API调用失败 (stream): {str(e)}")
 
     async def final_response(self):
+        """
+        获取最终的LLM响应。
+
+        Returns:
+            str: 完整的响应内容。
+        """
         response_chunks = []
         response = ""
         async for chunk in self.response():
@@ -382,19 +455,34 @@ class PromptCache:
     _instance = None
 
     def __new__(cls):
+        """实现单例模式，确保只有一个PromptCache实例。
+        
+        Returns:
+            PromptCache: PromptCache的单例实例。
+        """
         if cls._instance is None:
             cls._instance = super(PromptCache, cls).__new__(cls)
             cls._instance._init_cache()
         return cls._instance
 
     def _init_cache(self):
-        """初始化缓存"""
+        """初始化缓存系统。
+        
+        设置提示数据缓存、角色数据缓存和缓存过期时间。
+        """
         self.prompt_data_cache = {}  # 提示数据缓存
         self.character_cache = {}  # 角色数据缓存
         self.cache_ttl = get_config("cache.ttl", 3600)  # 缓存过期时间（秒）
 
     def get_prompt_data(self, file_path: str) -> Optional[Dict]:
-        """获取提示数据，如果缓存中没有或已过期则从文件加载"""
+        """获取提示数据，如果缓存中没有或已过期则从文件加载。
+        
+        Args:
+            file_path (str): 提示数据文件的路径。
+            
+        Returns:
+            Optional[Dict]: 提示数据字典，如果加载失败则返回None。
+        """
         current_time = time.time()
 
         # 检查缓存是否存在且未过期
@@ -410,7 +498,14 @@ class PromptCache:
         return data
 
     def get_character(self, character_name: str) -> str:
-        """获取角色数据，如果缓存中没有或已过期则从文件加载"""
+        """获取角色数据，如果缓存中没有或已过期则从文件加载。
+        
+        Args:
+            character_name (str): 角色名称。
+            
+        Returns:
+            str: 角色数据字符串。
+        """
         current_time = time.time()
 
         # 检查缓存是否存在且未过期
@@ -426,12 +521,19 @@ class PromptCache:
         return data
 
     def clear_cache(self):
-        """清除所有缓存"""
+        """清除所有缓存数据。
+        
+        清空提示数据缓存和角色数据缓存。
+        """
         self.prompt_data_cache.clear()
         self.character_cache.clear()
 
     def set_cache_ttl(self, seconds: int):
-        """设置缓存过期时间"""
+        """设置缓存过期时间。
+        
+        Args:
+            seconds (int): 缓存过期时间（秒），必须大于0。
+        """
         if seconds > 0:
             self.cache_ttl = seconds
 
@@ -441,7 +543,16 @@ prompt_cache = PromptCache()
 
 
 class Prompts:
+    """提示管理类，用于加载和处理各种提示模板。"""
+    
     def __init__(self, preset, user_input=None, char=None):
+        """初始化Prompts实例。
+        
+        Args:
+            preset (str): 预设模板名称。
+            user_input (str, optional): 用户输入内容。默认为None。
+            char (str, optional): 角色名称。默认为None。
+        """
         prompt_path = get_path("prompt_path")
         self.data = prompt_cache.get_prompt_data(prompt_path)
         self.char = char
@@ -459,8 +570,9 @@ class Prompts:
         self.load_prompt_part()
 
     def load_prompt_part(self):
-        """
-        从 preset_list 中找到匹配的 preset 模板，并加载各个部分的提示内容。
+        """从preset_list中找到匹配的preset模板，并加载各个部分的提示内容。
+        
+        根据预设名称查找对应的模板，然后加载System、COT、Control等各个部分的提示内容。
         """
         preset_list = self.data.get("prompt_set_list", [])
         # logger.debug(f"preset list: {preset_list}")
@@ -498,6 +610,12 @@ class Prompts:
         self._insert_input()
 
     def _load_prompt_content(self, prompt_part_type, combine):
+        """加载指定类型的提示内容。
+        
+        Args:
+            prompt_part_type (str): 提示部分类型（如System、COT、Control等）。
+            combine (list): 组合配置列表。
+        """
         PROMPT_PART_CONFIG = {
             "System": {"tag": "system", "description": ""},
             "COT": {"tag": "COT", "description": "以下是你在输出前需要思考的内容"},
@@ -549,6 +667,10 @@ class Prompts:
         self.content += content
 
     def _insert_char(self):
+        """插入角色信息到提示内容中。
+        
+        从缓存中获取角色数据，构建角色标签内容，并插入到COT标签之后。
+        """
         char_txt = prompt_cache.get_character(self.char)
         char_tag = self.build_tagged_content(
             "Character", "以下是你需要扮演的内容", char_txt
@@ -556,7 +678,11 @@ class Prompts:
         self.content = self.insert_text(self.content, char_tag, "</COT>\r\n", "after")
 
     def _insert_input(self):
-        """从用户输入中提取特殊控制标记，返回清理后的输入和控制内容。"""
+        """从用户输入中提取特殊控制标记，返回清理后的输入和控制内容。
+        
+        解析用户输入中的特殊标记（如<something>），将其作为剧情控制内容，
+        并将清理后的输入作为用户输入内容添加到提示中。
+        """
         pattern = r"<([^>]+)>"  # 正则表达式：匹配 <something> 但不包括嵌套
         match = re.search(pattern, self.input)
         if not match:
@@ -587,9 +713,16 @@ class Prompts:
 
     @staticmethod
     def insert_text(raw_text: str, insert_text: str, position: str, mode: str) -> str:
-        """
-        在给定字符串的特定位置（`position` 之前或之后）插入文本。
-        这是一个静态方法，因为它不依赖于实例状态。
+        """在给定字符串的特定位置插入文本。
+        
+        Args:
+            raw_text (str): 原始文本。
+            insert_text (str): 要插入的文本。
+            position (str): 插入位置的标记字符串。
+            mode (str): 插入模式，'before'或'after'。
+            
+        Returns:
+            str: 插入文本后的字符串。
         """
         if not position:
             return raw_text
@@ -608,13 +741,22 @@ class Prompts:
         )
 
     @staticmethod
-    def build_tagged_content(tag="", description="", content_text=""):
+    def build_tagged_content(tag: str = "", description: str = "", content_text: str = "") -> str:
+        """构建带有标签的内容块。
+        
+        Args:
+            tag (str): 标签名称。
+            description (str): 内容描述。
+            content_text (str): 实际内容。
+            
+        Returns:
+            str: 格式化的标签内容块。
+        """
         return f"<{tag}>\r\n{description}\r\n{content_text}\r\n</{tag}>\r\n"
 
     @staticmethod
     def split_prompts(text):
-        """
-        将提示文本分割为系统和用户部分，并保持用户内容的原文顺序。
+        """将提示文本分割为系统和用户部分，并保持用户内容的原文顺序。
 
         Args:
             text (str): 输入的字符串，包含HTML标签包裹的文本。
