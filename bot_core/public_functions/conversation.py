@@ -432,6 +432,7 @@ class PrivateConv:
             self.user = User(update.callback_query.from_user.id)
         # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
+        self.turn = db.dialog_turn_get(self.id, 'private')
         self.config = Config(self.user.id)
         try:
             self.client = LLM(self.config.api, 'private')
@@ -599,10 +600,9 @@ class PrivateConv:
         该方法首先获取当前对话的轮次,然后将用户输入和 LLM 的回复
         分别保存到数据库中.
         """
-        turn = db.dialog_turn_get(self.id, 'private')
-        db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed, self.input.id,
+        db.dialog_content_add(self.id, USER, self.turn + 1, self.input.text_raw, self.input.text_processed, self.input.id,
                               PRIVATE)
-        db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
+        db.dialog_content_add(self.id, ASSISTANT, self.turn + 2, self.output.text_raw, self.output.text_processed,
                               self.output.id,
                               PRIVATE)
 
@@ -623,9 +623,71 @@ class PrivateConv:
         self._update_frequency()
 
     def _update_frequency(self):
+        """
+        更新用户的额度信息。
+
+        如果用户有临时频率（tmp_frequency > 0），则更新签到频率（frequency）；
+        否则，更新剩余频率（remain_frequency）。
+        """
         if self.user.tmp_frequency > 0:
             db.user_sign_info_update(self.user.id, 'frequency', self.config.multiple * -1)
         else:
             db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)
 
+    def _check_summary(self):
+        """
+        检查当前会话是否需要总结。
+        """
 
+        if self.turn <= 60:
+            return  # 轮次未超过60，无需检查
+
+        # 计算需要检查的总结区域数量
+        # 例如：turn=61~90 检查1-30，turn=91~120 检查1-30和31-60，依此类推
+        area_count = (self.turn - 1) // 30  # 61-90=>2, 91-120=>3, 121-150=>4
+
+        summaries = db.dialog_summary_get(self.id)
+        if not summaries:
+            logger.debug("未找到任何总结")
+            return False
+
+        for i in range(1, area_count):
+            start = (i - 1) * 30 + 1
+            end = i * 30
+            area_str = f"{start}-{end}"
+
+            # 检查该区域是否有总结
+            found = any(s.get('summary_area') == area_str for s in summaries)
+            if not found:
+                logger.info(f"缺少区域 {area_str} 的总结")
+                return False
+        return True
+    
+    async def _generate_summary(self, start: int, end: int):
+        """
+        为指定区域的内容生成并添加summary。
+
+        Args:
+            start (int): 区域起始轮次
+            end (int): 区域结束轮次
+
+        Returns:
+            bool: 添加总结是否成功
+        """
+        from utils.LLM_utils import generate_summary
+        from utils.db_utils import dialog_summary_add
+
+        try:
+            # 调用LLM生成summary
+            summary_text = await generate_summary(self.id, summary_type='zip', start=start, end=end)
+            area_str = f"{start}-{end}"
+            # 写入数据库
+            result = dialog_summary_add(self.id, area_str, summary_text)
+            if result:
+                logger.info(f"成功为区域 {area_str} 添加总结")
+            else:
+                logger.warning(f"为区域 {area_str} 添加总结失败")
+            return result
+        except Exception as e:
+            logger.error(f"生成或添加总结时出错: {e}")
+            return False

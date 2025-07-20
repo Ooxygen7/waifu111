@@ -664,6 +664,49 @@ def dialog_last_input_get(conv_id: int) -> str:
     result = query_db(command, (conv_id,))
     return result[1][0] if result else ""
 
+def dialog_summary_get(conv_id: int) -> Optional[list]:
+    """
+    获取指定会话的总结。
+
+    Args:
+        conv_id (int): 会话ID。
+
+    Returns:
+        Optional[list]: 总结内容的列表，每个元素为字典，包含 'summary_area' 和 'content' 字段。
+                        如果没有找到总结，则返回 None。
+
+    示例:
+        >>> dialog_summary_get(123456)
+        [
+            {'summary_area': '1-30', 'content': '时间地点人物事件'},
+            {'summary_area': '31-60', 'content': '时间地点人物事件'}
+        ]
+        >>> dialog_summary_get(999999)
+        None
+    """
+    command = "SELECT summary_area,content FROM dialog_summary WHERE conv_id = ?"
+    result = query_db(command, (conv_id,))
+    if result:
+        # 假设 summary_area, content 两个字段
+        return [{"summary_area": row[0], "content": row[1]} for row in result]
+    else:
+        return None
+
+def dialog_summary_add(conv_id: int, summary_area: str, content: str) -> bool:
+    """
+    向指定会话添加总结。
+
+    Args:
+        conv_id (int): 会话ID。
+        summary_area (str): 总结区域标识，例如 '1-30' 表示第1到30轮对话的总结。
+        content (str): 总结内容。
+
+    Returns:
+        bool: 如果插入成功返回 True，否则返回 False。
+    """
+    command = "INSERT INTO dialog_summary (conv_id, summary_area, content) VALUES (?, ?, ?)"
+    result = revise_db(command, (conv_id, summary_area, content))
+    return result > 0
 
 def conversation_private_create(
     conv_id: int, userid: int, character: str, preset: str
