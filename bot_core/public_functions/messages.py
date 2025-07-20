@@ -1,10 +1,14 @@
-from telegram.ext import ContextTypes
-from utils.LLM_utils import LLM
+import logging
+from typing import Optional
+
 import telegram
 from telegram.error import BadRequest, TelegramError
-import logging
-from utils.logging_utils import setup_logging
+from telegram.ext import ContextTypes
+
 from LLM_tools.tools_registry import parse_and_invoke_tool
+from utils.LLM_utils import LLM
+from utils.logging_utils import setup_logging
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -30,34 +34,61 @@ async def update_message(text:str, placeholder):
             logger.error(f"更新消息时出错: {str(e)}")
             placeholder.edit_text(f"Failed: {e}")
 
-
-async def finalize_message(sent_message, text: str, parse:str = "markdown") -> None:
+async def finalize_message(sent_message, text: str, parse: str = "html", summary: Optional[str] = None) -> None:
     """
     最终更新消息内容，确保显示最终的处理后的响应。
     Args:
         sent_message: 已发送的消息对象。
-        cleared_response (str): 处理后的最终响应内容。
+        text (str): 处理后的最终响应内容。
+        parse (str): 解析模式。
+        summary (str, optional): 总结内容，如果存在则以引用文本块形式附加在消息末尾。
     """
     max_len = 4000
+
+    # 预处理文本，转义HTML特殊字符
+    def sanitize_text(input_text: str) -> str:
+        replacements = {
+            '<': '&lt;',
+            '>': '&gt;',
+            '&': '&amp;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }
+        for old, new in replacements.items():
+            input_text = input_text.replace(old, new)
+        # 移除可能导致渲染问题的控制字符
+        return ''.join(char for char in input_text if ord(char) >= 32 or char in '\n\r\t')
+
+    # 处理主文本
+    text = sanitize_text(text)
+    
+    # 如果有summary，使用HTML引用块格式
+    if summary:
+        sanitized_summary = sanitize_text(summary)
+        # 使用blockquote标签创建引用块
+        text = f"{text}\n\n<blockquote>{sanitized_summary}</blockquote>"
+
     try:
         # Telegram 单条消息最大长度限制4096字符，保险起见用4000
         if len(text) <= max_len:
-            await sent_message.edit_text(text, parse_mode=parse)
-            logger.debug(f"使用了{parse}")
+            await sent_message.edit_text(text, parse_mode="html")
+            logger.debug("使用了HTML渲染")
         else:
             # 超长时分两段发送，先发前半段，再发后半段
-            await sent_message.edit_text(text[:max_len], parse_mode=parse)
-            await sent_message.reply_text(text[max_len:], parse_mode=parse)
+            await sent_message.edit_text(text[:max_len], parse_mode="html")
+            await sent_message.reply_text(text[max_len:], parse_mode="html")
         logger.info(f"输出：\r\n{text}")
     except BadRequest as e:
-        logger.warning(f"{parse} 解析错误: {str(e)}, 禁用 {parse} 重试")
+        logger.warning(f"HTML解析错误: {str(e)}, 禁用HTML重试")
         try:
-            if len(text) <= max_len:
-                await sent_message.edit_text(text, parse_mode=None)
+            # 完全移除所有HTML标签
+            plain_text = text.replace('<blockquote>', '').replace('</blockquote>', '\n').replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&').replace('&quot;', '"').replace('&#39;', "'")
+            if len(plain_text) <= max_len:
+                await sent_message.edit_text(plain_text, parse_mode=None)
             else:
-                await sent_message.edit_text(text[:max_len], parse_mode=None)
-                await sent_message.reply_text(text[max_len:], parse_mode=None)
-            logger.info(f"输出：\r\n{text}")
+                await sent_message.edit_text(plain_text[:max_len], parse_mode=None)
+                await sent_message.reply_text(plain_text[max_len:], parse_mode=None)
+            logger.info(f"输出：\r\n{plain_text}")
         except Exception as e2:
             logger.error(f"再次尝试发送消息失败: {e2}")
             await sent_message.edit_text(f"Failed: {e2}")
@@ -338,7 +369,7 @@ class LLMToolHandler:
                 
             if tool_results_html:
                 iteration_message_text += "\n".join(tool_results_html)
-                logger.debug(f"已添加工具结果到当前轮次消息")
+                logger.debug("已添加工具结果到当前轮次消息")
                 
         # 发送分段消息
         await send_split_message(update, iteration_message_text, placeholder_message, iteration)
@@ -365,7 +396,7 @@ class LLMToolHandler:
             "role": "user",
             "content": feedback_content_to_llm
         })
-        logger.debug(f"已将原始LLM响应和完整工具调用结果反馈给 LLM")
+        logger.debug("已将原始LLM响应和完整工具调用结果反馈给 LLM")
         
     async def process_tool_request(self, update, user_input: str, prompt_text: str, 
                                  character_prompt: str = "", bias_prompt: str = "", 

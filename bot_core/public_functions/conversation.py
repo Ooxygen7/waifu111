@@ -109,6 +109,7 @@ class Message:
             self.text_processed = txt.extract_special_control(text)[0] or text  # 对于输入消息，提取特殊控制内容
         elif mark == 'output':
             self.text_processed = txt.extract_tag_content(text, 'content')  # 对于输出消息，提取标签内容
+            self.text_summary = txt.extract_tag_content(text, 'summary')
         else:
             self.text_processed = text  # 默认情况下，使用原始文本
 
@@ -584,7 +585,7 @@ class PrivateConv:
                     last_update_time = current_time
                 await asyncio.sleep(0.01)
             self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
-            await finalize_message(self.placeholder, self.output.text_processed)
+            await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary)
             if save:
                 await self._save()
         except Exception as e:
