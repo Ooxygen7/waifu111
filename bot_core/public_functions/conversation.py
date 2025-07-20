@@ -325,14 +325,20 @@ class GroupConv:
         副作用:
         更新 self.output 和数据库记录。
         """
-        self.client.build_conv_messages(self.id)
-        self.client.set_prompt(self.prompt_obj.content)
-        await self.client.embedd_all_text(self.images, self.context, self.group.id)
-        logger.debug(f"<最终prompts>: {self.prompt_obj.content}")
-        response = await self.client.final_response()
-        self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
-        await finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
-        self._update_usage_info()  # 更新使用信息
+        try:
+            self.client.build_conv_messages(self.id)
+            self.client.set_prompt(self.prompt_obj.content)
+            await self.client.embedd_all_text(self.images, self.context, self.group.id)
+            logger.debug(f"<最终prompts>: {self.prompt_obj.content}")
+            response = await self.client.final_response()
+            self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
+            await finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
+            self._update_usage_info()  # 更新使用信息
+        except Exception as e:
+            logger.error(f"响应用户时发生异常: {e}", exc_info=True)
+            # 反馈错误到TG
+            error_text = f"❌ 出错了：{str(e)}"
+            await finalize_message(self.placeholder, error_text)
 
     def _new(self):
         """
@@ -563,24 +569,28 @@ class PrivateConv:
         last_updated_content = "..."
         response_chunks = []
 
-        self.client.build_conv_messages(self.id)
-        self.client.set_prompt(self.prompt_obj.content)
-        await self.client.embedd_all_text()
-        async for chunk in self.client.response(self.config.stream):
-            response_chunks.append(chunk)
-            response = "".join(response_chunks)
-            current_time = asyncio.get_event_loop().time()
-            # 每 4 秒或内容显著变化时更新消息
-            if current_time - last_update_time >= 4.0 and response != last_updated_content:
-                await update_message(response, self.placeholder)
-                last_updated_content = response
-                last_update_time = current_time
-            # 短暂让出事件循环控制权，避免长时间占用
-            await asyncio.sleep(0.01)
-        self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
-        await finalize_message(self.placeholder, self.output.text_processed)
-        if save:
-            await self._save()
+        try:
+            self.client.build_conv_messages(self.id)
+            self.client.set_prompt(self.prompt_obj.content)
+            await self.client.embedd_all_text()
+            async for chunk in self.client.response(self.config.stream):
+                response_chunks.append(chunk)
+                response = "".join(response_chunks)
+                current_time = asyncio.get_event_loop().time()
+                # 每 4 秒或内容显著变化时更新消息
+                if current_time - last_update_time >= 4.0 and response != last_updated_content:
+                    await update_message(response, self.placeholder)
+                    last_updated_content = response
+                    last_update_time = current_time
+                await asyncio.sleep(0.01)
+            self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
+            await finalize_message(self.placeholder, self.output.text_processed)
+            if save:
+                await self._save()
+        except Exception as e:
+            logger.error(f"响应用户时发生异常: {e}", exc_info=True)
+            error_text = f"❌ 出错了：{str(e)}"
+            await finalize_message(self.placeholder, error_text)
 
     def _save_turn_content_to_db(self):
         """
