@@ -14,6 +14,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
+    InlineQueryHandler,
     MessageHandler,
     filters,
 )
@@ -22,6 +23,7 @@ import bot_core.message_handlers.group as group_handler
 import bot_core.message_handlers.private as private_handler
 from bot_core.callback_handlers.callback import create_callback_handler  # 修改导入路径
 from bot_core.command_handlers.base import BaseCommand, BotCommandData
+from bot_core.inline_handlers.inline import InlineQueryHandlers
 from bot_core.public_functions.config import BOT_TOKEN
 from bot_core.public_functions.error import BotError, ConfigError
 from utils.logging_utils import setup_logging
@@ -82,6 +84,24 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             except telegram.error.BadRequest:
                 await update.message.reply_text(error_message, parse_mode=None)
             context.user_data["error_notified"] = True  # 标记已发送错误消息
+        elif update and update.inline_query and not context.user_data.get("error_notified"):
+            # 处理内联查询错误
+            try:
+                from telegram import InlineQueryResultArticle, InputTextMessageContent
+                error_results = [
+                    InlineQueryResultArticle(
+                        id="error",
+                        title="查询出错",
+                        description="处理查询时发生错误",
+                        input_message_content=InputTextMessageContent(
+                            message_text=f"查询失败：{str(error)[:500]}"
+                        )
+                    )
+                ]
+                await update.inline_query.answer(results=error_results, cache_time=60)
+                context.user_data["error_notified"] = True
+            except Exception as inline_error:
+                logger.error(f"发送内联查询错误响应失败: {inline_error}", exc_info=True)
     except Exception as e:
         # 确保错误处理器本身的错误不会导致程序崩溃
         logger.critical(
@@ -279,6 +299,15 @@ def setup_handlers(app: Application) -> None:
     # 创建并添加回调处理器
     callback_handler = create_callback_handler(["bot_core.callback_handlers"])
     app.add_handler(CallbackQueryHandler(callback_handler.handle_callback_query))
+
+    # 创建并添加内联查询处理器
+    try:
+        inline_query_handler = InlineQueryHandler(InlineQueryHandlers.handle_inline_query)
+        app.add_handler(inline_query_handler)
+        logger.info("内联查询处理器已注册")
+    except Exception as e:
+        logger.error(f"注册内联查询处理器失败: {e}", exc_info=True)
+        # 不中断启动过程，只记录错误
 
     # 添加消息处理器
     for handler in message_handlers:

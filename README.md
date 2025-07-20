@@ -14,6 +14,7 @@
 - 🛠️ **LLM 工具调用**：集成多种工具，支持数据库查询、市场分析等功能
 - 🎯 **权限管理系统**：用户等级、管理员权限、群组权限精细控制
 - 💾 **对话持久化**：对话保存/加载、历史记录管理
+- 🔍 **内联查询功能**：通过 @botname 快速查询角色、预设和帮助信息
 - 🌐 **Web 管理后台**：用户管理、数据统计、系统监控
 - 🔧 **高度可扩展**：模块化架构，易于添加新功能和命令
 
@@ -39,6 +40,13 @@ cyberwaifu_bot/
 │   │   ├── 📄 callback.py          # 🎛️ 内联键盘回调处理
 │   │   ├── 📄 inline.py            # ⌨️ 内联键盘生成
 │   │   └── 📄 director_classes.py  # 🎬 导演模式（多角色对话）
+│   ├── 📁 inline_handlers/          # 🔍 内联查询处理器
+│   │   ├── 📄 base.py              # 🏗️ 内联查询基类和元数据
+│   │   ├── 📄 inline.py            # 🔄 查询路由和分发管理
+│   │   ├── 📄 character.py         # 🎭 角色查询处理器
+│   │   ├── 📄 preset.py            # ⚙️ 预设查询处理器
+│   │   ├── 📄 help.py              # 📖 帮助查询处理器
+│   │   └── 📄 default.py           # 💡 默认查询处理器
 │   └── 📁 public_functions/         # 🔧 公共功能模块
 │       ├── 📄 conversation.py      # 💭 对话管理核心
 │       ├── 📄 config.py            # ⚙️ 配置管理
@@ -195,6 +203,14 @@ docker run -d --name cyber-waifu-container \
 | `/crypto [币种] [参数]` | 加密货币分析（完整命令） | `/crypto ethereum short` |
 | `/director` | 导演模式（多角色对话） | `/director` |
 | `/done` | 标记任务完成 | `/done` |
+
+#### 🔍 内联查询功能
+| 查询格式 | 描述 | 示例 |
+|----------|------|------|
+| `@botname char [搜索词]` | 查询可用角色列表 | `@botname char miku` |
+| `@botname preset [搜索词]` | 查询可用预设列表 | `@botname preset nsfw` |
+| `@botname help` | 获取内联查询帮助 | `@botname help` |
+| `@botname` | 显示基本使用提示 | `@botname` |
 
 **加密货币分析参数说明：**
 - `long` - 多头分析倾向
