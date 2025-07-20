@@ -86,20 +86,7 @@ create table groups
     disabled_topics TEXT
 );
 
-create table sqlite_master
-(
-    type     TEXT,
-    name     TEXT,
-    tbl_name TEXT,
-    rootpage INT,
-    sql      TEXT
-);
 
-create table sqlite_sequence
-(
-    name,
-    seq
-);
 
 create table user_config
 (
