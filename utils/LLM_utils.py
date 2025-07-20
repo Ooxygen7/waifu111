@@ -265,7 +265,7 @@ class LLM:
         async with llm_client_manager.semaphore:
             try:
                 # 构建对话历史
-                client = LLM(DEFAULT_API, "private")
+                client = LLM("gemini-2", "private")
                 
                 if summary_type == 'save':
                     client.build_conv_messages(conversation_id)
