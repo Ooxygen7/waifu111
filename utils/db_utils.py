@@ -7,7 +7,7 @@ import threading
 from sqlite3 import Error
 from typing import Any, List, Optional, Tuple
 
-from utils.config_utils import get_config, get_path
+from utils.config_utils import get_config, project_root
 from utils.logging_utils import setup_logging
 
 setup_logging()
@@ -26,8 +26,9 @@ def init_database_if_not_exists():
     """
     检查 data/data.db 是否存在，如果不存在则用 data/database.sql 初始化数据库。
     """
-    db_path = os.path.join("data", "data.db")
-    sql_path = os.path.join("data", "database.sql")
+    # 使用绝对路径，确保无论从哪个目录运行都能找到文件
+    db_path = os.path.join(project_root, "data", "data.db")
+    sql_path = os.path.join(project_root, "data", "database.sql")
     if not os.path.exists(db_path):
         logger.info("检测到 data.db 不存在，正在初始化数据库...")
         try:
@@ -66,6 +67,24 @@ class DatabaseConnectionPool:
         Returns:
             DatabaseConnectionPool: 单例实例
         """
+        with cls._lock:
+            if cls._instance is None:
+                cls._instance = super(DatabaseConnectionPool, cls).__new__(cls)
+                # 初始化实例属性
+                cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self, db_file: Optional[str] = None, max_connections: Optional[int] = None):
+        """
+        初始化数据库连接池。
+        
+        Args:
+            db_file: 数据库文件路径，如果为None则使用配置中的路径
+            max_connections: 连接池中的最大连接数，如果为None则使用配置中的值
+        """
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+            
         # 优先使用传入的参数，其次是环境变量，最后是配置文件
         if db_file is None:
             db_file = os.environ.get("DB_PATH", get_config("database.default_path"))
@@ -73,15 +92,13 @@ class DatabaseConnectionPool:
         # 获取最大连接数
         if max_connections is None:
             max_connections = get_config("database.max_connections", 5)
-        with cls._lock:
-            if cls._instance is None:
-                cls._instance = super(DatabaseConnectionPool, cls).__new__(cls)
-                cls._instance.db_file = db_file
-                cls._instance.max_connections = max_connections
-                cls._instance.connections: List[sqlite3.Connection] = []
-                cls._instance.connection_locks: List[threading.Lock] = []
-                cls._instance.initialize_pool()
-        return cls._instance
+            
+        self.db_file = db_file
+        self.max_connections = max_connections
+        self.connections: List[sqlite3.Connection] = []
+        self.connection_locks: List[threading.Lock] = []
+        self._initialized = True
+        self.initialize_pool()
 
     def initialize_pool(self):
         """
@@ -1032,11 +1049,11 @@ def group_config_get(group_id: int) -> Optional[Tuple[str, str, str]]:
         group_id: 群组ID
 
     Returns:
-        Optional[Tuple[str, str, str]]: (api, char, preset) 元组，如果未找到则返回False
+        Optional[Tuple[str, str, str]]: (api, char, preset) 元组，如果未找到则返回None
     """
     command = "SELECT api, char, preset FROM groups WHERE group_id = ?"
     result = query_db(command, (group_id,))
-    return result[0] if result else False
+    return result[0] if result else None
 
 
 def group_config_arg_update(group_id: int, field: str, value: Any) -> bool:
