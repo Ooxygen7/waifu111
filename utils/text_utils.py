@@ -12,7 +12,10 @@ def extract_tag_content(text, tag):
     Returns:
         匹配的标签内容，如果没有匹配到，则返回原始文本。
         如果没有找到结束标签，则找最后一个开始标签，返回开始标签到结束的内容
+        返回前会移除所有html标签及其内容，确保返回纯文本。
     """
+    import re
+
     end_tag = f"</{tag}>"
     start_tag = f"<{tag}>"
 
@@ -23,25 +26,30 @@ def extract_tag_content(text, tag):
         # 查找最后一个开始标签的位置
         last_start_tag_index = text.rfind(start_tag)
         if last_start_tag_index == -1:
-            return text  # 没有找到起始标签，返回原始文本
+            result = text  # 没有找到起始标签，返回原始文本
         else:
             # 返回从最后一个开始标签到文本结束的内容
             content_start = last_start_tag_index + len(start_tag)
-            extracted_content = text[content_start:]
-            return extracted_content
+            result = text[content_start:]
     else:  # 找到结束标签
         # 从最后一个结束标签往前查找起始标签
         remaining_text = text[:last_end_tag_index]
         first_start_tag_index = remaining_text.rfind(start_tag)
 
         if first_start_tag_index == -1:
-            return text  # 没有找到起始标签，返回原始文本
+            result = text  # 没有找到起始标签，返回原始文本
         else:
             # 提取标签内容
             content_start = first_start_tag_index + len(start_tag)
             content_end = last_end_tag_index
-            extracted_content = text[content_start:content_end]
-            return extracted_content
+            result = text[content_start:content_end]
+
+    # 移除所有html标签及其内容
+    # 先移除所有形如 <xxx>...</xxx> 的标签及其内容（非贪婪匹配，支持嵌套外层）
+    result = re.sub(r'<[^>/]+>.*?</[^>]+>', '', result, flags=re.DOTALL)
+    # 再移除所有单独的标签 <xxx ...> 或 </xxx>
+    result = re.sub(r'<[^>]+>', '', result)
+    return result
 
 
 
