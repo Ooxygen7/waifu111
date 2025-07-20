@@ -199,6 +199,7 @@ class CommandHandlers:
                     f"Error importing module {module_name}: {e}", exc_info=True
                 )  # 打印导入错误，方便调试
                 continue
+            
             for name, obj in inspect.getmembers(module):  # 扫描模块中的所有成员
 
                 if (
@@ -320,7 +321,7 @@ def setup_handlers(app: Application) -> None:
 
 def start_web_app():
     """
-    启动Web管理界面
+     启动Web管理界面
     """
     try:
         # 获取当前脚本所在目录
@@ -340,7 +341,7 @@ def main() -> None:
     """
     主函数，初始化并启动Telegram Bot和Web管理界面。
 
-    Note:
+     Note:
         1. 初始化应用实例
         2. 设置命令菜单
         3. 注册消息处理器

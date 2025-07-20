@@ -22,6 +22,27 @@ DEFAULT_FREQUENCY = get_config("user.default_frequency")  # 用户默认的每�
 DEFAULT_BALANCE = get_config("user.default_balance")  # 用户默认的初始余额
 
 
+def init_database_if_not_exists():
+    """
+    检查 data/data.db 是否存在，如果不存在则用 data/database.sql 初始化数据库。
+    """
+    db_path = os.path.join("data", "data.db")
+    sql_path = os.path.join("data", "database.sql")
+    if not os.path.exists(db_path):
+        logger.info("检测到 data.db 不存在，正在初始化数据库...")
+        try:
+            with open(sql_path, "r", encoding="utf-8") as f:
+                sql_script = f.read()
+            conn = sqlite3.connect(db_path)
+            with conn:
+                conn.executescript(sql_script)
+            conn.close()
+            logger.info("数据库初始化完成！")
+        except Exception as e:
+            logger.error(f"数据库初始化失败: {e}", exc_info=True)
+            raise RuntimeError(f"数据库初始化失败: {e}")
+
+
 class DatabaseConnectionPool:
     """
     数据库连接池，使用单例模式实现。
@@ -119,7 +140,8 @@ class DatabaseConnectionPool:
         self.connection_locks = []
 
 
-# 创建全局连接池实例
+# 创建全局连接池实例前，先确保数据库存在
+init_database_if_not_exists()
 db_pool = DatabaseConnectionPool()
 
 
