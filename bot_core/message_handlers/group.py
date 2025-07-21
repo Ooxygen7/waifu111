@@ -13,8 +13,7 @@ from bot_core.public_functions.update_parse import update_info_get
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
 from . import features
-
-setup_logging()
+from utils.config_utils import get_config
 logger = logging.getLogger(__name__)
 
 

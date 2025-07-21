@@ -7,7 +7,7 @@ import asyncio
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
-
+from utils.db_utils import dialog_summary_add
 from utils.config_utils import get_api_multiple
 from bot_core.public_functions.messages import update_message, finalize_message,send_message
 
@@ -674,12 +674,11 @@ class PrivateConv:
         Returns:
             bool: 添加总结是否成功
         """
-        from utils.LLM_utils import generate_summary
-        from utils.db_utils import dialog_summary_add
+
 
         try:
             # 调用LLM生成summary
-            summary_text = await generate_summary(self.id, summary_type='zip', start=start, end=end)
+            summary_text = await LLM.generate_summary(self.id, summary_type='zip', start=start, end=end)
             area_str = f"{start}-{end}"
             # 写入数据库
             result = dialog_summary_add(self.id, area_str, summary_text)

@@ -16,6 +16,9 @@ from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
 from LLM_tools.tools_registry import parse_and_invoke_tool, MarketToolRegistry
 from bot_core.public_functions.messages import LLMToolHandler
+from utils.config_utils import get_config
+fuck_api = get_config("fuck_or_not_api", "gemini-2")
+setup_logging()
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -570,8 +573,6 @@ class FuckCommand(BaseCommand):
             ]
             
             # 创建LLM实例并获取回复
-            from utils.config_utils import get_config
-            fuck_api = get_config("fuck_or_not_api", "gemini-2")  # 从配置文件读取API，默认使用gemini-2
             llm_instance = llm.LLM(api=fuck_api)
             llm_instance.set_messages(messages)
             response = await llm_instance.final_response()
