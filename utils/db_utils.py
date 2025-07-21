@@ -25,10 +25,13 @@ DEFAULT_BALANCE = get_config("user.default_balance")  # 用户默认的初始余
 def init_database_if_not_exists():
     """
     检查 data/data.db 是否存在，如果不存在则用 data/database.sql 初始化数据库。
+    同时检查所需的表是否都存在，如果有缺失则创建。
     """
     # 使用绝对路径，确保无论从哪个目录运行都能找到文件
     db_path = os.path.join(project_root, "data", "data.db")
     sql_path = os.path.join(project_root, "data", "database.sql")
+    
+    # 如果数据库文件不存在，创建新数据库
     if not os.path.exists(db_path):
         logger.info("检测到 data.db 不存在，正在初始化数据库...")
         try:
@@ -42,6 +45,47 @@ def init_database_if_not_exists():
         except Exception as e:
             logger.error(f"数据库初始化失败: {e}", exc_info=True)
             raise RuntimeError(f"数据库初始化失败: {e}")
+    
+    # 检查所需表是否存在
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # 获取sql文件中的所有CREATE TABLE语句
+        with open(sql_path, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+            create_table_statements = [stmt.strip() for stmt in sql_content.split(';') 
+                                     if 'CREATE TABLE' in stmt.upper()]
+        
+        # 获取当前数据库中的所有表
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        existing_tables = set(table[0] for table in cursor.fetchall())
+        
+        # 检查每个CREATE TABLE语句
+        for stmt in create_table_statements:
+            # 提取表名 - 使用大小写不敏感的方式
+            stmt_upper = stmt.upper()
+            if 'CREATE TABLE' in stmt_upper:
+                # 找到CREATE TABLE的位置，然后提取表名
+                create_table_pos = stmt_upper.find('CREATE TABLE')
+                table_part = stmt[create_table_pos + len('CREATE TABLE'):].strip()
+                table_name = table_part.split('(')[0].strip()
+                
+                if table_name not in existing_tables:
+                    logger.info(f"检测到缺失表 {table_name}，正在创建...")
+                    try:
+                        cursor.execute(stmt)
+                        conn.commit()
+                        logger.info(f"表 {table_name} 创建成功")
+                    except sqlite3.Error as e:
+                        logger.error(f"创建表 {table_name} 失败: {e}")
+                        raise
+        
+        conn.close()
+        
+    except Exception as e:
+        logger.error(f"检查数据库表结构时发生错误: {e}", exc_info=True)
+        raise RuntimeError(f"检查数据库表结构失败: {e}")
 
 
 class DatabaseConnectionPool:
