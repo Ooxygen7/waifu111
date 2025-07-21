@@ -127,19 +127,24 @@ class LLM:
         Returns:
             list: 格式化后的消息列表，包含role和content字段
         """
-        dialog_history = db.dialog_content_load(conv_id, self.chat_type)
+
         self.conv_id = conv_id
         # print(f"对象conv_id已储存：{self.conv_id}")
-        if not dialog_history:
-            return None
+        
         
         
 
         if self.chat_type == "group":  # 如果 type 是 'group'，限制对话历史
+            dialog_history = db.dialog_content_load(conv_id, self.chat_type)
+        if not dialog_history:
+            return None
             group_limit = get_config("dialog.group_history_limit", 10)
             dialog_history = dialog_history[-group_limit:]
-        if self.chat_type == "private":
+        elif self.chat_type == "private":
             # 获取私聊历史记录限制
+            dialog_history = db.dialog_content_load(conv_id, self.chat_type,raw=True)
+            if not dialog_history:
+                return None
             private_limit = get_config("dialog.private_history_limit", 60)
             summary_location = db.dialog_summary_location_get(self.conv_id)
             turn = db.dialog_turn_get(self.conv_id, self.chat_type)
