@@ -136,8 +136,8 @@ class LLM:
 
         if self.chat_type == "group":  # 如果 type 是 'group'，限制对话历史
             dialog_history = db.dialog_content_load(conv_id, self.chat_type)
-        if not dialog_history:
-            return None
+            if not dialog_history:
+                return None
             group_limit = get_config("dialog.group_history_limit", 10)
             dialog_history = dialog_history[-group_limit:]
         elif self.chat_type == "private":
