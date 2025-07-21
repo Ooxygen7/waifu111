@@ -132,12 +132,24 @@ class LLM:
         # print(f"对象conv_id已储存：{self.conv_id}")
         if not dialog_history:
             return None
+        
+        
 
         if self.chat_type == "group":  # 如果 type 是 'group'，限制对话历史
             group_limit = get_config("dialog.group_history_limit", 10)
             dialog_history = dialog_history[-group_limit:]
         if self.chat_type == "private":
-            private_limit = get_config("dialog.private_history_limit", 70)
+            
+            private_limit = get_config("dialog.private_history_limit", 60)
+            summary_location = db.dialog_summary_location_get(self.conv_id)
+            turn = db.dialog_turn_get(self.conv_id)
+            if summary_location:
+                private_limit = turn - summary_location
+                logger.debug(f"该对话共{turn}轮,已总结到{summary_location}轮")
+                logger.debug(f"读取最新{private_limit}轮对话")
+                if private_limit>60:
+                    logger.debug(f"对话轮数超过60轮,限制为60轮")
+                    private_limit = 60
             dialog_history = dialog_history[-private_limit:]
 
         messages = []
@@ -166,6 +178,15 @@ class LLM:
         if start == 0 and end == 0:
             end = len(dialog_history)
         dialog_history = dialog_history[start:end]
+        messages = []
+        for role, turn_order, content in dialog_history:
+            formatted_role = role.lower()
+            if formatted_role in ["user", "assistant"] and content:
+                messages.append({"role": formatted_role, "content": content})
+        self.messages = messages
+        return None
+
+
 
     async def embedd_all_text(self, images: list = None, context=None, group_id=None):
         """
@@ -200,6 +221,9 @@ class LLM:
             self.messages.append({"role": "user", "content": content_list})
         else:
             self.messages.append({"role": "user", "content": user_content})
+        # logger.debug("完整消息:\r\n")
+        # for i in self.messages:
+            # logger.debug(f"{i}")
 
     def set_messages(self, messages):
         """
@@ -319,7 +343,7 @@ class LLM:
             return {}
 
     @staticmethod
-    async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0) -> str:
+    async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0,usernick= None,char = None) -> str:
         """
         生成对话总结
 
@@ -354,13 +378,14 @@ class LLM:
                     )
                 elif summary_type == 'zip':
                     client.build_conv_messages_for_summary(conversation_id,start,end)
+                    logger.debug(f"总结文本内容：\r\n{client.messages}")
                     client.messages.append(
                         {
                             "role": "user",
-                            "content": f"请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
+                            "content": f"请你总结我们到现在为止的对话(这是一个故事片段)，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
                                     f"只输出指定内容，不要输出任何多余的内容，格式如下："
                                     f"\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
-                                    f"故事总结：类似电影解说的文本，让读者快速了解故事发展到了哪里，1000字左右\r\n"
+                                    f"故事总结：类似电影解说的文本，让读者快速了解这一片段内发生的事，1000字左右\r\n"
                                     
                         }
                     )
@@ -545,7 +570,7 @@ prompt_cache = PromptCache()
 class Prompts:
     """提示管理类，用于加载和处理各种提示模板。"""
     
-    def __init__(self, preset, user_input=None, char=None):
+    def __init__(self, preset, user_input=None, char=None,summary=None):
         """初始化Prompts实例。
         
         Args:
@@ -558,6 +583,7 @@ class Prompts:
         self.char = char
         self.char_txt = prompt_cache.get_character(self.char)
         self.preset = preset
+        self.summart_txt = summary
         self.system_txt = None
         self.control_txt = None
         self.cot_text = None
@@ -821,5 +847,4 @@ class Prompts:
             user_content = None
         if not system_content:
             system_content = None
-
         return {"system": system_content, "user": user_content}

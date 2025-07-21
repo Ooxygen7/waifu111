@@ -432,6 +432,7 @@ class PrivateConv:
             self.user = User(update.callback_query.from_user.id)
         # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
+        self.summary = db.dialog_summary_get(self.id) or []
         self.turn = db.dialog_turn_get(self.id, 'private')
         self.config = Config(self.user.id)
         try:
@@ -456,6 +457,7 @@ class PrivateConv:
                                                               'before')
         else:
             self.prompt_obj = None
+        asyncio.create_task(self._check_summary())
 
     async def response(self, save=True):
         """
@@ -573,6 +575,15 @@ class PrivateConv:
 
         try:
             self.client.build_conv_messages(self.id)
+            
+
+            if self.summary and len(self.summary) > 2:
+                self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, f"\r\n<summaries>\r\n"
+                                                                                               f"以下是在对话前已经发生的故事总结，提供给你作为参考:\r\n"
+                                                                                               f"{str(self.summary[:-1])}\r\n"
+                                                                                               f"</summaries>\r\n",
+                                                                      '</Character>', 'after')
+            #logger.debug(f"该对话有{len(self.summary)}个大总结\r\n嵌入后的完整prompts:{self.prompt_obj.content}")
             self.client.set_prompt(self.prompt_obj.content)
             await self.client.embedd_all_text()
             async for chunk in self.client.response(self.config.stream):
@@ -634,35 +645,51 @@ class PrivateConv:
         else:
             db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)
 
-    def _check_summary(self):
+    async def _check_summary(self):
         """
-        检查当前会话是否需要总结。
+        检查当前会话是否需要总结。如果缺少总结则自动补全所有缺失区域的总结（后台任务，按序执行）。
         """
-
+        logger.debug(f"开始检查对话{self.id}是否存在摘要")
         if self.turn <= 60:
-            return  # 轮次未超过60，无需检查
+            logger.debug(f"轮次不足，跳过检查")
+            return False  # 轮次未超过60，无需检查
 
         # 计算需要检查的总结区域数量
-        # 例如：turn=61~90 检查1-30，turn=91~120 检查1-30和31-60，依此类推
         area_count = (self.turn - 1) // 30  # 61-90=>2, 91-120=>3, 121-150=>4
+        summaries = self.summary
 
-        summaries = db.dialog_summary_get(self.id)
-        if not summaries:
-            logger.debug("未找到任何总结")
-            return False
+        # 构建已存在的总结区域集合
+        exist_areas = set()
+        for s in summaries:
+            area = s.get('summary_area')
+            if area:
+                exist_areas.add(area)
 
+        # 需要补全的区域列表
+        missing_areas = []
         for i in range(1, area_count):
             start = (i - 1) * 30 + 1
             end = i * 30
             area_str = f"{start}-{end}"
+            if area_str not in exist_areas:
+                missing_areas.append((start, end, area_str))
 
-            # 检查该区域是否有总结
-            found = any(s.get('summary_area') == area_str for s in summaries)
-            if not found:
-                logger.info(f"缺少区域 {area_str} 的总结")
-                return False
-        return True
-    
+        if not missing_areas:
+            return True  # 所有区域都有总结
+
+        logger.info(f"发现缺失总结的区域: {[a[2] for a in missing_areas]}，将依次补全（后台任务）。")
+
+        async def generate_all_summaries():
+            for start, end, area_str in missing_areas:
+                result = await self._generate_summary(start, end)
+                if not result:
+                    logger.warning(f"区域 {area_str} 总结生成失败，后续区域不再尝试。")
+                    break
+
+        # 启动后台任务
+        asyncio.create_task(generate_all_summaries())
+        return False  # 返回False，表示总结还未全部补全
+
     async def _generate_summary(self, start: int, end: int):
         """
         为指定区域的内容生成并添加summary。
@@ -674,19 +701,24 @@ class PrivateConv:
         Returns:
             bool: 添加总结是否成功
         """
-
-
-        try:
-            # 调用LLM生成summary
-            summary_text = await LLM.generate_summary(self.id, summary_type='zip', start=start, end=end)
-            area_str = f"{start}-{end}"
-            # 写入数据库
-            result = dialog_summary_add(self.id, area_str, summary_text)
-            if result:
-                logger.info(f"成功为区域 {area_str} 添加总结")
-            else:
-                logger.warning(f"为区域 {area_str} 添加总结失败")
-            return result
-        except Exception as e:
-            logger.error(f"生成或添加总结时出错: {e}")
-            return False
+        area_str = f"{start}-{end}"
+        max_retry = 4
+        for attempt in range(1, max_retry + 1):
+            try:
+                summary_text = await LLM.generate_summary(self.id, summary_type='zip', start=start, end=end)
+                # 检查summary_text长度
+                if not summary_text or len(summary_text) < 300:
+                    logger.warning(f"第{attempt}次尝试：区域 {area_str} 生成的总结过短（<300字符），将重试。")
+                    continue
+                result = dialog_summary_add(self.id, area_str, summary_text)
+                if result:
+                    logger.info(f"成功为区域 {area_str} 添加总结")
+                    return True
+                else:
+                    logger.warning(f"为区域 {area_str} 添加总结失败")
+                    # 这里也重试
+            except Exception as e:
+                logger.error(f"第{attempt}次尝试：生成或添加总结时出错: {e}")
+                continue
+        logger.error(f"区域 {area_str} 总结生成失败，已达最大重试次数。")
+        return False

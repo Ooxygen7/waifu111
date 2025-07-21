@@ -104,7 +104,7 @@
       {
         "name": "Plot_format",
         "display": "限制输出格式",
-        "content": "格式规范，只包含thinking、content、summary三个标签，先用thinking标签输出思考的内容，再用content标签输出正文内容，最后用summary标签总结正文故事，包含时间地点人物事件和值得注意的事，100字以内\n示范：\n<thinking>\n思考的内容\n</thinking>\n<content>\n正文内容\n</content>\n<summary>\n总结\n<summary>"
+        "content": "格式规范，只包含thinking、content、summary三个标签，先用thinking标签输出思考的内容，再用content标签输出正文内容，最后用summary标签总结正文故事，包含时间地点人物事件和值得注意的事，100字以内\n示范：\n<thinking>\n思考的内容\n</thinking>\n<content>\n正文内容\n</content>\n<summary>\n总结\n</summary>"
       },
       {
         "name": "COT_format",

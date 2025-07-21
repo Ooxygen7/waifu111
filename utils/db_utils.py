@@ -691,6 +691,31 @@ def dialog_summary_get(conv_id: int) -> Optional[list]:
         return [{"summary_area": row[0], "content": row[1]} for row in result]
     else:
         return None
+        
+def dialog_summary_location_get(conv_id: int) -> Optional[int]:
+    """
+    获取指定对话已总结到的最大轮数。
+
+    Args:
+        conv_id (int): 会话ID。
+
+    Returns:
+        Optional[int]: 已总结到的最大轮数。如果没有总结记录，返回None。
+    """
+    summaries = dialog_summary_get(conv_id)
+    if not summaries:
+        return None
+        
+    max_turn = 0
+    for summary in summaries:
+        # 解析summary_area字段,格式为"起始轮数-结束轮数"
+        try:
+            end_turn = int(summary['summary_area'].split('-')[1])
+            max_turn = max(max_turn, end_turn)
+        except (ValueError, IndexError):
+            continue
+            
+    return max_turn if max_turn > 0 else None
 
 def dialog_summary_add(conv_id: int, summary_area: str, content: str) -> bool:
     """
