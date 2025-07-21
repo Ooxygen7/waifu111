@@ -232,7 +232,7 @@ class LLM:
 
 
 
-    async def embedd_all_text(self, images: list = None, context=None, group_id=None):
+    async def embedd_all_text(self, images = None, context=None, group_id=1):
         """
         将所有文本（包括图像和上下文）嵌入到消息列表中。
 
@@ -241,11 +241,11 @@ class LLM:
             context (any, optional): 上下文信息。默认为None。
             group_id (any, optional): 群组ID。默认为None。
         """
-        if self.chat_type == "private":
+        if self.chat_type == "private" and self.conv_id:
             # print(f"正在查询{self.conv_id}")
-            char, _ = db.conversation_private_get(self.conv_id)
-        elif self.chat_type == "group":
-            char, _ = db.conversation_group_config_get(self.conv_id, group_id)
+            char, _ = db.conversation_private_get(self.conv_id) or [None,None]
+        elif self.chat_type == "group" and self.conv_id:
+            char, _ = db.conversation_group_config_get(self.conv_id, group_id) or [None,None]
         split_prompts = Prompts.split_prompts(self.prompts)
         self.messages.insert(0, {"role": "system", "content": split_prompts["system"]})
         user_content = split_prompts["user"]
