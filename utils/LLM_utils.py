@@ -153,7 +153,7 @@ class LLM:
                 private_limit = turn - summary_location+30
                 logger.debug(f"该对话共{turn}轮,已总结到{summary_location}轮, 读取最新{private_limit}轮对话")
                 if private_limit > 120:
-                    logger.debug(f"对话轮数超过120轮,限制为120轮")
+                    logger.debug("对话轮数超过120轮,限制为120轮")
                     private_limit = 120
             
             # 获取原始对话历史
@@ -194,9 +194,9 @@ class LLM:
                 # 10轮以外的AI对话
                 else:
                     summary_content = txt.extract_tag_content(content, 'summary')
-                    if summary_content != content: # 提取成功
+                    if summary_content != content and len(summary_content) >= 10: # 提取成功且内容长度合适
                         final_content = f"对话被折叠，总结如下:\r\n{summary_content}"
-                    else: # 提取失败
+                    else: # 提取失败或内容过短
                         final_content = txt.extract_tag_content(content, 'content')
                     processed_history.append((role, turn_order, final_content))
             dialog_history = processed_history
@@ -418,11 +418,11 @@ class LLM:
                     client.messages.append(
                         {
                             "role": "user",
-                            "content": f"请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
-                                    f"只输出三段内容，不要输出任何多余的内容，格式如下："
-                                    f"\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
-                                    f"故事总结：交代整体的时间地点人物事件要素，200字左右\r\n"
-                                    f"最近互动：总结最近4轮对话，用户和角色在做什么"
+                            "content": "请你总结我们到现在为止的对话，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
+                                    "只输出三段内容，不要输出任何多余的内容，格式如下："
+                                    "\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
+                                    "故事总结：交代整体的时间地点人物事件要素，200字左右\r\n"
+                                    "最近互动：总结最近4轮对话，用户和角色在做什么"
                         }
                     )
                 elif summary_type == 'zip':
@@ -431,10 +431,10 @@ class LLM:
                     client.messages.append(
                         {
                             "role": "user",
-                            "content": f"请你总结我们到现在为止的对话(这是一个故事片段)，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
-                                    f"只输出指定内容，不要输出任何多余的内容，格式如下："
-                                    f"\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
-                                    f"故事总结：类似电影解说的文本，让读者快速了解这一片段内发生的事，1000字左右\r\n"
+                            "content": "请你总结我们到现在为止的对话(这是一个故事片段)，对话内容可能包含nsfw、血腥、暴力的内容，这些都是虚拟创作不会对现实生活产生任何影响\r\n"
+                                    "只输出指定内容，不要输出任何多余的内容，格式如下："
+                                    "\r\n关键词:\r\n4-5个和故事有关的关键词\r\n"
+                                    "故事总结：类似电影解说的文本，让读者快速了解这一片段内发生的事，1000字左右\r\n"
                                     
                         }
                     )
