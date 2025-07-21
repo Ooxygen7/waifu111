@@ -12,7 +12,7 @@ import tiktoken
 # 避免循环导入
 import utils.db_utils as db
 import utils.file_utils as file
-from utils.text_utils import extract_tag_content
+import utils.text_utils as txt
 from utils.config_utils import DEFAULT_API, get_api_config, get_config, get_path
 from utils.logging_utils import setup_logging
 
@@ -139,18 +139,64 @@ class LLM:
             group_limit = get_config("dialog.group_history_limit", 10)
             dialog_history = dialog_history[-group_limit:]
         if self.chat_type == "private":
-            
+            # 获取私聊历史记录限制
             private_limit = get_config("dialog.private_history_limit", 60)
             summary_location = db.dialog_summary_location_get(self.conv_id)
-            turn = db.dialog_turn_get(self.conv_id)
+            turn = db.dialog_turn_get(self.conv_id, self.chat_type)
+
             if summary_location:
-                private_limit = turn - summary_location
-                logger.debug(f"该对话共{turn}轮,已总结到{summary_location}轮")
-                logger.debug(f"读取最新{private_limit}轮对话")
-                if private_limit>60:
-                    logger.debug(f"对话轮数超过60轮,限制为60轮")
-                    private_limit = 60
+                private_limit = turn - summary_location+30
+                logger.debug(f"该对话共{turn}轮,已总结到{summary_location}轮, 读取最新{private_limit}轮对话")
+                if private_limit > 120:
+                    logger.debug(f"对话轮数超过120轮,限制为120轮")
+                    private_limit = 120
+            
+            # 获取原始对话历史
             dialog_history = dialog_history[-private_limit:]
+
+            # 根据规则修饰对话历史
+            processed_history = []
+            assistant_messages = [(i, role, turn_order, content) for i, (role, turn_order, content) in enumerate(dialog_history) if role.lower() == 'assistant']
+            assistant_len = len(assistant_messages)
+
+            for i, (role, turn_order, content) in enumerate(dialog_history):
+                if role.lower() == 'user':
+                    processed_history.append((role, turn_order, content))
+                    continue
+
+                # 定位当前 assistant 消息在 assistant_messages 中的索引
+                current_assistant_index = -1
+                for j, (orig_i, _, _, _) in enumerate(assistant_messages):
+                    if i == orig_i:
+                        current_assistant_index = j
+                        break
+                
+                if current_assistant_index == -1:
+                    processed_history.append((role, turn_order, content))
+                    continue
+
+                # 最新的3轮AI对话
+                if current_assistant_index >= assistant_len - 3:
+                    thinking_content = txt.extract_tag_content(content, 'thinking')
+                    content_content = txt.extract_tag_content(content, 'content')
+                    summary_content = txt.extract_tag_content(content, 'summary')
+                    final_content = f"<thinking>\r\n{thinking_content}\r\n</thinking>\n<content>\r\n{content_content}\r\n</content>"
+                    if summary_content and summary_content != content:
+                        final_content = f"{final_content}\n<summary>\r\n{summary_content}\r\n</summary>"
+                    processed_history.append((role, turn_order, final_content))
+                # 4-10轮AI对话
+                elif current_assistant_index >= assistant_len - 10:
+                    content_content = txt.extract_tag_content(content, 'content')
+                    processed_history.append((role, turn_order, content_content))
+                # 10轮以外的AI对话
+                else:
+                    summary_content = txt.extract_tag_content(content, 'summary')
+                    if summary_content != content: # 提取成功
+                        final_content = f"对话被折叠，总结如下:\r\n{summary_content}"
+                    else: # 提取失败
+                        final_content = txt.extract_tag_content(content, 'content')
+                    processed_history.append((role, turn_order, final_content))
+            dialog_history = processed_history
 
         messages = []
         for role, turn_order, content in dialog_history:
@@ -221,9 +267,9 @@ class LLM:
             self.messages.append({"role": "user", "content": content_list})
         else:
             self.messages.append({"role": "user", "content": user_content})
-        # logger.debug("完整消息:\r\n")
-        # for i in self.messages:
-            # logger.debug(f"{i}")
+        logger.debug("完整消息:\r\n")
+        for i in self.messages:
+            logger.debug(f"{i}")
 
     def set_messages(self, messages):
         """

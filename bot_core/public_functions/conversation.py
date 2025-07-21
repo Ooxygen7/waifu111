@@ -579,9 +579,10 @@ class PrivateConv:
 
             if self.summary :
                 logger.debug(f"该对话有{len(self.summary)}个大总结")
+                logger.debug(f"{(len(self.summary)-1)*30}轮之前的消息已作为总结添加")
                 self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, f"\r\n<summaries>\r\n"
                                                                                                f"以下是在对话前已经发生的故事总结，提供给你作为参考:\r\n"
-                                                                                               f"{str(self.summary)}\r\n"
+                                                                                               f"{str(self.summary[:-1])}\r\n"
                                                                                                f"</summaries>\r\n",
                                                                       '</Character>', 'after')
             
