@@ -578,12 +578,13 @@ class PrivateConv:
             
 
             if self.summary :
+                logger.debug(f"该对话有{len(self.summary)}个大总结")
                 self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, f"\r\n<summaries>\r\n"
                                                                                                f"以下是在对话前已经发生的故事总结，提供给你作为参考:\r\n"
                                                                                                f"{str(self.summary)}\r\n"
                                                                                                f"</summaries>\r\n",
                                                                       '</Character>', 'after')
-            #logger.debug(f"该对话有{len(self.summary)}个大总结\r\n嵌入后的完整prompts:{self.prompt_obj.content}")
+            
             self.client.set_prompt(self.prompt_obj.content)
             await self.client.embedd_all_text()
             async for chunk in self.client.response(self.config.stream):
@@ -650,6 +651,7 @@ class PrivateConv:
         检查当前会话是否需要总结。如果缺少总结则自动补全所有缺失区域的总结（后台任务，按序执行）。
         """
         logger.debug(f"开始检查对话{self.id}是否存在摘要")
+        logger.debug(f"该对话轮次为{self.turn}轮")
         if self.turn <= 60:
             logger.debug(f"轮次不足，跳过检查")
             return False  # 轮次未超过60，无需检查
