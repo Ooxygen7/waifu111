@@ -577,10 +577,10 @@ class PrivateConv:
             self.client.build_conv_messages(self.id)
             
 
-            if self.summary and len(self.summary) > 2:
+            if self.summary :
                 self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, f"\r\n<summaries>\r\n"
                                                                                                f"以下是在对话前已经发生的故事总结，提供给你作为参考:\r\n"
-                                                                                               f"{str(self.summary[:-1])}\r\n"
+                                                                                               f"{str(self.summary)}\r\n"
                                                                                                f"</summaries>\r\n",
                                                                       '</Character>', 'after')
             #logger.debug(f"该对话有{len(self.summary)}个大总结\r\n嵌入后的完整prompts:{self.prompt_obj.content}")
