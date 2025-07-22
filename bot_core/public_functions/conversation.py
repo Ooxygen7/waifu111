@@ -385,7 +385,6 @@ class PrivateConv:
         user (User): 用户对象, 包含用户的 ID 等信息.
         input (Message): 用户输入的消息对象.
         output (Message): LLM 生成的回复消息对象.
-        prompt (obj): 用于传递给 LLM 的提示字符串.
         config (Config): 配置对象, 包含与用户相关的配置信息, 如角色,预设等.
         id (int): 会话 ID, 用于在数据库中标识会话.
     """
@@ -522,7 +521,7 @@ class PrivateConv:
     def set_callback_data(self, data):
         """
         设置回调数据.
-        该方法用于处理回调查询,将回调数据设置为输入消息,并重新构建 prompt.
+        该方法用于处理回调查询,将回调数据设置为输入消息
         Args:
             data (str): 回调数据.
         """
@@ -540,12 +539,12 @@ class PrivateConv:
         try:
             self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,self.user.nick)
             self.prompt_obj.build_conv_messages(self.id,"private")
-            self.prompt_obj.build_openai_messages()
-            self.client.set_messages(self.prompt_obj.messages)
             if self.summary :
                 logger.debug(f"该对话有{len(self.summary)}个大总结")
                 logger.debug(f"{(len(self.summary)-1)*30}轮之前的消息已作为总结添加")
                 self.prompt_obj.insert_summary(str(self.summary[:-1]))
+            self.prompt_obj.build_openai_messages()
+            self.client.set_messages(self.prompt_obj.messages)
             async for chunk in self.client.response(self.config.stream):
                 response_chunks.append(chunk)
                 response = "".join(response_chunks)
