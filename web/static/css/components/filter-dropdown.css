@@ -1,124 +1,8 @@
 /* 
- * User Components
- * 用户组件样式
+ * Filter Dropdown Components
+ * 筛选下拉组件样式
  */
 
-/* 用户信息 */
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-/* 用户头像 */
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: var(--primary-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  flex-shrink: 0;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.avatar-image {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary-color);
-  background: linear-gradient(135deg, var(--primary-light) 0%, rgba(0, 242, 254, 0.2) 100%);
-}
-
-.avatar-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* 用户详情 */
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-weight: 500;
-  color: var(--text-primary);
-  transition: all 0.3s ease;
-}
-
-.user-status {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-left: var(--spacing-xs);
-}
-
-.user-status.active {
-  background-color: var(--success-color);
-  box-shadow: 0 0 0 2px rgba(var(--success-rgb), 0.2);
-}
-
-.user-status.inactive {
-  background-color: var(--text-muted);
-}
-
-.user-fullname {
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-}
-
-/* 用户统计徽章 */
-.stat-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: var(--bg-light);
-  border-radius: var(--border-radius-md);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  transition: all 0.3s ease;
-}
-
-.stat-value {
-  font-weight: 600;
-  color: var(--text-primary);
-  transition: all 0.3s ease;
-}
-
-.stat-label {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-}
-
-/* 日期信息 */
-.date-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.date-value {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.date-time {
-  font-size: var(--font-size-xs);
-}
-
-/* 用户ID徽章 */
-.user-id {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-}
-
-/* 用户筛选组件 */
 .filter-container {
   position: relative;
   display: flex;
@@ -160,23 +44,29 @@
 
 .filter-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 5px);
   left: 0;
-  z-index: 100;
+  z-index: 1000;
   min-width: 240px;
   background-color: white;
   border-radius: var(--border-radius-md);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  margin-top: var(--spacing-xs);
   display: none;
+  border: 1px solid var(--border-color);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
 }
 
 .filter-dropdown.show {
   display: block;
-  animation: dropdown-fade-in 0.2s ease;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
 }
 
-@keyframes dropdown-fade-in {
+@keyframes filter-dropdown-fade-in {
   from {
     opacity: 0;
     transform: translateY(-10px);
@@ -269,6 +159,7 @@
   .filter-container {
     flex-direction: column;
     align-items: flex-start;
+    width: 100%;
   }
   
   .filter-button {
@@ -277,22 +168,12 @@
   
   .filter-dropdown {
     width: 100%;
+    left: 0;
+    right: 0;
   }
 }
 
 /* 暗色主题适配 */
-[data-theme="dark"] .user-avatar {
-  background-color: var(--primary-dark);
-}
-
-[data-theme="dark"] .avatar-image {
-  background: linear-gradient(135deg, var(--primary-dark) 0%, rgba(0, 242, 254, 0.1) 100%);
-}
-
-[data-theme="dark"] .stat-badge {
-  background-color: var(--bg-dark);
-}
-
 [data-theme="dark"] .filter-button {
   background-color: var(--bg-dark);
   border-color: var(--border-dark);
@@ -301,6 +182,7 @@
 [data-theme="dark"] .filter-dropdown {
   background-color: var(--bg-dark);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: var(--border-dark);
 }
 
 [data-theme="dark"] .filter-group {

@@ -895,3 +895,123 @@ class Prompts:
         if not system_content:
             system_content = None
         return {"system": system_content, "user": user_content}
+
+class PromptsBuilder:
+    """提示词构建器类，用于构建和组合提示词。
+    该类负责从提示词配置文件中加载并组合提示词片段，生成完整的提示词内容。
+    """
+
+    def __init__(self, prompts_set:Optional[str], input_txt:Optional[str], 
+                 character:Optional[str], dialog:Optional[list], 
+                 user_nick:Optional[str], summary:Optional[str]):
+        """初始化PromptsBuilder实例。
+
+        Args:
+            prompts_set: 提示词集合名称。
+            input_txt: 用户输入文本。
+            character: 角色信息。
+            dialog: 对话历史列表。
+            user_nick: 用户昵称。
+            summary: 对话总结。
+        """
+        self.user_nick = user_nick or ""
+        self.prompts_name = prompts_set
+        self.input = input_txt or ""
+        self.character = character or ""
+        self.dialog = dialog or []
+        self.list = []
+        self.messages = []
+    
+    def build_base_list(self):
+        """构建提示词列表。
+
+        从配置文件中加载提示词片段，根据提示词集合名称查找对应的组合规则，
+        按规则组合生成完整的提示词列表。
+
+        Returns:
+            List: 组合后的提示词列表，每个元素为字典，包含:
+                - type: 提示词类型
+                - content: 提示词内容
+            如果未找到指定的提示词集合则返回None
+        """
+        prompts_content_data = file.load_prompts(data="prompts") or []
+        prompts_set_list = file.load_prompts(data="prompt_set_list") or []
+        
+        # 在列表中查找匹配的提示词集合
+        prompts_set_info = None
+        for prompt_set in prompts_set_list:
+            if prompt_set.get("name") == self.prompts_name:
+                prompts_set_info = prompt_set
+                break
+                
+        if not prompts_set_info:
+            logger.warning(f"未找到名为 {self.prompts_name} 的提示词集合")
+            return None
+            
+        prompts_combine = prompts_set_info.get("combine", [])
+        # 构建 name 到 content 的索引，加速查找
+        prompt_dict = {
+            part.get("name", ""): {
+                "type": part.get("type", ""),
+                "content": part.get("content", "")
+            } for part in prompts_content_data
+        }
+        
+        # 按照combine顺序组合提示词
+        combined_prompts = []
+        for prompt_name in prompts_combine:
+            if prompt_name in prompt_dict:
+                combined_prompts.append({
+                    "type": prompt_dict[prompt_name]["type"],
+                    "content": prompt_dict[prompt_name]["content"]
+                })
+        self.list = combined_prompts
+        return self.list
+ 
+    def insert_character(self):
+        """插入角色信息。
+
+        遍历提示词列表，根据提示词类型插入角色信息。
+
+        Returns:
+            None
+        """
+        
+        char_txt = prompt_cache.get_character(self.character)
+
+        for item in self.list:
+            if item["type"] == "char_placeholder":
+                item["content"] = char_txt
+    
+    def insert_input(self):
+        """插入用户输入。
+
+        遍历提示词列表，根据提示词类型插入用户输入。
+
+        Returns:
+            None
+        """
+        for item in self.list:
+            if item["type"] == "input_placeholder":
+                item["content"] = self.user_nick +": "+ self.input
+    
+    def insert_any(self,insert_info:dict):
+        """插入任意信息。
+
+        遍历提示词列表，根据提示词类型插入任意信息。
+
+        Args:
+            insert_info: 插入信息，包含:
+                - location: type
+                - mode: "before"/"after"
+                - content: 插入内容
+
+        Returns:
+            None
+        """
+        for item in self.list:
+            if item["type"] == insert_info["location"]:
+                if insert_info["mode"] == "before":
+                    item["content"] = insert_info["content"] + item["content"]
+                elif insert_info["mode"] == "after":
+                    item["content"] = item["content"] + insert_info["content"]

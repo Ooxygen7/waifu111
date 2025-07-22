@@ -5,65 +5,86 @@
 // 初始化排序下拉菜单的动画效果
 function initSortDropdownAnimation() {
   const sortDropdowns = document.querySelectorAll('.sort-dropdown');
-  
+
   sortDropdowns.forEach(dropdown => {
     const button = dropdown.querySelector('.filter-button');
     const menu = dropdown.querySelector('.sort-menu');
-    
+
     if (!button || !menu) return;
-    
+
     // 添加动画类
     menu.classList.add('animate-dropdown');
-    
+
     // 点击按钮切换菜单显示状态
     button.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
+
+      // 检查当前菜单是否已经显示
+      const isCurrentlyVisible = menu.classList.contains('show');
       
-      const isExpanded = menu.classList.toggle('show');
-      button.setAttribute('aria-expanded', isExpanded);
+      // 先关闭所有打开的下拉菜单
+      document.querySelectorAll('.sort-menu.show, .filter-dropdown.show').forEach(openMenu => {
+        openMenu.classList.remove('show');
+        const openButton = openMenu.closest('.sort-dropdown')?.querySelector('.filter-button') || 
+                          openMenu.previousElementSibling;
+        if (openButton) {
+          openButton.setAttribute('aria-expanded', 'false');
+          openButton.classList.remove('active');
+        }
+      });
       
+      // 如果当前菜单之前不是显示状态，则显示它
+      if (!isCurrentlyVisible) {
+        menu.classList.add('show');
+        button.setAttribute('aria-expanded', 'true');
+        button.classList.add('active');
+        
+        // 确保下拉菜单在视口内
+        setTimeout(() => {
+          const menuRect = menu.getBoundingClientRect();
+          const viewportWidth = window.innerWidth;
+          
+          if (menuRect.right > viewportWidth) {
+            menu.style.left = 'auto';
+            menu.style.right = '0';
+          }
+        }, 0);
+      } else {
+        button.setAttribute('aria-expanded', 'false');
+        button.classList.remove('active');
+      }
+
       // 添加按钮点击波纹效果
       const ripple = document.createElement('span');
       ripple.className = 'button-ripple';
       ripple.style.left = (e.offsetX) + 'px';
       ripple.style.top = (e.offsetY) + 'px';
       button.appendChild(ripple);
-      
+
       // 动画结束后移除元素
       setTimeout(() => {
         ripple.remove();
       }, 600);
-      
-      // 关闭其他打开的下拉菜单
-      document.querySelectorAll('.sort-menu.show').forEach(openMenu => {
-        if (openMenu !== menu) {
-          openMenu.classList.remove('show');
-          const openButton = openMenu.closest('.sort-dropdown').querySelector('.filter-button');
-          if (openButton) {
-            openButton.setAttribute('aria-expanded', 'false');
-          }
-        }
-      });
     });
-    
+
     // 点击排序选项时添加动画效果
     const sortItems = menu.querySelectorAll('.sort-item');
     sortItems.forEach(item => {
-      item.addEventListener('click', function(e) {
+      item.addEventListener('click', function (e) {
         // 添加点击波纹效果
         const ripple = document.createElement('span');
         ripple.className = 'sort-item-ripple';
         ripple.style.left = (e.offsetX) + 'px';
         ripple.style.top = (e.offsetY) + 'px';
         this.appendChild(ripple);
-        
+
         // 动画结束后移除元素
         setTimeout(() => {
           ripple.remove();
         }, 600);
       });
-      
+
       // 添加键盘导航支持
       item.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -73,20 +94,20 @@ function initSortDropdownAnimation() {
       });
     });
   });
-  
+
   // 点击外部关闭排序菜单
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.sort-dropdown').forEach(dropdown => {
       const button = dropdown.querySelector('.filter-button');
       const menu = dropdown.querySelector('.sort-menu');
-      
+
       if (button && menu && !dropdown.contains(e.target)) {
         menu.classList.remove('show');
         button.setAttribute('aria-expanded', 'false');
       }
     });
   });
-  
+
   // 添加键盘导航支持
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -106,16 +127,16 @@ function updateSortingIndicators() {
   const urlParams = new URLSearchParams(window.location.search);
   const sortBy = urlParams.get('sort_by');
   const sortOrder = urlParams.get('sort_order');
-  
+
   if (!sortBy) return;
-  
+
   // 更新排序下拉按钮文本
   const sortDropdowns = document.querySelectorAll('.sort-dropdown');
-  
+
   sortDropdowns.forEach(dropdown => {
     const button = dropdown.querySelector('.filter-button');
     if (!button) return;
-    
+
     const sortNames = {
       'conv_id': '对话ID',
       'user_id': '用户',
@@ -128,16 +149,16 @@ function updateSortingIndicators() {
       'date': '日期',
       'status': '状态'
     };
-    
+
     const orderIcon = sortOrder === 'asc' ? '↑' : '↓';
     const sortName = sortNames[sortBy] || sortBy;
-    
+
     // 更新排序按钮文本，显示当前排序方式
     const buttonContent = `
       <span class="filter-button-icon">↕️</span>
       ${sortName} ${orderIcon}
     `;
-    
+
     // 保留原始的下拉箭头
     const arrowSpan = button.querySelector('.dropdown-arrow');
     if (arrowSpan) {
@@ -147,13 +168,13 @@ function updateSortingIndicators() {
       button.innerHTML = buttonContent + '<span class="dropdown-arrow">▼</span>';
     }
   });
-  
+
   // 添加排序状态标签
   const filterContainers = document.querySelectorAll('.filter-container');
-  
+
   filterContainers.forEach(container => {
     if (!container || !sortBy) return;
-    
+
     const existingTag = container.querySelector('.sort-status-tag');
     if (!existingTag) {
       const sortNames = {
@@ -168,24 +189,24 @@ function updateSortingIndicators() {
         'date': '日期',
         'status': '状态'
       };
-      
+
       const orderText = sortOrder === 'asc' ? '升序' : '降序';
       const sortName = sortNames[sortBy] || sortBy;
-      
+
       const sortTag = document.createElement('div');
       sortTag.className = 'filter-tag sort-status-tag';
-      
+
       // 构建清除排序的URL
       const currentUrl = new URL(window.location.href);
       currentUrl.searchParams.delete('sort_by');
       currentUrl.searchParams.delete('sort_order');
-      
+
       sortTag.innerHTML = `
         按${sortName}${orderText}
         <a href="${currentUrl.toString()}" 
            class="filter-tag-close" aria-label="清除排序">✕</a>
       `;
-      
+
       // 在搜索框后面插入排序标签
       const searchContainer = container.querySelector('.search-container');
       if (searchContainer && searchContainer.nextElementSibling) {

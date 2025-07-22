@@ -730,10 +730,41 @@ function showUserDetailModal(userId) {
                 contentElement.style.display = 'block';
                 
                 // 获取用户数据
-                const userName = document.querySelector(`tr:has(.user-id:contains("${userId}")) .user-name`)?.textContent || `用户 ${userId}`;
-                const userDate = document.querySelector(`tr:has(.user-id:contains("${userId}")) .date-value`)?.textContent || '-';
-                const userConversations = document.querySelector(`tr:has(.user-id:contains("${userId}")) td:nth-child(4) .stat-value`)?.textContent || '0';
-                const userMessages = document.querySelector(`tr:has(.user-id:contains("${userId}")) td:nth-child(5) .stat-value`)?.textContent || '0';
+                // 使用更兼容的方式查找用户数据
+                let userName = `用户 ${userId}`;
+                let userDate = '-';
+                let userConversations = '0';
+                let userMessages = '0';
+                
+                // 查找包含该用户ID的行
+                const rows = document.querySelectorAll('tr.table-row-interactive');
+                for (const row of rows) {
+                    const userIdElement = row.querySelector('.user-id');
+                    if (userIdElement && userIdElement.textContent.trim() === userId) {
+                        // 找到匹配的行，获取数据
+                        const userNameElement = row.querySelector('.user-name');
+                        if (userNameElement) {
+                            userName = userNameElement.textContent;
+                        }
+                        
+                        const dateElement = row.querySelector('.date-value');
+                        if (dateElement) {
+                            userDate = dateElement.textContent;
+                        }
+                        
+                        const conversationsElement = row.querySelector('td:nth-child(4) .stat-value');
+                        if (conversationsElement) {
+                            userConversations = conversationsElement.textContent;
+                        }
+                        
+                        const messagesElement = row.querySelector('td:nth-child(5) .stat-value');
+                        if (messagesElement) {
+                            userMessages = messagesElement.textContent;
+                        }
+                        
+                        break;
+                    }
+                }
                 
                 // 更新用户信息
                 modalOverlay.querySelector('.user-modal-name').textContent = userName;
@@ -748,7 +779,10 @@ function showUserDetailModal(userId) {
                     
                     // 添加数字动画
                     statValues.forEach(value => {
-                        animateNumber(value);
+                        // 确保值是一个DOM元素而不是选择器字符串
+                        if (value instanceof Element) {
+                            animateNumber(value);
+                        }
                     });
                 }
             }

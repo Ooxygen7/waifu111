@@ -138,14 +138,30 @@ function addSkeletonLoading(selector) {
 
 /**
  * 添加数字动画效果
- * @param {string} selector - 目标元素选择器
+ * @param {string|HTMLElement|NodeList} selector - 目标元素选择器或DOM元素
  * @param {number} duration - 动画持续时间（毫秒）
  * @param {boolean} formatNumber - 是否格式化数字（添加千位分隔符）
  */
 function animateNumbers(selector, duration = 1500, formatNumber = true) {
-    const elements = document.querySelectorAll(selector);
+    let elements;
     
-    elements.forEach(element => {
+    // 处理不同类型的输入
+    if (typeof selector === 'string') {
+        // 如果是选择器字符串，使用querySelectorAll
+        elements = document.querySelectorAll(selector);
+    } else if (selector instanceof Element) {
+        // 如果是单个DOM元素，创建一个包含它的数组
+        elements = [selector];
+    } else if (selector instanceof NodeList || Array.isArray(selector)) {
+        // 如果是NodeList或数组，直接使用
+        elements = selector;
+    } else {
+        // 无效的选择器
+        console.error('无效的选择器类型:', selector);
+        return;
+    }
+    
+    Array.from(elements).forEach(element => {
         // 添加动画类
         element.classList.add('animate-number');
         
