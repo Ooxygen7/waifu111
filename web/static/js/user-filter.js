@@ -50,39 +50,24 @@ function initUserFiltering() {
         e.preventDefault();
         e.stopPropagation();
         
-        // 切换下拉菜单显示状态
-        const isCurrentlyVisible = filterDropdown.classList.contains('show');
+        console.log('筛选按钮被点击');
         
-        // 先移除所有其他可能打开的下拉菜单
-        document.querySelectorAll('.filter-dropdown.show').forEach(dropdown => {
-            dropdown.classList.remove('show');
-            const btn = dropdown.previousElementSibling;
-            if (btn && btn.classList.contains('filter-button')) {
-                btn.setAttribute('aria-expanded', 'false');
-                btn.classList.remove('active');
-            }
-        });
-        
-        // 如果当前不可见，则显示
-        if (!isCurrentlyVisible) {
-            filterDropdown.classList.add('show');
-            filterButton.setAttribute('aria-expanded', 'true');
+        // 简单地切换下拉菜单的显示状态
+        if (filterDropdown.style.display === 'block') {
+            filterDropdown.style.display = 'none';
+            filterButton.classList.remove('active');
+        } else {
+            filterDropdown.style.display = 'block';
             filterButton.classList.add('active');
             
             // 确保下拉菜单在视口内
-            setTimeout(() => {
-                const dropdownRect = filterDropdown.getBoundingClientRect();
-                const viewportWidth = window.innerWidth;
-                
-                if (dropdownRect.right > viewportWidth) {
-                    filterDropdown.style.left = 'auto';
-                    filterDropdown.style.right = '0';
-                }
-            }, 0);
-        } else {
-            filterDropdown.classList.remove('show');
-            filterButton.setAttribute('aria-expanded', 'false');
-            filterButton.classList.remove('active');
+            const dropdownRect = filterDropdown.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            
+            if (dropdownRect.right > viewportWidth) {
+                filterDropdown.style.left = 'auto';
+                filterDropdown.style.right = '0';
+            }
         }
     });
     
@@ -146,8 +131,8 @@ function initUserFiltering() {
     
     // 点击页面其他区域关闭筛选下拉菜单
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.filter-container') && filterDropdown.classList.contains('show')) {
-            filterDropdown.classList.remove('show');
+        if (!e.target.closest('.filter-container') && filterDropdown.style.display === 'block') {
+            filterDropdown.style.display = 'none';
             filterButton.setAttribute('aria-expanded', 'false');
             filterButton.classList.remove('active');
         }
@@ -182,6 +167,8 @@ function initUserFiltering() {
  * @param {Object} filters - 筛选条件对象
  */
 function applyFilters(filters) {
+    console.log('应用筛选条件:', filters);
+    
     // 获取当前URL并移除现有的筛选参数
     const url = new URL(window.location.href);
     const params = url.searchParams;
@@ -198,19 +185,25 @@ function applyFilters(filters) {
         params.set(`filter_${key}`, value);
     }
     
-    // 保留页码、搜索词和排序参数
+    // 保留搜索词和排序参数
     const search = params.get('search') || '';
     const sort_by = params.get('sort_by') || 'create_at';
     const sort_order = params.get('sort_order') || 'desc';
     
     // 重置页码为1，因为筛选条件改变了
     params.set('page', '1');
-    params.set('search', search);
-    params.set('sort_by', sort_by);
-    params.set('sort_order', sort_order);
+    
+    // 确保其他参数存在
+    if (search) params.set('search', search);
+    if (sort_by) params.set('sort_by', sort_by);
+    if (sort_order) params.set('sort_order', sort_order);
+    
+    // 构建新的URL
+    const newUrl = url.toString();
+    console.log('跳转到新URL:', newUrl);
     
     // 跳转到筛选后的URL
-    window.location.href = url.toString();
+    window.location.href = newUrl;
 }
 
 /**

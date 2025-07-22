@@ -28,12 +28,15 @@
   font-size: var(--font-size-sm);
   cursor: pointer;
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .filter-button:hover,
 .filter-button.active {
   border-color: var(--primary-color);
   color: var(--primary-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .filter-button-icon {
@@ -53,17 +56,6 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   display: none;
   border: 1px solid var(--border-color);
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(-10px);
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-}
-
-.filter-dropdown.show {
-  display: block;
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
 }
 
 @keyframes filter-dropdown-fade-in {

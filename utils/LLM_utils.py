@@ -1015,3 +1015,54 @@ class PromptsBuilder:
                     item["content"] = insert_info["content"] + item["content"]
                 elif insert_info["mode"] == "after":
                     item["content"] = item["content"] + insert_info["content"]
+        
+    def build_openai_messages(self):
+        """构建OpenAI消息格式。
+        遍历提示词列表，根据提示词类型构建OpenAI消息格式。
+        """
+        messages = []
+        messages.append({"role":"user","content":self._combine_messages_via_dialog_mark(mode="before")})
+        for i in self.dialog:
+            messages.append(i)
+
+        messages.append({"role":"user","content":self._combine_messages_via_dialog_mark(mode="after")})
+        self.messages = messages
+
+    def _combine_messages_via_dialog_mark(self, mode="before"):
+        """
+        根据mode参数组合消息内容
+        
+        Args:
+            mode (str): 'before' - 组合dialog_mark_start及之前的消息
+                       'after' - 组合dialog_mark_end及之后的消息
+        
+        Returns:
+            str: 组合后的消息内容
+        """
+        dialog_mark_index = -1
+        mark_type = "dialog_mark_start" if mode == "before" else "dialog_mark_end"
+        
+        for i, msg in enumerate(self.list):
+            if msg.get("type") == mark_type:
+                dialog_mark_index = i
+                break
+                
+        if dialog_mark_index == -1:
+            return ""
+            
+        # 根据mode选择消息范围
+        if mode == "before":
+            messages = self.list[:dialog_mark_index + 1]
+        else:
+            messages = self.list[dialog_mark_index:]
+        
+        # 组合所有消息的content
+        combined_content = ""
+        for msg in messages:
+            if msg.get("content"):
+                combined_content += msg["content"] + "\n"
+                
+        return combined_content.strip()
+
+
+

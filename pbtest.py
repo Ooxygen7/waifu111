@@ -5,5 +5,6 @@ test.build_base_list()
 test.insert_character()
 test.insert_input()
 test.insert_any({"location":"char_mark_start","mode":"after","content":"\nabc\n"})
-for i in test.list:
+test.build_openai_messages()
+for i in test.messages:
     print(i)

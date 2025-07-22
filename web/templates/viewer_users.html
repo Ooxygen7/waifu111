@@ -84,7 +84,7 @@
                 <thead>
                     <tr>
                         <th class="sortable" data-sort="number">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid'), **filter_params) }}" 
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
                                class="sort-link" aria-label="按用户ID排序">
                                 <span>用户ID</span>
                                 <span class="sort-indicator">
@@ -106,7 +106,7 @@
                             </a>
                         </th>
                         <th class="sortable" data-sort="text">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name'), **filter_params) }}" 
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
                                class="sort-link" aria-label="按用户名排序">
                                 <span>用户名</span>
                                 <span class="sort-indicator">
@@ -129,7 +129,7 @@
                         </th>
                         <th>姓名</th>
                         <th class="sortable" data-sort="number">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations'), **filter_params) }}" 
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
                                class="sort-link" aria-label="按对话数排序">
                                 <span>对话数</span>
                                 <span class="sort-indicator">
@@ -151,7 +151,7 @@
                             </a>
                         </th>
                         <th class="sortable" data-sort="number">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns'), **filter_params) }}" 
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
                                class="sort-link" aria-label="按消息数排序">
                                 <span>消息数</span>
                                 <span class="sort-indicator">
@@ -173,7 +173,7 @@
                             </a>
                         </th>
                         <th class="sortable" data-sort="date">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at'), **filter_params) }}" 
+                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
                                class="sort-link" aria-label="按注册时间排序">
                                 <span>注册时间</span>
                                 <span class="sort-indicator">
