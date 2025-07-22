@@ -703,9 +703,7 @@ class PromptsBuilder:
         messages.append({"role":"user","content":self._combine_messages_via_dialog_mark(mode="after")})
         self.messages = messages
         for i in messages:
-            logger.debug("\r\nROLE:"+i['role'].upper())
-            for o in i['content'].split('\n'):
-                logger.debug(o)
+            logger.debug(i)
         return messages
         
     @staticmethod
