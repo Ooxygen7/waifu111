@@ -921,8 +921,9 @@ class PromptsBuilder:
         self.dialog = dialog or []
         self.list = []
         self.messages = []
+        self._build_base_list()
     
-    def build_base_list(self):
+    def _build_base_list(self):
         """构建提示词列表。
 
         从配置文件中加载提示词片段，根据提示词集合名称查找对应的组合规则，
