@@ -1,0 +1,250 @@
+/* 
+ * Chat Interface Components
+ * 聊天界面组件样式
+ */
+
+/* 聊天容器 */
+.chat-container {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.chat-content {
+  padding: var(--spacing-md);
+}
+
+/* 消息列表 */
+.message-list {
+  height: 600px;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+  background: linear-gradient(to bottom, #f0f2f5, #ffffff);
+  border-radius: var(--border-radius-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color-light) transparent;
+}
+
+.message-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.message-list::-webkit-scrollbar-thumb {
+  background-color: var(--primary-color-light);
+  border-radius: 3px;
+}
+
+/* 消息容器 */
+.message-bubble-container {
+  margin-bottom: var(--spacing-md);
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 消息行 */
+.message-row {
+  display: flex;
+  margin-bottom: var(--spacing-sm);
+}
+
+.user-message {
+  justify-content: flex-end;
+}
+
+.ai-message {
+  justify-content: flex-start;
+}
+
+/* 消息气泡 */
+.message-bubble {
+  max-width: 70%;
+  border-radius: 18px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  position: relative;
+  word-wrap: break-word;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.message-bubble:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 用户消息气泡 */
+.user-bubble {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  color: white;
+  border-top-right-radius: 4px;
+}
+
+.user-bubble::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-top-color: var(--primary-dark);
+  border-right: 0;
+  margin-top: 0;
+  margin-right: 0;
+}
+
+/* AI消息气泡 */
+.ai-bubble {
+  background: white;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-top-left-radius: 4px;
+}
+
+.ai-bubble::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-top-color: white;
+  border-left: 0;
+  margin-top: 0;
+  margin-left: 0;
+}
+
+/* 消息内容 */
+.message-content {
+  margin-bottom: var(--spacing-xs);
+}
+
+.message-content a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.user-bubble .message-content a {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.user-bubble .message-content a:hover {
+  color: white;
+}
+
+/* 代码块样式 */
+.message-content pre {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  margin: var(--spacing-sm) 0;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.user-bubble .message-content pre {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 消息时间 */
+.message-time {
+  font-size: var(--font-size-xs);
+  opacity: 0.7;
+  text-align: right;
+  margin-top: var(--spacing-xs);
+}
+
+.user-bubble .message-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 搜索高亮 */
+.search-highlight {
+  background-color: rgba(255, 193, 7, 0.3);
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: 500;
+}
+
+.user-bubble .search-highlight {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+/* 消息点击效果 */
+.message-bubble {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 波纹效果 */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* 高亮脉冲动画 */
+.highlight-pulse {
+  animation: highlight-pulse 2s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+}
+
+/* 消息内容中的图片 */
+.message-content img {
+  max-width: 100%;
+  border-radius: var(--border-radius-sm);
+  margin: var(--spacing-xs) 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .message-bubble {
+    max-width: 85%;
+  }
+  
+  .message-list {
+    height: 500px;
+    padding: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 576px) {
+  .message-bubble {
+    max-width: 90%;
+  }
+  
+  .message-list {
+    height: 400px;
+  }
+}
