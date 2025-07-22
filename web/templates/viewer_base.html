@@ -1,429 +1,90 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CyberWaifu Bot 浏览系统{% endblock %}</title>
-    <style>
-        /* 重置样式 */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
-            color: #333;
-            background-color: #f5f5f5;
-        }
-        
-        a {
-            text-decoration: none;
-            color: #1e88e5;
-        }
-        
-        ul {
-            list-style: none;
-        }
-        
-        /* 布局 */
-        .container {
-            display: flex;
-            min-height: 100vh;
-        }
-        
-        /* 侧边栏 */
-        .sidebar {
-            width: 220px;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            padding: 20px 0;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-        }
-        
-        .sidebar-header {
-            text-align: center;
-            padding: 0 20px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
-        }
-        
-        .sidebar-title {
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-        }
-        
-        .sidebar-subtitle {
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
-        
-        .viewer-badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-top: 10px;
-        }
-        
-        .nav-menu {
-            padding: 0 10px;
-        }
-        
-        .nav-item {
-            margin-bottom: 5px;
-        }
-        
-        .nav-link {
-            display: block;
-            color: rgba(255,255,255,0.8);
-            padding: 12px 20px;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-        }
-        
-        .nav-link:hover, .nav-link.active {
-            color: white;
-            background: rgba(255,255,255,0.2);
-            transform: translateX(5px);
-        }
-        
-        .nav-link-icon {
-            margin-right: 10px;
-        }
-        
-        .logout-link {
-            position: absolute;
-            bottom: 20px;
-            left: 0;
-            width: 100%;
-            padding: 0 20px;
-        }
-        
-        /* 主内容区域 */
-        .main-content {
-            flex: 1;
-            padding: 20px;
-            margin-left: 220px;
-        }
-        
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .page-title {
-            font-size: 1.5rem;
-            font-weight: 500;
-            color: #333;
-        }
-        
-        .current-time {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        /* 卡片样式 */
-        .card {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .card-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #eee;
-            font-weight: 500;
-        }
-        
-        .card-body {
-            padding: 20px;
-        }
-        
-        /* 统计卡片 */
-        .stat-card {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-        
-        .stat-card-2 {
-            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-            color: white;
-        }
-        
-        .stat-card-3 {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            color: white;
-        }
-        
-        /* 表格样式 */
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .table th, .table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .table th {
-            font-weight: 500;
-            background-color: #f8f9fa;
-        }
-        
-        .table tr:hover {
-            background-color: #f8f9fa;
-        }
-        
-        /* 按钮样式 */
-        .btn {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 4px;
-            border: none;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-        
-        .btn-secondary {
-            background-color: #f0f0f0;
-            color: #333;
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 1px solid #4facfe;
-            color: #4facfe;
-        }
-        
-        .btn:hover {
-            opacity: 0.9;
-            transform: translateY(-2px);
-        }
-        
-        /* 表单元素 */
-        .form-control {
-            display: block;
-            width: 100%;
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            transition: border-color 0.3s ease;
-        }
-        
-        .form-control:focus {
-            border-color: #4facfe;
-            outline: none;
-        }
-        
-        /* 搜索框 */
-        .search-form {
-            display: flex;
-            margin-bottom: 20px;
-        }
-        
-        .search-input {
-            flex: 1;
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 20px 0 0 20px;
-            font-size: 0.9rem;
-        }
-        
-        .search-btn {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            border: none;
-            padding: 0 15px;
-            border-radius: 0 20px 20px 0;
-            cursor: pointer;
-        }
-        
-        /* 徽章 */
-        .badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: white;
-        }
-        
-        .badge-primary {
-            background-color: #4facfe;
-        }
-        
-        .badge-success {
-            background-color: #43e97b;
-        }
-        
-        .badge-info {
-            background-color: #2196f3;
-        }
-        
-        .badge-warning {
-            background-color: #ff9800;
-        }
-        
-        /* 工具类 */
-        .text-center {
-            text-align: center;
-        }
-        
-        .text-muted {
-            color: #6c757d;
-        }
-        
-        .mb-1 {
-            margin-bottom: 0.25rem;
-        }
-        
-        .mb-2 {
-            margin-bottom: 0.5rem;
-        }
-        
-        .mb-3 {
-            margin-bottom: 1rem;
-        }
-        
-        .mb-4 {
-            margin-bottom: 1.5rem;
-        }
-        
-        .mt-2 {
-            margin-top: 0.5rem;
-        }
-        
-        .mt-3 {
-            margin-top: 1rem;
-        }
-        
-        .mt-4 {
-            margin-top: 1.5rem;
-        }
-        
-        .ml-2 {
-            margin-left: 0.5rem;
-        }
-        
-        .mr-2 {
-            margin-right: 0.5rem;
-        }
-        
-        .p-3 {
-            padding: 1rem;
-        }
-        
-        .py-2 {
-            padding-top: 0.5rem;
-            padding-bottom: 0.5rem;
-        }
-        
-        .py-3 {
-            padding-top: 1rem;
-            padding-bottom: 1rem;
-        }
-        
-        .py-4 {
-            padding-top: 1.5rem;
-            padding-bottom: 1.5rem;
-        }
-        
-        .py-5 {
-            padding-top: 3rem;
-            padding-bottom: 3rem;
-        }
-        
-        /* 响应式设计 */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-            
-            .logout-link {
-                position: static;
-                padding: 10px 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/stats-cards.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/stat-cards.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/tables.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/cards.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/empty-states.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/action-cards.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/search.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/pagination.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/user.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/filter-dropdown.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/stats.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/conversation.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/conversation-detail.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/chat-interface.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/modal.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <meta name="theme-color" content="#4facfe">
+    <meta name="description" content="CyberWaifu Bot 浏览系统 - 查看用户、对话和统计数据">
 </head>
+
 <body>
+    <!-- 跳过导航链接 - 提高键盘可访问性 -->
+    <a href="#main-content" class="skip-link">跳到主要内容</a>
+
     <div class="container">
         <!-- 侧边栏 -->
-        <aside class="sidebar">
+        <aside class="sidebar" role="navigation" aria-label="主导航">
             <div class="sidebar-header">
                 <h1 class="sidebar-title">CyberWaifu</h1>
                 <div class="sidebar-subtitle">浏览系统</div>
                 <div class="viewer-badge">浏览者模式</div>
             </div>
-            <ul class="nav-menu">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'viewer_index' %}active{% endif %}" href="{{ url_for('viewer_index') }}">
-                        <span class="nav-link-icon">🏠</span> 首页概览
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'viewer_users' %}active{% endif %}" href="{{ url_for('viewer_users') }}">
-                        <span class="nav-link-icon">👥</span> 用户列表
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'viewer_conversations' %}active{% endif %}" href="{{ url_for('viewer_conversations') }}">
-                        <span class="nav-link-icon">💬</span> 对话记录
-                    </a>
-                </li>
-            </ul>
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'viewer_index' %}active{% endif %}"
+                            href="{{ url_for('viewer_index') }}"
+                            aria-current="{% if request.endpoint == 'viewer_index' %}page{% endif %}">
+                            <span class="nav-link-icon" aria-hidden="true">🏠</span> 首页概览
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'viewer_users' %}active{% endif %}"
+                            href="{{ url_for('viewer_users') }}"
+                            aria-current="{% if request.endpoint == 'viewer_users' %}page{% endif %}">
+                            <span class="nav-link-icon" aria-hidden="true">👥</span> 用户列表
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'viewer_conversations' %}active{% endif %}"
+                            href="{{ url_for('viewer_conversations') }}"
+                            aria-current="{% if request.endpoint == 'viewer_conversations' %}page{% endif %}">
+                            <span class="nav-link-icon" aria-hidden="true">💬</span> 对话记录
+                        </a>
+                    </li>
+                </ul>
+            </nav>
             <div class="logout-link">
                 <a class="nav-link" href="{{ url_for('logout') }}">
-                    <span class="nav-link-icon">🚪</span> 退出登录
+                    <span class="nav-link-icon" aria-hidden="true">🚪</span> 退出登录
                 </a>
             </div>
+            <button class="sidebar-toggle d-md-none" aria-label="切换菜单" aria-expanded="false" aria-controls="sidebar">
+                <span></span>
+            </button>
         </aside>
 
         <!-- 主内容区域 -->
-        <main class="main-content">
+        <main id="main-content" class="main-content" tabindex="-1">
             <header class="page-header">
                 <h1 class="page-title">{% block page_title %}浏览系统{% endblock %}</h1>
-                <div class="current-time">{{ moment().strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                <div class="d-flex align-items-center">
+                    <div class="current-time mr-md" aria-live="polite">{{ moment().strftime('%Y-%m-%d %H:%M:%S') }}
+                    </div>
+                    <button id="theme-toggle" class="btn btn-icon" aria-label="切换主题模式" aria-pressed="false">
+                        <span class="theme-icon" aria-hidden="true">🌙</span>
+                    </button>
+                </div>
             </header>
 
             {% block content %}{% endblock %}
@@ -432,22 +93,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/zh-cn.js"></script>
-    <script>
-        // 设置中文
-        moment.locale('zh-cn');
-        
-        // 更新时间显示
-        function updateTime() {
-            const timeElements = document.querySelectorAll('.current-time');
-            timeElements.forEach(el => {
-                el.textContent = moment().format('YYYY-MM-DD HH:mm:ss');
-            });
-        }
-        
-        // 每秒更新时间
-        setInterval(updateTime, 1000);
-        updateTime();
-    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/accessibility.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/table-interactions.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
+
 </html>

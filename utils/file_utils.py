@@ -86,7 +86,8 @@ def load_char(char_file_name: str, char_dir: Optional[str] = None):
         return None
 
 
-def load_prompts(prompt_file: Optional[str] = None):
+def load_prompts(prompt_file: Optional[str] = None,data:Optional[str] = "prompt_set_list"):
+
     """
     加载预设文件。
 
@@ -102,7 +103,7 @@ def load_prompts(prompt_file: Optional[str] = None):
     try:
         with open(prompt_file, "r", encoding="utf-8") as f:
             prompt_data = json.load(f)
-            return prompt_data.get("prompt_set_list", [])
+            return prompt_data.get(data, [])
     except Exception as e:
         print(f"读取预设文件失败: {str(e)}")
         return None
