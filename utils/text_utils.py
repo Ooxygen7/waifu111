@@ -1,5 +1,5 @@
 import re
-
+import base64
 
 
 def extract_tag_content(text, tag):
@@ -80,7 +80,45 @@ def extract_tag_content(text, tag):
     return result
 
 
+async def convert_file_id_to_base64(file_id: str, context) -> dict:
+        """
+        将 Telegram file_id 转换为 Base64 编码的图片数据
+        Args:
+            file_id: Telegram 文件ID
+            context: Telegram 上下文对象，用于获取文件
+        Returns:
+            dict: 包含 mime_type 和 data 的字典，如果失败则返回 None
+        """
+        try:
+            # 获取文件对象
+            cfg_file = await context.bot.get_file(file_id)
+            # 下载文件数据
+            file_data = await cfg_file.download_as_bytearray()
+            # 确定 MIME 类型
+            mime_type = "image/jpeg"  # 默认值
+            if cfg_file.file_path:
+                file_path_lower = cfg_file.file_path.lower()
+                if file_path_lower.endswith(".png"):
+                    mime_type = "image/png"
+                elif file_path_lower.endswith(".gif"):
+                    mime_type = "image/gif"
+                elif file_path_lower.endswith(".jpg") or file_path_lower.endswith(
+                    ".jpeg"
+                ):
+                    mime_type = "image/jpeg"
+                elif file_path_lower.endswith(".webp"):
+                    mime_type = "image/webp"
+                else:
+                    # 如果无法从扩展名确定 MIME 类型，可以使用文件头检测（可选）
+                    from magic import from_buffer
 
+                    mime_type = from_buffer(file_data, mime=True) or "image/jpeg"
+            # 转换为 Base64
+            base64_data = base64.b64encode(file_data).decode("utf-8")
+            return {"mime_type": mime_type, "data": base64_data}
+        except Exception as e:
+            print(f"转换 file_id 到 Base64 失败: {str(e)}")
+            return {}
 
 def extract_special_control(input_text: str):
     """从用户输入中提取特殊控制标记，返回清理后的输入和控制内容。"""

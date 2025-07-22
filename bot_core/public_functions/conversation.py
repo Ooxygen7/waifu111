@@ -1,20 +1,23 @@
 import asyncio
-import json
 import logging
 import random
-import asyncio
 
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
-from utils.db_utils import dialog_summary_add
-from utils.config_utils import get_api_multiple
-from bot_core.public_functions.messages import update_message, finalize_message,send_message
 
-from utils import db_utils as db, text_utils as txt, file_utils as file
+from bot_core.public_functions.error import BotError
+from bot_core.public_functions.messages import (
+    finalize_message,
+    send_message,
+    update_message,
+)
+from utils import db_utils as db
+from utils import text_utils as txt
+from utils.config_utils import get_api_multiple
+from utils.db_utils import dialog_summary_add
 from utils.LLM_utils import LLM, PromptsBuilder
 from utils.logging_utils import setup_logging
-from bot_core.public_functions.error import BotError
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -258,33 +261,7 @@ class GroupConv:
         更新 self.trigger、self.prompt 属性。
         """
         self.trigger = trigger
-        self._build_prompts()
 
-    def _build_prompts(self):
-        self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,[],self.user.user_name,"")
-        group_dialog = db.group_dialog_get(self.group.id, 15)  # 获取最近15条群组对话
-        # 构建一个列表，用于存储对话的 JSON 结构
-        dialogs_json = []
-        for dialog in group_dialog:
-            # 每个对话项作为一个字典
-            dialog_entry = {}
-            if dialog[1]:  # 假设 dialog[1] 是用户名
-                dialog_entry["user_name"] = dialog[1]
-                dialog_entry["user_message"] = dialog[0]  # 假设 dialog[0] 是用户消息内容
-                dialog_entry["timestamp"] = dialog[3]  # 假设 dialog[3] 是时间
-                if dialog[2]:  # 假设 dialog[2] 是 AI 回复
-                    dialog_entry["ai_response"] = dialog[2]
-                dialogs_json.append(dialog_entry)
-        # 将 dialogs_json 转换为格式化的 JSON 字符串
-        json_str = json.dumps(dialogs_json, indent=2, ensure_ascii=False)
-
-        # 如果有图片，添加图片提示
-        if self.images:
-            image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
-            self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
-        self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n"
-                                                                                                         f"现在是群聊模式，你要先看看群友在聊什么，然后加入他们的对话\r\n"
-                                                                                                         f"{json_str}</群聊模式>"})
 
     async def response(self):
         """
@@ -317,12 +294,24 @@ class GroupConv:
         更新 self.output 和数据库记录。
         """
         try:
-            dialog = self.client.build_conv_messages(self.id)
-            self.prompt_obj.set_dialog(dialog)
-            self.prompt_obj.build_openai_messages()
-            if self.images:
+            self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,self.user.user_name)
+            self.prompt_obj.build_conv_messages(self.id,"group")
+            group_dialog = self.prompt_obj.load_group_dialog(self.group.id)
+
+            if self.images:               
+                image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
+                self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
+                self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
+                                                                                                    f"{group_dialog}\r\n</群聊模式>"})
+                self.prompt_obj.build_openai_messages()
+                self.client.set_messages(self.prompt_obj.messages)
                 await self.client.embedd_image(self.images,self.context)
-            self.client.set_messages(self.prompt_obj.messages)
+            else:
+                self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
+                                                                                                    f"{group_dialog}\r\n</群聊模式>"})
+                self.prompt_obj.build_openai_messages()
+                self.client.set_messages(self.prompt_obj.messages)
+
             response = await self.client.final_response()
             self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
             await finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
@@ -439,11 +428,6 @@ class PrivateConv:
                 raise e
         if not self.id:
             self.new()
-        # 构建 prompt
-        if self.input:
-            self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
-        else:
-            self.prompt_obj = None
         asyncio.create_task(self._check_summary())
 
     async def response(self, save=True):
@@ -477,7 +461,6 @@ class PrivateConv:
         db.conversation_delete_messages(self.id, last_msg_id_list[0])
         db.conversation_delete_messages(self.id, last_msg_id_list[1])
         self.input = Message(last_msg_id_list[1], last_input, 'input')
-        self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
         await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
         await self.response()
 
@@ -544,12 +527,6 @@ class PrivateConv:
             data (str): 回调数据.
         """
         self.input = Message(0, data, 'callback')
-        self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
-        self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content,
-                                                              f"<user_nickname>\r\n用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
-                                                              f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n</user_nickname>\r\n",
-                                                              '<character>',
-                                                              'before')
 
     async def _response_to_user(self, save):
         """
@@ -561,20 +538,14 @@ class PrivateConv:
         response_chunks = []
 
         try:
-            self.client.build_conv_messages(self.id)
-            
-
+            self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,self.user.nick)
+            self.prompt_obj.build_conv_messages(self.id,"private")
+            self.prompt_obj.build_openai_messages()
+            self.client.set_messages(self.prompt_obj.messages)
             if self.summary :
                 logger.debug(f"该对话有{len(self.summary)}个大总结")
                 logger.debug(f"{(len(self.summary)-1)*30}轮之前的消息已作为总结添加")
-                self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, f"\r\n<summaries>\r\n"
-                                                                                               f"以下是在对话前已经发生的故事总结，提供给你作为参考:\r\n"
-                                                                                               f"{str(self.summary[:-1])}\r\n"
-                                                                                               f"</summaries>\r\n",
-                                                                      '</Character>', 'after')
-            
-            self.client.set_prompt(self.prompt_obj.content)
-            await self.client.embedd_all_text()
+                self.prompt_obj.insert_summary(str(self.summary[:-1]))
             async for chunk in self.client.response(self.config.stream):
                 response_chunks.append(chunk)
                 response = "".join(response_chunks)
@@ -641,7 +612,7 @@ class PrivateConv:
         logger.debug(f"开始检查对话{self.id}是否存在摘要")
         logger.debug(f"该对话轮次为{self.turn}轮")
         if self.turn <= 60:
-            logger.debug(f"轮次不足，跳过检查")
+            logger.debug("轮次不足，跳过检查")
             return False  # 轮次未超过60，无需检查
 
         # 计算需要检查的总结区域数量
