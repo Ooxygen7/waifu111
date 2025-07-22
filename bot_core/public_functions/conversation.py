@@ -12,7 +12,7 @@ from utils.config_utils import get_api_multiple
 from bot_core.public_functions.messages import update_message, finalize_message,send_message
 
 from utils import db_utils as db, text_utils as txt, file_utils as file
-from utils.LLM_utils import LLM, Prompts
+from utils.LLM_utils import LLM, PromptsBuilder
 from utils.logging_utils import setup_logging
 from bot_core.public_functions.error import BotError
 
@@ -261,13 +261,8 @@ class GroupConv:
         self._build_prompts()
 
     def _build_prompts(self):
-        self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
-        self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content,
-                                                              f"<user_nickname>\r\n你需要回复的用户的姓名或网名是‘{self.user.user_name}’，如果这个名字不方便称呼"
-                                                              f"，你可以自行决定怎么称呼用户\r\n</user_nickname>\r\n",
-                                                              '<user_input>\r\n', 'before')  # 在指定位置插入用户昵称信息
+        self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,[],self.user.user_name,"")
         group_dialog = db.group_dialog_get(self.group.id, 15)  # 获取最近15条群组对话
-
         # 构建一个列表，用于存储对话的 JSON 结构
         dialogs_json = []
         for dialog in group_dialog:
@@ -282,19 +277,14 @@ class GroupConv:
                 dialogs_json.append(dialog_entry)
         # 将 dialogs_json 转换为格式化的 JSON 字符串
         json_str = json.dumps(dialogs_json, indent=2, ensure_ascii=False)
-        insert_txt = self.prompt_obj.build_tagged_content("group_messages",
-                                                          "现在是群聊模式，你先看看群友在聊什么，然后加入他们的对话",
-                                                          json_str)
-
-        self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content, insert_txt, '<user_input>\r\n',
-                                                              'before')  # 插入群组消息
 
         # 如果有图片，添加图片提示
         if self.images:
             image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
-            self.prompt_obj.content = self.prompt_obj.insert_text(
-                self.prompt_obj.content, image_prompt, "<user_input>\r\n", "after"
-            )
+            self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
+        self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n"
+                                                                                                         f"现在是群聊模式，你要先看看群友在聊什么，然后加入他们的对话\r\n"
+                                                                                                         f"{json_str}</群聊模式>"})
 
     async def response(self):
         """
@@ -327,10 +317,12 @@ class GroupConv:
         更新 self.output 和数据库记录。
         """
         try:
-            self.client.build_conv_messages(self.id)
-            self.client.set_prompt(self.prompt_obj.content)
-            await self.client.embedd_all_text(self.images, self.context, self.group.id)
-            logger.debug(f"<最终prompts>: {self.prompt_obj.content}")
+            dialog = self.client.build_conv_messages(self.id)
+            self.prompt_obj.set_dialog(dialog)
+            self.prompt_obj.build_openai_messages()
+            if self.images:
+                await self.client.embedd_image(self.images,self.context)
+            self.client.set_messages(self.prompt_obj.messages)
             response = await self.client.final_response()
             self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
             await finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
@@ -450,11 +442,6 @@ class PrivateConv:
         # 构建 prompt
         if self.input:
             self.prompt_obj = Prompts(self.config.preset, self.input.text_raw, self.config.char)
-            self.prompt_obj.content = self.prompt_obj.insert_text(self.prompt_obj.content,
-                                                              f"用户的昵称是：{self.user.nick}，你需要按照这个方式来称呼他"
-                                                              f"如果用户的昵称不方便直接称呼，你可以自行决定如何称呼用户\r\n",
-                                                              '<user_input>',
-                                                              'before')
         else:
             self.prompt_obj = None
         asyncio.create_task(self._check_summary())

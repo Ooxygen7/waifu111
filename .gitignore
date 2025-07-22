@@ -45,3 +45,6 @@ data/data.db
 .kiro/specs/web-page-beautification/requirements.md
 .kiro/specs/web-page-beautification/tasks.md
 .vercel/project.json
+.kiro/specs/web-viewer-beautification/design.md
+.kiro/specs/web-viewer-beautification/requirements.md
+.kiro/specs/web-viewer-beautification/tasks.md
