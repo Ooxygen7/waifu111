@@ -968,7 +968,7 @@ class PromptsBuilder:
         self.list = combined_prompts
         return self.list
  
-    def insert_character(self):
+    def _insert_character(self):
         """插入角色信息。
 
         遍历提示词列表，根据提示词类型插入角色信息。
@@ -983,7 +983,7 @@ class PromptsBuilder:
             if item["type"] == "char_placeholder":
                 item["content"] = char_txt
     
-    def insert_input(self):
+    def _insert_input(self):
         """插入用户输入。
 
         遍历提示词列表，根据提示词类型插入用户输入。
@@ -1016,7 +1016,7 @@ class PromptsBuilder:
                 elif insert_info["mode"] == "after":
                     item["content"] = item["content"] + insert_info["content"]
         
-    def build_openai_messages(self):
+    def _build_openai_messages(self):
         """构建OpenAI消息格式。
         遍历提示词列表，根据提示词类型构建OpenAI消息格式。
         """
