@@ -41,3 +41,7 @@ config/config_local.json
 data/data.db
 代码优化计划.md
 .gitignore
+.kiro/specs/web-page-beautification/design.md
+.kiro/specs/web-page-beautification/requirements.md
+.kiro/specs/web-page-beautification/tasks.md
+.vercel/project.json

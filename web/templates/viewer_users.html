@@ -13,17 +13,67 @@
             </div>
             <div class="search-container">
                 <form method="GET" class="search-form">
+                    <div class="search-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
                     <input type="text" name="search" class="search-input" 
-                           placeholder="搜索用户ID、用户名..." value="{{ search_term }}">
-                    <button type="submit" class="search-button">
-                        🔍
-                    </button>
+                           placeholder="搜索用户ID、用户名..." value="{{ search_term }}"
+                           aria-label="搜索用户">
+                    <div class="search-loading"></div>
                     {% if search_term %}
-                    <a href="{{ url_for('viewer_users') }}" class="clear-button">
-                        ✕
+                    <a href="{{ url_for('viewer_users') }}" class="clear-button" aria-label="清除搜索">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </a>
                     {% endif %}
+                    <button type="submit" class="search-button" aria-label="搜索">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
                 </form>
+                {% if search_term %}
+                <div class="search-status">找到与 "{{ search_term }}" 相关的结果</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="filter-container mt-md">
+            <div class="filter-label">筛选：</div>
+            
+            <button class="filter-button" aria-label="打开筛选选项">
+                <span class="filter-button-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                </span>
+                <span>筛选条件</span>
+            </button>
+            
+            <div class="filter-dropdown">
+                <div class="filter-group">
+                    <div class="filter-group-title">注册时间</div>
+                    <div class="filter-options">
+                        <div class="filter-option" data-key="date" data-value="today">今天</div>
+                        <div class="filter-option" data-key="date" data-value="week">本周</div>
+                        <div class="filter-option" data-key="date" data-value="month">本月</div>
+                        <div class="filter-option" data-key="date" data-value="year">今年</div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-group-title">对话数量</div>
+                    <div class="filter-options">
+                        <div class="filter-option" data-key="conversations" data-value="0">无对话</div>
+                        <div class="filter-option" data-key="conversations" data-value="1-10">1-10</div>
+                        <div class="filter-option" data-key="conversations" data-value="10+">10+</div>
+                        <div class="filter-option" data-key="conversations" data-value="50+">50+</div>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button class="btn btn-text" id="clear-filters">清除筛选</button>
+                    <button class="btn btn-primary" id="apply-filters">应用筛选</button>
+                </div>
+            </div>
+            
+            <div class="filter-tags">
+                <!-- 筛选标签将通过JavaScript动态添加 -->
             </div>
         </div>
     </div>
@@ -33,50 +83,115 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>
+                        <th class="sortable" data-sort="number">
                             <a href="{{ url_for('viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
-                               class="sort-link">
-                                用户ID
-                                {% if sort_by == 'uid' %}
-                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
-                                {% endif %}
+                               class="sort-link" aria-label="按用户ID排序">
+                                <span>用户ID</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'uid' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
                             </a>
                         </th>
-                        <th>
+                        <th class="sortable" data-sort="text">
                             <a href="{{ url_for('viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
-                               class="sort-link">
-                                用户名
-                                {% if sort_by == 'user_name' %}
-                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
-                                {% endif %}
+                               class="sort-link" aria-label="按用户名排序">
+                                <span>用户名</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'user_name' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
                             </a>
                         </th>
                         <th>姓名</th>
-                        <th>
+                        <th class="sortable" data-sort="number">
                             <a href="{{ url_for('viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
-                               class="sort-link">
-                                对话数
-                                {% if sort_by == 'conversations' %}
-                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
-                                {% endif %}
+                               class="sort-link" aria-label="按对话数排序">
+                                <span>对话数</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'conversations' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
                             </a>
                         </th>
-                        <th>
+                        <th class="sortable" data-sort="number">
                             <a href="{{ url_for('viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
-                               class="sort-link">
-                                消息数
-                                {% if sort_by == 'dialog_turns' %}
-                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
-                                {% endif %}
+                               class="sort-link" aria-label="按消息数排序">
+                                <span>消息数</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'dialog_turns' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
                             </a>
                         </th>
-                        <th>
+                        <th class="sortable" data-sort="date">
                             <a href="{{ url_for('viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
-                               class="sort-link">
-                                注册时间
-                                {% if sort_by == 'create_at' %}
-                                    <span class="sort-icon">{{ '↑' if sort_order == 'asc' else '↓' }}</span>
-                                {% endif %}
+                               class="sort-link" aria-label="按注册时间排序">
+                                <span>注册时间</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'create_at' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
                             </a>
                         </th>
                         <th>操作</th>
@@ -84,39 +199,69 @@
                 </thead>
                 <tbody>
                     {% for user in users %}
-                    <tr>
+                    <tr class="table-row-interactive">
                         <td>
-                            <span class="badge primary">{{ user.uid }}</span>
+                            <span class="badge primary user-id">{{ user.uid }}</span>
                         </td>
                         <td>
                             <div class="user-info">
-                                <div class="avatar">
-                                    <i class="avatar-icon">👤</i>
+                                <div class="user-avatar">
+                                    <div class="avatar-image">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="12" cy="7" r="4"></circle>
+                                        </svg>
+                                    </div>
                                 </div>
-                                <span class="username">{{ user.user_name or '未设置' }}</span>
+                                <div class="user-details">
+                                    <span class="user-name">{{ user.user_name or '未设置' }}</span>
+                                    {% if user.is_active %}
+                                    <span class="user-status active" title="活跃用户"></span>
+                                    {% endif %}
+                                </div>
                             </div>
                         </td>
                         <td>
                             {% if user.first_name or user.last_name %}
-                                {{ user.first_name or '' }} {{ user.last_name or '' }}
+                                <span class="user-fullname">{{ user.first_name or '' }} {{ user.last_name or '' }}</span>
                             {% else %}
                                 <span class="text-muted">未设置</span>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge info">{{ user.conversations or 0 }}</span>
+                            <div class="stat-badge">
+                                <span class="stat-value">{{ user.conversations or 0 }}</span>
+                                <span class="stat-label">对话</span>
+                            </div>
                         </td>
                         <td>
-                            <span class="badge success">{{ user.dialog_turns or 0 }}</span>
+                            <div class="stat-badge">
+                                <span class="stat-value">{{ user.dialog_turns or 0 }}</span>
+                                <span class="stat-label">消息</span>
+                            </div>
                         </td>
                         <td>
-                            <small class="text-muted">{{ format_datetime(user.create_at) }}</small>
+                            <div class="date-info">
+                                <span class="date-value">{{ format_datetime(user.create_at).split(' ')[0] }}</span>
+                                <span class="date-time text-muted">{{ format_datetime(user.create_at).split(' ')[1] }}</span>
+                            </div>
                         </td>
                         <td>
-                            <a href="{{ url_for('viewer_conversations', search=user.uid) }}" 
-                               class="action-button" title="查看对话">
-                                💬
-                            </a>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('viewer_conversations', search=user.uid) }}" 
+                                   class="btn btn-icon btn-sm" title="查看对话" aria-label="查看用户对话">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                </a>
+                                <button class="btn btn-icon btn-sm" title="查看详情" aria-label="查看用户详情">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -127,23 +272,68 @@
         <!-- 分页 -->
         {% if total_pages > 1 %}
         <div class="pagination-container">
+            <div class="pagination-info">
+                显示第 <span class="text-primary">{{ (page - 1) * per_page + 1 }}</span> 至 
+                <span class="text-primary">{{ min(page * per_page, total_users) }}</span> 条，
+                共 <span class="text-primary">{{ total_users }}</span> 条记录
+            </div>
             <div class="pagination">
                 {% if page > 1 %}
-                <a class="page-item" href="{{ url_for('viewer_users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
-                    &laquo;
+                <a class="page-item" href="{{ url_for('viewer_users', page=1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第一页" title="第一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="11 17 6 12 11 7"></polyline>
+                        <polyline points="18 17 13 12 18 7"></polyline>
+                    </svg>
                 </a>
+                <a class="page-item" href="{{ url_for('viewer_users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页" title="上一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="11 17 6 12 11 7"></polyline>
+                        <polyline points="18 17 13 12 18 7"></polyline>
+                    </svg>
+                </span>
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </span>
                 {% endif %}
                 
                 {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
-                <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('viewer_users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
+                <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('viewer_users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ p }}页" {% if p == page %}aria-current="page"{% endif %}>
                     {{ p }}
                 </a>
                 {% endfor %}
                 
                 {% if page < total_pages %}
-                <a class="page-item" href="{{ url_for('viewer_users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
-                    &raquo;
+                <a class="page-item" href="{{ url_for('viewer_users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页" title="下一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
                 </a>
+                <a class="page-item" href="{{ url_for('viewer_users', page=total_pages, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="最后一页" title="最后一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="13 17 18 12 13 7"></polyline>
+                        <polyline points="6 17 11 12 6 7"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </span>
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="13 17 18 12 13 7"></polyline>
+                        <polyline points="6 17 11 12 6 7"></polyline>
+                    </svg>
+                </span>
                 {% endif %}
             </div>
         </div>
@@ -151,11 +341,25 @@
         
         {% else %}
         <div class="empty-state">
-            <div class="empty-icon">📭</div>
+            <div class="empty-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="7" r="4"></circle>
+                    <path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"></path>
+                    <line x1="8" y1="3" x2="16" y2="21"></line>
+                </svg>
+            </div>
             <h5 class="empty-title">暂无用户数据</h5>
             {% if search_term %}
-            <p class="empty-text">没有找到匹配 "{{ search_term }}" 的用户</p>
-            <a href="{{ url_for('viewer_users') }}" class="action-button primary">清除搜索</a>
+            <p class="empty-text">没有找到匹配 "<span class="search-highlight">{{ search_term }}</span>" 的用户</p>
+            <a href="{{ url_for('viewer_users') }}" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-xs">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                清除搜索
+            </a>
+            {% else %}
+            <p class="empty-text">系统中还没有任何用户数据</p>
             {% endif %}
         </div>
         {% endif %}
@@ -166,356 +370,84 @@
 {% if users %}
 <div class="stats-container">
     <div class="stats-card">
+        <div class="stats-header">
+            <h3 class="stats-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-xs">
+                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                    <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                </svg>
+                统计信息
+            </h3>
+            <div class="stats-actions">
+                <button class="btn btn-icon refresh-stats" title="刷新统计" aria-label="刷新统计数据">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"></polyline>
+                        <polyline points="23 20 23 14 17 14"></polyline>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
         <div class="stats-grid">
-            <div class="stat-item">
-                <h5 class="stat-value primary">{{ users|length }}</h5>
-                <small class="stat-label">当前页用户数</small>
+            <div class="stat-card">
+                <div class="stat-icon users-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value primary">{{ users|length }}</div>
+                    <div class="stat-label">当前页用户数</div>
+                </div>
             </div>
-            <div class="stat-item">
-                <h5 class="stat-value success">{{ users|map(attribute='conversations')|select('number')|sum or 0 }}</h5>
-                <small class="stat-label">当前页总对话数</small>
+            <div class="stat-card">
+                <div class="stat-icon conversations-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value success">{{ users|map(attribute='conversations')|select('number')|sum or 0 }}</div>
+                    <div class="stat-label">当前页总对话数</div>
+                </div>
             </div>
-            <div class="stat-item">
-                <h5 class="stat-value info">{{ users|map(attribute='dialog_turns')|select('number')|sum or 0 }}</h5>
-                <small class="stat-label">当前页总消息数</small>
+            <div class="stat-card">
+                <div class="stat-icon messages-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="17" y1="10" x2="3" y2="10"></line>
+                        <line x1="21" y1="6" x2="3" y2="6"></line>
+                        <line x1="21" y1="14" x2="3" y2="14"></line>
+                        <line x1="17" y1="18" x2="3" y2="18"></line>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value info">{{ users|map(attribute='dialog_turns')|select('number')|sum or 0 }}</div>
+                    <div class="stat-label">当前页总消息数</div>
+                </div>
             </div>
-            <div class="stat-item">
-                <h5 class="stat-value warning">{{ (users|map(attribute='input_tokens')|select('number')|sum or 0) + (users|map(attribute='output_tokens')|select('number')|sum or 0) }}</h5>
-                <small class="stat-label">当前页总Token数</small>
+            <div class="stat-card">
+                <div class="stat-icon tokens-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value warning">{{ (users|map(attribute='input_tokens')|select('number')|sum or 0) + (users|map(attribute='output_tokens')|select('number')|sum or 0) }}</div>
+                    <div class="stat-label">当前页总Token数</div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 {% endif %}
 
-<style>
-    .card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        margin-bottom: 20px;
-        overflow: hidden;
-    }
-    
-    .card-header {
-        padding: 15px 20px;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .card-body {
-        padding: 0;
-    }
-    
-    .header-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    
-    .header-title h3 {
-        margin: 0;
-        font-size: 1.2rem;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        color: #333;
-    }
-    
-    .header-title .icon {
-        margin-right: 8px;
-        font-style: normal;
-    }
-    
-    .search-container {
-        flex: 0 0 300px;
-    }
-    
-    .search-form {
-        display: flex;
-        position: relative;
-    }
-    
-    .search-input {
-        flex: 1;
-        padding: 8px 15px;
-        border: 1px solid #ddd;
-        border-radius: 20px 0 0 20px;
-        font-size: 0.9rem;
-        outline: none;
-    }
-    
-    .search-input:focus {
-        border-color: #4facfe;
-        box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.2);
-    }
-    
-    .search-button {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        color: white;
-        border: none;
-        padding: 0 15px;
-        border-radius: 0 20px 20px 0;
-        cursor: pointer;
-    }
-    
-    .clear-button {
-        background: #f5f5f5;
-        color: #666;
-        border: none;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-left: 8px;
-        text-decoration: none;
-    }
-    
-    .clear-button:hover {
-        background: #e0e0e0;
-    }
-    
-    .table-container {
-        overflow-x: auto;
-    }
-    
-    .data-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    
-    .data-table th {
-        background: #f8f9fa;
-        padding: 12px 15px;
-        text-align: left;
-        font-weight: 500;
-        color: #333;
-        border-bottom: 1px solid #eee;
-    }
-    
-    .data-table td {
-        padding: 12px 15px;
-        border-bottom: 1px solid #eee;
-        vertical-align: middle;
-    }
-    
-    .data-table tr:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .sort-link {
-        color: #333;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    
-    .sort-icon {
-        margin-left: 5px;
-    }
-    
-    .badge {
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        display: inline-block;
-    }
-    
-    .badge.primary {
-        background-color: #e6f7ff;
-        color: #1890ff;
-    }
-    
-    .badge.info {
-        background-color: #e6fffb;
-        color: #13c2c2;
-    }
-    
-    .badge.success {
-        background-color: #f6ffed;
-        color: #52c41a;
-    }
-    
-    .user-info {
-        display: flex;
-        align-items: center;
-    }
-    
-    .avatar {
-        width: 32px;
-        height: 32px;
-        background-color: #f0f0f0;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 10px;
-    }
-    
-    .avatar-icon {
-        font-style: normal;
-        font-size: 16px;
-    }
-    
-    .username {
-        font-weight: 500;
-    }
-    
-    .text-muted {
-        color: #999;
-    }
-    
-    .action-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        border-radius: 4px;
-        background-color: #f0f0f0;
-        color: #333;
-        text-decoration: none;
-        transition: background-color 0.2s;
-    }
-    
-    .action-button:hover {
-        background-color: #e0e0e0;
-    }
-    
-    .action-button.primary {
-        background-color: #1890ff;
-        color: white;
-        padding: 6px 12px;
-        border-radius: 4px;
-    }
-    
-    .action-button.primary:hover {
-        background-color: #40a9ff;
-    }
-    
-    .pagination-container {
-        padding: 15px;
-        display: flex;
-        justify-content: center;
-    }
-    
-    .pagination {
-        display: flex;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .page-item {
-        margin: 0 3px;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 4px;
-        background-color: #f5f5f5;
-        color: #333;
-        text-decoration: none;
-    }
-    
-    .page-item:hover {
-        background-color: #e0e0e0;
-    }
-    
-    .page-item.active {
-        background-color: #1890ff;
-        color: white;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-    }
-    
-    .empty-icon {
-        font-size: 3rem;
-        color: #ddd;
-        margin-bottom: 15px;
-    }
-    
-    .empty-title {
-        color: #666;
-        margin-bottom: 10px;
-    }
-    
-    .empty-text {
-        color: #999;
-        margin-bottom: 20px;
-    }
-    
-    .stats-container {
-        margin-top: 20px;
-    }
-    
-    .stats-card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 20px;
-    }
-    
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-    }
-    
-    .stat-item {
-        text-align: center;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        margin-bottom: 5px;
-        font-weight: 500;
-    }
-    
-    .stat-value.primary {
-        color: #1890ff;
-    }
-    
-    .stat-value.success {
-        color: #52c41a;
-    }
-    
-    .stat-value.info {
-        color: #13c2c2;
-    }
-    
-    .stat-value.warning {
-        color: #faad14;
-    }
-    
-    .stat-label {
-        color: #999;
-        font-size: 0.85rem;
-    }
-    
-    @media (max-width: 768px) {
-        .header-container {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        
-        .search-container {
-            width: 100%;
-            flex: none;
-        }
-        
-        .stats-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-</style>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user-table.js') }}"></script>
+{% endblock %}
 {% endblock %}

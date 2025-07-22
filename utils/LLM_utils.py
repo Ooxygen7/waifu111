@@ -235,8 +235,6 @@ class LLM:
         self.messages = messages
         return None
 
-
-
     async def embedd_all_text(self, images = None, context=None, group_id=1):
         """
         将所有文本（包括图像和上下文）嵌入到消息列表中。

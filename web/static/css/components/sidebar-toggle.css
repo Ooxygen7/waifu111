@@ -1,0 +1,77 @@
+/* 
+ * Sidebar Toggle Component
+ * 侧边栏切换按钮样式
+ */
+
+.sidebar-toggle {
+  display: none;
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  cursor: pointer;
+  z-index: var(--z-index-fixed);
+  transition: all var(--transition-base);
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-toggle span,
+.sidebar-toggle span::before,
+.sidebar-toggle span::after {
+  display: block;
+  position: absolute;
+  width: 18px;
+  height: 2px;
+  background-color: white;
+  border-radius: 1px;
+  transition: all var(--transition-base);
+}
+
+.sidebar-toggle span {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.sidebar-toggle span::before,
+.sidebar-toggle span::after {
+  content: '';
+  left: 0;
+}
+
+.sidebar-toggle span::before {
+  top: -6px;
+}
+
+.sidebar-toggle span::after {
+  bottom: -6px;
+}
+
+.sidebar.collapsed .sidebar-toggle span {
+  background-color: transparent;
+}
+
+.sidebar.collapsed .sidebar-toggle span::before {
+  top: 0;
+  transform: rotate(45deg);
+}
+
+.sidebar.collapsed .sidebar-toggle span::after {
+  bottom: 0;
+  transform: rotate(-45deg);
+}
+
+@media (max-width: var(--breakpoint-md)) {
+  .sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

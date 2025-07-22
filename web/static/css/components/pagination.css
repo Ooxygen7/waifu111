@@ -1,0 +1,163 @@
+/* 
+ * Pagination Components
+ * 分页组件样式
+ */
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  border-radius: var(--border-radius-pill);
+  background-color: rgba(0, 0, 0, 0.02);
+  padding: var(--spacing-xs);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.page-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-item:hover {
+  background-color: var(--primary-light);
+  color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(79, 172, 254, 0.15);
+}
+
+.page-item.active {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+}
+
+.page-item:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.3);
+}
+
+/* 页码省略号 */
+.page-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  color: var(--text-secondary);
+}
+
+/* 上一页/下一页按钮 */
+.page-prev,
+.page-next {
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+/* 页码信息 */
+.page-info {
+  margin-left: var(--spacing-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* 跳转到指定页 */
+.page-goto {
+  display: flex;
+  align-items: center;
+  margin-left: var(--spacing-md);
+}
+
+.page-goto-input {
+  width: 50px;
+  height: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  padding: 0 var(--spacing-sm);
+  margin: 0 var(--spacing-xs);
+  text-align: center;
+}
+
+.page-goto-btn {
+  height: 36px;
+  padding: 0 var(--spacing-sm);
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-goto-btn:hover {
+  background-color: var(--primary-color-dark);
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .page-info,
+  .page-goto {
+    margin-left: 0;
+    margin-top: var(--spacing-sm);
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* 动画效果 */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.page-item.active {
+  animation: pulse 2s infinite;
+}
+
+/* 波纹效果 */
+.page-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 100%;
+  transform: scale(1);
+  opacity: 0;
+  animation: page-ripple 0.6s linear;
+}
+
+@keyframes page-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(20);
+    opacity: 0;
+  }
+}

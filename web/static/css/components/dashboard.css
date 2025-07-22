@@ -1,0 +1,201 @@
+/* 
+ * Dashboard Components
+ * 仪表盘组件样式
+ */
+
+/* 仪表盘网格布局 */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* 表格容器 */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--border-radius-md);
+}
+
+/* 空状态显示 */
+.empty-state {
+  text-align: center;
+  padding: var(--spacing-2xl) 0;
+  color: var(--text-secondary);
+}
+
+.empty-icon {
+  font-size: 3rem;
+  margin-bottom: var(--spacing-md);
+  opacity: 0.5;
+}
+
+/* 快速操作区域 */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-md);
+}
+
+/* 操作卡片 */
+.action-card {
+  background: var(--card-background);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.action-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--primary-gradient);
+  z-index: 1;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.action-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+.action-card:hover::before {
+  opacity: 1;
+}
+
+/* 操作图标 */
+.action-icon {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-md);
+  color: var(--primary-color);
+  transition: transform var(--transition-base);
+}
+
+.action-card:hover .action-icon {
+  transform: scale(1.1);
+}
+
+/* 操作标题 */
+.action-title {
+  font-size: var(--font-size-lg);
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* 操作描述 */
+.action-desc {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+  font-size: var(--font-size-sm);
+}
+
+/* 用户信息 */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* 用户头像 */
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-lg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base);
+}
+
+tr:hover .user-avatar {
+  transform: scale(1.1);
+}
+
+/* 用户详情 */
+.user-details {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 用户名称 */
+.user-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 用户ID */
+.user-id {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+/* 消息数量标签 */
+.message-count {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 0.25em 0.75em;
+  border-radius: 20px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  display: inline-block;
+  box-shadow: var(--shadow-sm);
+}
+
+/* 骨架屏加载效果 */
+.skeleton-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-loading::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(255, 255, 255, 0.2) 50%, 
+    rgba(255, 255, 255, 0) 100%);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 992px) {
+  .quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-card {
+    padding: var(--spacing-md);
+  }
+}

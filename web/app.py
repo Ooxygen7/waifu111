@@ -482,7 +482,8 @@ def viewer_users():
 
     return render_template('viewer_users.html', users=users_list, page=page, total_pages=total_pages, 
                          format_datetime=format_datetime, search_term=search_term, 
-                         sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
+                         sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order, 
+                         per_page=per_page, total_users=total_users)
 
 @app.route('/viewer/conversations')
 @viewer_required
