@@ -762,13 +762,13 @@ class PromptsBuilder:
         else:
             messages = self.list[dialog_mark_index:]
         
-        # 组合所有消息的content
+        # 组合所有消息的content并替换用户昵称占位符
         combined_content = ""
         for msg in messages:
             if msg.get("content"):
-                combined_content += msg["content"] + "\n"
+                content = msg["content"].replace("{{user}}", self.user_nick)
+                combined_content += content + "\n"
                 
         return combined_content.strip()
-
 
 
