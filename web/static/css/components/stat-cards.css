@@ -169,3 +169,47 @@
     font-size: var(--font-size-2xl);
   }
 }
+
+/* 暗黑模式下的渐变卡片样式 */
+[data-theme="dark"] .stat-card {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .stat-card-users::before {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+}
+
+[data-theme="dark"] .stat-card-conversations::before {
+  background: linear-gradient(135deg, #166534 0%, #15803d 100%);
+}
+
+[data-theme="dark"] .stat-card-messages::before {
+  background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+}
+
+[data-theme="dark"] .stat-card-today::before {
+  background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 100%);
+}
+
+/* 暗黑模式下的文字对比度增强 */
+[data-theme="dark"] .stat-title,
+[data-theme="dark"] .stat-value,
+[data-theme="dark"] .stat-desc {
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] .stat-desc {
+  opacity: 0.9;
+}
+
+/* 暗黑模式下的背景图标 */
+[data-theme="dark"] .stat-bg-icon {
+  opacity: 0.1;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* 暗黑模式下的悬停效果增强 */
+[data-theme="dark"] .stat-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+}

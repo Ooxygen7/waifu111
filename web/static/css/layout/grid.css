@@ -3,6 +3,7 @@
  * 网格系统
  */
 
+/* CSS Grid 布局 */
 .grid {
   display: grid;
   gap: var(--spacing-md);
@@ -15,6 +16,76 @@
 .grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
 .grid-cols-12 { grid-template-columns: repeat(12, 1fr); }
+
+/* Flexbox 网格系统 */
+.grid-container {
+  width: 100%;
+  padding-right: var(--spacing-md);
+  padding-left: var(--spacing-md);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.grid-row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: calc(var(--spacing-md) * -0.5);
+  margin-left: calc(var(--spacing-md) * -0.5);
+}
+
+/* 基础列 */
+[class^="grid-col"] {
+  position: relative;
+  width: 100%;
+  padding-right: calc(var(--spacing-md) * 0.5);
+  padding-left: calc(var(--spacing-md) * 0.5);
+}
+
+/* 12列网格系统 */
+.grid-col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; }
+.grid-col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; }
+.grid-col-3 { flex: 0 0 25%; max-width: 25%; }
+.grid-col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; }
+.grid-col-5 { flex: 0 0 41.666667%; max-width: 41.666667%; }
+.grid-col-6 { flex: 0 0 50%; max-width: 50%; }
+.grid-col-7 { flex: 0 0 58.333333%; max-width: 58.333333%; }
+.grid-col-8 { flex: 0 0 66.666667%; max-width: 66.666667%; }
+.grid-col-9 { flex: 0 0 75%; max-width: 75%; }
+.grid-col-10 { flex: 0 0 83.333333%; max-width: 83.333333%; }
+.grid-col-11 { flex: 0 0 91.666667%; max-width: 91.666667%; }
+.grid-col-12 { flex: 0 0 100%; max-width: 100%; }
+
+/* 响应式列 - 中等屏幕 (md) */
+@media (min-width: 768px) {
+  .grid-col-md-1 { flex: 0 0 8.333333%; max-width: 8.333333%; }
+  .grid-col-md-2 { flex: 0 0 16.666667%; max-width: 16.666667%; }
+  .grid-col-md-3 { flex: 0 0 25%; max-width: 25%; }
+  .grid-col-md-4 { flex: 0 0 33.333333%; max-width: 33.333333%; }
+  .grid-col-md-5 { flex: 0 0 41.666667%; max-width: 41.666667%; }
+  .grid-col-md-6 { flex: 0 0 50%; max-width: 50%; }
+  .grid-col-md-7 { flex: 0 0 58.333333%; max-width: 58.333333%; }
+  .grid-col-md-8 { flex: 0 0 66.666667%; max-width: 66.666667%; }
+  .grid-col-md-9 { flex: 0 0 75%; max-width: 75%; }
+  .grid-col-md-10 { flex: 0 0 83.333333%; max-width: 83.333333%; }
+  .grid-col-md-11 { flex: 0 0 91.666667%; max-width: 91.666667%; }
+  .grid-col-md-12 { flex: 0 0 100%; max-width: 100%; }
+}
+
+/* 响应式列 - 大屏幕 (lg) */
+@media (min-width: 992px) {
+  .grid-col-lg-1 { flex: 0 0 8.333333%; max-width: 8.333333%; }
+  .grid-col-lg-2 { flex: 0 0 16.666667%; max-width: 16.666667%; }
+  .grid-col-lg-3 { flex: 0 0 25%; max-width: 25%; }
+  .grid-col-lg-4 { flex: 0 0 33.333333%; max-width: 33.333333%; }
+  .grid-col-lg-5 { flex: 0 0 41.666667%; max-width: 41.666667%; }
+  .grid-col-lg-6 { flex: 0 0 50%; max-width: 50%; }
+  .grid-col-lg-7 { flex: 0 0 58.333333%; max-width: 58.333333%; }
+  .grid-col-lg-8 { flex: 0 0 66.666667%; max-width: 66.666667%; }
+  .grid-col-lg-9 { flex: 0 0 75%; max-width: 75%; }
+  .grid-col-lg-10 { flex: 0 0 83.333333%; max-width: 83.333333%; }
+  .grid-col-lg-11 { flex: 0 0 91.666667%; max-width: 91.666667%; }
+  .grid-col-lg-12 { flex: 0 0 100%; max-width: 100%; }
+}
 
 /* 网格间距 */
 .gap-xs { gap: var(--spacing-xs); }

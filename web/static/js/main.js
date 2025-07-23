@@ -42,24 +42,117 @@ function initTimeDisplay() {
 function initSidebarToggle() {
     const sidebarToggle = document.querySelector('.sidebar-toggle');
     const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
     
     if (sidebarToggle && sidebar) {
+        // 设置初始状态 - 在移动设备上默认隐藏侧边栏
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('collapsed');
+            sidebarToggle.setAttribute('aria-expanded', 'false');
+        }
+        
+        // 切换侧边栏
         sidebarToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('collapsed');
+            const isExpanded = sidebar.classList.toggle('collapsed');
+            sidebarToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            
+            // 添加动画效果
+            sidebar.style.transition = 'transform var(--transition-base)';
+            
+            // 添加遮罩层（仅在移动设备上）
+            if (window.innerWidth <= 768) {
+                if (isExpanded) {
+                    // 创建遮罩层
+                    if (!document.querySelector('.sidebar-overlay')) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'sidebar-overlay';
+                        document.body.appendChild(overlay);
+                        
+                        // 点击遮罩层关闭侧边栏
+                        overlay.addEventListener('click', function() {
+                            sidebar.classList.remove('collapsed');
+                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                            this.remove();
+                        });
+                    }
+                } else {
+                    // 移除遮罩层
+                    const overlay = document.querySelector('.sidebar-overlay');
+                    if (overlay) {
+                        overlay.remove();
+                    }
+                }
+            }
         });
     }
     
     // 在小屏幕上点击导航链接后自动收起侧边栏
     const navLinks = document.querySelectorAll('.nav-link');
-    if (navLinks.length > 0 && window.innerWidth <= 768) {
+    if (navLinks.length > 0) {
         navLinks.forEach(link => {
             link.addEventListener('click', function() {
-                if (sidebar) {
-                    sidebar.classList.add('collapsed');
+                if (sidebar && window.innerWidth <= 768) {
+                    sidebar.classList.remove('collapsed');
+                    
+                    // 移除遮罩层
+                    const overlay = document.querySelector('.sidebar-overlay');
+                    if (overlay) {
+                        overlay.remove();
+                    }
+                    
+                    // 更新按钮状态
+                    if (sidebarToggle) {
+                        sidebarToggle.setAttribute('aria-expanded', 'false');
+                    }
                 }
             });
         });
     }
+    
+    // 添加键盘导航支持
+    if (sidebar) {
+        // 为侧边栏添加键盘导航
+        document.addEventListener('keydown', function(e) {
+            // ESC键关闭侧边栏
+            if (e.key === 'Escape' && sidebar.classList.contains('collapsed') && window.innerWidth <= 768) {
+                sidebar.classList.remove('collapsed');
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                }
+                
+                // 移除遮罩层
+                const overlay = document.querySelector('.sidebar-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+            }
+        });
+    }
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        if (sidebar) {
+            if (window.innerWidth <= 768) {
+                // 小屏幕默认收起侧边栏
+                sidebar.classList.remove('collapsed');
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                }
+                
+                // 移除遮罩层
+                const overlay = document.querySelector('.sidebar-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+            } else {
+                // 大屏幕默认展开侧边栏
+                sidebar.classList.remove('collapsed');
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+    });
 }
 
 /**

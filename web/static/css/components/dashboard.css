@@ -183,6 +183,69 @@ tr:hover .user-avatar {
   }
 }
 
+/* 暗黑模式适配 */
+[data-theme="dark"] .table-container {
+  background: var(--card-bg-dark);
+  border: 1px solid var(--border-color-dark);
+}
+
+[data-theme="dark"] .empty-state {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .action-card {
+  background: var(--card-bg-dark);
+  border: 1px solid var(--border-color-dark);
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .action-card::before {
+  background: var(--primary-gradient-dark);
+}
+
+[data-theme="dark"] .action-card:hover {
+  box-shadow: var(--shadow-lg-dark);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .action-icon {
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .action-title {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .action-desc {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .user-avatar {
+  background: var(--primary-gradient-dark);
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .user-name {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .user-id {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .message-count {
+  background: var(--primary-gradient-dark);
+  color: white;
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .skeleton-loading::after {
+  background: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(255, 255, 255, 0) 100%);
+}
+
 /* 响应式调整 */
 @media (max-width: 992px) {
   .quick-actions {

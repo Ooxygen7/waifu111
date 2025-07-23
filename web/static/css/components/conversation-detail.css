@@ -271,6 +271,82 @@
   color: var(--error-color);
 }
 
+/* 暗黑模式适配 */
+[data-theme="dark"] .info-card {
+  background: var(--card-bg-dark);
+  border-color: var(--border-color-dark);
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .info-card:hover {
+  box-shadow: var(--shadow-lg-dark);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .info-card .card-header {
+  background: var(--gradient-primary-dark);
+  border-bottom-color: var(--border-color-dark);
+}
+
+[data-theme="dark"] .info-card .card-body {
+  background: var(--card-bg-dark);
+}
+
+[data-theme="dark"] .info-card .label-cell {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .info-card .subtle-text {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .info-card .summary-section {
+  border-top-color: var(--border-color-dark);
+}
+
+[data-theme="dark"] .info-card .summary-container {
+  background-color: rgba(79, 172, 254, 0.1);
+  border: 1px solid rgba(79, 172, 254, 0.2);
+}
+
+[data-theme="dark"] .control-panel {
+  background: var(--card-bg-dark);
+  border-color: var(--border-color-dark);
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .control-panel .section-title {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .control-panel .search-input {
+  background: var(--input-bg-dark);
+  border-color: var(--border-color-dark);
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .control-panel .search-input::placeholder {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .control-panel .search-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.3);
+  background: var(--input-bg-focus-dark);
+}
+
+[data-theme="dark"] .control-panel .search-button {
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .control-panel .clear-button {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .control-panel .clear-button:hover {
+  color: var(--error-color);
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .info-card .info-grid {

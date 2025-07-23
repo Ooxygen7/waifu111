@@ -1,0 +1,465 @@
+{% extends "admin_base.html" %}
+
+{% block title %}按钮组件示例 - CyberWaifu Bot 管理系统{% endblock %}
+
+{% block page_title %}按钮组件示例{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">按钮组件示例</li>
+{% endblock %}
+
+{% block content %}
+<div class="content-layout">
+    <!-- 基础按钮 -->
+    <div class="content-block">
+        <h2 class="content-block-title">
+            <span class="content-block-title-icon">🔘</span>
+            基础按钮
+        </h2>
+        <div class="content-block-description">展示各种基础按钮样式和变体</div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">按钮变体</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-primary">主要按钮</button>
+                    <button class="btn btn-secondary">次要按钮</button>
+                    <button class="btn btn-success">成功按钮</button>
+                    <button class="btn btn-warning">警告按钮</button>
+                    <button class="btn btn-danger">危险按钮</button>
+                    <button class="btn btn-info">信息按钮</button>
+                    <button class="btn btn-outline">轮廓按钮</button>
+                    <button class="btn btn-link">链接按钮</button>
+                    <button class="btn btn-text">文本按钮</button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-primary"&gt;主要按钮&lt;/button&gt;
+&lt;button class="btn btn-secondary"&gt;次要按钮&lt;/button&gt;
+&lt;button class="btn btn-success"&gt;成功按钮&lt;/button&gt;
+&lt;button class="btn btn-warning"&gt;警告按钮&lt;/button&gt;
+&lt;button class="btn btn-danger"&gt;危险按钮&lt;/button&gt;
+&lt;button class="btn btn-info"&gt;信息按钮&lt;/button&gt;
+&lt;button class="btn btn-outline"&gt;轮廓按钮&lt;/button&gt;
+&lt;button class="btn btn-link"&gt;链接按钮&lt;/button&gt;
+&lt;button class="btn btn-text"&gt;文本按钮&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">按钮尺寸</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-primary btn-xs">超小按钮</button>
+                    <button class="btn btn-primary btn-sm">小按钮</button>
+                    <button class="btn btn-primary">默认按钮</button>
+                    <button class="btn btn-primary btn-lg">大按钮</button>
+                    <button class="btn btn-primary btn-xl">超大按钮</button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-primary btn-xs"&gt;超小按钮&lt;/button&gt;
+&lt;button class="btn btn-primary btn-sm"&gt;小按钮&lt;/button&gt;
+&lt;button class="btn btn-primary"&gt;默认按钮&lt;/button&gt;
+&lt;button class="btn btn-primary btn-lg"&gt;大按钮&lt;/button&gt;
+&lt;button class="btn btn-primary btn-xl"&gt;超大按钮&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">按钮状态</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-primary">正常状态</button>
+                    <button class="btn btn-primary" disabled>禁用状态</button>
+                    <button class="btn btn-primary loading">加载状态</button>
+                    <button class="btn btn-primary" data-loading="true" data-loading-time="2000">点击加载</button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-primary"&gt;正常状态&lt;/button&gt;
+&lt;button class="btn btn-primary" disabled&gt;禁用状态&lt;/button&gt;
+&lt;button class="btn btn-primary loading"&gt;加载状态&lt;/button&gt;
+&lt;button class="btn btn-primary" data-loading="true" data-loading-time="2000"&gt;点击加载&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-divider"></div>
+    
+    <!-- 图标按钮 -->
+    <div class="content-block">
+        <h2 class="content-block-title">
+            <span class="content-block-title-icon">🔣</span>
+            图标按钮
+        </h2>
+        <div class="content-block-description">展示带有图标的按钮样式</div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">纯图标按钮</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-icon btn-primary" aria-label="添加">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="btn btn-icon btn-secondary" aria-label="编辑">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-icon btn-danger" aria-label="删除">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <button class="btn btn-icon btn-success" aria-label="保存">
+                        <i class="fas fa-save"></i>
+                    </button>
+                    <button class="btn btn-icon btn-warning" aria-label="警告">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </button>
+                    <button class="btn btn-icon btn-info" aria-label="信息">
+                        <i class="fas fa-info-circle"></i>
+                    </button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-icon btn-primary" aria-label="添加"&gt;
+    &lt;i class="fas fa-plus"&gt;&lt;/i&gt;
+&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">带图标的按钮</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-primary btn-with-icon">
+                        <i class="fas fa-plus btn-icon"></i> 添加用户
+                    </button>
+                    <button class="btn btn-secondary btn-with-icon">
+                        <i class="fas fa-edit btn-icon"></i> 编辑资料
+                    </button>
+                    <button class="btn btn-danger btn-with-icon">
+                        <i class="fas fa-trash btn-icon"></i> 删除记录
+                    </button>
+                    <button class="btn btn-success btn-with-icon">
+                        <i class="fas fa-check btn-icon"></i> 确认操作
+                    </button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-primary btn-with-icon"&gt;
+    &lt;i class="fas fa-plus btn-icon"&gt;&lt;/i&gt; 添加用户
+&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">图标按钮尺寸</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-icon btn-sm btn-primary" aria-label="小图标按钮">
+                        <i class="fas fa-star"></i>
+                    </button>
+                    <button class="btn btn-icon btn-primary" aria-label="默认图标按钮">
+                        <i class="fas fa-star"></i>
+                    </button>
+                    <button class="btn btn-icon btn-lg btn-primary" aria-label="大图标按钮">
+                        <i class="fas fa-star"></i>
+                    </button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-icon btn-sm btn-primary" aria-label="小图标按钮"&gt;
+    &lt;i class="fas fa-star"&gt;&lt;/i&gt;
+&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-divider"></div>
+    
+    <!-- 按钮组 -->
+    <div class="content-block">
+        <h2 class="content-block-title">
+            <span class="content-block-title-icon">🔢</span>
+            按钮组
+        </h2>
+        <div class="content-block-description">展示按钮组和工具栏组件</div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">基础按钮组</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <div class="btn-group">
+                        <button class="btn btn-primary">左侧</button>
+                        <button class="btn btn-primary">中间</button>
+                        <button class="btn btn-primary">右侧</button>
+                    </div>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;div class="btn-group"&gt;
+    &lt;button class="btn btn-primary"&gt;左侧&lt;/button&gt;
+    &lt;button class="btn btn-primary"&gt;中间&lt;/button&gt;
+    &lt;button class="btn btn-primary"&gt;右侧&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">切换按钮组</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <div class="btn-group" data-toggle="buttons" data-toggle-type="radio">
+                        <button class="btn btn-secondary active" aria-pressed="true">日视图</button>
+                        <button class="btn btn-secondary" aria-pressed="false">周视图</button>
+                        <button class="btn btn-secondary" aria-pressed="false">月视图</button>
+                    </div>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;div class="btn-group" data-toggle="buttons" data-toggle-type="radio"&gt;
+    &lt;button class="btn btn-secondary active" aria-pressed="true"&gt;日视图&lt;/button&gt;
+    &lt;button class="btn btn-secondary" aria-pressed="false"&gt;周视图&lt;/button&gt;
+    &lt;button class="btn btn-secondary" aria-pressed="false"&gt;月视图&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">工具栏</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <div class="toolbar">
+                        <div class="toolbar-group">
+                            <button class="btn btn-icon btn-secondary" aria-label="加粗">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button class="btn btn-icon btn-secondary" aria-label="斜体">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button class="btn btn-icon btn-secondary" aria-label="下划线">
+                                <i class="fas fa-underline"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="toolbar-divider"></div>
+                        
+                        <div class="toolbar-group">
+                            <button class="btn btn-icon btn-secondary" aria-label="左对齐">
+                                <i class="fas fa-align-left"></i>
+                            </button>
+                            <button class="btn btn-icon btn-secondary" aria-label="居中对齐">
+                                <i class="fas fa-align-center"></i>
+                            </button>
+                            <button class="btn btn-icon btn-secondary" aria-label="右对齐">
+                                <i class="fas fa-align-right"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="toolbar-divider"></div>
+                        
+                        <div class="toolbar-group">
+                            <button class="btn btn-secondary dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+                                字体大小 <i class="fas fa-caret-down"></i>
+                            </button>
+                            <div class="dropdown-menu">
+                                <a class="dropdown-item" href="#">小</a>
+                                <a class="dropdown-item" href="#">中</a>
+                                <a class="dropdown-item" href="#">大</a>
+                            </div>
+                        </div>
+                        
+                        <div class="toolbar-spacer"></div>
+                        
+                        <button class="btn btn-primary">保存</button>
+                    </div>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;div class="toolbar"&gt;
+    &lt;div class="toolbar-group"&gt;
+        &lt;button class="btn btn-icon btn-secondary" aria-label="加粗"&gt;
+            &lt;i class="fas fa-bold"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;button class="btn btn-icon btn-secondary" aria-label="斜体"&gt;
+            &lt;i class="fas fa-italic"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;button class="btn btn-icon btn-secondary" aria-label="下划线"&gt;
+            &lt;i class="fas fa-underline"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+    &lt;/div&gt;
+    
+    &lt;div class="toolbar-divider"&gt;&lt;/div&gt;
+    
+    &lt;!-- 更多工具栏组件 --&gt;
+    
+    &lt;div class="toolbar-spacer"&gt;&lt;/div&gt;
+    
+    &lt;button class="btn btn-primary"&gt;保存&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-divider"></div>
+    
+    <!-- 特殊按钮 -->
+    <div class="content-block">
+        <h2 class="content-block-title">
+            <span class="content-block-title-icon">✨</span>
+            特殊按钮
+        </h2>
+        <div class="content-block-description">展示特殊用途的按钮组件</div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">块级按钮</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <button class="btn btn-primary btn-block">块级主要按钮</button>
+                    <button class="btn btn-secondary btn-block mt-sm">块级次要按钮</button>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-primary btn-block"&gt;块级主要按钮&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">操作按钮组</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <div class="action-buttons">
+                        <button class="btn btn-primary">保存更改</button>
+                        <button class="btn btn-secondary">取消</button>
+                        <button class="btn btn-danger">删除</button>
+                    </div>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;div class="action-buttons"&gt;
+    &lt;button class="btn btn-primary"&gt;保存更改&lt;/button&gt;
+    &lt;button class="btn btn-secondary"&gt;取消&lt;/button&gt;
+    &lt;button class="btn btn-danger"&gt;删除&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-md">
+            <div class="card-header">
+                <h3 class="card-title">响应式按钮</h3>
+            </div>
+            <div class="card-body">
+                <div class="demo-section">
+                    <p>在小屏幕上，这些按钮会变成块级按钮。请调整浏览器窗口大小查看效果。</p>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary btn-responsive">响应式主要按钮</button>
+                        <button class="btn btn-secondary btn-responsive">响应式次要按钮</button>
+                    </div>
+                </div>
+                
+                <div class="code-example">
+                    <pre><code>&lt;button class="btn btn-primary btn-responsive"&gt;响应式主要按钮&lt;/button&gt;</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .demo-section {
+        margin-bottom: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .code-example {
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        overflow-x: auto;
+    }
+    
+    .code-example pre {
+        margin: 0;
+    }
+    
+    .code-example code {
+        font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.875rem;
+        color: #333;
+    }
+    
+    .mt-sm {
+        margin-top: 0.5rem;
+    }
+    
+    [data-theme="dark"] .code-example {
+        background-color: #2a2a2a;
+    }
+    
+    [data-theme="dark"] .code-example code {
+        color: #e0e0e0;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('按钮组件示例页面已加载');
+        
+        // 监听按钮组变化事件
+        document.querySelectorAll('.btn-group[data-toggle="buttons"]').forEach(group => {
+            group.addEventListener('buttongroup:change', function(event) {
+                console.log('按钮组选择已更改:', event.detail);
+            });
+        });
+        
+        // 监听加载按钮事件
+        document.querySelectorAll('[data-loading="true"]').forEach(button => {
+            button.addEventListener('button:loading', function(event) {
+                console.log('按钮开始加载:', event.detail);
+            });
+            
+            button.addEventListener('button:loaded', function(event) {
+                console.log('按钮加载完成:', event.detail);
+            });
+        });
+    });
+</script>
+{% endblock %}

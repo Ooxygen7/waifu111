@@ -110,6 +110,60 @@
   background-color: var(--primary-color-dark);
 }
 
+/* 暗黑模式适配 */
+[data-theme="dark"] .pagination {
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .page-item {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .page-item:hover {
+  background-color: rgba(79, 172, 254, 0.1);
+  color: var(--primary-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .page-item.active {
+  background: var(--primary-gradient-dark);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .page-item:focus {
+  box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.4);
+}
+
+[data-theme="dark"] .page-ellipsis {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .page-info {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .page-goto-input {
+  background-color: var(--card-bg-dark);
+  border-color: var(--border-color-dark);
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .page-goto-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.3);
+}
+
+[data-theme="dark"] .page-goto-btn {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+[data-theme="dark"] .page-goto-btn:hover {
+  background-color: var(--primary-color-light);
+}
+
 /* 响应式调整 */
 @media (max-width: 576px) {
   .pagination {

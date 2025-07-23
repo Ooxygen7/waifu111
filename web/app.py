@@ -1589,6 +1589,62 @@ def edit_message():
         app_logger.error(f"编辑消息失败: {str(e)}")
         return jsonify({'error': f'编辑消息失败: {str(e)}'}), 500
 
+@app.route('/admin/sample')
+@admin_required
+def admin_sample():
+    """管理员示例页面 - 展示管理员功能示例"""
+    return render_template('admin_sample.html')
+
+@app.route('/admin/buttons-demo')
+@admin_required
+def admin_buttons_demo():
+    """按钮组件示例页面 - 展示所有按钮样式和交互效果"""
+    return render_template('admin_buttons_demo.html')
 if __name__ == '__main__':
     app_logger.info("启动Web管理界面，地址: http://0.0.0.0:8081")
     app.run(debug=False, host='0.0.0.0', port=8081, use_reloader=False)
+
+
+@app.route('/api/conversations/<int:conv_id>', methods=['DELETE'])
+@admin_required
+def api_delete_conversation(conv_id):
+    """删除单个对话"""
+    try:
+        # 检查对话是否存在
+        conversation = db.query_db('SELECT * FROM conversations WHERE conv_id = ?', (conv_id,))
+        if not conversation:
+            return jsonify({'success': False, 'error': '对话不存在'}), 404
+        
+        # 删除对话
+        db.execute_db('DELETE FROM conversations WHERE conv_id = ?', (conv_id,))
+        db.execute_db('DELETE FROM dialogs WHERE conv_id = ?', (conv_id,))
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"删除对话时发生错误: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/conversations/batch-delete', methods=['POST'])
+@admin_required
+def api_batch_delete_conversations():
+    """批量删除对话"""
+    try:
+        data = request.get_json()
+        if not data or 'ids' not in data or not isinstance(data['ids'], list):
+            return jsonify({'success': False, 'error': '无效的请求数据'}), 400
+        
+        conv_ids = data['ids']
+        if not conv_ids:
+            return jsonify({'success': False, 'error': '未提供对话ID'}), 400
+        
+        # 将ID列表转换为元组，用于SQL IN子句
+        placeholders = ','.join(['?'] * len(conv_ids))
+        
+        # 删除对话和相关的对话内容
+        db.execute_db(f'DELETE FROM conversations WHERE conv_id IN ({placeholders})', tuple(conv_ids))
+        db.execute_db(f'DELETE FROM dialogs WHERE conv_id IN ({placeholders})', tuple(conv_ids))
+        
+        return jsonify({'success': True, 'deleted_count': len(conv_ids)})
+    except Exception as e:
+        app.logger.error(f"批量删除对话时发生错误: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500

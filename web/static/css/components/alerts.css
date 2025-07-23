@@ -1,0 +1,145 @@
+/* 
+ * Alert Components
+ * 警告提示组件样式
+ */
+
+.alert {
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius-md);
+  margin-bottom: var(--spacing-md);
+  border-left: 4px solid transparent;
+  background-color: var(--background-color);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+.alert i {
+  margin-right: var(--spacing-sm);
+  font-size: 1.2em;
+  margin-top: 2px;
+}
+
+.alert p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.alert p + p {
+  margin-top: var(--spacing-sm);
+}
+
+.alert-primary {
+  background-color: rgba(79, 172, 254, 0.1);
+  border-left-color: var(--primary-color);
+  color: var(--primary-color-dark);
+}
+
+.alert-success {
+  background-color: rgba(82, 196, 26, 0.1);
+  border-left-color: var(--success-color);
+  color: var(--success-color-dark);
+}
+
+.alert-warning {
+  background-color: rgba(250, 173, 20, 0.1);
+  border-left-color: var(--warning-color);
+  color: var(--warning-color-dark);
+}
+
+.alert-error,
+.alert-danger {
+  background-color: rgba(255, 77, 79, 0.1);
+  border-left-color: var(--error-color);
+  color: var(--error-color-dark);
+}
+
+.alert-info {
+  background-color: rgba(19, 194, 194, 0.1);
+  border-left-color: var(--info-color);
+  color: var(--info-color-dark);
+}
+
+/* 带有关闭按钮的警告提示 */
+.alert-dismissible {
+  padding-right: 40px;
+}
+
+.alert-dismissible .close {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: var(--font-size-lg);
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.alert-dismissible .close:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 带有图标的警告提示 */
+.alert-with-icon {
+  padding-left: 50px;
+}
+
+.alert-with-icon .alert-icon {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-md);
+  font-size: 1.5em;
+}
+
+/* 暗黑模式适配 */
+[data-theme="dark"] .alert {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .alert-primary {
+  background-color: rgba(79, 172, 254, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .alert-success {
+  background-color: rgba(82, 196, 26, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .alert-warning {
+  background-color: rgba(250, 173, 20, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .alert-error,
+[data-theme="dark"] .alert-danger {
+  background-color: rgba(255, 77, 79, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .alert-info {
+  background-color: rgba(19, 194, 194, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .alert-dismissible .close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 辅助类 */
+.mt-1 { margin-top: var(--spacing-xs); }
+.mt-2 { margin-top: var(--spacing-sm); }
+.mt-3 { margin-top: var(--spacing-md); }
+.mt-4 { margin-top: var(--spacing-lg); }
+.mt-5 { margin-top: var(--spacing-xl); }

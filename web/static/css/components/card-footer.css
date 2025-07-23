@@ -1,0 +1,79 @@
+/* 
+ * Card Footer Component
+ * 卡片底部组件
+ */
+
+.card-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--border-color);
+  border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-footer-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.card-footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.card-footer-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* 卡片底部按钮链接 */
+.btn-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.btn-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+.btn-link-icon {
+  font-size: var(--font-size-base);
+}
+
+/* 深色模式 */
+[data-theme="dark"] .card-footer {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-top-color: var(--border-color-dark);
+}
+
+[data-theme="dark"] .card-footer-text {
+  color: var(--text-secondary-dark);
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+  .card-footer {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    align-items: flex-start;
+  }
+  
+  .card-footer-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

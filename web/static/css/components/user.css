@@ -264,62 +264,157 @@
   font-size: 0.9em;
 }
 
+/* 暗黑模式适配 */
+[data-theme="dark"] .user-info {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .user-avatar {
+  background-color: rgba(79, 172, 254, 0.2);
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .avatar-image {
+  background: linear-gradient(135deg, rgba(79, 172, 254, 0.3) 0%, rgba(0, 242, 254, 0.2) 100%);
+  color: var(--primary-color-light);
+}
+
+[data-theme="dark"] .user-name {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .user-fullname {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .stat-badge {
+  background-color: var(--bg-secondary-dark);
+  border: 1px solid var(--border-color-dark);
+}
+
+[data-theme="dark"] .stat-value {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .stat-label {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .date-info {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .date-value {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .date-time {
+  color: var(--text-secondary-dark);
+}
+
+/* 筛选器暗黑模式 */
+[data-theme="dark"] .filter-label {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .filter-button {
+  background-color: var(--card-bg-dark);
+  border-color: var(--border-color-dark);
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .filter-button:hover,
+[data-theme="dark"] .filter-button.active {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background-color: rgba(79, 172, 254, 0.1);
+}
+
+[data-theme="dark"] .filter-dropdown {
+  background-color: var(--card-bg-dark);
+  border-color: var(--border-color-dark);
+  box-shadow: var(--shadow-lg-dark);
+}
+
+[data-theme="dark"] .filter-group {
+  border-bottom-color: var(--border-color-dark);
+}
+
+[data-theme="dark"] .filter-group-title {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .filter-option {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .filter-option:hover,
+[data-theme="dark"] .filter-option.active {
+  background-color: rgba(79, 172, 254, 0.1);
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .filter-actions {
+  border-top-color: var(--border-color-dark);
+}
+
+/* 筛选标签暗黑模式 */
+[data-theme="dark"] .filter-tags .filter-tag {
+  background: var(--bg-secondary-dark);
+  border-color: var(--border-color-dark);
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .filter-tags .filter-tag:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .filter-tags .filter-tag-close {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .filter-tags .filter-tag:hover .filter-tag-close {
+  color: var(--error-color);
+}
+
+/* 用户状态指示器暗黑模式 */
+[data-theme="dark"] .user-status.active {
+  background-color: var(--success-color);
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+}
+
+[data-theme="dark"] .user-status.inactive {
+  background-color: var(--text-muted-dark);
+}
+
+/* 用户ID徽章暗黑模式 */
+[data-theme="dark"] .user-id {
+  background: rgba(79, 172, 254, 0.2);
+  color: var(--primary-color-light);
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .filter-container {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
   
   .filter-button {
     width: 100%;
+    justify-content: center;
   }
   
   .filter-dropdown {
+    position: static;
     width: 100%;
+    margin-top: var(--spacing-sm);
+    box-shadow: none;
+    border: 1px solid var(--border-color);
   }
-}
-
-/* 暗色主题适配 */
-[data-theme="dark"] .user-avatar {
-  background-color: var(--primary-dark);
-}
-
-[data-theme="dark"] .avatar-image {
-  background: linear-gradient(135deg, var(--primary-dark) 0%, rgba(0, 242, 254, 0.1) 100%);
-}
-
-[data-theme="dark"] .stat-badge {
-  background-color: var(--bg-dark);
-}
-
-[data-theme="dark"] .filter-button {
-  background-color: var(--bg-dark);
-  border-color: var(--border-dark);
-}
-
-[data-theme="dark"] .filter-dropdown {
-  background-color: var(--bg-dark);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="dark"] .filter-group {
-  border-color: var(--border-dark);
-}
-
-[data-theme="dark"] .filter-option {
-  background-color: var(--bg-darker);
-}
-
-[data-theme="dark"] .filter-option:hover {
-  background-color: var(--primary-dark);
-}
-
-[data-theme="dark"] .filter-actions {
-  border-color: var(--border-dark);
-}
-
-[data-theme="dark"] .filter-tag {
-  background-color: var(--primary-dark);
-  color: white;
+  
+  [data-theme="dark"] .filter-dropdown {
+    border-color: var(--border-color-dark);
+  }
 }

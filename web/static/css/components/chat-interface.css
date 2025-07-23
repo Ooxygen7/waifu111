@@ -227,6 +227,90 @@
   margin: var(--spacing-xs) 0;
 }
 
+/* 暗黑模式适配 */
+[data-theme="dark"] .chat-container {
+  background: var(--card-bg-dark);
+  border-color: var(--border-color-dark);
+  box-shadow: var(--shadow-dark);
+}
+
+[data-theme="dark"] .message-list {
+  background: linear-gradient(to bottom, var(--bg-secondary-dark), var(--card-bg-dark));
+  scrollbar-color: var(--primary-color) transparent;
+}
+
+[data-theme="dark"] .message-list::-webkit-scrollbar-thumb {
+  background-color: var(--primary-color);
+}
+
+[data-theme="dark"] .ai-bubble {
+  background: var(--card-bg-dark);
+  color: var(--text-primary-dark);
+  border-color: var(--border-color-dark);
+}
+
+[data-theme="dark"] .ai-bubble::after {
+  border-top-color: var(--card-bg-dark);
+}
+
+[data-theme="dark"] .message-content a {
+  color: var(--primary-color-light);
+}
+
+[data-theme="dark"] .ai-bubble .message-content a:hover {
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .message-content pre {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary-dark);
+  border: 1px solid var(--border-color-dark);
+}
+
+[data-theme="dark"] .user-bubble .message-content pre {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .ai-bubble .message-time {
+  color: var(--text-secondary-dark);
+}
+
+/* 搜索高亮暗黑模式 */
+[data-theme="dark"] .search-highlight {
+  background-color: rgba(255, 193, 7, 0.4);
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .user-bubble .search-highlight {
+  background-color: rgba(255, 255, 255, 0.4);
+  color: white;
+}
+
+/* 高亮脉冲动画暗黑模式 */
+[data-theme="dark"] .highlight-pulse {
+  animation: highlight-pulse-dark 2s ease-in-out;
+}
+
+@keyframes highlight-pulse-dark {
+  0%, 100% { 
+    background-color: transparent; 
+    box-shadow: none;
+  }
+  50% { 
+    background-color: rgba(79, 172, 254, 0.1);
+    box-shadow: 0 0 20px rgba(79, 172, 254, 0.3);
+  }
+}
+
+/* 波纹效果暗黑模式 */
+[data-theme="dark"] .ripple-effect {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .user-bubble .ripple-effect {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .message-bubble {
@@ -235,6 +319,10 @@
   
   .message-list {
     height: 500px;
+    padding: var(--spacing-sm);
+  }
+  
+  .chat-content {
     padding: var(--spacing-sm);
   }
 }

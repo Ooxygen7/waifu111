@@ -183,3 +183,38 @@
     box-shadow: 0 0 0 0 rgba(79, 172, 254, 0);
   }
 }
+
+/* 暗黑模式适配 */
+[data-theme="dark"] .badge-outline-primary {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .badge-outline-secondary {
+  border-color: var(--text-secondary-dark);
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .badge-outline-success {
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+[data-theme="dark"] .badge-outline-info {
+  border-color: var(--info-color);
+  color: var(--info-color);
+}
+
+[data-theme="dark"] .badge-outline-warning {
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+
+[data-theme="dark"] .badge-outline-danger {
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+[data-theme="dark"] .badge-status.badge-offline {
+  background-color: rgba(255, 255, 255, 0.3);
+}

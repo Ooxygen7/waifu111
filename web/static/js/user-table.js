@@ -147,10 +147,15 @@ function initUserTableInteractions() {
     });
     
     // 添加详情按钮点击事件
-    const detailButtons = document.querySelectorAll('.btn-icon[title="查看详情"]');
+    const detailButtons = document.querySelectorAll('button.btn-icon[title="查看详情"]');
+    console.log('找到详情按钮数量:', detailButtons.length); // 调试信息
+    
     detailButtons.forEach(button => {
         button.addEventListener('click', function(e) {
+            e.preventDefault(); // 阻止默认行为
             e.stopPropagation(); // 阻止事件冒泡
+            
+            console.log('详情按钮被点击'); // 调试信息
             
             // 添加按钮点击效果
             this.classList.add('btn-clicked');
@@ -162,6 +167,7 @@ function initUserTableInteractions() {
             const userIdElement = row.querySelector('.user-id');
             if (userIdElement) {
                 const userId = userIdElement.textContent.trim();
+                console.log('用户ID:', userId); // 调试信息
                 showUserDetailModal(userId);
             }
         });
@@ -654,6 +660,12 @@ function initUserDetailModal() {
  * @param {string} userId - 用户ID
  */
 function showUserDetailModal(userId) {
+    // 检查是否已存在模态框，如果存在则先移除
+    const existingModal = document.querySelector('.modal-overlay');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
     // 创建模态框
     const modalOverlay = document.createElement('div');
     modalOverlay.className = 'modal-overlay';

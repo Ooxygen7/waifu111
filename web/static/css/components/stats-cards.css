@@ -185,8 +185,9 @@
 
 /* 深色模式 */
 [data-theme="dark"] .stats-card {
-  background-color: var(--dark-surface);
+  background-color: var(--card-background);
   border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 [data-theme="dark"] .stats-header {
@@ -194,7 +195,53 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+[data-theme="dark"] .stats-title {
+  color: var(--text-primary);
+}
+
 [data-theme="dark"] .stat-card {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: var(--card-background);
   border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .stat-card::before {
+  background: linear-gradient(to bottom, rgba(79, 172, 254, 0.8), rgba(19, 194, 194, 0.8));
+}
+
+[data-theme="dark"] .stat-value {
+  color: var(--text-primary);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="dark"] .stat-label {
+  color: var(--text-secondary);
+}
+
+/* 暗黑模式下的图标背景渐变 */
+[data-theme="dark"] .users-icon {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+}
+
+[data-theme="dark"] .conversations-icon {
+  background: linear-gradient(135deg, #166534 0%, #15803d 100%);
+}
+
+[data-theme="dark"] .messages-icon {
+  background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+}
+
+[data-theme="dark"] .tokens-icon {
+  background: linear-gradient(135deg, #92400e 0%, #a16207 100%);
+}
+
+/* 暗黑模式下的悬停效果 */
+[data-theme="dark"] .stat-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+  transform: translateY(-4px);
+}
+
+[data-theme="dark"] .stats-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+  transform: translateY(-4px);
 }

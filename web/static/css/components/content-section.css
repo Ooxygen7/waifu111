@@ -1,0 +1,93 @@
+/* 
+ * Content Section Component
+ * 内容区域组件
+ */
+
+.content-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.content-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.content-section-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.content-section-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.content-section-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.content-section-body {
+  background-color: #fff;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-lg);
+}
+
+.content-section-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+/* 卡片标题样式 */
+.card-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.card-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+/* 深色模式 */
+[data-theme="dark"] .content-section-body {
+  background-color: var(--card-bg-dark);
+}
+
+[data-theme="dark"] .card-title {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .card-subtitle {
+  color: var(--text-secondary-dark);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .content-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .content-section-actions {
+    margin-top: var(--spacing-sm);
+    width: 100%;
+  }
+  
+  .content-section-body {
+    padding: var(--spacing-md);
+  }
+}

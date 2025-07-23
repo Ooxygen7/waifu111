@@ -1,0 +1,93 @@
+/* 
+ * Button Effects
+ * 按钮特效样式
+ */
+
+/* 波纹效果 */
+.btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+.btn-secondary .btn-ripple {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .btn-secondary .btn-ripple {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* 悬浮效果 */
+.btn-float {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.btn-float:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+/* 脉冲效果 */
+.btn-pulse {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 172, 254, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(79, 172, 254, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 172, 254, 0);
+  }
+}
+
+/* 闪光效果 */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0) 100%);
+  transform: skewX(-25deg);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  20%, 100% {
+    left: 100%;
+  }
+}
+
+/* 加载动画 */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

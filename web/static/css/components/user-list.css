@@ -1,0 +1,117 @@
+/* 
+ * User List Component
+ * 用户列表组件
+ */
+
+.user-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.user-list-item {
+  display: flex;
+  align-items: center;
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.user-list-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--primary-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin-right: var(--spacing-md);
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-meta {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.user-action {
+  margin-left: var(--spacing-md);
+}
+
+/* 用户列表变体 - 紧凑型 */
+.user-list-compact .user-list-item {
+  padding-bottom: var(--spacing-sm);
+}
+
+.user-list-compact .user-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: var(--font-size-xs);
+}
+
+/* 用户列表变体 - 带背景 */
+.user-list-bg .user-list-item {
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  border: none;
+  background-color: rgba(0, 0, 0, 0.02);
+  margin-bottom: var(--spacing-sm);
+}
+
+.user-list-bg .user-list-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* 深色模式 */
+[data-theme="dark"] .user-list-item {
+  border-bottom-color: var(--border-color-dark);
+}
+
+[data-theme="dark"] .user-name {
+  color: var(--text-primary-dark);
+}
+
+[data-theme="dark"] .user-meta {
+  color: var(--text-secondary-dark);
+}
+
+[data-theme="dark"] .user-list-bg .user-list-item {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .user-list-bg .user-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+  .user-action {
+    display: none;
+  }
+}

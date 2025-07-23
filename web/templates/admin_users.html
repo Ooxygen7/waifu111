@@ -1,0 +1,824 @@
+{% extends "admin_base.html" %}
+
+{% block title %}用户管理 - CyberWaifu Bot 管理系统{% endblock %}
+
+{% block page_title %}用户管理{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active" aria-current="page">
+    用户管理
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="header-container">
+            <div class="header-title">
+                <h3><i class="icon">👥</i> 用户管理</h3>
+            </div>
+            <div class="search-container">
+                <form method="GET" class="search-form">
+                    <div class="search-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <input type="text" name="search" class="search-input" 
+                           placeholder="搜索用户ID、用户名..." value="{{ search_term }}"
+                           aria-label="搜索用户">
+                    <div class="search-loading"></div>
+                    {% if search_term %}
+                    <a href="{{ url_for('users') }}" class="clear-button" aria-label="清除搜索">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </a>
+                    {% endif %}
+                    <button type="submit" class="search-button" aria-label="搜索">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                </form>
+                {% if search_term %}
+                <div class="search-status">找到与 "{{ search_term }}" 相关的结果</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="filter-container mt-md">
+            <div class="filter-label">筛选：</div>
+            
+            <button class="filter-button" aria-label="打开筛选选项">
+                <span class="filter-button-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                </span>
+                <span>筛选条件</span>
+            </button>
+            
+            <div class="filter-dropdown">
+                <div class="filter-group">
+                    <div class="filter-group-title">注册时间</div>
+                    <div class="filter-options">
+                        <div class="filter-option" data-key="date" data-value="today">今天</div>
+                        <div class="filter-option" data-key="date" data-value="week">本周</div>
+                        <div class="filter-option" data-key="date" data-value="month">本月</div>
+                        <div class="filter-option" data-key="date" data-value="year">今年</div>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-group-title">对话数量</div>
+                    <div class="filter-options">
+                        <div class="filter-option" data-key="conversations" data-value="0">无对话</div>
+                        <div class="filter-option" data-key="conversations" data-value="1-10">1-10</div>
+                        <div class="filter-option" data-key="conversations" data-value="10+">10+</div>
+                        <div class="filter-option" data-key="conversations" data-value="50+">50+</div>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button class="btn btn-text" id="clear-filters">清除筛选</button>
+                    <button class="btn btn-primary" id="apply-filters">应用筛选</button>
+                </div>
+            </div>
+            
+            <div class="filter-tags">
+                <!-- 筛选标签将通过JavaScript动态添加 -->
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if users %}
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-sort="number">
+                            <a href="{{ url_for('users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
+                               class="sort-link" aria-label="按用户ID排序">
+                                <span>用户ID</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'uid' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </th>
+                        <th class="sortable" data-sort="text">
+                            <a href="{{ url_for('users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
+                               class="sort-link" aria-label="按用户名排序">
+                                <span>用户名</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'user_name' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </th>
+                        <th>姓名</th>
+                        <th class="sortable" data-sort="number">
+                            <a href="{{ url_for('users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
+                               class="sort-link" aria-label="按对话数排序">
+                                <span>对话数</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'conversations' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </th>
+                        <th class="sortable" data-sort="number">
+                            <a href="{{ url_for('users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
+                               class="sort-link" aria-label="按消息数排序">
+                                <span>消息数</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'dialog_turns' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </th>
+                        <th class="sortable" data-sort="date">
+                            <a href="{{ url_for('users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
+                               class="sort-link" aria-label="按注册时间排序">
+                                <span>注册时间</span>
+                                <span class="sort-indicator">
+                                    {% if sort_by == 'create_at' %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
+                                            {% if sort_order == 'asc' %}
+                                            <polyline points="18 15 12 9 6 15"></polyline>
+                                            {% else %}
+                                            <polyline points="6 9 12 15 18 9"></polyline>
+                                            {% endif %}
+                                        </svg>
+                                    {% else %}
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="table-row-interactive">
+                        <td>
+                            <span class="badge primary user-id">{{ user.uid }}</span>
+                        </td>
+                        <td>
+                            <div class="user-info">
+                                <div class="user-avatar">
+                                    <div class="avatar-image">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                            <circle cx="12" cy="7" r="4"></circle>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="user-details">
+                                    <span class="user-name">{{ user.user_name or '未设置' }}</span>
+                                    {% if user.is_active %}
+                                    <span class="user-status active" title="活跃用户"></span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.first_name or user.last_name %}
+                                <span class="user-fullname">{{ user.first_name or '' }} {{ user.last_name or '' }}</span>
+                            {% else %}
+                                <span class="text-muted">未设置</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="stat-badge">
+                                <span class="stat-value">{{ user.conversations or 0 }}</span>
+                                <span class="stat-label">对话</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="stat-badge">
+                                <span class="stat-value">{{ user.dialog_turns or 0 }}</span>
+                                <span class="stat-label">消息</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <span class="date-value">{{ format_datetime(user.create_at).split(' ')[0] }}</span>
+                                <span class="date-time text-muted">{{ format_datetime(user.create_at).split(' ')[1] }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{{ url_for('conversations', search=user.uid) }}" 
+                                   class="btn btn-icon btn-sm" title="查看对话" aria-label="查看用户对话">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                    </svg>
+                                </a>
+                                <button class="btn btn-icon btn-sm" title="查看详情" aria-label="查看用户详情">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                                    </svg>
+                                </button>
+                                <button class="btn btn-icon btn-sm btn-danger" title="删除用户" aria-label="删除用户">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                </button>
+                                <button class="btn btn-icon btn-sm btn-warning" title="编辑用户" aria-label="编辑用户">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                显示第 <span class="text-primary">{{ (page - 1) * per_page + 1 }}</span> 至 
+                <span class="text-primary">{{ min(page * per_page, total_users) }}</span> 条，
+                共 <span class="text-primary">{{ total_users }}</span> 条记录
+            </div>
+            <div class="pagination">
+                {% if page > 1 %}
+                <a class="page-item" href="{{ url_for('users', page=1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第一页" title="第一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="11 17 6 12 11 7"></polyline>
+                        <polyline points="18 17 13 12 18 7"></polyline>
+                    </svg>
+                </a>
+                <a class="page-item" href="{{ url_for('users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页" title="上一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="11 17 6 12 11 7"></polyline>
+                        <polyline points="18 17 13 12 18 7"></polyline>
+                    </svg>
+                </span>
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </span>
+                {% endif %}
+                
+                {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ p }}页" {% if p == page %}aria-current="page"{% endif %}>
+                    {{ p }}
+                </a>
+                {% endfor %}
+                
+                {% if page < total_pages %}
+                <a class="page-item" href="{{ url_for('users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页" title="下一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </a>
+                <a class="page-item" href="{{ url_for('users', page=total_pages, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="最后一页" title="最后一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="13 17 18 12 13 7"></polyline>
+                        <polyline points="6 17 11 12 6 7"></polyline>
+                    </svg>
+                </a>
+                {% else %}
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </span>
+                <span class="page-item disabled" aria-disabled="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="13 17 18 12 13 7"></polyline>
+                        <polyline points="6 17 11 12 6 7"></polyline>
+                    </svg>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="7" r="4"></circle>
+                    <path d="M5 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"></path>
+                    <line x1="8" y1="3" x2="16" y2="21"></line>
+                </svg>
+            </div>
+            <h5 class="empty-title">暂无用户数据</h5>
+            {% if search_term %}
+            <p class="empty-text">没有找到匹配 "<span class="search-highlight">{{ search_term }}</span>" 的用户</p>
+            <a href="{{ url_for('users') }}" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-xs">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                清除搜索
+            </a>
+            {% else %}
+            <p class="empty-text">系统中还没有任何用户数据</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 统计信息 -->
+{% if users %}
+<div class="stats-container">
+    <div class="stats-card">
+        <div class="stats-header">
+            <h3 class="stats-title">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-xs">
+                    <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+                    <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+                </svg>
+                统计信息
+            </h3>
+            <div class="stats-actions">
+                <button class="btn btn-icon refresh-stats" title="刷新统计" aria-label="刷新统计数据">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"></polyline>
+                        <polyline points="23 20 23 14 17 14"></polyline>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon users-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value primary">{{ users|length }}</div>
+                    <div class="stat-label">当前页用户数</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon conversations-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value success">{{ users|map(attribute='conversations')|select('number')|sum or 0 }}</div>
+                    <div class="stat-label">当前页总对话数</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon messages-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="17" y1="10" x2="3" y2="10"></line>
+                        <line x1="21" y1="6" x2="3" y2="6"></line>
+                        <line x1="21" y1="14" x2="3" y2="14"></line>
+                        <line x1="17" y1="18" x2="3" y2="18"></line>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value info">{{ users|map(attribute='dialog_turns')|select('number')|sum or 0 }}</div>
+                    <div class="stat-label">当前页总消息数</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon tokens-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value warning">{{ (users|map(attribute='input_tokens')|select('number')|sum or 0) + (users|map(attribute='output_tokens')|select('number')|sum or 0) }}</div>
+                    <div class="stat-label">当前页总Token数</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 用户操作模态框 -->
+<div class="modal" id="userActionModal" role="dialog" aria-labelledby="userActionModalTitle" aria-hidden="true" style="display: none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userActionModalTitle">用户操作</h5>
+                <button type="button" class="modal-close" aria-label="关闭">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="userActionForm">
+                    <!-- 表单内容将通过JavaScript动态添加 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary modal-close">取消</button>
+                <button type="button" class="btn btn-primary" id="userActionSubmit">确认</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 确认删除模态框 -->
+<div class="modal" id="confirmDeleteModal" role="dialog" aria-labelledby="confirmDeleteModalTitle" aria-hidden="true" style="display: none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalTitle">确认删除</h5>
+                <button type="button" class="modal-close" aria-label="关闭">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除此用户吗？此操作不可逆。</p>
+                <div class="alert alert-warning">
+                    <strong>警告：</strong> 删除用户将同时删除该用户的所有对话记录和相关数据。
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary modal-close">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确认删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user-table.js') }}"></script>
+<script src="{{ url_for('static', filename='js/user-filter.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin-form-validation.js') }}"></script>
+
+<script>
+// 用户管理页面特定的JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // 初始化删除用户功能
+    initUserDeleteButtons();
+    
+    // 初始化编辑用户功能
+    initUserEditButtons();
+});
+
+/**
+ * 初始化删除用户按钮
+ */
+function initUserDeleteButtons() {
+    const deleteButtons = document.querySelectorAll('.btn-danger[title="删除用户"]');
+    const confirmDeleteModal = document.getElementById('confirmDeleteModal');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    
+    if (!confirmDeleteModal || !confirmDeleteBtn) return;
+    
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const row = this.closest('tr');
+            const userIdElement = row.querySelector('.user-id');
+            const userId = userIdElement ? userIdElement.textContent.trim() : null;
+            
+            if (userId) {
+                // 显示确认删除模态框
+                showModal(confirmDeleteModal);
+                
+                // 设置确认按钮的用户ID
+                confirmDeleteBtn.dataset.userId = userId;
+            }
+        });
+    });
+    
+    // 确认删除按钮点击事件
+    confirmDeleteBtn.addEventListener('click', function() {
+        const userId = this.dataset.userId;
+        
+        if (userId) {
+            // 发送删除请求
+            fetch(`/api/users/${userId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 删除成功，刷新页面
+                    showToast('删除成功', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    // 删除失败
+                    showToast(data.message || '删除失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('删除用户时出错:', error);
+                showToast('删除用户时出错', 'error');
+            })
+            .finally(() => {
+                // 关闭模态框
+                hideModal(confirmDeleteModal);
+            });
+        }
+    });
+}
+
+/**
+ * 初始化编辑用户按钮
+ */
+function initUserEditButtons() {
+    const editButtons = document.querySelectorAll('.btn-warning[title="编辑用户"]');
+    const userActionModal = document.getElementById('userActionModal');
+    const userActionForm = document.getElementById('userActionForm');
+    const userActionSubmit = document.getElementById('userActionSubmit');
+    
+    if (!userActionModal || !userActionForm || !userActionSubmit) return;
+    
+    editButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const row = this.closest('tr');
+            const userIdElement = row.querySelector('.user-id');
+            const userId = userIdElement ? userIdElement.textContent.trim() : null;
+            
+            if (userId) {
+                // 获取用户数据
+                fetch(`/api/users/${userId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // 填充表单
+                            userActionForm.innerHTML = `
+                                <div class="form-group">
+                                    <label for="edit-user-id" class="form-label">用户ID</label>
+                                    <input type="text" id="edit-user-id" class="form-control" value="${data.user.uid}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-user-name" class="form-label">用户名</label>
+                                    <input type="text" id="edit-user-name" class="form-control" value="${data.user.user_name || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-first-name" class="form-label">名</label>
+                                    <input type="text" id="edit-first-name" class="form-control" value="${data.user.first_name || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-last-name" class="form-label">姓</label>
+                                    <input type="text" id="edit-last-name" class="form-control" value="${data.user.last_name || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-account-tier" class="form-label">账户等级</label>
+                                    <select id="edit-account-tier" class="form-control">
+                                        <option value="free" ${data.user.account_tier === 'free' ? 'selected' : ''}>免费用户</option>
+                                        <option value="premium" ${data.user.account_tier === 'premium' ? 'selected' : ''}>高级用户</option>
+                                        <option value="admin" ${data.user.account_tier === 'admin' ? 'selected' : ''}>管理员</option>
+                                    </select>
+                                </div>
+                            `;
+                            
+                            // 显示模态框
+                            document.getElementById('userActionModalTitle').textContent = '编辑用户';
+                            userActionSubmit.textContent = '保存';
+                            userActionSubmit.dataset.userId = userId;
+                            userActionSubmit.dataset.action = 'edit';
+                            
+                            showModal(userActionModal);
+                        } else {
+                            showToast(data.message || '获取用户数据失败', 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取用户数据时出错:', error);
+                        showToast('获取用户数据时出错', 'error');
+                    });
+            }
+        });
+    });
+    
+    // 提交按钮点击事件
+    userActionSubmit.addEventListener('click', function() {
+        const userId = this.dataset.userId;
+        const action = this.dataset.action;
+        
+        if (userId && action === 'edit') {
+            // 获取表单数据
+            const userData = {
+                user_name: document.getElementById('edit-user-name').value,
+                first_name: document.getElementById('edit-first-name').value,
+                last_name: document.getElementById('edit-last-name').value,
+                account_tier: document.getElementById('edit-account-tier').value
+            };
+            
+            // 发送更新请求
+            fetch(`/api/users/${userId}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify(userData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新成功，刷新页面
+                    showToast('更新成功', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    // 更新失败
+                    showToast(data.message || '更新失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('更新用户时出错:', error);
+                showToast('更新用户时出错', 'error');
+            })
+            .finally(() => {
+                // 关闭模态框
+                hideModal(userActionModal);
+            });
+        }
+    });
+}
+
+/**
+ * 显示模态框
+ * @param {HTMLElement} modal - 模态框元素
+ */
+function showModal(modal) {
+    if (!modal) return;
+    
+    modal.style.display = 'block';
+    setTimeout(() => {
+        modal.classList.add('show');
+    }, 10);
+    
+    // 绑定关闭按钮事件
+    const closeButtons = modal.querySelectorAll('.modal-close');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            hideModal(modal);
+        });
+    });
+    
+    // 点击背景关闭
+    modal.querySelector('.modal-backdrop').addEventListener('click', () => {
+        hideModal(modal);
+    });
+}
+
+/**
+ * 隐藏模态框
+ * @param {HTMLElement} modal - 模态框元素
+ */
+function hideModal(modal) {
+    if (!modal) return;
+    
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+}
+
+/**
+ * 显示提示消息
+ * @param {string} message - 消息内容
+ * @param {string} type - 消息类型（success, error, warning, info）
+ */
+function showToast(message, type = 'info') {
+    // 检查是否已存在toast容器
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    // 创建toast元素
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <span class="toast-message">${message}</span>
+        </div>
+    `;
+    
+    // 添加到容器
+    toastContainer.appendChild(toast);
+    
+    // 显示动画
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // 自动关闭
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000);
+}
+
+/**
+ * 获取CSRF令牌
+ * @returns {string} CSRF令牌
+ */
+function getCsrfToken() {
+    // 从meta标签或cookie中获取CSRF令牌
+    const metaTag = document.querySelector('meta[name="csrf-token"]');
+    if (metaTag) {
+        return metaTag.getAttribute('content');
+    }
+    
+    // 从cookie中获取
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrf_token') {
+            return value;
+        }
+    }
+    
+    return '';
+}
+</script>
+{% endblock %}
+{% endblock %}

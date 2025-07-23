@@ -1,0 +1,300 @@
+{% extends "admin_base.html" %}
+
+{% block title %}仪表盘 - CyberWaifu Bot 管理系统{% endblock %}
+
+{% block page_title %}仪表盘{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">仪表盘</li>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- 数据概览 -->
+    <div class="stats-container">
+        <div class="stat-card stat-card-users">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">👥</span> 总用户数</h3>
+                <div class="stat-value">{{ stats.total_users }}</div>
+                <div class="stat-desc">系统中注册的用户总数</div>
+            </div>
+            <div class="stat-bg-icon">👥</div>
+        </div>
+        
+        <div class="stat-card stat-card-conversations">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">💬</span> 总对话数</h3>
+                <div class="stat-value">{{ stats.total_conversations }}</div>
+                <div class="stat-desc">所有用户的对话总数</div>
+            </div>
+            <div class="stat-bg-icon">💬</div>
+        </div>
+        
+        <div class="stat-card stat-card-messages">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">👪</span> 总群组数</h3>
+                <div class="stat-value">{{ stats.total_groups }}</div>
+                <div class="stat-desc">系统中的群组总数</div>
+            </div>
+            <div class="stat-bg-icon">👪</div>
+        </div>
+        
+        <div class="stat-card stat-card-today">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">🔄</span> 活跃用户</h3>
+                <div class="stat-value">{{ stats.active_users }}</div>
+                <div class="stat-desc">最近活跃的用户数量</div>
+            </div>
+            <div class="stat-bg-icon">🔄</div>
+        </div>
+    </div>
+
+    <!-- 最近活动区域 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-header-icon">📊</span>
+                    <h2 class="card-header-title">最近对话</h2>
+                </div>
+                <div class="card-header-actions">
+                    <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据">
+                        <span class="btn-icon">🔄</span> 刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if recent_conversations %}
+            <div class="table-container">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="id">ID</th>
+                            <th class="sortable" data-sort="user">用户</th>
+                            <th class="sortable" data-sort="character">角色</th>
+                            <th class="sortable" data-sort="turns">轮次</th>
+                            <th class="sortable" data-sort="time">时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conv in recent_conversations %}
+                        <tr class="table-row-interactive">
+                            <td>{{ conv.conv_id }}</td>
+                            <td>{{ conv.user_name }}</td>
+                            <td>{{ conv.character }}</td>
+                            <td>{{ conv.turns }}</td>
+                            <td>{{ conv.update_at|format_datetime }}</td>
+                            <td>
+                                <a href="{{ url_for('dialogs', conv_id=conv.conv_id) }}" class="btn btn-sm btn-primary">查看</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">💬</div>
+                <p class="empty-title">暂无最近对话</p>
+                <p class="empty-desc">对话记录将在有新消息时显示</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+            <a href="{{ url_for('conversations') }}" class="btn btn-link">查看全部对话</a>
+        </div>
+    </div>
+
+    <!-- 活跃用户 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <span class="card-header-icon">🏆</span>
+                    <h2 class="card-header-title">活跃用户</h2>
+                </div>
+                <div class="card-header-actions">
+                    <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据">
+                        <span class="btn-icon">🔄</span> 刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if active_users %}
+            <ul class="user-list">
+                {% for user in active_users %}
+                <li class="user-list-item">
+                    <div class="user-avatar">{{ user.first_name[0] | upper }}</div>
+                    <div class="user-info">
+                        <div class="user-name">{{ user.first_name }}</div>
+                        <div class="user-meta">{{ user.conversation_count }} 个对话</div>
+                    </div>
+                    <div class="user-action">
+                        <a href="{{ url_for('user_detail', user_id=user.user_id) }}" class="btn btn-sm btn-outline">详情</a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">👤</div>
+                <p class="empty-title">暂无活跃用户</p>
+                <p class="empty-desc">用户活动数据将在有新消息时显示</p>
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+            <a href="{{ url_for('users') }}" class="btn btn-link">查看全部用户</a>
+        </div>
+    </div>
+
+    <!-- 系统状态区域 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex align-items-center">
+                <span class="card-header-icon">⚙️</span>
+                <h2 class="card-header-title">系统状态</h2>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="grid-container">
+                <div class="grid-row">
+                    <div class="grid-col-12 grid-col-md-6">
+                        <div class="progress-container">
+                            <div class="progress-label">CPU 使用率</div>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: {{ system_stats.cpu_usage }}%">
+                                    {{ system_stats.cpu_usage }}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress-label">内存使用率</div>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: {{ system_stats.memory_usage }}%">
+                                    {{ system_stats.memory_usage }}%
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-container">
+                            <div class="progress-label">磁盘使用率</div>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: {{ system_stats.disk_usage }}%">
+                                    {{ system_stats.disk_usage }}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid-col-12 grid-col-md-6">
+                        <div class="info-list">
+                            <div class="info-item">
+                                <div class="info-label">系统版本</div>
+                                <div class="info-value">{{ system_stats.version }}</div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <div class="info-label">运行时间</div>
+                                <div class="info-value">{{ system_stats.uptime }}</div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <div class="info-label">数据库大小</div>
+                                <div class="info-value">{{ system_stats.db_size }}</div>
+                            </div>
+                            
+                            <div class="info-item">
+                                <div class="info-label">最后更新</div>
+                                <div class="info-value">{{ system_stats.last_update }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快速操作 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex align-items-center">
+                <span class="card-header-icon">⚡</span>
+                <h2 class="card-header-title">快速操作</h2>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="quick-actions">
+                <div class="action-card action-card-primary">
+                    <div class="action-icon">👥</div>
+                    <h3 class="action-title">用户管理</h3>
+                    <p class="action-desc">管理所有用户信息，查看详细资料和对话历史</p>
+                    <a href="{{ url_for('users') }}" class="btn btn-primary btn-with-icon">
+                        <span class="btn-icon">👁️</span> 管理用户
+                    </a>
+                </div>
+                
+                <div class="action-card action-card-success">
+                    <div class="action-icon">💬</div>
+                    <h3 class="action-title">对话管理</h3>
+                    <p class="action-desc">查看所有对话历史，搜索和筛选消息内容</p>
+                    <a href="{{ url_for('conversations') }}" class="btn btn-primary btn-with-icon">
+                        <span class="btn-icon">📜</span> 管理对话
+                    </a>
+                </div>
+                
+                <div class="action-card action-card-warning">
+                    <div class="action-icon">⚙️</div>
+                    <h3 class="action-title">系统配置</h3>
+                    <p class="action-desc">管理系统配置和参数设置</p>
+                    <a href="{{ url_for('config_management') }}" class="btn btn-primary btn-with-icon">
+                        <span class="btn-icon">🔧</span> 配置系统
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化数字动画
+        setTimeout(() => {
+            animateNumbers('.stat-value', 1500, true);
+        }, 300);
+        
+        // 添加骨架屏加载效果
+        addSkeletonLoading('.stat-card');
+        
+        // 初始化刷新按钮
+        const refreshButtons = document.querySelectorAll('.refresh-data');
+        refreshButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // 模拟数据刷新
+                button.classList.add('loading');
+                button.disabled = true;
+                
+                // 添加骨架屏效果
+                addSkeletonLoading('.stat-card');
+                
+                // 模拟延迟后恢复
+                setTimeout(() => {
+                    button.classList.remove('loading');
+                    button.disabled = false;
+                    
+                    // 重新触发数字动画
+                    setTimeout(() => {
+                        animateNumbers('.stat-value', 1500, true);
+                    }, 500);
+                }, 1500);
+            });
+        });
+    });
+</script>
+{% endblock %}
