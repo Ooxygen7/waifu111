@@ -69,8 +69,13 @@
   color: var(--text-secondary-dark);
 }
 
+[data-theme="dark"] #theme-toggle {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary-dark);
+}
+
 [data-theme="dark"] #theme-toggle:hover {
-  background-color: var(--hover-bg-dark);
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 /* 响应式调整 */

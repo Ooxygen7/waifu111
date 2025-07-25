@@ -368,36 +368,15 @@ function initStatsCardAnimations() {
 }
 
 /**
- * 数字动画效果
+ * 显示数字（移除动画效果）
  * @param {HTMLElement} element - 包含数字的元素
  */
 function animateNumber(element) {
     const finalValue = parseInt(element.textContent.replace(/,/g, ''), 10);
     if (isNaN(finalValue)) return;
     
-    let startValue = 0;
-    const duration = 1500;
-    const startTime = performance.now();
-    
-    function easeOutExpo(t) {
-        return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-    }
-    
-    function updateNumber(currentTime) {
-        const elapsedTime = currentTime - startTime;
-        
-        if (elapsedTime < duration) {
-            const progress = easeOutExpo(elapsedTime / duration);
-            const currentValue = Math.round(progress * finalValue);
-            
-            element.textContent = currentValue;
-            requestAnimationFrame(updateNumber);
-        } else {
-            element.textContent = finalValue;
-        }
-    }
-    
-    requestAnimationFrame(updateNumber);
+    // 直接显示最终值，不使用动画
+    element.textContent = finalValue;
 }
 
 /**
@@ -415,14 +394,15 @@ function initUserDetailModal() {
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background-color: rgba(0, 0, 0, 0.5);
+                background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 20, 40, 0.9) 100%);
+                backdrop-filter: blur(10px);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 z-index: 1000;
                 opacity: 0;
                 visibility: hidden;
-                transition: opacity 0.3s ease, visibility 0.3s ease;
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             }
             
             .modal-overlay.show {
@@ -431,74 +411,149 @@ function initUserDetailModal() {
             }
             
             .user-modal {
-                background-color: white;
-                border-radius: 8px;
-                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+                background: linear-gradient(145deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                border: 1px solid rgba(0, 255, 255, 0.3);
+                border-radius: 20px;
+                box-shadow: 
+                    0 25px 50px rgba(0, 0, 0, 0.5),
+                    0 0 0 1px rgba(255, 255, 255, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
                 width: 90%;
-                max-width: 600px;
+                max-width: 700px;
                 max-height: 90vh;
-                overflow-y: auto;
-                transform: translateY(-20px);
-                transition: transform 0.3s ease;
+                overflow: hidden;
+                transform: translateY(-30px) scale(0.95);
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+            }
+            
+            .user-modal::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(90deg, #00ffff, #0080ff, #8000ff, #ff0080, #ff8000, #ffff00);
+                background-size: 300% 100%;
+                animation: techGlow 3s linear infinite;
+            }
+            
+            @keyframes techGlow {
+                0% { background-position: 0% 50%; }
+                100% { background-position: 300% 50%; }
             }
             
             .modal-overlay.show .user-modal {
-                transform: translateY(0);
+                transform: translateY(0) scale(1);
             }
             
             .user-modal-header {
+                padding: 24px 28px;
+                border-bottom: 1px solid rgba(0, 255, 255, 0.2);
                 display: flex;
-                align-items: center;
                 justify-content: space-between;
-                padding: 16px 24px;
-                border-bottom: 1px solid #eee;
+                align-items: center;
+                background: linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 128, 255, 0.1) 100%);
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .user-modal-header::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+                animation: headerScan 2s ease-in-out infinite;
+            }
+            
+            @keyframes headerScan {
+                0% { left: -100%; }
+                100% { left: 100%; }
             }
             
             .user-modal-title {
                 margin: 0;
-                font-size: 1.25rem;
-                font-weight: 500;
+                font-size: 20px;
+                font-weight: 700;
+                color: #00ffff;
+                text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+                letter-spacing: 1px;
+                position: relative;
+                z-index: 1;
             }
             
             .user-modal-close {
-                background: transparent;
-                border: none;
-                font-size: 1.5rem;
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: #00ffff;
                 cursor: pointer;
-                padding: 0;
-                width: 32px;
-                height: 32px;
+                padding: 10px;
+                border-radius: 12px;
+                transition: all 0.3s ease;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                border-radius: 50%;
-                transition: background-color 0.2s;
+                backdrop-filter: blur(10px);
+                position: relative;
+                z-index: 1;
+                min-width: 44px;
+                height: 44px;
+                flex-shrink: 0;
             }
             
             .user-modal-close:hover {
-                background-color: #f0f0f0;
+                background: rgba(0, 255, 255, 0.2);
+                border-color: #00ffff;
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+                transform: scale(1.1);
             }
             
             .user-modal-body {
-                padding: 24px;
+                padding: 28px;
+                overflow-y: auto;
+                max-height: calc(90vh - 160px);
+                scrollbar-width: thin;
+                scrollbar-color: #00ffff rgba(255, 255, 255, 0.1);
+            }
+            
+            .user-modal-body::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            .user-modal-body::-webkit-scrollbar-track {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+            
+            .user-modal-body::-webkit-scrollbar-thumb {
+                background: linear-gradient(180deg, #00ffff, #0080ff);
+                border-radius: 4px;
             }
             
             .user-modal-loading {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: 40px 0;
+                text-align: center;
+                padding: 60px 20px;
+                color: #00ffff;
             }
             
             .user-modal-spinner {
-                width: 40px;
-                height: 40px;
-                border: 3px solid rgba(0, 0, 0, 0.1);
+                width: 50px;
+                height: 50px;
+                border: 3px solid rgba(0, 255, 255, 0.3);
+                border-top: 3px solid #00ffff;
                 border-radius: 50%;
-                border-top-color: #4facfe;
-                animation: spin 1s linear infinite;
-                margin-bottom: 16px;
+                animation: techSpin 1s linear infinite;
+                margin: 0 auto 20px;
+                box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            }
+            
+            @keyframes techSpin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
             }
             
             .user-modal-content {
@@ -507,100 +562,234 @@ function initUserDetailModal() {
             
             .user-modal-profile {
                 display: flex;
-                align-items: center;
-                margin-bottom: 24px;
+                align-items: flex-start;
+                margin-bottom: 28px;
+                padding: 24px;
+                background: linear-gradient(135deg, rgba(0, 255, 255, 0.05) 0%, rgba(0, 128, 255, 0.05) 100%);
+                border: 1px solid rgba(0, 255, 255, 0.2);
+                border-radius: 16px;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .user-modal-profile::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(45deg, transparent 30%, rgba(0, 255, 255, 0.1) 50%, transparent 70%);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            
+            .user-modal-profile:hover::before {
+                opacity: 1;
             }
             
             .user-modal-avatar {
                 width: 80px;
                 height: 80px;
+                background: linear-gradient(135deg, #00ffff 0%, #0080ff 50%, #8000ff 100%);
                 border-radius: 50%;
-                background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: white;
-                font-size: 2rem;
                 margin-right: 24px;
+                color: white;
                 flex-shrink: 0;
+                box-shadow: 
+                    0 0 30px rgba(0, 255, 255, 0.4),
+                    inset 0 0 20px rgba(255, 255, 255, 0.2);
+                position: relative;
+                z-index: 1;
+            }
+            
+            .user-modal-avatar::before {
+                content: '';
+                position: absolute;
+                top: -2px;
+                left: -2px;
+                right: -2px;
+                bottom: -2px;
+                background: linear-gradient(45deg, #00ffff, #0080ff, #8000ff, #ff0080);
+                border-radius: 50%;
+                z-index: -1;
+                animation: avatarGlow 2s linear infinite;
+            }
+            
+            @keyframes avatarGlow {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
             }
             
             .user-modal-info {
                 flex: 1;
+                position: relative;
+                z-index: 1;
             }
             
             .user-modal-name {
-                font-size: 1.5rem;
-                font-weight: 500;
-                margin: 0 0 4px;
+                margin: 0 0 12px 0;
+                font-size: 24px;
+                font-weight: 700;
+                color: #00ffff;
+                text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
             }
             
             .user-modal-id {
-                color: #666;
-                font-size: 0.875rem;
-                margin: 0 0 8px;
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 14px;
+                margin-bottom: 16px;
+                font-family: 'Courier New', monospace;
+                background: rgba(0, 255, 255, 0.1);
+                padding: 4px 8px;
+                border-radius: 6px;
+                display: inline-block;
+            }
+            
+            .user-modal-meta {
+                margin-bottom: 8px;
+                font-size: 14px;
+                color: rgba(255, 255, 255, 0.8);
+                display: flex;
+                align-items: center;
+            }
+            
+            .user-modal-meta span {
+                color: #00ffff;
+                font-weight: 500;
+                margin-left: 8px;
             }
             
             .user-modal-stats {
                 display: grid;
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
                 gap: 16px;
-                margin-top: 24px;
+                margin-bottom: 28px;
             }
             
             .user-modal-stat {
-                background-color: #f8f9fa;
-                border-radius: 8px;
-                padding: 16px;
                 text-align: center;
+                padding: 20px 16px;
+                background: linear-gradient(135deg, rgba(0, 255, 255, 0.1) 0%, rgba(0, 128, 255, 0.1) 100%);
+                border: 1px solid rgba(0, 255, 255, 0.3);
+                border-radius: 12px;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .user-modal-stat::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
+                transition: left 0.5s ease;
+            }
+            
+            .user-modal-stat:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 10px 30px rgba(0, 255, 255, 0.2);
+                border-color: #00ffff;
+            }
+            
+            .user-modal-stat:hover::before {
+                left: 100%;
             }
             
             .user-modal-stat-value {
-                font-size: 1.5rem;
-                font-weight: 600;
-                margin-bottom: 4px;
-                color: #4facfe;
+                font-size: 24px;
+                font-weight: 700;
+                color: #00ffff;
+                margin-bottom: 8px;
+                text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+                position: relative;
+                z-index: 1;
             }
             
             .user-modal-stat-label {
-                font-size: 0.875rem;
-                color: #666;
+                font-size: 12px;
+                color: rgba(255, 255, 255, 0.7);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                position: relative;
+                z-index: 1;
             }
             
             .user-modal-footer {
+                padding: 24px 28px;
+                border-top: 1px solid rgba(0, 255, 255, 0.2);
                 display: flex;
                 justify-content: flex-end;
-                padding: 16px 24px;
-                border-top: 1px solid #eee;
-                gap: 8px;
+                gap: 16px;
+                background: linear-gradient(135deg, rgba(0, 255, 255, 0.05) 0%, rgba(0, 128, 255, 0.05) 100%);
             }
             
             .user-modal-btn {
-                padding: 8px 16px;
-                border-radius: 4px;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 10px;
+                font-size: 14px;
+                font-weight: 600;
                 cursor: pointer;
-                font-size: 0.875rem;
-                transition: all 0.2s;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                white-space: nowrap;
+            }
+            
+            .user-modal-btn::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+                transition: left 0.5s ease;
+            }
+            
+            .user-modal-btn:hover::before {
+                left: 100%;
             }
             
             .user-modal-btn-secondary {
-                background-color: #f0f0f0;
-                border: 1px solid #ddd;
-                color: #333;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+                color: rgba(255, 255, 255, 0.9);
+                border: 1px solid rgba(255, 255, 255, 0.2);
             }
             
             .user-modal-btn-secondary:hover {
-                background-color: #e0e0e0;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+                border-color: rgba(255, 255, 255, 0.4);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
             }
             
             .user-modal-btn-primary {
-                background-color: #4facfe;
-                border: 1px solid #4facfe;
-                color: white;
+                background: linear-gradient(135deg, #00ffff 0%, #0080ff 100%);
+                border: 1px solid #00ffff;
+                color: #000;
+                font-weight: 700;
             }
             
             .user-modal-btn-primary:hover {
-                background-color: #3a9efd;
+                background: linear-gradient(135deg, #0080ff 0%, #8000ff 100%);
+                border-color: #0080ff;
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px rgba(0, 255, 255, 0.3);
+                color: #fff;
             }
             
             @keyframes spin {
@@ -608,8 +797,13 @@ function initUserDetailModal() {
             }
             
             @media (max-width: 576px) {
+                .user-modal {
+                    width: 95%;
+                    margin: 20px;
+                }
+                
                 .user-modal-stats {
-                    grid-template-columns: 1fr;
+                    grid-template-columns: repeat(2, 1fr);
                 }
                 
                 .user-modal-profile {
@@ -619,36 +813,21 @@ function initUserDetailModal() {
                 
                 .user-modal-avatar {
                     margin-right: 0;
-                    margin-bottom: 16px;
+                    margin-bottom: 20px;
+                }
+                
+                .user-modal-footer {
+                    flex-direction: column;
                 }
             }
             
             [data-theme="dark"] .user-modal {
-                background-color: #1f1f1f;
-                color: white;
+                background: linear-gradient(145deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
             }
             
             [data-theme="dark"] .user-modal-header,
             [data-theme="dark"] .user-modal-footer {
-                border-color: #333;
-            }
-            
-            [data-theme="dark"] .user-modal-close:hover {
-                background-color: #333;
-            }
-            
-            [data-theme="dark"] .user-modal-stat {
-                background-color: #2a2a2a;
-            }
-            
-            [data-theme="dark"] .user-modal-btn-secondary {
-                background-color: #333;
-                border-color: #444;
-                color: #eee;
-            }
-            
-            [data-theme="dark"] .user-modal-btn-secondary:hover {
-                background-color: #444;
+                border-color: rgba(0, 255, 255, 0.3);
             }
         `;
         document.head.appendChild(style);
@@ -700,7 +879,10 @@ function showUserDetailModal(userId) {
                         <div class="user-modal-info">
                             <h3 class="user-modal-name">加载中...</h3>
                             <div class="user-modal-id">ID: ${userId}</div>
+                            <div class="user-modal-meta">用户名: <span class="user-modal-username">-</span></div>
+                            <div class="user-modal-meta">姓名: <span class="user-modal-fullname">-</span></div>
                             <div class="user-modal-meta">注册时间: <span class="user-modal-date">-</span></div>
+                            <div class="user-modal-meta">最后更新: <span class="user-modal-update">-</span></div>
                         </div>
                     </div>
                     <div class="user-modal-stats">
@@ -714,7 +896,27 @@ function showUserDetailModal(userId) {
                         </div>
                         <div class="user-modal-stat">
                             <div class="user-modal-stat-value">-</div>
+                            <div class="user-modal-stat-label">输入Token</div>
+                        </div>
+                        <div class="user-modal-stat">
+                            <div class="user-modal-stat-value">-</div>
+                            <div class="user-modal-stat-label">输出Token</div>
+                        </div>
+                        <div class="user-modal-stat">
+                            <div class="user-modal-stat-value">-</div>
                             <div class="user-modal-stat-label">总Token数</div>
+                        </div>
+                        <div class="user-modal-stat">
+                            <div class="user-modal-stat-value">-</div>
+                            <div class="user-modal-stat-label">账户等级</div>
+                        </div>
+                        <div class="user-modal-stat">
+                            <div class="user-modal-stat-value">-</div>
+                            <div class="user-modal-stat-label">剩余次数</div>
+                        </div>
+                        <div class="user-modal-stat">
+                            <div class="user-modal-stat-value">-</div>
+                            <div class="user-modal-stat-label">余额</div>
                         </div>
                     </div>
                 </div>
@@ -732,73 +934,87 @@ function showUserDetailModal(userId) {
     setTimeout(() => {
         modalOverlay.classList.add('show');
         
-        // 模拟加载数据
-        setTimeout(() => {
-            const loadingElement = modalOverlay.querySelector('.user-modal-loading');
-            const contentElement = modalOverlay.querySelector('.user-modal-content');
-            
-            if (loadingElement && contentElement) {
-                loadingElement.style.display = 'none';
-                contentElement.style.display = 'block';
+        // 根据当前页面路径判断使用哪个API端点
+        const isViewerMode = window.location.pathname.startsWith('/viewer');
+        const apiEndpoint = isViewerMode ? `/viewer/api/user/${userId}` : `/api/user/${userId}`;
+        
+        // 调用API获取用户详情
+        fetch(apiEndpoint)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('获取用户信息失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                const loadingElement = modalOverlay.querySelector('.user-modal-loading');
+                const contentElement = modalOverlay.querySelector('.user-modal-content');
                 
-                // 获取用户数据
-                // 使用更兼容的方式查找用户数据
-                let userName = `用户 ${userId}`;
-                let userDate = '-';
-                let userConversations = '0';
-                let userMessages = '0';
-                
-                // 查找包含该用户ID的行
-                const rows = document.querySelectorAll('tr.table-row-interactive');
-                for (const row of rows) {
-                    const userIdElement = row.querySelector('.user-id');
-                    if (userIdElement && userIdElement.textContent.trim() === userId) {
-                        // 找到匹配的行，获取数据
-                        const userNameElement = row.querySelector('.user-name');
-                        if (userNameElement) {
-                            userName = userNameElement.textContent;
-                        }
+                if (loadingElement && contentElement) {
+                    loadingElement.style.display = 'none';
+                    contentElement.style.display = 'block';
+                    
+                    const user = data.user;
+                    const config = data.config || {};
+                    
+                    // 计算总token数
+                    const totalTokens = (user.input_tokens || 0) + (user.output_tokens || 0);
+                    
+                    // 格式化日期
+                    const formatDate = (dateStr) => {
+                        if (!dateStr) return '未知';
+                        return new Date(dateStr).toLocaleString('zh-CN');
+                    };
+                    
+                    // 获取用户显示名称
+                    const userName = user.first_name || user.last_name ? 
+                        `${user.first_name || ''} ${user.last_name || ''}`.trim() : 
+                        (user.user_name || '未知用户');
+                    
+                    const fullName = user.first_name || user.last_name ? 
+                        `${user.first_name || ''} ${user.last_name || ''}`.trim() : 
+                        '未设置';
+                    
+                    // 更新用户基本信息
+                    modalOverlay.querySelector('.user-modal-name').textContent = userName;
+                    modalOverlay.querySelector('.user-modal-username').textContent = user.user_name || '未设置';
+                    modalOverlay.querySelector('.user-modal-fullname').textContent = fullName;
+                    modalOverlay.querySelector('.user-modal-date').textContent = formatDate(user.create_at);
+                    modalOverlay.querySelector('.user-modal-update').textContent = formatDate(user.update_at);
+                    
+                    // 更新统计数据
+                    const statValues = modalOverlay.querySelectorAll('.user-modal-stat-value');
+                    if (statValues.length >= 8) {
+                        statValues[0].textContent = user.conversations || 0;
+                        statValues[1].textContent = user.dialog_turns || 0;
+                        statValues[2].textContent = user.input_tokens || 0;
+                        statValues[3].textContent = user.output_tokens || 0;
+                        statValues[4].textContent = totalTokens;
+                        statValues[5].textContent = user.account_tier || '未设置';
+                        statValues[6].textContent = user.remain_frequency || 0;
+                        statValues[7].textContent = user.balance || 0;
                         
-                        const dateElement = row.querySelector('.date-value');
-                        if (dateElement) {
-                            userDate = dateElement.textContent;
+                        // 添加数字动画（仅对数字类型的统计值）
+                        for (let i = 0; i < 5; i++) {
+                            if (statValues[i] instanceof Element) {
+                                animateNumber(statValues[i]);
+                            }
                         }
-                        
-                        const conversationsElement = row.querySelector('td:nth-child(4) .stat-value');
-                        if (conversationsElement) {
-                            userConversations = conversationsElement.textContent;
+                        for (let i = 6; i < 8; i++) {
+                            if (statValues[i] instanceof Element) {
+                                animateNumber(statValues[i]);
+                            }
                         }
-                        
-                        const messagesElement = row.querySelector('td:nth-child(5) .stat-value');
-                        if (messagesElement) {
-                            userMessages = messagesElement.textContent;
-                        }
-                        
-                        break;
                     }
                 }
-                
-                // 更新用户信息
-                modalOverlay.querySelector('.user-modal-name').textContent = userName;
-                modalOverlay.querySelector('.user-modal-date').textContent = userDate;
-                
-                // 更新统计数据
-                const statValues = modalOverlay.querySelectorAll('.user-modal-stat-value');
-                if (statValues.length > 0) {
-                    statValues[0].textContent = userConversations;
-                    statValues[1].textContent = userMessages;
-                    statValues[2].textContent = Math.floor(Math.random() * 10000) + 1000; // 模拟Token数
-                    
-                    // 添加数字动画
-                    statValues.forEach(value => {
-                        // 确保值是一个DOM元素而不是选择器字符串
-                        if (value instanceof Element) {
-                            animateNumber(value);
-                        }
-                    });
+            })
+            .catch(error => {
+                console.error('获取用户信息失败:', error);
+                const loadingElement = modalOverlay.querySelector('.user-modal-loading');
+                if (loadingElement) {
+                    loadingElement.innerHTML = '<p class="error">获取用户信息失败，请稍后重试</p>';
                 }
-            }
-        }, 800);
+            });
     }, 10);
     
     // 关闭按钮事件

@@ -918,6 +918,95 @@
 }
 
 /* 暗黑模式适配 */
+[data-theme="dark"] .conversation-card {
+  background: var(--card-background);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .conversation-card:hover {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .conversation-header {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .conversation-body {
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(79, 172, 254, 0.05));
+}
+
+[data-theme="dark"] .conversation-user-name {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .conversation-card:hover .conversation-user-name {
+  color: var(--primary-color);
+}
+
+[data-theme="dark"] .conversation-user-id {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .conversation-time {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .conversation-card:hover .conversation-time {
+  background-color: rgba(79, 172, 254, 0.1);
+}
+
+[data-theme="dark"] .conversation-list-title {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+}
+
+[data-theme="dark"] .conversation-list-title-icon {
+  color: #60a5fa !important;
+  -webkit-text-fill-color: #60a5fa !important;
+}
+
+[data-theme="dark"] .stats-card {
+  background: linear-gradient(135deg, #2d5aa0 0%, #1e3a8a 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+[data-theme="dark"] .stat-title {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .stat-value {
+  color: white;
+}
+
+[data-theme="dark"] .stat-desc {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-theme="dark"] .stat-bg-icon {
+  color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .stat-item {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .stat-item:hover {
+  background-color: rgba(79, 172, 254, 0.1);
+}
+
+[data-theme="dark"] .stat-label {
+  color: var(--text-secondary);
+}
+
 [data-theme="dark"] .conversation-card.selected {
   background-color: rgba(79, 172, 254, 0.1);
   border-color: var(--primary-color);

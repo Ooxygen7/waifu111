@@ -56,11 +56,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const rawContentEl = document.getElementById('modal-raw-content');
     const processedContentEl = document.getElementById('modal-processed-content');
     
+    // 原始内容保持纯文本显示，不进行任何HTML渲染
     rawContentEl.textContent = rawContent;
+    rawContentEl.classList.add('raw-text');
+    
+    // 处理后内容可以进行语法高亮
     processedContentEl.textContent = processedContent;
     
-    // 尝试检测和高亮代码块
-    highlightCodeBlocks(rawContentEl);
+    // 只对处理后的内容进行代码块高亮
     highlightCodeBlocks(processedContentEl);
     
     // 显示模态框

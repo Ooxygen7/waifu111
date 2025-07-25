@@ -5,6 +5,7 @@
 {% block page_title %}首页概览{% endblock %}
 
 {% block content %}
+<div class="content-wrapper">
 <div class="dashboard-grid">
     <!-- 数据概览 -->
     <div class="stats-container">
@@ -146,16 +147,15 @@
         </div>
     </div>
 </div>
+</div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // 初始化数字动画
-        setTimeout(() => {
-            animateNumbers('.stat-value', 1500, true);
-        }, 300);
+        // 直接显示数字，不使用动画
+        animateNumbers('.stat-value', 0, true);
         
         // 添加骨架屏加载效果
         addSkeletonLoading('.stat-card');

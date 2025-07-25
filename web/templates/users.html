@@ -2,164 +2,347 @@
 
 {% block title %}用户管理 - CyberWaifu Bot 后台管理系统{% endblock %}
 
-
-
 {% block page_title %}用户管理{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/users-modern.css') }}">
+{% endblock %}
+
+
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-people"></i> 用户列表</h6>
-                <div class="d-flex">
-                    <form method="GET" class="d-inline-flex me-2">
-                        <input type="text" name="search" class="form-control form-control-sm" placeholder="搜索用户..." value="{{ search_term }}">
-                        <button type="submit" class="btn btn-light btn-sm ms-1"><i class="bi bi-search"></i></button>
+<div class="content-wrapper users-page">
+    <div class="card">
+        <div class="card-header">
+            <div class="header-container">
+                <div class="header-title">
+                    <h3><i class="icon">👥</i> 用户管理</h3>
+                    <p class="header-subtitle">管理系统用户信息和权限</p>
+                </div>
+                <div class="search-container">
+                    <form method="GET" class="search-form">
+                        <div class="search-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </div>
+                        <input type="text" name="search" class="search-input" 
+                               placeholder="搜索用户ID、用户名..." value="{{ search_term or '' }}"
+                               aria-label="搜索用户">
+                        <div class="search-loading"></div>
                         {% if search_term %}
-                        <a href="{{ url_for('users') }}" class="btn btn-outline-light btn-sm ms-1"><i class="bi bi-x"></i></a>
+                        <a href="{{ url_for('users') }}" class="clear-button" aria-label="清除搜索">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </a>
                         {% endif %}
+                        <button type="submit" class="search-button" aria-label="搜索">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </button>
                     </form>
-                    <button class="btn btn-light btn-sm" onclick="location.reload()">
-                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    {% if search_term %}
+                    <div class="search-status">找到与 "{{ search_term }}" 相关的结果</div>
+                    {% endif %}
+                    <button onclick="location.reload()" class="btn btn-secondary btn-icon" title="刷新页面">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
                     </button>
                 </div>
             </div>
-            <div class="card-body">
-                <!-- 用户表格 -->
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th><a href="{{ url_for('users', sort_by='uid', sort_order=next_sort_order('uid')) }}">用户ID</a></th>
-                                <th><a href="{{ url_for('users', sort_by='user_name', sort_order=next_sort_order('user_name')) }}">用户名</a></th>
-                                <th><a href="{{ url_for('users', sort_by='first_name', sort_order=next_sort_order('first_name')) }}">姓名</a></th>
-                                <th><a href="{{ url_for('users', sort_by='conversations', sort_order=next_sort_order('conversations')) }}">对话数</a></th>
-                                <th><a href="{{ url_for('users', sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}">对话轮数</a></th>
-                                <th><a href="{{ url_for('users', sort_by='input_tokens', sort_order=next_sort_order('input_tokens')) }}">输入Token</a></th>
-                                <th><a href="{{ url_for('users', sort_by='output_tokens', sort_order=next_sort_order('output_tokens')) }}">输出Token</a></th>
-                                <th><a href="{{ url_for('users', sort_by='account_tier', sort_order=next_sort_order('account_tier')) }}">账户等级</a></th>
-                                <th><a href="{{ url_for('users', sort_by='remain_frequency', sort_order=next_sort_order('remain_frequency')) }}">剩余额度</a></th>
-                                <th><a href="{{ url_for('users', sort_by='balance', sort_order=next_sort_order('balance')) }}">余额</a></th>
-                                <th><a href="{{ url_for('users', sort_by='create_at', sort_order=next_sort_order('create_at')) }}">注册时间</a></th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for user in users %}
-                            <tr>
-                                <td><span class="badge bg-secondary">{{ user.uid }}</span></td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-sm bg-primary rounded-circle d-flex align-items-center justify-content-center text-white me-2">
-                                            {{ user.user_name[0] if user.user_name else 'U' }}
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold">{{ user.user_name or '未设置' }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>{{ (user.first_name or '') + ' ' + (user.last_name or '') }}</td>
-                                <td><span class="badge bg-info">{{ user.conversations or 0 }}</span></td>
-                                <td><span class="badge bg-success">{{ user.dialog_turns or 0 }}</span></td>
-                                <td><span class="text-primary">{{ "{:,}".format((user.input_tokens or 0)|int) }}</span></td>
-                                <td><span class="text-success">{{ "{:,}".format((user.output_tokens or 0)|int) }}</span></td>
-                                <td>
-                    <span class="badge bg-info">{{ user.account_tier or 0 }}</span>
-                </td>
-                                <td>
-                                    <span class="badge bg-primary">{{ user.remain_frequency or 0 }}</span>
-                                </td>
-                                <td>
-                                    {% if user.balance %}
-                                        <span class="text-success">¥{{ "%.2f"|format(user.balance) }}</span>
-                                    {% else %}
-                                        <span class="text-muted">¥0.00</span>
-                                    {% endif %}
-                                </td>
-                                <td><small class="text-muted">{{ format_datetime(user.create_at) }}</small></td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-primary view-user-btn" 
-                                                data-uid="{{ user.uid }}"
-                                                title="查看详情">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-warning edit-user-btn" 
-                                                data-uid="{{ user.uid }}"
-                                                title="快速编辑">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <a href="{{ url_for('conversations', search=user.uid) }}" 
-                                           class="btn btn-outline-success" title="查看对话">
-                                            <i class="bi bi-chat-dots"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 分页 -->
-                {% if total_pages > 1 %}
-                <nav aria-label="用户分页">
-                    <ul class="pagination justify-content-center">
-                        {% if page > 1 %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
-                                    <i class="bi bi-chevron-left"></i>
+        </div>
+        <div class="card-body">
+            <!-- 用户表格 -->
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='uid', sort_order=next_sort_order('uid')) }}">
+                                    <span>用户ID</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
                                 </a>
-                            </li>
-                        {% endif %}
-                        
+                            </th>
+                            <th class="sortable" data-sort="text">
+                                <a href="{{ url_for('users', sort_by='user_name', sort_order=next_sort_order('user_name')) }}">
+                                    <span>用户名</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="text">
+                                <a href="{{ url_for('users', sort_by='first_name', sort_order=next_sort_order('first_name')) }}">
+                                    <span>姓名</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='conversations', sort_order=next_sort_order('conversations')) }}">
+                                    <span>对话数</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}">
+                                    <span>对话轮数</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='input_tokens', sort_order=next_sort_order('input_tokens')) }}">
+                                    <span>输入Token</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='output_tokens', sort_order=next_sort_order('output_tokens')) }}">
+                                    <span>输出Token</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='account_tier', sort_order=next_sort_order('account_tier')) }}">
+                                    <span>账户等级</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='remain_frequency', sort_order=next_sort_order('remain_frequency')) }}">
+                                    <span>剩余额度</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="number">
+                                <a href="{{ url_for('users', sort_by='balance', sort_order=next_sort_order('balance')) }}">
+                                    <span>余额</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th class="sortable" data-sort="date">
+                                <a href="{{ url_for('users', sort_by='create_at', sort_order=next_sort_order('create_at')) }}">
+                                    <span>注册时间</span>
+                                    <span class="sort-indicator">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
+                                    </span>
+                                </a>
+                            </th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr class="table-row-interactive">
+                            <td><span class="badge primary user-id">{{ user.uid }}</span></td>
+                            <td>
+                                <div class="user-info">
+                                    <div class="user-avatar">
+                                        <div class="avatar-image">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                <circle cx="12" cy="7" r="4"></circle>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="user-details">
+                                        <span class="user-name">{{ user.user_name or '未设置' }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="user-fullname">{{ (user.first_name or '') + ' ' + (user.last_name or '') }}</td>
+                            <td><span class="badge info">{{ user.conversations or 0 }}</span></td>
+                            <td><span class="badge success">{{ user.dialog_turns or 0 }}</span></td>
+                            <td><span class="stat-badge token-input">{{ "{:,}".format((user.input_tokens or 0)|int) }}</span></td>
+                            <td><span class="stat-badge token-output">{{ "{:,}".format((user.output_tokens or 0)|int) }}</span></td>
+                            <td>
+                                {% if user.account_tier == 1 %}
+                                    <span class="badge warning">VIP</span>
+                                {% elif user.account_tier == 2 %}
+                                    <span class="badge danger">SVIP</span>
+                                {% else %}
+                                    <span class="badge secondary">普通</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge primary">{{ user.remain_frequency or 0 }}</span></td>
+                            <td>
+                                <div class="balance-info">
+                                    {% if user.balance %}
+                                        <span class="balance-amount">¥{{ "%.2f"|format(user.balance) }}</span>
+                                    {% else %}
+                                        <span class="balance-amount balance-zero">¥0.00</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-info">
+                                    <span class="date-value">{{ format_datetime(user.create_at).split(' ')[0] if user.create_at else '未知' }}</span>
+                                    <span class="date-time text-muted">{{ format_datetime(user.create_at).split(' ')[1] if user.create_at and ' ' in format_datetime(user.create_at) else '' }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button type="button" class="btn btn-icon btn-sm view-user-btn" 
+                                            data-uid="{{ user.uid }}"
+                                            title="查看详情" aria-label="查看用户详情">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                    <button type="button" class="btn btn-icon btn-sm edit-user-btn" 
+                                            data-uid="{{ user.uid }}"
+                                            title="快速编辑" aria-label="编辑用户">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                        </svg>
+                                    </button>
+                                    <a href="{{ url_for('conversations', search=user.uid) }}" 
+                                       class="btn btn-icon btn-sm" title="查看对话" aria-label="查看对话">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+            </div>
+
+            <!-- 分页 -->
+            {% if total_pages > 1 %}
+            <div class="pagination-wrapper">
+                <div class="pagination-info">
+                    <span class="pagination-text">显示第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <= total_users else total_users }} 条，共 {{ total_users }} 条记录</span>
+                </div>
+                <div class="pagination-controls">
+                    {% if page > 1 %}
+                        <a href="{{ url_for('users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
+                           class="pagination-btn pagination-prev" aria-label="上一页">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            <span>上一页</span>
+                        </a>
+                    {% else %}
+                        <span class="pagination-btn pagination-prev disabled">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            <span>上一页</span>
+                        </span>
+                    {% endif %}
+                    
+                    <div class="pagination-numbers">
                         {% for p in range(1, total_pages + 1) %}
                             {% if p == page %}
-                                <li class="page-item active">
-                                    <span class="page-link">{{ p }}</span>
-                                </li>
+                                <span class="pagination-number active">{{ p }}</span>
                             {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
-                                <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{ p }}</a>
-                                </li>
+                                <a href="{{ url_for('users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="pagination-number">{{ p }}</a>
                             {% elif p == 4 or p == total_pages - 3 %}
-                                <li class="page-item disabled">
-                                    <span class="page-link">...</span>
-                                </li>
+                                <span class="pagination-ellipsis">…</span>
                             {% endif %}
                         {% endfor %}
-                        
-                        {% if page < total_pages %}
-                            <li class="page-item">
-                                <a class="page-link" href="{{ url_for('users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">
-                                    <i class="bi bi-chevron-right"></i>
-                                </a>
-                            </li>
-                        {% endif %}
-                    </ul>
-                </nav>
-                {% endif %}
+                    </div>
+                    
+                    {% if page < total_pages %}
+                        <a href="{{ url_for('users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
+                           class="pagination-btn pagination-next" aria-label="下一页">
+                            <span>下一页</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </a>
+                    {% else %}
+                        <span class="pagination-btn pagination-next disabled">
+                            <span>下一页</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </span>
+                    {% endif %}
+                </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <!-- 用户详情模态框 -->
-<div class="modal fade" id="userDetailModal" tabindex="-1" aria-labelledby="userDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title" id="userDetailModalLabel">
-                    <i class="bi bi-person-circle"></i> 用户详情
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-overlay" id="userDetailModal" style="display: none;">
+    <div class="modal-container modal-large">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <div class="modal-title-text">
+                    <h3 class="modal-title">用户详情</h3>
+                    <p class="modal-subtitle">查看用户的详细信息和统计数据</p>
+                </div>
             </div>
-            <div class="modal-body" id="userDetailContent">
-                <div class="text-center">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">加载中...</span>
-                    </div>
+            <button class="modal-close" onclick="closeModal('userDetailModal')" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="userDetailContent" class="user-detail-content">
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>加载中...</span>
                 </div>
             </div>
         </div>
@@ -167,278 +350,150 @@
 </div>
 
 <!-- 用户编辑模态框 -->
-<div class="modal fade" id="userEditModal" tabindex="-1" aria-labelledby="userEditModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title" id="userEditModalLabel">
-                    <i class="bi bi-pencil-square"></i> 编辑用户
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-overlay" id="userEditModal" style="display: none;">
+    <div class="modal-container modal-large">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </div>
+                <div class="modal-title-text">
+                    <h3 class="modal-title">编辑用户</h3>
+                    <p class="modal-subtitle">修改用户的基本信息和账户设置</p>
+                </div>
             </div>
-            <div class="modal-body" id="userEditContent">
-                <form id="userEditForm">
-                    <input type="hidden" id="editUserId" name="user_id">
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-primary mb-3"><i class="bi bi-person"></i> 基本信息 (users & user_config)</h6>
-                            <div class="mb-3">
+            <button class="modal-close" onclick="closeModal('userEditModal')" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="userEditForm" class="modern-form">
+                <input type="hidden" id="editUserId" name="user_id">
+                
+                <div class="form-sections">
+                    <div class="form-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                            </div>
+                            <h4 class="section-title">基本信息</h4>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
                                 <label for="editUserName" class="form-label">用户名</label>
-                                <input type="text" class="form-control" id="editUserName" name="user_name">
+                                <input type="text" class="form-input" id="editUserName" name="user_name" placeholder="请输入用户名">
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="editFirstName" class="form-label">名</label>
-                                <input type="text" class="form-control" id="editFirstName" name="first_name">
+                                <input type="text" class="form-input" id="editFirstName" name="first_name" placeholder="请输入名">
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="editLastName" class="form-label">姓</label>
-                                <input type="text" class="form-control" id="editLastName" name="last_name">
+                                <input type="text" class="form-input" id="editLastName" name="last_name" placeholder="请输入姓">
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="editNick" class="form-label">昵称</label>
-                                <input type="text" class="form-control" id="editNick" name="nick">
+                                <input type="text" class="form-input" id="editNick" name="nick" placeholder="请输入昵称">
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <h6 class="text-success mb-3"><i class="bi bi-gear"></i> 账户设置 (users)</h6>
-                            <div class="mb-3">
+                    </div>
+                    
+                    <div class="form-divider"></div>
+                    
+                    <div class="form-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                                </svg>
+                            </div>
+                            <h4 class="section-title">账户设置</h4>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
                                 <label for="editAccountTier" class="form-label">账户等级</label>
-                                <input type="number" class="form-control" id="editAccountTier" name="account_tier">
+                                <select class="form-input form-select" id="editAccountTier" name="account_tier">
+                                    <option value="0">普通用户</option>
+                                    <option value="1">VIP用户</option>
+                                    <option value="2">SVIP用户</option>
+                                </select>
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="editRemainFrequency" class="form-label">剩余额度</label>
-                                <input type="number" class="form-control" id="editRemainFrequency" name="remain_frequency">
+                                <input type="number" class="form-input" id="editRemainFrequency" name="remain_frequency" placeholder="请输入剩余额度">
                             </div>
-                            <div class="mb-3">
+                            <div class="form-group">
                                 <label for="editBalance" class="form-label">余额</label>
-                                <input type="number" step="0.01" class="form-control" id="editBalance" name="balance">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="row">
-                        <div class="col-12">
-                            <h6 class="text-info mb-3"><i class="bi bi-sliders"></i> 配置信息 (user_config)</h6>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="editChar" class="form-label">角色 (char)</label>
-                                        <input type="text" class="form-control" id="editChar" name="char">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editPreset" class="form-label">预设 (preset)</label>
-                                        <input type="text" class="form-control" id="editPreset" name="preset">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="editApi" class="form-label">API (api)</label>
-                                        <input type="text" class="form-control" id="editApi" name="api">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label for="editStream" class="form-label">流式传输 (stream)</label>
-                                        <input type="text" class="form-control" id="editStream" name="stream">
-                                    </div>
+                                <div class="input-group">
+                                    <span class="input-prefix">¥</span>
+                                    <input type="number" step="0.01" class="form-input" id="editBalance" name="balance" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-warning" onclick="saveUserChanges()">保存更改</button>
-            </div>
+                    
+                    <div class="form-divider"></div>
+                    
+                    <div class="form-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                                </svg>
+                            </div>
+                            <h4 class="section-title">配置信息</h4>
+                        </div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="editChar" class="form-label">角色 (char)</label>
+                                <input type="text" class="form-input" id="editChar" name="char" placeholder="请输入角色配置">
+                            </div>
+                            <div class="form-group">
+                                <label for="editPreset" class="form-label">预设 (preset)</label>
+                                <input type="text" class="form-input" id="editPreset" name="preset" placeholder="请输入预设配置">
+                            </div>
+                            <div class="form-group">
+                                <label for="editApi" class="form-label">API (api)</label>
+                                <input type="text" class="form-input" id="editApi" name="api" placeholder="请输入API配置">
+                            </div>
+                            <div class="form-group">
+                                <label for="editStream" class="form-label">流式传输 (stream)</label>
+                                <input type="text" class="form-input" id="editStream" name="stream" placeholder="请输入流式传输配置">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('userEditModal')">
+                <span>取消</span>
+            </button>
+            <button type="button" class="btn btn-primary" onclick="saveUserChanges()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span>保存更改</span>
+            </button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-function viewUserDetail(userId) {
-    const modal = new bootstrap.Modal(document.getElementById('userDetailModal'));
-    const content = document.getElementById('userDetailContent');
-    
-    // 显示加载状态
-    content.innerHTML = `
-        <div class="text-center">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">加载中...</span>
-            </div>
-        </div>
-    `;
-    
-    modal.show();
-    
-    // 获取用户详情
-    fetch(`/api/user/${userId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                content.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                return;
-            }
-            
-            const user = data.user;
-            const config = data.config;
-            
-            content.innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-primary"><i class="bi bi-person"></i> 基本信息</h6>
-                        <table class="table table-borderless table-sm">
-                            <tr><td><strong>用户ID:</strong></td><td>${user.uid}</td></tr>
-                            <tr><td><strong>用户名:</strong></td><td>${user.user_name || '未设置'}</td></tr>
-                            <tr><td><strong>姓名:</strong></td><td>${(user.first_name || '') + ' ' + (user.last_name || '')}</td></tr>
-                            <tr><td><strong>注册时间:</strong></td><td>${user.create_at || '未知'}</td></tr>
-                            <tr><td><strong>最后更新:</strong></td><td>${user.update_at || '未知'}</td></tr>
-                        </table>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-success"><i class="bi bi-bar-chart"></i> 使用统计</h6>
-                        <table class="table table-borderless table-sm">
-                            <tr><td><strong>对话数:</strong></td><td><span class="badge bg-info">${data.conversations_count || 0}</span></td></tr>
-                            <tr><td><strong>输入Token:</strong></td><td><span class="text-primary">${(user.input_tokens || 0).toLocaleString()}</span></td></tr>
-                            <tr><td><strong>输出Token:</strong></td><td><span class="text-success">${(user.output_tokens || 0).toLocaleString()}</span></td></tr>
-                            <tr><td><strong>剩余次数:</strong></td><td><span class="badge bg-warning">${user.remain_frequency || 0}</span></td></tr>
-                        </table>
-                    </div>
-                </div>
-                <hr>
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-warning"><i class="bi bi-gear"></i> 账户信息</h6>
-                        <table class="table table-borderless table-sm">
-                            <tr><td><strong>账户等级:</strong></td><td>
-                                ${user.account_tier == 1 ? '<span class="badge bg-warning">VIP</span>' : 
-                                  user.account_tier == 2 ? '<span class="badge bg-danger">SVIP</span>' : 
-                                  '<span class="badge bg-secondary">普通</span>'}
-                            </td></tr>
-                            <tr><td><strong>余额:</strong></td><td>
-                                ${user.balance ? '<span class="text-success">¥' + user.balance.toFixed(2) + '</span>' : '<span class="text-muted">¥0.00</span>'}
-                            </td></tr>
-                        </table>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-info"><i class="bi bi-sliders"></i> 配置信息</h6>
-                        <table class="table table-borderless table-sm">
-                            <tr><td><strong>角色:</strong></td><td>${config?.character || '未设置'}</td></tr>
-                            <tr><td><strong>预设:</strong></td><td>${config?.preset || '未设置'}</td></tr>
-                            <tr><td><strong>API密钥:</strong></td><td>${config?.api_key ? '已设置' : '未设置'}</td></tr>
-                            <tr><td><strong>模型:</strong></td><td>${config?.model || '未设置'}</td></tr>
-                        </table>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <a href="/conversations?user_id=${user.uid}" class="btn btn-primary">
-                        <i class="bi bi-chat-dots"></i> 查看对话记录
-                    </a>
-                </div>
-            `;
-        })
-        .catch(error => {
-            content.innerHTML = `<div class="alert alert-danger">加载失败: ${error.message}</div>`;
-        });
-}
-
-function editUser(userId) {
-    const modal = new bootstrap.Modal(document.getElementById('userEditModal'));
-    
-    // 获取用户详情并填充表单
-    fetch(`/api/user/${userId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert('加载用户信息失败: ' + data.error);
-                return;
-            }
-            
-            const user = data.user;
-            const config = data.config || {};
-            
-            // 填充表单
-            document.getElementById('editUserId').value = user.uid;
-            document.getElementById('editUserName').value = user.user_name || '';
-            document.getElementById('editFirstName').value = user.first_name || '';
-            document.getElementById('editLastName').value = user.last_name || '';
-            document.getElementById('editAccountTier').value = user.account_tier || 0;
-            document.getElementById('editRemainFrequency').value = user.remain_frequency || 0;
-            document.getElementById('editBalance').value = user.balance || 0;
-
-            document.getElementById('editNick').value = config.nick || '';
-            document.getElementById('editChar').value = config.char || '';
-            document.getElementById('editPreset').value = config.preset || '';
-            document.getElementById('editApi').value = config.api || '';
-            document.getElementById('editStream').value = config.stream || '';
-            
-            modal.show();
-        })
-        .catch(error => {
-            alert('加载用户信息失败: ' + error.message);
-        });
-}
-
-function saveUserChanges() {
-    const form = document.getElementById('userEditForm');
-    const formData = new FormData(form);
-    const userId = formData.get('user_id');
-    
-    const userData = {
-        user_name: formData.get('user_name'),
-        first_name: formData.get('first_name'),
-        last_name: formData.get('last_name'),
-        account_tier: parseInt(formData.get('account_tier')),
-        remain_frequency: parseInt(formData.get('remain_frequency')),
-        balance: parseFloat(formData.get('balance')),
-        
-        nick: formData.get('nick'),
-        char: formData.get('char'),
-        preset: formData.get('preset'),
-        api: formData.get('api'),
-        stream: formData.get('stream')
-    };
-    
-    fetch(`/api/user/${userId}/update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('用户信息更新成功！');
-            bootstrap.Modal.getInstance(document.getElementById('userEditModal')).hide();
-            location.reload(); // 刷新页面以显示更新后的数据
-        } else {
-            alert('更新失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('更新失败: ' + error.message);
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.view-user-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.getAttribute('data-uid');
-            viewUserDetail(userId);
-        });
-    });
-
-    document.querySelectorAll('.edit-user-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const userId = this.getAttribute('data-uid');
-            editUser(userId);
-        });
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/users-modal.js') }}"></script>
 {% endblock %}

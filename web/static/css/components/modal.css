@@ -325,6 +325,87 @@ body.modal-open {
   overflow: hidden;
 }
 
+/* 暗黑模式适配 */
+[data-theme="dark"] .modal-container {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-header {
+  background: linear-gradient(135deg, #2d5aa0 0%, #1e3a8a 100%);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .modal-footer {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .content-box {
+  border-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .content-box:hover {
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .content-box.raw {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .raw-text {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: var(--text-primary) !important;
+  white-space: pre-wrap;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* 确保原始文本不会被HTML渲染 */
+.raw-text {
+  white-space: pre-wrap;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  background-color: rgba(0, 0, 0, 0.02);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+}
+
+[data-theme="dark"] .content-box.processed {
+  background-color: rgba(19, 194, 194, 0.1);
+}
+
+[data-theme="dark"] .content-box pre {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .section-title {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .section-title.secondary {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .copy-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .copy-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .button.secondary {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .button.secondary:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .modal-container {

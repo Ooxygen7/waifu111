@@ -308,6 +308,10 @@ body {
   --border-color: rgba(255, 255, 255, 0.1);
 }
 
+[data-theme="dark"] .sidebar {
+  background: linear-gradient(135deg, #2d5aa0 0%, #1e3a8a 100%);
+}
+
 [data-theme="dark"] .main-content {
   background-color: var(--dark-bg);
 }
@@ -316,8 +320,13 @@ body {
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
+[data-theme="dark"] .page-title {
+  color: var(--text-primary);
+}
+
 [data-theme="dark"] .current-time {
   background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
 }
 
 /* 侧边栏遮罩层 */

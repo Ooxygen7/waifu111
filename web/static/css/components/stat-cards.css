@@ -176,19 +176,19 @@
 }
 
 [data-theme="dark"] .stat-card-users::before {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
 }
 
 [data-theme="dark"] .stat-card-conversations::before {
-  background: linear-gradient(135deg, #166534 0%, #15803d 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
 }
 
 [data-theme="dark"] .stat-card-messages::before {
-  background: linear-gradient(135deg, #dc2626 0%, #ea580c 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
 }
 
 [data-theme="dark"] .stat-card-today::before {
-  background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
 }
 
 /* 暗黑模式下的文字对比度增强 */

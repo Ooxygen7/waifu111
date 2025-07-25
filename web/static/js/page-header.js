@@ -50,8 +50,8 @@ function initThemeToggle() {
     
     // 添加点击事件
     themeToggle.addEventListener('click', () => {
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        const newTheme = isDark ? 'light' : 'dark';
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = (!currentTheme || currentTheme === 'dark') ? 'tech' : 'dark';
         
         // 更新主题
         document.documentElement.setAttribute('data-theme', newTheme);
@@ -61,7 +61,7 @@ function initThemeToggle() {
         updateThemeIcon(themeIcon, newTheme);
         
         // 更新按钮状态
-        themeToggle.setAttribute('aria-pressed', newTheme === 'dark' ? 'true' : 'false');
+        themeToggle.setAttribute('aria-pressed', newTheme === 'tech' ? 'true' : 'false');
     });
 }
 
@@ -71,8 +71,8 @@ function initThemeToggle() {
  * @param {string} theme - 当前主题
  */
 function updateThemeIcon(iconElement, theme) {
-    if (theme === 'dark') {
-        iconElement.textContent = '☀️';
+    if (theme === 'tech') {
+        iconElement.textContent = '🔮';
     } else {
         iconElement.textContent = '🌙';
     }

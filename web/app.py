@@ -691,7 +691,8 @@ def users():
 
     return render_template('users.html', users=users_list, page=page, total_pages=total_pages, 
                          format_datetime=format_datetime, search_term=search_term, 
-                         sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order)
+                         sort_by=sort_by, sort_order=sort_order, next_sort_order=next_sort_order,
+                         per_page=per_page, total_users=total_users)
 
 @app.route('/conversations')
 @admin_required
@@ -1053,6 +1054,41 @@ def export_group_dialogs(group_id):
 @admin_required
 def api_user_detail(user_id):
     """获取用户详细信息API"""
+    user_data = db.query_db('SELECT * FROM users WHERE uid = ?', (user_id,))
+    
+    if not user_data:
+        return jsonify({'error': '用户不存在'}), 404
+    
+    user_config_data = db.query_db('SELECT * FROM user_config WHERE uid = ?', (user_id,))
+    conversations_count_data = db.query_db('SELECT COUNT(*) FROM conversations WHERE user_id = ?', (user_id,))
+    conversations_count = conversations_count_data[0][0] if conversations_count_data else 0
+    
+    # 转换为字典格式
+    user_columns = ['uid', 'first_name', 'last_name', 'user_name', 'create_at', 'conversations', 
+                   'dialog_turns', 'update_at', 'input_tokens', 'output_tokens', 'account_tier', 
+                   'remain_frequency', 'balance']
+    user_dict = {user_columns[i]: user_data[0][i] for i in range(len(user_columns))}
+    
+    user_config_dict = None
+    if user_config_data:
+        config_columns = ['uid', 'char', 'api', 'preset', 'conv_id', 'stream', 'nick']
+        user_config_dict = {config_columns[i]: user_config_data[0][i] for i in range(len(config_columns))}
+    
+    return jsonify({
+        'user': user_dict,
+        'config': user_config_dict,
+        'conversations_count': conversations_count
+    })
+
+@app.route('/viewer/api/user/<int:user_id>')
+@viewer_required
+def viewer_api_user_detail(user_id):
+    """浏览者权限获取用户详细信息API"""
+    # 检查是否为管理员用户，浏览者不能查看管理员信息
+    admin_ids = get_admin_ids()
+    if user_id in admin_ids:
+        return jsonify({'error': '无权限查看此用户信息'}), 403
+    
     user_data = db.query_db('SELECT * FROM users WHERE uid = ?', (user_id,))
     
     if not user_data:

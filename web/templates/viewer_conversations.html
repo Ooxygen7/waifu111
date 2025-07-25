@@ -5,6 +5,7 @@
 {% block page_title %}对话记录{% endblock %}
 
 {% block content %}
+<div class="content-wrapper">
 <div class="card mb-4">
     <div class="card-body">
         <div class="filter-container">
@@ -106,7 +107,9 @@
                     {% endif %}
                     
                     <div class="turns-badge">
-                        <span class="turns-badge-icon">💬</span> {{ conv.turns or 0 }} 轮对话
+                        <span class="turns-badge-icon">💬</span> 
+                        <span class="turns-count">{{ conv.turns or 0 }}</span>
+                        <span class="turns-text">轮对话</span>
                     </div>
                     
                     <div class="conversation-time">
@@ -134,11 +137,18 @@
                     </div>
                     
                     <div class="conversation-details">
-                        <div class="conversation-summary" data-id="{{ conv.conv_id }}">
+                        <div class="conversation-summary-modern" data-id="{{ conv.conv_id }}">
+                            <div class="summary-header">
+                                <i class="fas fa-quote-left summary-icon"></i>
+                                <span class="summary-label">对话摘要</span>
+                            </div>
                             {% if conv.summary %}
-                            <div class="summary-content">{{ conv.summary }}</div>
+                            <div class="summary-content-modern">{{ conv.summary }}</div>
                             {% else %}
-                            <div class="conversation-summary-placeholder">暂无对话摘要</div>
+                            <div class="summary-placeholder-modern">
+                                <i class="fas fa-info-circle"></i>
+                                <span>暂无对话摘要</span>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -222,27 +232,8 @@
     </div>
 </div>
 
-<!-- 统计信息 -->
-{% if conversations %}
-<div class="stats-container">
-    <div class="stats-card">
-        <div class="stats-grid">
-            <div class="stat-item">
-                <h5 class="stat-value primary">{{ conversations|length }}</h5>
-                <small class="stat-label">当前页对话数</small>
-            </div>
-            <div class="stat-item">
-                <h5 class="stat-value success">{{ conversations|map(attribute='turns')|select('number')|sum or 0 }}</h5>
-                <small class="stat-label">当前页总轮次</small>
-            </div>
-            <div class="stat-item">
-                <h5 class="stat-value info">{{ conversations|selectattr('character')|list|length }}</h5>
-                <small class="stat-label">已设置角色的对话</small>
-            </div>
-        </div>
-    </div>
+
 </div>
-{% endif %}
 
 <script>
     // 排序菜单切换函数 - 将使用sorting.js中的增强版本

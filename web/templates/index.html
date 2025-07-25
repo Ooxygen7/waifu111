@@ -5,319 +5,260 @@
 {% block page_title %}系统概览{% endblock %}
 
 {% block content %}
-<!-- 基础统计卡片 -->
-<div class="row">
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-uppercase mb-1">总用户数</div>
-                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_users }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-people fa-2x text-primary"></i>
-                    </div>
-                </div>
+<div class="content-wrapper">
+<div class="dashboard-grid">
+    <!-- 数据概览 -->
+    <div class="main-stats-row">
+        <div class="stat-card stat-card-users">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">👥</span> 总用户数</h3>
+                <div class="stat-value">{{ stats.total_users }}</div>
+                <div class="stat-desc">系统中注册的用户总数</div>
             </div>
+            <div class="stat-bg-icon">👥</div>
+        </div>
+        
+        <div class="stat-card stat-card-conversations">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">💬</span> 总对话数</h3>
+                <div class="stat-value">{{ stats.total_conversations }}</div>
+                <div class="stat-desc">所有用户的对话总数</div>
+            </div>
+            <div class="stat-bg-icon">💬</div>
+        </div>
+        
+        <div class="stat-card stat-card-messages">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">📝</span> 总消息数</h3>
+                <div class="stat-value">{{ stats.total_dialogs }}</div>
+                <div class="stat-desc">所有对话中的消息总数</div>
+            </div>
+            <div class="stat-bg-icon">📝</div>
+        </div>
+        
+        <div class="stat-card stat-card-today">
+            <div class="stat-content">
+                <h3 class="stat-title"><span class="stat-title-icon">📅</span> 今日对话</h3>
+                <div class="stat-value">{{ stats.today_conversations }}</div>
+                <div class="stat-desc">今天新增的对话数量</div>
+            </div>
+            <div class="stat-bg-icon">📅</div>
         </div>
     </div>
 
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card stat-card-2 h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-uppercase mb-1">总对话数</div>
-                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_conversations }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-chat-dots fa-2x text-success"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card stat-card-3 h-100">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-uppercase mb-1">消息总数</div>
-                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_dialogs }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-envelope fa-2x text-info"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 今日活动和Token统计 -->
-<div class="row">
-    <!-- 今日活动详情 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-calendar-day"></i> 今日活动</h6>
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-4">
-                        <div class="h4 text-success">{{ stats.today_conversations }}</div>
-                        <div class="text-muted small">新增对话</div>
-                    </div>
-                    <div class="col-4">
-                        <div class="h4 text-primary">{{ stats.today_dialogs }}</div>
-                        <div class="text-muted small">私聊消息</div>
-                    </div>
-                    <div class="col-4">
-                        <div class="h4 text-warning">{{ stats.today_group_dialogs }}</div>
-                        <div class="text-muted small">群聊消息</div>
-                    </div>
-                </div>
-                <hr>
-                <div class="text-center">
-                    <div class="h5 text-info">{{ "{:,}".format(stats.today_total_tokens) }}</div>
-                    <div class="text-muted">今日消耗 Tokens</div>
-                    <small class="text-muted">
-                        输入: {{ "{:,}".format(stats.today_input_tokens) }} | 
-                        输出: {{ "{:,}".format(stats.today_output_tokens) }}
-                    </small>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Token使用统计 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-bar-chart"></i> Token 使用统计</h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-6 text-center">
-                        <div class="h4 text-primary">{{ "{:,}".format(stats.total_input_tokens) }}</div>
-                        <div class="text-muted">输入 Tokens</div>
-                    </div>
-                    <div class="col-6 text-center">
-                        <div class="h4 text-success">{{ "{:,}".format(stats.total_output_tokens) }}</div>
-                        <div class="text-muted">输出 Tokens</div>
-                    </div>
-                </div>
-                <hr>
-                <div class="text-center">
-                    <div class="h5 text-info">{{ "{:,}".format(stats.total_input_tokens + stats.total_output_tokens) }}</div>
-                    <div class="text-muted">总计 Tokens</div>
-                </div>
-                <div class="mt-3">
-                    {% set today_percentage = (stats.today_total_tokens / (stats.total_input_tokens + stats.total_output_tokens) * 100) if (stats.total_input_tokens + stats.total_output_tokens) > 0 else 0 %}
-                    <div class="progress">
-                        <div class="progress-bar bg-info" role="progressbar" 
-                             style="width: {{ today_percentage if today_percentage <= 100 else 100 }}%"
-                             aria-valuenow="{{ today_percentage }}" aria-valuemin="0" aria-valuemax="100">
-                            今日占比 {{ "{:.1f}".format(today_percentage) }}%
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 最活跃用户和群组 -->
-<div class="row">
-    <!-- 今日最活跃用户 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-warning text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-person-check"></i> 今日最活跃用户 TOP5</h6>
-            </div>
-            <div class="card-body">
-                {% if stats.active_users %}
-                    <div class="list-group list-group-flush">
-                        {% for user in stats.active_users %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <strong>{{ user[1] or (user[2] + ' ' + user[3]) or user[0] }}</strong>
-                                <br><small class="text-muted">ID: {{ user[0] }}</small>
-                            </div>
-                            <span class="badge bg-primary rounded-pill">{{ user[4] }} 条消息</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-inbox"></i><br>
-                        今日暂无活跃用户
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- 今日最活跃群组 -->
-    <div class="col-lg-6 mb-4">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-people-fill"></i> 今日最活跃群组 TOP5</h6>
-            </div>
-            <div class="card-body">
-                {% if stats.active_groups %}
-                    <div class="list-group list-group-flush">
-                        {% for group in stats.active_groups %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <div>
-                                <strong>{{ group[1] or group[0] }}</strong>
-                                <br><small class="text-muted">ID: {{ group[0] }}</small>
-                            </div>
-                            <span class="badge bg-success rounded-pill">{{ group[2] }} 条消息</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center text-muted py-3">
-                        <i class="bi bi-inbox"></i><br>
-                        今日暂无活跃群组
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 数据分析面板 -->
-<div class="row">
-    <!-- 时间粒度选择器 -->
-    <div class="col-12 mb-4">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-area text-info"></i>
-                        数据趋势分析
-                    </h5>
-                    <div class="btn-group" role="group">
-                        <input type="radio" class="btn-check" name="timeRange" id="range30d" value="30d" {% if stats.time_range == '30d' %}checked{% endif %}>
-                        <label class="btn btn-outline-primary" for="range30d">30天</label>
-                        
-                        <input type="radio" class="btn-check" name="timeRange" id="range7d" value="7d" {% if stats.time_range == '7d' or not stats.time_range %}checked{% endif %}>
-                        <label class="btn btn-outline-primary" for="range7d">7天</label>
-                        
-                        <input type="radio" class="btn-check" name="timeRange" id="range1d" value="1d" {% if stats.time_range == '1d' %}checked{% endif %}>
-                        <label class="btn btn-outline-primary" for="range1d">24小时</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 用户增长趋势 -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
+    <!-- 详细统计信息 -->
+    <div class="stats-row">
+        <div class="card card-compact">
             <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-chart-line text-primary"></i>
-                    用户增长趋势
-                </h5>
+                <h3 class="card-title">📊 今日活动统计</h3>
             </div>
             <div class="card-body">
+                <div class="compact-stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-item-icon">💬</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">新增对话</div>
+                            <div class="stat-item-value">{{ stats.today_conversations }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon">📝</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">私聊消息</div>
+                            <div class="stat-item-value">{{ stats.today_dialogs }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon">👥</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">群聊消息</div>
+                            <div class="stat-item-value">{{ stats.today_group_dialogs }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon">🔥</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">今日消耗 Tokens</div>
+                            <div class="stat-item-value">{{ "{:,}".format(stats.today_total_tokens) }}</div>
+                            <div class="stat-item-desc">
+                                输入: {{ "{:,}".format(stats.today_input_tokens) }} | 
+                                输出: {{ "{:,}".format(stats.today_output_tokens) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-compact">
+            <div class="card-header">
+                <h3 class="card-title">🎯 Token 使用统计</h3>
+            </div>
+            <div class="card-body">
+                <div class="compact-stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-item-icon">📥</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">输入 Tokens</div>
+                            <div class="stat-item-value">{{ "{:,}".format(stats.total_input_tokens) }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon">📤</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">输出 Tokens</div>
+                            <div class="stat-item-value">{{ "{:,}".format(stats.total_output_tokens) }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon">💎</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">总计 Tokens</div>
+                            <div class="stat-item-value">{{ "{:,}".format(stats.total_input_tokens + stats.total_output_tokens) }}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-icon">📊</div>
+                        <div class="stat-item-content">
+                            <div class="stat-item-label">今日占比</div>
+                            {% set today_percentage = (stats.today_total_tokens / (stats.total_input_tokens + stats.total_output_tokens) * 100) if (stats.total_input_tokens + stats.total_output_tokens) > 0 else 0 %}
+                            <div class="stat-item-value">{{ "{:.1f}".format(today_percentage) }}%</div>
+                            <div class="stat-item-progress">
+                                <div class="progress-bar" style="width: {{ today_percentage if today_percentage <= 100 else 100 }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</div>
+
+<!-- TOP排行榜 -->
+<div class="stats-row">
+    <div class="card card-compact">
+        <div class="card-header">
+            <h3 class="card-title">🏆 今日最活跃用户 TOP5</h3>
+        </div>
+        <div class="card-body">
+            <div class="top-list">
+                {% for user in stats.active_users[:5] %}
+                <div class="top-item">
+                    <div class="top-rank">{{ loop.index }}</div>
+                    <div class="top-content">
+                         <div class="top-name">{{ user[1] or user[2] or '用户 ' + user[0]|string }}</div>
+                         <div class="top-value">{{ user[4] }} 条消息</div>
+                     </div>
+                     <div class="top-badge">{{ user[4] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card card-compact">
+        <div class="card-header">
+            <h3 class="card-title">👥 最活跃群组 TOP5</h3>
+        </div>
+        <div class="card-body">
+            <div class="top-list">
+                {% for group in stats.active_groups[:5] %}
+                <div class="top-item">
+                    <div class="top-rank">{{ loop.index }}</div>
+                    <div class="top-content">
+                         <div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div>
+                         <div class="top-value">{{ group[2] }} 条消息</div>
+                     </div>
+                     <div class="top-badge">{{ group[2] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 数据趋势分析 -->
+<div class="analytics-container">
+    <div class="analytics-header">
+        <h3 class="analytics-title">📈 数据趋势分析</h3>
+        <div class="period-selector">
+            <button class="period-btn active" data-period="7d">近7天</button>
+            <button class="period-btn" data-period="30d">近30天</button>
+            <button class="period-btn" data-period="90d">近90天</button>
+            <button class="period-btn" data-period="1y">近1年</button>
+        </div>
+    </div>
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4 class="chart-title">📊 用户增长趋势</h4>
+            </div>
+            <div class="chart-body">
                 <canvas id="userGrowthChart" width="400" height="200"></canvas>
             </div>
         </div>
-    </div>
-    
-    <!-- 对话活跃度趋势 -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-comments text-success"></i>
-                    对话活跃度趋势
-                </h5>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4 class="chart-title">💬 对话量趋势</h4>
             </div>
-            <div class="card-body">
-                <canvas id="dialogTrendChart" width="400" height="200"></canvas>
+            <div class="chart-body">
+                <canvas id="conversationChart" width="400" height="200"></canvas>
             </div>
         </div>
-    </div>
-    
-    <!-- Token消耗趋势 -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-coins text-warning"></i>
-                    Token消耗趋势
-                </h5>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4 class="chart-title">🔥 Token消耗趋势</h4>
             </div>
-            <div class="card-body">
-                <canvas id="tokenTrendChart" width="400" height="200"></canvas>
+            <div class="chart-body">
+                <canvas id="tokenUsageChart" width="400" height="200"></canvas>
             </div>
         </div>
-    </div>
-    
-    <!-- 群聊活跃趋势 -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-users text-info"></i>
-                    群聊活跃趋势
-                </h5>
+        <div class="chart-card">
+            <div class="chart-header">
+                <h4 class="chart-title">⚡ 活跃度分析</h4>
             </div>
-            <div class="card-body">
-                <canvas id="groupTrendChart" width="400" height="200"></canvas>
+            <div class="chart-body">
+                <canvas id="activityChart" width="400" height="200"></canvas>
             </div>
         </div>
     </div>
 </div>
 
+
+
 <!-- 快速导航 -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-gradient-primary text-white">
-                <h6 class="m-0 font-weight-bold"><i class="bi bi-speedometer2"></i> 快速导航</h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-2 col-sm-4 col-6 mb-3">
-                        <a href="{{ url_for('users') }}" class="btn btn-outline-primary btn-block w-100">
-                            <i class="bi bi-people"></i><br><small>用户管理</small>
-                        </a>
-                    </div>
-                    <div class="col-md-2 col-sm-4 col-6 mb-3">
-                        <a href="{{ url_for('conversations') }}" class="btn btn-outline-success btn-block w-100">
-                            <i class="bi bi-chat-dots"></i><br><small>对话记录</small>
-                        </a>
-                    </div>
-                    <div class="col-md-2 col-sm-4 col-6 mb-3">
-                        <a href="{{ url_for('groups') }}" class="btn btn-outline-warning btn-block w-100">
-                            <i class="bi bi-collection"></i><br><small>群组管理</small>
-                        </a>
-                    </div>
-                    <div class="col-md-2 col-sm-4 col-6 mb-3">
-                        <a href="{{ url_for('config_management') }}" class="btn btn-outline-secondary btn-block w-100">
-                            <i class="bi bi-gear"></i><br><small>配置管理</small>
-                        </a>
-                    </div>
-                    <div class="col-md-2 col-sm-4 col-6 mb-3">
-                        <a href="{{ url_for('search') }}" class="btn btn-outline-info btn-block w-100">
-                            <i class="bi bi-search"></i><br><small>数据搜索</small>
-                        </a>
-                    </div>
-                    <div class="col-md-2 col-sm-4 col-6 mb-3">
-                        <button class="btn btn-outline-dark btn-block w-100" onclick="location.reload()">
-                            <i class="bi bi-arrow-clockwise"></i><br><small>刷新数据</small>
-                        </button>
-                    </div>
-                </div>
-            </div>
+<div class="card card-bordered">
+    <div class="card-header">
+        <h3 class="card-title">⚡ 快速导航</h3>
+    </div>
+    <div class="card-body">
+        <div class="quick-actions">
+            <a href="{{ url_for('users') }}" class="btn btn-primary btn-with-icon">
+                <i class="icon">👥</i>
+                <span>用户管理</span>
+            </a>
+            <a href="{{ url_for('conversations') }}" class="btn btn-success btn-with-icon">
+                <i class="icon">💬</i>
+                <span>对话记录</span>
+            </a>
+            <a href="{{ url_for('groups') }}" class="btn btn-warning btn-with-icon">
+                <i class="icon">👥</i>
+                <span>群组管理</span>
+            </a>
+            <a href="{{ url_for('config_management') }}" class="btn btn-secondary btn-with-icon">
+                <i class="icon">⚙️</i>
+                <span>配置管理</span>
+            </a>
+            <a href="{{ url_for('search') }}" class="btn btn-info btn-with-icon">
+                <i class="icon">🔍</i>
+                <span>数据搜索</span>
+            </a>
+            <button class="btn btn-dark btn-with-icon" onclick="location.reload()">
+                <i class="icon">🔄</i>
+                <span>刷新数据</span>
+            </button>
         </div>
     </div>
 </div>
@@ -522,19 +463,212 @@ updateTime();
 </script>
 
 <style>
+.dashboard-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.main-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 .stat-card {
-    border-left: 4px solid #4e73df;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    min-height: 120px;
 }
 
-.stat-card-2 {
-    border-left: 4px solid #1cc88a;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
-.stat-card-3 {
-    border-left: 4px solid #36b9cc;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+.stat-card-users {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card-conversations {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.stat-card-messages {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card-today {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.stat-content {
+    position: relative;
+    z-index: 2;
+}
+
+.stat-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.stat-title-icon {
+    margin-right: 0.5rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-desc {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.stat-bg-icon {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    font-size: 2.5rem;
+    opacity: 0.2;
+    z-index: 1;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+
+.compact-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+@media (max-width: 480px) {
+    .compact-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.card-compact {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.card-compact .card-header {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-compact .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.card-compact .card-body {
+    padding: 1rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    min-height: 80px;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-item-icon {
+    font-size: 1.2rem;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.stat-item-content {
+    flex: 1;
+}
+
+.stat-item-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.stat-item-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.stat-item-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.stat-item-progress {
+    width: 100%;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
 }
 
 .bg-gradient-primary {
@@ -556,6 +690,239 @@ updateTime();
 
 .list-group-item:last-child {
     border-bottom: none;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.btn-with-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    min-height: 44px;
+}
+
+.btn-with-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    text-decoration: none;
+}
+
+.btn-with-icon .icon {
+    font-size: 1.2rem;
+}
+
+.table-modern {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-modern thead th {
+    background: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+.table-modern tbody td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table-modern tbody tr:hover {
+    background: var(--hover-bg);
+}
+
+.user-badge {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.action-badge {
+    background: var(--success-color);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* TOP排行榜样式 */
+.top-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.top-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+.top-item:hover {
+    background: var(--bg-hover);
+    transform: translateY(-1px);
+}
+.top-rank {
+    width: 2rem;
+    height: 2rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-right: 0.75rem;
+}
+.top-content {
+    flex: 1;
+}
+.top-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+.top-value {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-top: 0.1rem;
+}
+.top-badge {
+    background: var(--accent-color);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* 数据趋势分析容器 */
+.analytics-container {
+    background: var(--bg-primary);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.analytics-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+.period-selector {
+    display: flex;
+    background: var(--bg-secondary);
+    border-radius: 0.75rem;
+    padding: 0.25rem;
+    gap: 0.25rem;
+}
+.period-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.period-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+.period-btn.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+.chart-card {
+    background: var(--bg-secondary);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+}
+.chart-header {
+    margin-bottom: 1rem;
+}
+.chart-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 500;
+}
+.chart-body {
+    position: relative;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    border-radius: 0.5rem;
+    border: 1px dashed var(--border-color);
+}
+.chart-body canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .analytics-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .period-selector {
+        justify-content: center;
+    }
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 480px) {
+    .period-selector {
+        flex-wrap: wrap;
+    }
+    .period-btn {
+        flex: 1;
+        min-width: calc(50% - 0.125rem);
+    }
 }
 </style>
 {% endblock %}

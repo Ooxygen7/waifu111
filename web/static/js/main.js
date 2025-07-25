@@ -179,11 +179,13 @@ function initThemeToggle() {
     // 主题切换按钮点击事件
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
-            let theme = 'light';
+            let theme = 'tech';
             
-            // 如果当前是浅色主题或没有设置主题
-            if (!document.documentElement.getAttribute('data-theme') || 
-                document.documentElement.getAttribute('data-theme') === 'light') {
+            // 在tech主题和dark主题之间切换
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (!currentTheme || currentTheme === 'dark') {
+                theme = 'tech';
+            } else {
                 theme = 'dark';
             }
             
@@ -197,7 +199,11 @@ function initThemeToggle() {
     // 更新主题图标
     function updateThemeIcon(theme) {
         if (themeIcon) {
-            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            if (theme === 'tech') {
+                themeIcon.textContent = '🔮';
+            } else {
+                themeIcon.textContent = '🌙';
+            }
         }
     }
     
@@ -205,7 +211,7 @@ function initThemeToggle() {
     prefersDarkScheme.addEventListener('change', function(e) {
         // 只有在用户没有手动设置主题时才跟随系统
         if (!localStorage.getItem('theme')) {
-            const newTheme = e.matches ? 'dark' : 'light';
+            const newTheme = e.matches ? 'tech' : 'dark';
             document.documentElement.setAttribute('data-theme', newTheme);
             updateThemeIcon(newTheme);
         }
@@ -230,9 +236,9 @@ function addSkeletonLoading(selector) {
 }
 
 /**
- * 添加数字动画效果
+ * 显示数字（移除动画效果）
  * @param {string|HTMLElement|NodeList} selector - 目标元素选择器或DOM元素
- * @param {number} duration - 动画持续时间（毫秒）
+ * @param {number} duration - 保留参数以兼容现有调用（已忽略）
  * @param {boolean} formatNumber - 是否格式化数字（添加千位分隔符）
  */
 function animateNumbers(selector, duration = 1500, formatNumber = true) {
@@ -255,9 +261,6 @@ function animateNumbers(selector, duration = 1500, formatNumber = true) {
     }
     
     Array.from(elements).forEach(element => {
-        // 添加动画类
-        element.classList.add('animate-number');
-        
         // 获取最终值
         const finalValueText = element.textContent.trim();
         const finalValue = parseInt(finalValueText.replace(/,/g, ''), 10);
@@ -265,40 +268,12 @@ function animateNumbers(selector, duration = 1500, formatNumber = true) {
         // 如果不是有效数字，跳过
         if (isNaN(finalValue)) return;
         
-        let startValue = 0;
-        const startTime = performance.now();
-        
-        // 使用 easeOutExpo 缓动函数使动画更自然
-        function easeOutExpo(t) {
-            return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        // 直接显示最终值，不使用动画
+        if (formatNumber && finalValue >= 1000) {
+            element.textContent = finalValue.toLocaleString('zh-CN');
+        } else {
+            element.textContent = finalValue;
         }
-        
-        function updateNumber(currentTime) {
-            const elapsedTime = currentTime - startTime;
-            
-            if (elapsedTime < duration) {
-                const progress = easeOutExpo(elapsedTime / duration);
-                const currentValue = Math.round(progress * finalValue);
-                
-                // 格式化数字（添加千位分隔符）
-                if (formatNumber && currentValue >= 1000) {
-                    element.textContent = currentValue.toLocaleString('zh-CN');
-                } else {
-                    element.textContent = currentValue;
-                }
-                
-                requestAnimationFrame(updateNumber);
-            } else {
-                // 确保最终值正确显示
-                if (formatNumber && finalValue >= 1000) {
-                    element.textContent = finalValue.toLocaleString('zh-CN');
-                } else {
-                    element.textContent = finalValue;
-                }
-            }
-        }
-        
-        requestAnimationFrame(updateNumber);
     });
 }
 
