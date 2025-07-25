@@ -50,3 +50,6 @@ data/data.db
 .kiro/specs/web-viewer-beautification/tasks.md
 characters/初音未来_7007822593.json
 characters/初音未来_7007822593_248132_del.json
+.kiro/specs/unified-frontend-refactor/design.md
+.kiro/specs/unified-frontend-refactor/requirements.md
+.kiro/specs/unified-frontend-refactor/tasks.md

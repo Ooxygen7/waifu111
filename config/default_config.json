@@ -34,5 +34,27 @@
     "config_local": "./config/config_local.json",
     "characters_path": "./characters",
     "prompt_path": "./prompts/prompts.json"
+  },
+  "auth": {
+    "WEB_PW": "123456",
+    "VIEWER_PW": "viewer123",
+    "ADMIN": []
+  },
+  "session": {
+    "timeout": 3600,
+    "extend_on_activity": true
+  },
+  "security": {
+    "max_login_attempts": 5,
+    "lockout_duration": 300,
+    "password_min_length": 6,
+    "require_https": false
+  },
+  "flask": {
+    "secret_key": "cyberwaifu_unified_secret_key",
+    "session_cookie_secure": false,
+    "session_cookie_httponly": true,
+    "session_cookie_samesite": "Lax",
+    "permanent_session_lifetime": 3600
   }
 }

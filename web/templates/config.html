@@ -1,414 +1,527 @@
-{% extends "admin_base.html" %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置文件管理 - CyberWaifu Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.css" rel="stylesheet">
+    <style>
+        .config-sidebar {
+            height: calc(100vh - 56px);
+            overflow-y: auto;
+            border-right: 1px solid #dee2e6;
+        }
+        .config-editor {
+            height: calc(100vh - 56px);
+        }
+        .file-item {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 2px 0;
+        }
+        .file-item:hover {
+            background-color: #f8f9fa;
+        }
+        .file-item.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .file-item.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .category-header {
+            font-weight: bold;
+            color: #495057;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .CodeMirror {
+            height: calc(100vh - 200px);
+            border: 1px solid #dee2e6;
+        }
+        .jsoneditor-container {
+            height: calc(100vh - 200px);
+            border: 1px solid #dee2e6;
+        }
+        .editor-mode-tabs {
+            margin-bottom: 10px;
+        }
+        .editor-mode-tabs .nav-link {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        .editor-toolbar {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .file-info {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-robot"></i> CyberWaifu Bot
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/">首页</a>
+                <a class="nav-link" href="/users">用户管理</a>
+                <a class="nav-link" href="/conversations">对话管理</a>
+                <a class="nav-link" href="/groups">群组管理</a>
+                <a class="nav-link active" href="/config">配置管理</a>
+            </div>
+        </div>
+    </nav>
 
-{% block title %}配置文件管理 - CyberWaifu Bot 管理系统{% endblock %}
-
-{% block page_title %}配置文件管理{% endblock %}
-
-{% block content %}
-<div class="row">
-    <div class="col-12">
-        <!-- 文件列表侧边栏和编辑器区域 -->
-        <div class="card">
-            <div class="card-body p-0">
-                <div class="row g-0">
-                    <!-- 文件列表侧边栏 -->
-                    <div class="col-md-3 config-sidebar bg-light">
-                        <div class="p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="mb-0">配置文件</h5>
-                                <button class="btn btn-sm btn-primary" onclick="showCreateModal()">
-                                    <i class="fas fa-plus"></i> 新建
-                                </button>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <button class="btn btn-sm btn-outline-secondary" onclick="refreshFileList()">
-                                    <i class="fas fa-refresh"></i> 刷新
-                                </button>
-                            </div>
-                            
-                            <div id="fileList">
-                                <div class="text-center">
-                                    <div class="spinner-border spinner-border-sm" role="status">
-                                        <span class="visually-hidden">加载中...</span>
-                                    </div>
-                                </div>
+    <div class="container-fluid p-0">
+        <div class="row g-0">
+            <!-- 文件列表侧边栏 -->
+            <div class="col-md-3 config-sidebar bg-light">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">配置文件</h5>
+                        <button class="btn btn-sm btn-primary" onclick="showCreateModal()">
+                            <i class="fas fa-plus"></i> 新建
+                        </button>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="refreshFileList()">
+                            <i class="fas fa-refresh"></i> 刷新
+                        </button>
+                    </div>
+                    
+                    <div id="fileList">
+                        <div class="text-center">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">加载中...</span>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- 编辑器区域 -->
-                    <div class="col-md-9 config-editor">
-                        <div class="editor-toolbar">
-                            <div class="row align-items-center">
-                                <div class="col">
-                                    <h6 class="mb-0" id="currentFileName">请选择一个文件进行编辑</h6>
-                                    <small class="file-info" id="currentFileInfo"></small>
-                                </div>
-                                <div class="col-auto">
-                                    <button class="btn btn-sm btn-success me-2" onclick="saveFile()" id="saveBtn" disabled>
-                                        <i class="fas fa-save"></i> 保存
-                                    </button>
-                                    <button class="btn btn-sm btn-danger" onclick="deleteFile()" id="deleteBtn" disabled>
-                                        <i class="fas fa-trash"></i> 删除
-                                    </button>
-                                </div>
-                            </div>
+                </div>
+            </div>
+            
+            <!-- 编辑器区域 -->
+            <div class="col-md-9 config-editor">
+                <div class="editor-toolbar">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h6 class="mb-0" id="currentFileName">请选择一个文件进行编辑</h6>
+                            <small class="file-info" id="currentFileInfo"></small>
                         </div>
-                        
-                        <div class="p-3">
-                            <!-- 编辑模式选择 -->
-                            <ul class="admin-tabs" id="editorModeTabs" role="tablist">
-                                <li class="admin-tabs-item">
-                                    <button class="admin-tabs-link active" id="visual-tab" data-target="visual-editor" role="tab">
-                                        <i class="fas fa-eye"></i> 可视化编辑
-                                    </button>
-                                </li>
-                                <li class="admin-tabs-item">
-                                    <button class="admin-tabs-link" id="code-tab" data-target="code-editor" role="tab">
-                                        <i class="fas fa-code"></i> 代码编辑
-                                    </button>
-                                </li>
-                            </ul>
-                            
-                            <!-- 编辑器内容 -->
-                            <div class="admin-tabs-content" id="editorTabContent">
-                                <div class="admin-tabs-pane active" id="visual-editor" role="tabpanel">
-                                    <div id="jsoneditor" class="jsoneditor-container"></div>
-                                </div>
-                                <div class="admin-tabs-pane" id="code-editor" role="tabpanel">
-                                    <textarea id="codeEditor" placeholder="请选择一个配置文件进行编辑..."></textarea>
-                                </div>
-                            </div>
+                        <div class="col-auto">
+                            <button class="btn btn-sm btn-success me-2" onclick="saveFile()" id="saveBtn" disabled>
+                                <i class="fas fa-save"></i> 保存
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteFile()" id="deleteBtn" disabled>
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-3">
+                    <!-- 编辑模式选择 -->
+                    <ul class="nav nav-tabs editor-mode-tabs" id="editorModeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="visual-tab" data-bs-toggle="tab" data-bs-target="#visual-editor" type="button" role="tab">
+                                <i class="fas fa-eye"></i> 可视化编辑
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="code-tab" data-bs-toggle="tab" data-bs-target="#code-editor" type="button" role="tab">
+                                <i class="fas fa-code"></i> 代码编辑
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <!-- 编辑器内容 -->
+                    <div class="tab-content" id="editorTabContent">
+                        <div class="tab-pane fade show active" id="visual-editor" role="tabpanel">
+                            <div id="jsoneditor" class="jsoneditor-container"></div>
+                        </div>
+                        <div class="tab-pane fade" id="code-editor" role="tabpanel">
+                            <textarea id="codeEditor" placeholder="请选择一个配置文件进行编辑..."></textarea>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- 创建文件模态框 -->
-<div class="modal" id="createFileModal" tabindex="-1" role="dialog" aria-labelledby="createFileModalTitle" aria-hidden="true">
-    <div class="modal-overlay"></div>
-    <div class="modal-container">
-        <div class="modal-header">
-            <h5 class="modal-title" id="createFileModalTitle">创建新配置文件</h5>
-            <button type="button" class="modal-close" id="closeCreateModal" aria-label="关闭">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <form id="createFileForm" class="admin-form" data-validate="true">
-                <div class="form-group">
-                    <label for="fileCategory" class="form-label">文件分类</label>
-                    <select class="form-select" id="fileCategory" required>
-                        <option value="">请选择分类</option>
-                        <option value="characters">角色配置 (characters)</option>
-                        <option value="config">系统配置 (config)</option>
-                        <option value="prompts">提示词 (prompts)</option>
-                    </select>
-                    <div class="invalid-feedback"></div>
+    <!-- 创建文件模态框 -->
+    <div class="modal fade" id="createFileModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建新配置文件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="form-group">
-                    <label for="fileName" class="form-label">文件名</label>
-                    <input type="text" class="form-control" id="fileName" placeholder="不需要包含.json后缀" required>
-                    <div class="invalid-feedback"></div>
+                <div class="modal-body">
+                    <form id="createFileForm">
+                        <div class="mb-3">
+                            <label for="fileCategory" class="form-label">文件分类</label>
+                            <select class="form-select" id="fileCategory" required>
+                                <option value="">请选择分类</option>
+                                <option value="characters">角色配置 (characters)</option>
+                                <option value="config">系统配置 (config)</option>
+                                <option value="prompts">提示词 (prompts)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fileName" class="form-label">文件名</label>
+                            <input type="text" class="form-control" id="fileName" placeholder="不需要包含.json后缀" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fileTemplate" class="form-label">初始模板</label>
+                            <select class="form-select" id="fileTemplate">
+                                <option value="empty">空对象 {}</option>
+                                <option value="character">角色模板</option>
+                                <option value="config">配置模板</option>
+                                <option value="prompt">提示词模板</option>
+                            </select>
+                        </div>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <label for="fileTemplate" class="form-label">初始模板</label>
-                    <select class="form-select" id="fileTemplate">
-                        <option value="empty">空对象 {}</option>
-                        <option value="character">角色模板</option>
-                        <option value="config">配置模板</option>
-                        <option value="prompt">提示词模板</option>
-                    </select>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createFile()">创建</button>
                 </div>
-            </form>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="button secondary" id="cancelCreateBtn">取消</button>
-            <button type="button" class="btn btn-primary" onclick="createFile()">创建</button>
+            </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.css" rel="stylesheet">
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/brace-fold.min.js"></script>
-<script src="{{ url_for('static', filename='js/admin-modal.js') }}"></script>
-<script src="{{ url_for('static', filename='js/admin-tabs.js') }}"></script>
-
-<style>
-    .config-sidebar {
-        height: calc(100vh - 200px);
-        overflow-y: auto;
-        border-right: 1px solid var(--border-color);
-    }
-    .config-editor {
-        height: calc(100vh - 200px);
-    }
-    .file-item {
-        cursor: pointer;
-        padding: 8px 12px;
-        border-radius: 4px;
-        margin: 2px 0;
-    }
-    .file-item:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-    .file-item.active {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    .file-item.error {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-    .category-header {
-        font-weight: bold;
-        color: var(--text-secondary);
-        margin-top: 15px;
-        margin-bottom: 5px;
-        padding: 5px 0;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .CodeMirror {
-        height: calc(100vh - 350px);
-        border: 1px solid var(--border-color);
-    }
-    .jsoneditor-container {
-        height: calc(100vh - 350px);
-        border: 1px solid var(--border-color);
-    }
-    .editor-mode-tabs {
-        margin-bottom: 10px;
-    }
-    .editor-mode-tabs .nav-link {
-        padding: 8px 16px;
-        font-size: 14px;
-    }
-    .editor-toolbar {
-        padding: 10px;
-        background-color: rgba(0, 0, 0, 0.03);
-        border-bottom: 1px solid var(--border-color);
-    }
-    .file-info {
-        font-size: 0.9em;
-        color: var(--text-secondary);
-    }
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/9.10.2/jsoneditor.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/foldgutter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/fold/brace-fold.min.js"></script>
     
-    /* 深色模式适配 */
-    [data-theme="dark"] .config-sidebar {
-        background-color: var(--dark-surface) !important;
-        border-right-color: var(--border-color-dark);
-    }
-    [data-theme="dark"] .file-item:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-    }
-    [data-theme="dark"] .category-header {
-        border-bottom-color: var(--border-color-dark);
-    }
-    [data-theme="dark"] .editor-toolbar {
-        background-color: rgba(255, 255, 255, 0.05);
-        border-bottom-color: var(--border-color-dark);
-    }
-    [data-theme="dark"] .CodeMirror {
-        border-color: var(--border-color-dark);
-    }
-    [data-theme="dark"] .jsoneditor-container {
-        border-color: var(--border-color-dark);
-    }
-</style>
-
-<script>
-    let codeEditor;
-    let jsonEditor;
-    let currentFile = null;
-    let fileData = {};
-    let currentMode = 'visual'; // 'visual' or 'code'
-    
-    // 初始化编辑器
-    document.addEventListener('DOMContentLoaded', function() {
-        // 初始化代码编辑器
-        codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
-            mode: 'application/json',
-            theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'monokai' : 'default',
-            lineNumbers: true,
-            matchBrackets: true,
-            autoCloseBrackets: true,
-            foldGutter: true,
-            gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
-            indentUnit: 2,
-            tabSize: 2
-        });
+    <script>
+        let codeEditor;
+        let jsonEditor;
+        let currentFile = null;
+        let fileData = {};
+        let currentMode = 'visual'; // 'visual' or 'code'
         
-        // 初始化JSON可视化编辑器
-        const container = document.getElementById('jsoneditor');
-        const options = {
-            mode: 'tree',
-            modes: ['tree', 'view', 'form', 'code', 'text'],
-            search: true,
-            history: true,
-            onChange: function() {
+        // 初始化编辑器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化代码编辑器
+            codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+                mode: 'application/json',
+                theme: 'monokai',
+                lineNumbers: true,
+                matchBrackets: true,
+                autoCloseBrackets: true,
+                foldGutter: true,
+                gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+                indentUnit: 2,
+                tabSize: 2
+            });
+            
+            // 初始化JSON可视化编辑器
+            const container = document.getElementById('jsoneditor');
+            const options = {
+                mode: 'tree',
+                modes: ['tree', 'view', 'form', 'code', 'text'],
+                search: true,
+                history: true,
+                onChange: function() {
+                    if (currentFile) {
+                        document.getElementById('saveBtn').disabled = false;
+                    }
+                }
+            };
+            jsonEditor = new JSONEditor(container, options);
+            
+            // 监听代码编辑器变化
+            codeEditor.on('change', function() {
                 if (currentFile) {
                     document.getElementById('saveBtn').disabled = false;
                 }
-            }
-        };
-        jsonEditor = new JSONEditor(container, options);
-        
-        // 监听代码编辑器变化
-        codeEditor.on('change', function() {
-            if (currentFile) {
-                document.getElementById('saveBtn').disabled = false;
-            }
-        });
-        
-        // 监听标签页切换
-        document.getElementById('visual-tab').addEventListener('click', function() {
-            currentMode = 'visual';
-            syncFromCodeToVisual();
-        });
-        
-        document.getElementById('code-tab').addEventListener('click', function() {
-            currentMode = 'code';
-            syncFromVisualToCode();
-        });
-        
-        // 监听主题变化
-        document.getElementById('theme-toggle').addEventListener('click', function() {
-            setTimeout(function() {
-                const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
-                codeEditor.setOption('theme', isDarkMode ? 'monokai' : 'default');
-            }, 100);
-        });
-        
-        refreshFileList();
-    });
-    
-    // 刷新文件列表
-    function refreshFileList() {
-        fetch('/api/config/list')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                fileData = data;
-                renderFileList(data);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                document.getElementById('fileList').innerHTML = 
-                    '<div class="alert alert-danger">加载文件列表失败: ' + error.message + '</div>';
             });
-    }
-    
-    // 渲染文件列表
-    function renderFileList(data) {
-        const fileList = document.getElementById('fileList');
-        let html = '';
-        
-        const categoryNames = {
-            'characters': '角色配置',
-            'config': '系统配置', 
-            'prompts': '提示词'
-        };
-        
-        for (const [category, files] of Object.entries(data)) {
-            html += `<div class="category-header">${categoryNames[category] || category}</div>`;
             
-            if (files.length === 0) {
-                html += '<div class="text-muted small">暂无文件</div>';
-            } else {
-                files.forEach(file => {
-                    const errorClass = file.error ? ' error' : '';
-                    const title = file.error ? `错误: ${file.error}` : `大小: ${formatFileSize(file.size)}, 修改时间: ${formatDate(file.modified)}`;
-                    
-                    html += `
-                        <div class="file-item${errorClass}" 
-                             onclick="${file.error ? '' : `loadFile('${file.path}')`}" 
-                             title="${title}">
-                            <i class="fas fa-file-code"></i> ${file.name}
-                            ${file.error ? '<i class="fas fa-exclamation-triangle text-warning ms-1"></i>' : ''}
-                        </div>
-                    `;
+            // 监听标签页切换
+            document.getElementById('visual-tab').addEventListener('click', function() {
+                currentMode = 'visual';
+                syncFromCodeToVisual();
+            });
+            
+            document.getElementById('code-tab').addEventListener('click', function() {
+                currentMode = 'code';
+                syncFromVisualToCode();
+            });
+            
+            refreshFileList();
+        });
+        
+        // 刷新文件列表
+        function refreshFileList() {
+            fetch('/api/config/list')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    fileData = data;
+                    renderFileList(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('fileList').innerHTML = 
+                        '<div class="alert alert-danger">加载文件列表失败: ' + error.message + '</div>';
                 });
-            }
         }
         
-        fileList.innerHTML = html;
-    }
-    
-    // 加载文件内容
-    function loadFile(filePath) {
-        // 清除之前的选中状态
-        document.querySelectorAll('.file-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        // 设置当前选中状态
-        event.target.classList.add('active');
-        
-        fetch(`/api/config/read?path=${encodeURIComponent(filePath)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
+        // 渲染文件列表
+        function renderFileList(data) {
+            const fileList = document.getElementById('fileList');
+            let html = '';
+            
+            const categoryNames = {
+                'characters': '角色配置',
+                'config': '系统配置', 
+                'prompts': '提示词'
+            };
+            
+            for (const [category, files] of Object.entries(data)) {
+                html += `<div class="category-header">${categoryNames[category] || category}</div>`;
+                
+                if (files.length === 0) {
+                    html += '<div class="text-muted small">暂无文件</div>';
+                } else {
+                    files.forEach(file => {
+                        const errorClass = file.error ? ' error' : '';
+                        const title = file.error ? `错误: ${file.error}` : `大小: ${formatFileSize(file.size)}, 修改时间: ${formatDate(file.modified)}`;
+                        
+                        html += `
+                            <div class="file-item${errorClass}" 
+                                 onclick="${file.error ? '' : `loadFile('${file.path}')`}" 
+                                 title="${title}">
+                                <i class="fas fa-file-code"></i> ${file.name}
+                                ${file.error ? '<i class="fas fa-exclamation-triangle text-warning ms-1"></i>' : ''}
+                            </div>
+                        `;
+                    });
                 }
-                
-                currentFile = data;
-                document.getElementById('currentFileName').textContent = data.name;
-                document.getElementById('currentFileInfo').textContent = `路径: ${data.path}`;
-                
-                // 设置两个编辑器的内容
-                const jsonContent = JSON.stringify(data.content, null, 2);
-                codeEditor.setValue(jsonContent);
-                jsonEditor.set(data.content);
-                
-                document.getElementById('saveBtn').disabled = true;
-                document.getElementById('deleteBtn').disabled = false;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('加载文件失败: ' + error.message);
-            });
-    }
-    
-    // 保存文件
-    function saveFile() {
-        if (!currentFile) {
-            alert('请先选择一个文件');
-            return;
-        }
-        
-        try {
-            let content;
-            if (currentMode === 'visual') {
-                content = jsonEditor.get();
-            } else {
-                content = JSON.parse(codeEditor.getValue());
             }
             
-            fetch('/api/config/save', {
+            fileList.innerHTML = html;
+        }
+        
+        // 加载文件内容
+        function loadFile(filePath) {
+            // 清除之前的选中状态
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // 设置当前选中状态
+            event.target.classList.add('active');
+            
+            fetch(`/api/config/read?path=${encodeURIComponent(filePath)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    currentFile = data;
+                    document.getElementById('currentFileName').textContent = data.name;
+                    document.getElementById('currentFileInfo').textContent = `路径: ${data.path}`;
+                    
+                    // 设置两个编辑器的内容
+                    const jsonContent = JSON.stringify(data.content, null, 2);
+                    codeEditor.setValue(jsonContent);
+                    jsonEditor.set(data.content);
+                    
+                    document.getElementById('saveBtn').disabled = true;
+                    document.getElementById('deleteBtn').disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('加载文件失败: ' + error.message);
+                });
+        }
+        
+        // 保存文件
+        function saveFile() {
+            if (!currentFile) {
+                alert('请先选择一个文件');
+                return;
+            }
+            
+            try {
+                let content;
+                if (currentMode === 'visual') {
+                    content = jsonEditor.get();
+                } else {
+                    content = JSON.parse(codeEditor.getValue());
+                }
+                
+                fetch('/api/config/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        path: currentFile.path,
+                        content: content
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    alert('文件保存成功');
+                    document.getElementById('saveBtn').disabled = true;
+                    refreshFileList();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('保存文件失败: ' + error.message);
+                });
+            } catch (e) {
+                alert('JSON格式错误: ' + e.message);
+            }
+        }
+        
+        // 编辑器同步函数
+        function syncFromCodeToVisual() {
+            try {
+                const content = JSON.parse(codeEditor.getValue());
+                jsonEditor.set(content);
+            } catch (e) {
+                console.warn('JSON格式错误，无法同步到可视化编辑器:', e.message);
+            }
+        }
+        
+        function syncFromVisualToCode() {
+            try {
+                const content = jsonEditor.get();
+                codeEditor.setValue(JSON.stringify(content, null, 2));
+            } catch (e) {
+                console.warn('无法从可视化编辑器获取内容:', e.message);
+            }
+        }
+        
+        // 删除文件
+        function deleteFile() {
+            if (!currentFile) {
+                alert('请先选择一个文件');
+                return;
+            }
+            
+            if (!confirm(`确定要删除文件 "${currentFile.name}" 吗？\n\n删除的文件将被移动到备份位置，可以手动恢复。`)) {
+                return;
+            }
+            
+            fetch('/api/config/delete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    path: currentFile.path,
+                    path: currentFile.path
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                alert('文件删除成功\n备份位置: ' + data.backup);
+                currentFile = null;
+                document.getElementById('currentFileName').textContent = '请选择一个文件进行编辑';
+                document.getElementById('currentFileInfo').textContent = '';
+                editor.setValue('');
+                document.getElementById('saveBtn').disabled = true;
+                document.getElementById('deleteBtn').disabled = true;
+                refreshFileList();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('删除文件失败: ' + error.message);
+            });
+        }
+        
+        // 显示创建文件模态框
+        function showCreateModal() {
+            document.getElementById('createFileForm').reset();
+            new bootstrap.Modal(document.getElementById('createFileModal')).show();
+        }
+        
+        // 创建文件
+        function createFile() {
+            const category = document.getElementById('fileCategory').value;
+            const fileName = document.getElementById('fileName').value;
+            const template = document.getElementById('fileTemplate').value;
+            
+            if (!category || !fileName) {
+                alert('请填写完整信息');
+                return;
+            }
+            
+            let content = {};
+            
+            // 根据模板生成初始内容
+            switch (template) {
+                case 'character':
+                    content = {
+                        "name": fileName,
+                        "description": "角色描述",
+                        "personality": "角色性格",
+                        "scenario": "场景设定",
+                        "greeting": "问候语",
+                        "example_dialogue": "示例对话"
+                    };
+                    break;
+                case 'config':
+                    content = {
+                        "setting_name": "配置名称",
+                        "value": "配置值",
+                        "description": "配置说明"
+                    };
+                    break;
+                case 'prompt':
+                    content = {
+                        "name": fileName,
+                        "system_prompt": "系统提示词",
+                        "user_prompt": "用户提示词",
+                        "description": "提示词说明"
+                    };
+                    break;
+                default:
+                    content = {};
+            }
+            
+            fetch('/api/config/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    category: category,
+                    filename: fileName,
                     content: content
                 })
             })
@@ -418,193 +531,29 @@
                     throw new Error(data.error);
                 }
                 
-                alert('文件保存成功');
-                document.getElementById('saveBtn').disabled = true;
+                alert('文件创建成功');
+                bootstrap.Modal.getInstance(document.getElementById('createFileModal')).hide();
                 refreshFileList();
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('保存文件失败: ' + error.message);
+                alert('创建文件失败: ' + error.message);
             });
-        } catch (e) {
-            alert('JSON格式错误: ' + e.message);
-        }
-    }
-    
-    // 编辑器同步函数
-    function syncFromCodeToVisual() {
-        try {
-            const content = JSON.parse(codeEditor.getValue());
-            jsonEditor.set(content);
-        } catch (e) {
-            console.warn('JSON格式错误，无法同步到可视化编辑器:', e.message);
-        }
-    }
-    
-    function syncFromVisualToCode() {
-        try {
-            const content = jsonEditor.get();
-            codeEditor.setValue(JSON.stringify(content, null, 2));
-        } catch (e) {
-            console.warn('无法从可视化编辑器获取内容:', e.message);
-        }
-    }
-    
-    // 删除文件
-    function deleteFile() {
-        if (!currentFile) {
-            alert('请先选择一个文件');
-            return;
         }
         
-        if (!confirm(`确定要删除文件 "${currentFile.name}" 吗？\n\n删除的文件将被移动到备份位置，可以手动恢复。`)) {
-            return;
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
         
-        fetch('/api/config/delete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                path: currentFile.path
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            alert('文件删除成功\n备份位置: ' + data.backup);
-            currentFile = null;
-            document.getElementById('currentFileName').textContent = '请选择一个文件进行编辑';
-            document.getElementById('currentFileInfo').textContent = '';
-            codeEditor.setValue('');
-            jsonEditor.set({});
-            document.getElementById('saveBtn').disabled = true;
-            document.getElementById('deleteBtn').disabled = true;
-            refreshFileList();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('删除文件失败: ' + error.message);
-        });
-    }
-    
-    // 显示创建文件模态框
-    function showCreateModal() {
-        document.getElementById('createFileForm').reset();
-        // 使用我们的自定义模态框API
-        if (window.adminModal && window.adminModal.createFileModal) {
-            window.adminModal.createFileModal.show();
-        } else {
-            // 如果自定义模态框API不可用，直接显示模态框
-            const modal = document.getElementById('createFileModal');
-            modal.style.display = 'block';
-            document.body.classList.add('modal-open');
+        // 格式化日期
+        function formatDate(timestamp) {
+            return new Date(timestamp * 1000).toLocaleString('zh-CN');
         }
-    }
-    
-    // 创建文件
-    function createFile() {
-        const form = document.getElementById('createFileForm');
-        const category = document.getElementById('fileCategory').value;
-        const fileName = document.getElementById('fileName').value;
-        const template = document.getElementById('fileTemplate').value;
-        
-        // 使用我们的表单验证
-        if (window.adminFormValidation && !window.adminFormValidation.validateForm(form)) {
-            return;
-        }
-        
-        if (!category || !fileName) {
-            alert('请填写完整信息');
-            return;
-        }
-        
-        let content = {};
-        
-        // 根据模板生成初始内容
-        switch (template) {
-            case 'character':
-                content = {
-                    "name": fileName,
-                    "description": "角色描述",
-                    "personality": "角色性格",
-                    "scenario": "场景设定",
-                    "greeting": "问候语",
-                    "example_dialogue": "示例对话"
-                };
-                break;
-            case 'config':
-                content = {
-                    "setting_name": "配置名称",
-                    "value": "配置值",
-                    "description": "配置说明"
-                };
-                break;
-            case 'prompt':
-                content = {
-                    "name": fileName,
-                    "system_prompt": "系统提示词",
-                    "user_prompt": "用户提示词",
-                    "description": "提示词说明"
-                };
-                break;
-            default:
-                content = {};
-        }
-        
-        fetch('/api/config/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                category: category,
-                filename: fileName,
-                content: content
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            alert('文件创建成功');
-            
-            // 使用我们的自定义模态框API关闭模态框
-            if (window.adminModal && window.adminModal.createFileModal) {
-                window.adminModal.createFileModal.hide();
-            } else {
-                // 如果自定义模态框API不可用，直接隐藏模态框
-                const modal = document.getElementById('createFileModal');
-                modal.style.display = 'none';
-                document.body.classList.remove('modal-open');
-            }
-            
-            refreshFileList();
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('创建文件失败: ' + error.message);
-        });
-    }
-    
-    // 格式化文件大小
-    function formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-    
-    // 格式化日期
-    function formatDate(timestamp) {
-        return new Date(timestamp * 1000).toLocaleString('zh-CN');
-    }
-</script>
-{% endblock %}
+    </script>
+</body>
+</html>
