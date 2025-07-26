@@ -5,7 +5,7 @@ import re
 import asyncio
 import logging
 from PIL import Image
-
+import bot_core.public_functions.frequency_manager as fm
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
@@ -652,9 +652,9 @@ class FuckCommand(BaseCommand):
             group_id = update.message.chat.id
             db.group_info_update(group_id, "call_count", 1, True)  # 更新调用计数
             logger.info("用户%s在群聊%s调用了fuck命令", user_id, group_id)
-            input_token = llm.LLM.calculate_token_count(
+            input_token = fm.circulate_token(
                 str(messages))  # 计算输入token
-            output_token = llm.LLM.calculate_token_count(response)  # 计算输出token
+            output_token = fm.circulate_token(response)  # 计算输出token
             db.group_info_update(
                 group_id, "input_token", input_token, True
             )  # 更新输入token

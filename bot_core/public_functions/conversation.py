@@ -18,7 +18,7 @@ from utils.config_utils import get_api_multiple
 from utils.db_utils import dialog_summary_add
 from utils.LLM_utils import LLM, PromptsBuilder
 from utils.logging_utils import setup_logging
-
+import bot_core.public_functions.frequency_manager as fm
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ class User:
         self.nick = db.user_config_get(user_id).get('user_nick')  # 从数据库获取用户昵称
         self.frequency = db.user_info_get(user_id).get('remain')
         self.tmp_frequency = db.user_sign_info_get(user_id).get('frequency')
+        self.config = Config(self.id)
 
 
 class GroupUser:
@@ -348,19 +349,21 @@ class GroupConv:
         更新数据库中的群组信息、对话内容和令牌统计。
         """
         print("正在保存群聊记录")  # 打印日志
-        db.group_info_update(self.group.id, 'call_count', 1, True)  # 更新调用计数
-        input_token = self.client.calculate_token_count(str(self.client.messages))
-        logger.debug(f"输入令牌:{input_token}")  # 计算对话令牌
+
+
+
         turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
         db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
                               self.input.id, GROUP)  # 添加用户对话
         db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
                               self.output.id, GROUP)  # 添加助手对话
-        db.conversation_group_update(self.group.id, self.user.id, 'turns', 1)  # 更新回合数
-        output_token = self.client.calculate_token_count(self.output.text_raw)  # 计算输出令牌
-        db.group_info_update(self.group.id, 'input_token', input_token, True)  # 更新输入令牌
-        db.group_info_update(self.group.id, 'output_token', output_token, True)  # 更新输出令牌
-        logger.debug(f"输出令牌:{output_token}")
+
+        input_tokens = fm.circulate_token(str(self.client.messages))
+        output_tokens = fm.circulate_token(self.output.text_raw)  # 计算输出令牌
+        logger.debug(f"输入令牌:{input_tokens}")  # 计算对话令牌
+        logger.debug(f"输出令牌:{output_tokens}")
+        fm.update_user_usage(self,input_tokens,output_tokens,"group_chat")
+
         db.group_dialog_update(self.input.id, 'trigger_type', self.trigger, self.group.id)  # 更新触发类型
         db.group_dialog_update(self.input.id, 'raw_response', self.output.text_raw, self.group.id)  # 更新原始响应
         db.group_dialog_update(self.input.id, 'processed_response', self.output.text_processed,
@@ -414,7 +417,7 @@ class PrivateConv:
         self.id = db.user_conv_id_get(self.user.id)
         self.summary = db.dialog_summary_get(self.id) or []
         self.turn = db.dialog_turn_get(self.id, 'private')
-        self.config = Config(self.user.id)
+        self.config = self.user.config
         try:
             self.client = LLM(self.config.api, 'private')
         except ValueError as e:
@@ -582,27 +585,11 @@ class PrivateConv:
         该方法计算输入和输出的 token 数量,并更新数据库中用户的
         token 数量,对话轮次和剩余频率.
         """
-        input_tokens = self.client.calculate_token_count(str(self.client.messages))  # 计算输入tokens
-        logger.info(f"输入令牌：{input_tokens}")
-        db.user_info_update(self.user.id, 'input_tokens', input_tokens, True)
-        output_tokens = self.client.calculate_token_count(self.output.text_raw)  # 计算输出tokens
-        logger.info(f"输出令牌：{output_tokens}")
-        db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
-        db.conversation_private_arg_update(self.id, 'turns', self.turn+2)  # 增加对话轮次计数
-        db.user_info_update(self.user.id, 'dialog_turns', 1, True)
-        self._update_frequency()
+        input_tokens = fm.circulate_token(str(self.client.messages))  # 计算输入tokens
+        output_tokens = fm.circulate_token(self.output.text_raw)  # 计算输出tokens
+        fm.update_user_usage(self.user,input_tokens,output_tokens,"private_chat")
 
-    def _update_frequency(self):
-        """
-        更新用户的额度信息。
 
-        如果用户有临时频率（tmp_frequency > 0），则更新签到频率（frequency）；
-        否则，更新剩余频率（remain_frequency）。
-        """
-        if self.user.tmp_frequency > 0:
-            db.user_sign_info_update(self.user.id, 'frequency', self.config.multiple * -1)
-        else:
-            db.user_info_update(self.user.id, 'remain_frequency', self.config.multiple * -1, True)
 
     async def _check_summary(self):
         """
@@ -667,8 +654,8 @@ class PrivateConv:
             try:
                 summary_text = await LLM.generate_summary(self.id, summary_type='zip', start=start, end=end)
                 # 检查summary_text长度
-                if not summary_text or len(summary_text) < 300:
-                    logger.warning(f"第{attempt}次尝试：区域 {area_str} 生成的总结过短（<300字符），将重试。")
+                if not summary_text or len(summary_text) < 200:
+                    logger.warning(f"第{attempt}次尝试：区域 {area_str} 生成的总结过短（<200字符），将重试。")
                     continue
                 result = dialog_summary_add(self.id, area_str, summary_text)
                 if result:

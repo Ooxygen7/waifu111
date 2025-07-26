@@ -16,6 +16,7 @@ import bot_core.public_functions.messages
 from utils import db_utils as db
 from utils import LLM_utils
 from utils.logging_utils import setup_logging
+import bot_core.public_functions.frequency_manager as fm
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -264,6 +265,10 @@ async def _process_image_analysis(update: Update, context: ContextTypes.DEFAULT_
                     parse="markdown",
                     photo=photo_file
                 )
+            output_tokens = fm.circulate_token(response)
+            input_tokens = fm.circulate_token(str(messages))
+            fm.update_user_usage(update.message.chat.id,input_tokens,output_tokens,"private_photo")
+
         except Exception as e:
             # 如果发送失败，发送纯文本错误信息
             await update.message.reply_text(f"图片分析失败：{str(e)}")

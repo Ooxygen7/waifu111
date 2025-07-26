@@ -4,9 +4,8 @@ from telegram.ext import ContextTypes
 
 from bot_core.public_functions.conversation import PrivateConv
 from bot_core.public_functions.decorators import Decorators
-from utils.logging_utils import setup_logging
 from . import features
-
+from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 

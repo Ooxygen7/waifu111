@@ -3,8 +3,6 @@ import os
 import subprocess
 import sys
 import threading
-
-import telegram
 from telegram import BotCommand as TelegramBotCommand
 from telegram import BotCommandScopeAllGroupChats, BotCommandScopeDefault, Update
 from telegram.ext import (  # InlineQueryHandler,  # 注释掉内联相关
