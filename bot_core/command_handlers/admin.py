@@ -2,11 +2,14 @@ from telegram import Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 import logging
+import os
+import sys
 from bot_core.public_functions.messages import LLMToolHandler
 import bot_core.public_functions.messages
 from LLM_tools.tools_registry import DatabaseSuperToolRegistry, parse_and_invoke_tool
 from bot_core.public_functions.messages import send_split_message, send_error_message
 from utils import db_utils as db
+from utils.db_utils import manual_wal_checkpoint
 from utils import LLM_utils as llm
 from .base import BaseCommand, CommandMeta
 from utils.logging_utils import setup_logging
@@ -301,3 +304,70 @@ class MessageCommand(BaseCommand):
                 parse_mode='Markdown'
             )
             logger.error(f"发送消息时发生未知错误: {str(e)}", exc_info=True)
+
+
+class CheckpointCommand(BaseCommand):
+    meta = CommandMeta(
+        name='checkpoint',
+        command_type='admin',
+        trigger='chkpt',
+        menu_text='触发数据库检查点',
+        show_in_menu=False,
+        menu_weight=50,
+        bot_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        处理 /checkpoint 命令，手动触发数据库 WAL 检查点。
+        """
+        await update.message.reply_text("正在尝试手动触发数据库 WAL 检查点...")
+        
+        try:
+            success = manual_wal_checkpoint()
+            if success:
+                await update.message.reply_text("✅ 成功触发 WAL 检查点！WAL 文件已合并到主数据库并重置。")
+                logger.info(f"管理员 {update.effective_user.id} 成功触发了 WAL 检查点。")
+            else:
+                await update.message.reply_text("❌ 触发 WAL 检查点失败，请查看机器人后台日志获取详细信息。")
+                logger.error(f"管理员 {update.effective_user.id} 触发 WAL 检查点失败。")
+        except Exception as e:
+            await update.message.reply_text(f"❌ 执行检查点时发生意外错误：\n`{type(e).__name__}: {e}`", parse_mode='Markdown')
+            logger.error(f"执行 WAL 检查点时发生意外错误: {e}", exc_info=True)
+
+
+class RestartCommand(BaseCommand):
+    meta = CommandMeta(
+        name='restart',
+        command_type='admin',
+        trigger='restart',
+        menu_text='重启机器人',
+        show_in_menu=True,
+        menu_weight=100,
+        bot_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """
+        处理 /restart 命令，安全地重启整个机器人应用。
+        """
+        await update.message.reply_text("正在准备重启机器人...")
+        logger.info(f"管理员 {update.effective_user.id} 触发了机器人重启。")
+
+        try:
+            # 1. 关闭数据库连接
+            logger.info("正在关闭数据库连接...")
+            db.close_all_connections()
+            await update.message.reply_text("数据库连接已关闭。")
+
+            # 2. 执行重启
+            logger.info("正在执行重启...")
+            await update.message.reply_text("机器人正在重启...请稍候。")
+
+            # os.execv 会用新进程替换当前进程
+            os.execv(sys.executable, ['python'] + sys.argv)
+
+        except Exception as e:
+            error_message = f"❌ 重启过程中发生错误：\n`{type(e).__name__}: {e}`"
+            await update.message.reply_text(error_message, parse_mode='Markdown')
+            logger.error(f"重启机器人时发生意外错误: {e}", exc_info=True)

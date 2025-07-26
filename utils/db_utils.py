@@ -230,6 +230,33 @@ class DatabaseConnectionPool:
         self.connections = []
         self.connection_locks = []
 
+    def trigger_wal_checkpoint(self) -> bool:
+        """
+        手动触发 WAL 检查点，将 WAL 文件中的数据合并到主数据库文件。
+
+        Returns:
+            bool: 操作是否成功
+        """
+        conn, conn_index = self.get_connection()
+        if not conn:
+            logger.error("无法获取数据库连接以触发 WAL 检查点")
+            return False
+        
+        try:
+            # 使用 TRUNCATE 模式可以最高效地回收 WAL 文件空间
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+            logger.info("成功触发 WAL 检查点")
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"触发 WAL 检查点失败: {e}")
+            return False
+        finally:
+            if conn_index >= 0:
+                self.release_connection(conn_index)
+            else:
+                if conn:
+                    conn.close()
+
 
 # 创建全局连接池实例前，先确保数据库存在
 init_database_if_not_exists()
@@ -1529,3 +1556,8 @@ def user_sign_info_update(user_id: int, field: str, value: Any) -> bool:
 def close_all_connections():
     """关闭连接池中的所有数据库连接。应在应用退出时调用。"""
     db_pool.close_all()
+
+
+def manual_wal_checkpoint():
+    """手动触发 WAL 检查点。"""
+    return db_pool.trigger_wal_checkpoint()
