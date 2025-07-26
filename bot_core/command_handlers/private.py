@@ -13,11 +13,11 @@ from bot_core.public_functions.messages import send_message
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
 from bot_core.public_functions.conversation import PrivateConv
-from bot_core.public_functions.messages import send_split_message, send_error_message
+
 from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
-from LLM_tools.tools_registry import parse_and_invoke_tool, MarketToolRegistry
+from LLM_tools.tools_registry import MarketToolRegistry
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -25,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 class StartCommand(BaseCommand):
     meta = CommandMeta(
-        name='start',
-        command_type='private',
-        trigger='start',
-        menu_text='开始使用 CyberWaifu',
+        name="start",
+        command_type="private",
+        trigger="start",
+        menu_text="开始使用 CyberWaifu",
         show_in_menu=False,
-        menu_weight=99
+        menu_weight=99,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -49,12 +49,12 @@ class StartCommand(BaseCommand):
 
 class HelpCommand(BaseCommand):
     meta = CommandMeta(
-        name='help',
-        command_type='private',
-        trigger='help',
-        menu_text='获取帮助',
+        name="help",
+        command_type="private",
+        trigger="help",
+        menu_text="获取帮助",
         show_in_menu=True,
-        menu_weight=0
+        menu_weight=0,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -100,17 +100,17 @@ class HelpCommand(BaseCommand):
             "• 在群聊中需要@机器人或回复机器人消息\n"
             "• 管理员拥有额外的管理指令权限"
         )
-        await update.message.reply_text(help_text, parse_mode='Markdown')
+        await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
 class UndoCommand(BaseCommand):
     meta = CommandMeta(
-        name='undo',
-        command_type='private',
-        trigger='undo',
-        menu_text='撤回上一条消息',
+        name="undo",
+        command_type="private",
+        trigger="undo",
+        menu_text="撤回上一条消息",
         show_in_menu=True,
-        menu_weight=1
+        menu_weight=1,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -121,28 +121,28 @@ class UndoCommand(BaseCommand):
 
 class StreamCommand(BaseCommand):
     meta = CommandMeta(
-        name='stream',
-        command_type='private',
-        trigger='stream',
-        menu_text='切换流式传输模式',
+        name="stream",
+        command_type="private",
+        trigger="stream",
+        menu_text="切换流式传输模式",
         show_in_menu=True,
-        menu_weight=5
+        menu_weight=5,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        if db.user_stream_switch(info['user_id']):
+        if db.user_stream_switch(info["user_id"]):
             await update.message.reply_text("切换成功！")
 
 
 class MeCommand(BaseCommand):
     meta = CommandMeta(
-        name='me',
-        command_type='private',
-        trigger='me',
-        menu_text='查看个人信息',
+        name="me",
+        command_type="private",
+        trigger="me",
+        menu_text="查看个人信息",
         show_in_menu=True,
-        menu_weight=99
+        menu_weight=99,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -155,78 +155,88 @@ class MeCommand(BaseCommand):
             f"您的余额是`{info['balance']}`；\r\n"
             f"您的对话昵称是`{info['user_nick']}`。\r\n"
             f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
-
         )
-        await update.message.reply_text(f"{result}", parse_mode='MarkDown')
+        await update.message.reply_text(f"{result}", parse_mode="MarkDown")
 
 
 class NewCommand(BaseCommand):
     meta = CommandMeta(
-        name='new',
-        command_type='private',
-        trigger='new',
-        menu_text='创建新对话',
+        name="new",
+        command_type="private",
+        trigger="new",
+        menu_text="创建新对话",
         show_in_menu=True,
-        menu_weight=5
+        menu_weight=5,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
         conversation = PrivateConv(update, context)
         conversation.new()
-        await update.message.reply_text(f"创建成功！", parse_mode='MarkDown')
+        await update.message.reply_text("创建成功！", parse_mode="MarkDown")
         preset_markup = Inline.print_preset_list()
         if preset_markup == "没有可用的预设。":
             await update.message.reply_text(preset_markup)
         else:
-            await update.message.reply_text("请为新对话选择一个预设：", reply_markup=preset_markup)
-        char_markup = Inline.print_char_list('load', 'private', info['user_id'])
+            await update.message.reply_text(
+                "请为新对话选择一个预设：", reply_markup=preset_markup
+            )
+        char_markup = Inline.print_char_list("load", "private", info["user_id"])
         if char_markup == "没有可操作的角色。":
             await update.message.reply_text(char_markup)
         else:
-            await update.message.reply_text("请为新对话选择一个角色：", reply_markup=char_markup)
+            await update.message.reply_text(
+                "请为新对话选择一个角色：", reply_markup=char_markup
+            )
 
 
 class SaveCommand(BaseCommand):
     meta = CommandMeta(
-        name='save',
-        command_type='private',
-        trigger='save',
-        menu_text='保存当前对话',
+        name="save",
+        command_type="private",
+        trigger="save",
+        menu_text="保存当前对话",
         show_in_menu=True,
-        menu_weight=5
+        menu_weight=5,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         config = public.update_info_get(update)
-        if db.conversation_private_update(config['conv_id'], config['char'],
-                                          config['preset']) and db.conversation_private_save(config['conv_id']):
+        if db.conversation_private_update(
+            config["conv_id"], config["char"], config["preset"]
+        ) and db.conversation_private_save(config["conv_id"]):
             placeholder_message = await update.message.reply_text("保存中...")
 
             async def create_summary(conv_id, placeholder):
                 summary = await llm.LLM.generate_summary(conv_id)
                 if db.conversation_private_summary_add(conv_id, summary):
-                    logger.info(f"保存对话并生成总结, conv_id: {conv_id}, summary: {summary}")
+                    logger.info(
+                        f"保存对话并生成总结, conv_id: {conv_id}, summary: {summary}"
+                    )
                     try:
-                        await placeholder.edit_text(f"保存成功，对话总结:`{summary}`", parse_mode='MarkDown')
+                        await placeholder.edit_text(
+                            f"保存成功，对话总结:`{summary}`", parse_mode="MarkDown"
+                        )
                     except Exception as e:
                         logger.warning(e)
                         await placeholder.edit_text(f"保存成功，对话总结:`{summary}`")
                 else:
                     await placeholder.edit_text("保存失败")
 
-            _task = asyncio.create_task(create_summary(config['conv_id'], placeholder_message))
+            _task = asyncio.create_task(
+                create_summary(config["conv_id"], placeholder_message)
+            )
             return
 
 
 class RegenCommand(BaseCommand):
     meta = CommandMeta(
-        name='regen',
-        command_type='private',
-        trigger='regen',
-        menu_text='重新生成回复',
+        name="regen",
+        command_type="private",
+        trigger="regen",
+        menu_text="重新生成回复",
         show_in_menu=True,
-        menu_weight=1
+        menu_weight=1,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -237,17 +247,17 @@ class RegenCommand(BaseCommand):
 
 class CharCommand(BaseCommand):
     meta = CommandMeta(
-        name='char',
-        command_type='private',
-        trigger='char',
-        menu_text='选择角色',
+        name="char",
+        command_type="private",
+        trigger="char",
+        menu_text="选择角色",
         show_in_menu=True,
-        menu_weight=6
+        menu_weight=6,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         conversation = PrivateConv(update, context)
-        markup = Inline.print_char_list('load', 'private', conversation.user.id)
+        markup = Inline.print_char_list("load", "private", conversation.user.id)
         if markup == "没有可操作的角色。":
             await update.message.reply_text(markup)
         else:
@@ -257,17 +267,17 @@ class CharCommand(BaseCommand):
 
 class DelcharCommand(BaseCommand):
     meta = CommandMeta(
-        name='delchar',
-        command_type='private',
-        trigger='delchar',
-        menu_text='删除角色',
+        name="delchar",
+        command_type="private",
+        trigger="delchar",
+        menu_text="删除角色",
         show_in_menu=True,
-        menu_weight=7
+        menu_weight=7,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        markup = Inline.print_char_list('del', 'private', info['user_id'])
+        markup = Inline.print_char_list("del", "private", info["user_id"])
         if markup == "没有可操作的角色。":
             await update.message.reply_text(markup)
         else:
@@ -276,131 +286,159 @@ class DelcharCommand(BaseCommand):
 
 class NewcharCommand(BaseCommand):
     meta = CommandMeta(
-        name='newchar',
-        command_type='private',
-        trigger='newchar',
-        menu_text='创建新的角色',
+        name="newchar",
+        command_type="private",
+        trigger="newchar",
+        menu_text="创建新的角色",
         show_in_menu=True,
-        menu_weight=6
+        menu_weight=6,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        args = context.args if hasattr(context, 'args') else []
+        args = context.args if hasattr(context, "args") else []
         if not args or len(args[0].strip()) == 0:
-            await update.message.reply_text("请使用 /newchar char_name 的格式指定角色名。")
+            await update.message.reply_text(
+                "请使用 /newchar char_name 的格式指定角色名。"
+            )
             return
         char_name = args[0].strip()
-        if not hasattr(context.bot_data, 'newchar_state'):
-            context.bot_data['newchar_state'] = {}
-        context.bot_data['newchar_state'][info['user_id']] = {'char_name': char_name, 'desc_chunks': []}
+        if not hasattr(context.bot_data, "newchar_state"):
+            context.bot_data["newchar_state"] = {}
+        context.bot_data["newchar_state"][info["user_id"]] = {
+            "char_name": char_name,
+            "desc_chunks": [],
+        }
         await update.message.reply_text(
-            f"请上传角色描述文件（json/txt）或直接发送文本描述，完成后发送 /done 结束输入。\n如描述较长可分多条消息发送。")
+            "请上传角色描述文件（json/txt）或直接发送文本描述，完成后发送 /done 结束输入。\n如描述较长可分多条消息发送。"
+        )
 
 
 class NickCommand(BaseCommand):
     meta = CommandMeta(
-        name='nick',
-        command_type='private',
-        trigger='nick',
-        menu_text='设置你的昵称',
+        name="nick",
+        command_type="private",
+        trigger="nick",
+        menu_text="设置你的昵称",
         show_in_menu=True,
-        menu_weight=44
+        menu_weight=44,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        args = context.args if hasattr(context, 'args') else []
+        args = context.args if hasattr(context, "args") else []
         if not args or len(args[0].strip()) == 0:
-            await update.message.reply_text("请使用 /nick nickname 的格式指定昵称。如：/nick 脆脆鲨")
+            await update.message.reply_text(
+                "请使用 /nick nickname 的格式指定昵称。如：/nick 脆脆鲨"
+            )
             return
         nick_name = args[0].strip()
-        if db.user_config_arg_update(info['user_id'], 'nick', nick_name):
+        if db.user_config_arg_update(info["user_id"], "nick", nick_name):
             await update.message.reply_text(f"昵称已更新为：{nick_name}")
         else:
-            await update.message.reply_text(f"昵称更新失败")
+            await update.message.reply_text("昵称更新失败")
         await update.message.delete()
 
 
 class DoneCommand(BaseCommand):
     meta = CommandMeta(
-        name='done',
-        command_type='private',
-        trigger='done',
-        menu_text='完成角色创建',
-        show_in_menu=False  # 通常 /done 命令不直接显示在菜单中
+        name="done",
+        command_type="private",
+        trigger="done",
+        menu_text="完成角色创建",
+        show_in_menu=False,  # 通常 /done 命令不直接显示在菜单中
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        user_id = public.update_info_get(update)['user_id']
-        state = context.bot_data.get('newchar_state', {}).get(user_id)
+        user_id = public.update_info_get(update)["user_id"]
+        state = context.bot_data.get("newchar_state", {}).get(user_id)
         if not state:
-            await update.message.reply_text("当前无待保存的角色描述。请先使用 /newchar char_name。")
+            await update.message.reply_text(
+                "当前无待保存的角色描述。请先使用 /newchar char_name。"
+            )
             return
-        char_name = state['char_name']
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '.'))
+        char_name = state["char_name"]
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
         grandparent_dir = Path(project_root).resolve().parent.parent
-        save_dir = os.path.join(grandparent_dir, 'characters')
+        save_dir = os.path.join(grandparent_dir, "characters")
         os.makedirs(save_dir, exist_ok=True)
-        if 'file_saved' in state:
-            save_path = state['file_saved']
-            del context.bot_data['newchar_state'][user_id]
+        if "file_saved" in state:
+            save_path = state["file_saved"]
+            del context.bot_data["newchar_state"][user_id]
             await update.message.reply_text(f"角色 {char_name} 已保存到 {save_path}")
             return
-        desc = '\n'.join(state['desc_chunks'])
+        desc = "\n".join(state["desc_chunks"])
         try:
-            placeholder_message = await update.message.reply_text(f"正在生成...")
+            placeholder_message = await update.message.reply_text("正在生成...")
 
-            async def _generate_char(placeholder, char_description, save_to, name_char, uid, tg_context):
+            async def _generate_char(
+                placeholder, char_description, save_to, name_char, uid, tg_context
+            ):
                 generated_content = None
                 try:
                     generated_content = await llm.LLM.generate_char(char_description)
-                    json_pattern = r'```json\s*([\s\S]*?)\s*```|```([\s\S]*?)\s*```|\{[\s\S]*\}'
+                    json_pattern = (
+                        r"```json\s*([\s\S]*?)\s*```|```([\s\S]*?)\s*```|\{[\s\S]*\}"
+                    )
                     match = re.search(json_pattern, generated_content)
                     if match:
                         json_str = next(group for group in match.groups() if group)
                         char_data = json.loads(json_str)
                         save_to = os.path.join(save_to, f"{name_char}_{uid}.json")
-                        with open(save_to, 'w', encoding='utf-8') as f:
+                        with open(save_to, "w", encoding="utf-8") as f:
                             json.dump(char_data, f, ensure_ascii=False, indent=2)
-                        await placeholder.edit_text(f"角色 {name_char} 已保存到 {save_to}")
+                        await placeholder.edit_text(
+                            f"角色 {name_char} 已保存到 {save_to}"
+                        )
                     else:
                         save_to = os.path.join(save_to, f"{name_char}_{uid}.txt")
-                        with open(save_to, 'w', encoding='utf-8') as f:
+                        with open(save_to, "w", encoding="utf-8") as f:
                             f.write(generated_content)
                         await placeholder.edit_text(
-                            "警告：未能从生成内容中提取 JSON 数据，保存原始内容到 {save_path}。")
+                            "警告：未能从生成内容中提取 JSON 数据，保存原始内容到 {save_path}。"
+                        )
                 except json.JSONDecodeError as error:
                     save_to = os.path.join(save_to, f"{name_char}_{uid}.txt")
-                    with open(save_to, 'w', encoding='utf-8') as f:
+                    with open(save_to, "w", encoding="utf-8") as f:
                         f.write(generated_content)
                     await placeholder.edit_text(
-                        f"错误：无法解析生成的 JSON 内容，保存为原始文本到 {save_to}。错误信息：{str(error)}")
+                        f"错误：无法解析生成的 JSON 内容，保存为原始文本到 {save_to}。错误信息：{str(error)}"
+                    )
                 except Exception as error:
-                    await placeholder.edit_text(f"保存角色 {name_char} 时发生错误：{str(error)}")
+                    await placeholder.edit_text(
+                        f"保存角色 {name_char} 时发生错误：{str(error)}"
+                    )
                 finally:
-                    if uid in tg_context.bot_data.get('newchar_state', {}):
-                        del tg_context.bot_data['newchar_state'][uid]
+                    if uid in tg_context.bot_data.get("newchar_state", {}):
+                        del tg_context.bot_data["newchar_state"][uid]
 
             _task = asyncio.create_task(
-                _generate_char(placeholder_message, f"角色名称：{char_name}\r\n角色描述：{desc}", save_dir, char_name, user_id, context))
+                _generate_char(
+                    placeholder_message,
+                    f"角色名称：{char_name}\r\n角色描述：{desc}",
+                    save_dir,
+                    char_name,
+                    user_id,
+                    context,
+                )
+            )
         except Exception as e:
             await update.message.reply_text(f"初始化保存过程时发生错误：{str(e)}")
 
 
 class ApiCommand(BaseCommand):
     meta = CommandMeta(
-        name='api',
-        command_type='private',
-        trigger='api',
-        menu_text='选择API',
+        name="api",
+        command_type="private",
+        trigger="api",
+        menu_text="选择API",
         show_in_menu=True,
-        menu_weight=13
+        menu_weight=13,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        markup = Inline.print_api_list(info['tier'])
+        markup = Inline.print_api_list(info["tier"])
         if markup == "没有可用的api。" or markup == "没有符合您账户等级的可用api。":
             await update.message.reply_text(markup)
         else:
@@ -410,12 +448,12 @@ class ApiCommand(BaseCommand):
 
 class PresetCommand(BaseCommand):
     meta = CommandMeta(
-        name='preset',
-        command_type='private',
-        trigger='preset',
-        menu_text='选择预设',
+        name="preset",
+        command_type="private",
+        trigger="preset",
+        menu_text="选择预设",
         show_in_menu=True,
-        menu_weight=6
+        menu_weight=6,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -429,17 +467,17 @@ class PresetCommand(BaseCommand):
 
 class LoadCommand(BaseCommand):
     meta = CommandMeta(
-        name='load',
-        command_type='private',
-        trigger='load',
-        menu_text='加载保存的对话',
+        name="load",
+        command_type="private",
+        trigger="load",
+        menu_text="加载保存的对话",
         show_in_menu=False,
-        menu_weight=7
+        menu_weight=7,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        markup = Inline.print_conversations(info['user_id'])
+        markup = Inline.print_conversations(info["user_id"])
         if markup == "没有可用的对话。":
             await update.message.reply_text(markup)
         else:
@@ -449,17 +487,17 @@ class LoadCommand(BaseCommand):
 
 class DeleteCommand(BaseCommand):
     meta = CommandMeta(
-        name='delete',
-        command_type='private',
-        trigger='delete',
-        menu_text='删除保存的对话',
+        name="delete",
+        command_type="private",
+        trigger="delete",
+        menu_text="删除保存的对话",
         show_in_menu=False,
-        menu_weight=7
+        menu_weight=7,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        markup = Inline.print_conversations(info['user_id'], 'delete')
+        markup = Inline.print_conversations(info["user_id"], "delete")
         if markup == "没有可用的对话。":
             await update.message.reply_text(markup)
         else:
@@ -469,17 +507,17 @@ class DeleteCommand(BaseCommand):
 
 class DialogCommand(BaseCommand):
     meta = CommandMeta(
-        name='dialog',
-        command_type='private',
-        trigger='dialog',
-        menu_text='对话管理',
+        name="dialog",
+        command_type="private",
+        trigger="dialog",
+        menu_text="对话管理",
         show_in_menu=True,
-        menu_weight=5
+        menu_weight=5,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         info = public.update_info_get(update)
-        markup = Inline.print_dialog_conversations(info['user_id'])
+        markup = Inline.print_dialog_conversations(info["user_id"])
         if markup == "没有可用的对话。":
             await update.message.reply_text(markup)
         else:
@@ -489,12 +527,12 @@ class DialogCommand(BaseCommand):
 
 class SettingCommand(BaseCommand):
     meta = CommandMeta(
-        name='setting',
-        command_type='private',
-        trigger='setting',
-        menu_text='设置',
+        name="setting",
+        command_type="private",
+        trigger="setting",
+        menu_text="设置",
         show_in_menu=False,
-        menu_weight=1
+        menu_weight=1,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -506,20 +544,22 @@ class SettingCommand(BaseCommand):
             [InlineKeyboardButton("角色管理", callback_data="settings_character_main")],
             [InlineKeyboardButton("预设设置", callback_data="settings_preset_main")],
             [InlineKeyboardButton("状态查询", callback_data="settings_status_main")],
-            [InlineKeyboardButton("我的信息", callback_data="settings_myinfo_main")]
+            [InlineKeyboardButton("我的信息", callback_data="settings_myinfo_main")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("请选择要管理的选项：", reply_markup=reply_markup)
+        await update.message.reply_text(
+            "请选择要管理的选项：", reply_markup=reply_markup
+        )
 
 
 class DirectorCommand(BaseCommand):
     meta = CommandMeta(
-        name='director',
-        command_type='private',
-        trigger='director',
-        menu_text='导演模式',
+        name="director",
+        command_type="private",
+        trigger="director",
+        menu_text="导演模式",
         show_in_menu=True,
-        menu_weight=0
+        menu_weight=0,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -530,46 +570,52 @@ class DirectorCommand(BaseCommand):
             [
                 InlineKeyboardButton("推进", callback_data="director_nav_propel_menu"),
                 InlineKeyboardButton("控制", callback_data="director_nav_control_menu"),
-                InlineKeyboardButton("镜头", callback_data="director_nav_camera_menu")
+                InlineKeyboardButton("镜头", callback_data="director_nav_camera_menu"),
             ],
             [
                 InlineKeyboardButton("重新生成", callback_data="director_act_regen"),
-                InlineKeyboardButton("撤回", callback_data="director_act_undo")
+                InlineKeyboardButton("撤回", callback_data="director_act_undo"),
             ],
-
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text("请选择导演模式操作：", reply_markup=reply_markup)
+        await update.message.reply_text(
+            "请选择导演模式操作：", reply_markup=reply_markup
+        )
         await update.message.delete()
 
 
 class SignCommand(BaseCommand):
     meta = CommandMeta(
-        name='sign',
-        command_type='private',
-        trigger='sign',
-        menu_text='签到获取额度',
+        name="sign",
+        command_type="private",
+        trigger="sign",
+        menu_text="签到获取额度",
         show_in_menu=True,
-        menu_weight=1
+        menu_weight=1,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user_id = update.message.from_user.id
         sign_info = db.user_sign_info_get(user_id)
-        if sign_info.get('last_sign') == 0:
+        if sign_info.get("last_sign") == 0:
             db.user_sign_info_create(user_id)
             sign_info = db.user_sign_info_get(user_id)
             await update.message.reply_text(
-                f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
+                f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)"
+            )
         else:
             concurrent_time = datetime.datetime.now()
             # 尝试解析带微秒的时间格式，如果失败则尝试不带微秒的格式
-            last_sign_str = sign_info.get('last_sign')
+            last_sign_str = sign_info.get("last_sign")
             try:
-                last_sign_time = datetime.datetime.strptime(last_sign_str, '%Y-%m-%d %H:%M:%S.%f')
+                last_sign_time = datetime.datetime.strptime(
+                    last_sign_str, "%Y-%m-%d %H:%M:%S.%f"
+                )
             except ValueError:
                 try:
-                    last_sign_time = datetime.datetime.strptime(last_sign_str, '%Y-%m-%d %H:%M:%S')
+                    last_sign_time = datetime.datetime.strptime(
+                        last_sign_str, "%Y-%m-%d %H:%M:%S"
+                    )
                 except ValueError as e:
                     logger.error(f"无法解析签到时间格式: {last_sign_str}, 错误: {e}")
                     await update.message.reply_text("签到时间数据异常，请联系管理员。")
@@ -580,22 +626,26 @@ class SignCommand(BaseCommand):
             if total_seconds < 28800:  # 8小时 = 28800秒
                 remaining_hours = (28800 - total_seconds) // 3600
                 await update.message.reply_text(
-                    f"您8小时内已完成过签到，您可以在{str(remaining_hours)}小时后再次签到。")
+                    f"您8小时内已完成过签到，您可以在{str(remaining_hours)}小时后再次签到。"
+                )
             else:
                 db.user_sign(user_id)
-                sign_info = db.user_sign_info_get(user_id)  # 更新签到信息后再获取最新的frequency
+                sign_info = db.user_sign_info_get(
+                    user_id
+                )  # 更新签到信息后再获取最新的frequency
                 await update.message.reply_text(
-                    f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)")
+                    f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)"
+                )
 
 
 class CryptoCommand(BaseCommand):
     meta = CommandMeta(
-        name='crypto',
-        command_type='private',
-        trigger='c',
-        menu_text='分析加密货币实时行情',
+        name="crypto",
+        command_type="private",
+        trigger="c",
+        menu_text="分析加密货币实时行情",
         show_in_menu=True,
-        menu_weight=99
+        menu_weight=99,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -610,11 +660,14 @@ class CryptoCommand(BaseCommand):
         # 动态判断命令前缀
         command_prefix = user_input.split()[0]  # 例如 /c 或 /crypto
         if len(user_input.split()) > 1:
-            user_input = user_input[len(command_prefix):].strip()  # 去掉命令本身和前导空格
+            user_input = user_input[
+                len(command_prefix) :
+            ].strip()  # 去掉命令本身和前导空格
         else:
             await update.message.reply_text(
                 f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼` 或 `{command_prefix} long 分析下大饼` 或 `{command_prefix} short 分析下大饼`",
-                parse_mode="Markdown")
+                parse_mode="Markdown",
+            )
             return
 
         # 解析可选的做多/做空参数
@@ -626,18 +679,19 @@ class CryptoCommand(BaseCommand):
             if not user_input:  # 如果移除bias参数后没有内容了
                 await update.message.reply_text(
                     f"请在 `{command_prefix} {bias_type}` 后提供具体内容，例如：`{command_prefix} {bias_type} 分析下大饼`",
-                    parse_mode="Markdown")
+                    parse_mode="Markdown",
+                )
                 return
 
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
-            self.process_tool_request(update,  user_input, bias_type),
-            update=update
+            self.process_tool_request(update, user_input, bias_type), update=update
         )
         logger.debug("已创建后台任务处理 /c 请求")
 
-    async def process_tool_request(self, update: Update,  user_input: str,
-                                   bias_type: str = "neutral") -> None:
+    async def process_tool_request(
+        self, update: Update, user_input: str, bias_type: str = "neutral"
+    ) -> None:
         """
         Process the tool request in the background and send multiple messages with results.
         Args:
@@ -645,7 +699,7 @@ class CryptoCommand(BaseCommand):
             user_input: The processed user input text.
             bias_type: The bias type for analysis ("long", "short", or "neutral").
         """
-        
+
         # 根据bias_type添加相应的倾向性提示
         bias_prompt = ""
         if bias_type == "long":
@@ -661,29 +715,29 @@ class CryptoCommand(BaseCommand):
                     脆脆鲨会给每一个分析的指标记录一个权重，以及指标对于多空的分数值（-10-10），判断多空的时候需要综合考虑指标的分数值以及指标的加权评分，只有综合分数超过0的时候才会判断做多，否则判断做空。
                     
     """
-        
+
         # 使用LLMToolHandler处理请求
-        handler = LLMToolHandler(llm_api='gemini-2.5', max_iterations=7)
+        handler = LLMToolHandler(llm_api="gemini-2.5", max_iterations=7)
         prompt_text = MarketToolRegistry.get_prompt_text()
-        
+
         await handler.process_tool_request(
             update=update,
             user_input=user_input,
             prompt_text=prompt_text,
             character_prompt=character_prompt,
             bias_prompt=bias_prompt,
-            character_name="脆脆鲨"
+            character_name="脆脆鲨",
         )
 
 
 class FeedbackCommand(BaseCommand):
     meta = CommandMeta(
-        name='feedback',
-        command_type='private',
-        trigger='feedback',
-        menu_text='发送反馈',
+        name="feedback",
+        command_type="private",
+        trigger="feedback",
+        menu_text="发送反馈",
         show_in_menu=True,
-        menu_weight=0
+        menu_weight=0,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -693,7 +747,7 @@ class FeedbackCommand(BaseCommand):
         """
         from bot_core.public_functions.config import ADMIN
 
-        args = context.args if hasattr(context, 'args') else []
+        args = context.args if hasattr(context, "args") else []
 
         # 1. 参数校验
         if not args:
@@ -701,18 +755,16 @@ class FeedbackCommand(BaseCommand):
                 "❌ 请提供反馈内容！\n\n"
                 "格式：`/feedback <反馈内容>`\n\n"
                 "💡 示例：`/feedback 建议增加更多角色选择`",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             return
 
         # 2. 获取反馈内容（所有参数组合）
-        feedback_content = ' '.join(args)
+        feedback_content = " ".join(args)
 
         if not feedback_content.strip():
             await update.message.reply_text(
-                "❌ 反馈内容不能为空！\n"
-                "请提供具体的反馈内容。",
-                parse_mode='Markdown'
+                "❌ 反馈内容不能为空！\n请提供具体的反馈内容。", parse_mode="Markdown"
             )
             return
 
@@ -748,15 +800,17 @@ class FeedbackCommand(BaseCommand):
                 f"📝 您的反馈：{feedback_content}\n\n"
                 f"📊 发送状态：成功 {success_count} 个，失败 {failed_count} 个\n\n"
                 f"💡 感谢您的反馈，我们会认真考虑您的建议！",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
 
             # 记录用户反馈日志
-            logger.info(f"用户 {info['user_id']} ({info.get('user_name', '未知')}) 发送反馈: {feedback_content}")
+            logger.info(
+                f"用户 {info['user_id']} ({info.get('user_name', '未知')}) 发送反馈: {feedback_content}"
+            )
         else:
             await update.message.reply_text(
                 "❌ 反馈发送失败！\n\n"
                 "所有管理员都无法接收消息，请稍后重试或联系技术支持。",
-                parse_mode='Markdown'
+                parse_mode="Markdown",
             )
             logger.error(f"用户 {info['user_id']} 的反馈发送完全失败")

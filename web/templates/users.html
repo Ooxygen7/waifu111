@@ -28,7 +28,7 @@
                                aria-label="搜索用户">
                         <div class="search-loading"></div>
                         {% if search_term %}
-                        <a href="{{ url_for('users') }}" class="clear-button" aria-label="清除搜索">
+                        <a href="{{ url_for('admin.users') }}" class="clear-button" aria-label="清除搜索">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </a>
                         {% endif %}
@@ -52,7 +52,7 @@
                     <thead>
                         <tr>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='uid', sort_order=next_sort_order('uid')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='uid', sort_order=next_sort_order('uid')) }}">
                                     <span>用户ID</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -63,7 +63,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('users', sort_by='user_name', sort_order=next_sort_order('user_name')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='user_name', sort_order=next_sort_order('user_name')) }}">
                                     <span>用户名</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -74,7 +74,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('users', sort_by='first_name', sort_order=next_sort_order('first_name')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='first_name', sort_order=next_sort_order('first_name')) }}">
                                     <span>姓名</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -85,7 +85,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='conversations', sort_order=next_sort_order('conversations')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='conversations', sort_order=next_sort_order('conversations')) }}">
                                     <span>对话数</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -96,7 +96,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}">
                                     <span>对话轮数</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -107,7 +107,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='input_tokens', sort_order=next_sort_order('input_tokens')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='input_tokens', sort_order=next_sort_order('input_tokens')) }}">
                                     <span>输入Token</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -118,7 +118,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='output_tokens', sort_order=next_sort_order('output_tokens')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='output_tokens', sort_order=next_sort_order('output_tokens')) }}">
                                     <span>输出Token</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -129,7 +129,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='account_tier', sort_order=next_sort_order('account_tier')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='account_tier', sort_order=next_sort_order('account_tier')) }}">
                                     <span>账户等级</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -140,7 +140,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='remain_frequency', sort_order=next_sort_order('remain_frequency')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='remain_frequency', sort_order=next_sort_order('remain_frequency')) }}">
                                     <span>剩余额度</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -151,7 +151,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('users', sort_by='balance', sort_order=next_sort_order('balance')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='balance', sort_order=next_sort_order('balance')) }}">
                                     <span>余额</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -162,7 +162,7 @@
                                 </a>
                             </th>
                             <th class="sortable" data-sort="date">
-                                <a href="{{ url_for('users', sort_by='create_at', sort_order=next_sort_order('create_at')) }}">
+                                <a href="{{ url_for('admin.users', sort_by='create_at', sort_order=next_sort_order('create_at')) }}">
                                     <span>注册时间</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
@@ -242,7 +242,7 @@
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                         </svg>
                                     </button>
-                                    <a href="{{ url_for('conversations', search=user.uid) }}" 
+                                    <a href="{{ url_for('admin.conversations', search=user.uid) }}" 
                                        class="btn btn-icon btn-sm" title="查看对话" aria-label="查看对话">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -264,7 +264,7 @@
                 </div>
                 <div class="pagination-controls">
                     {% if page > 1 %}
-                        <a href="{{ url_for('users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
+                        <a href="{{ url_for('admin.users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
                            class="pagination-btn pagination-prev" aria-label="上一页">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="15 18 9 12 15 6"></polyline>
@@ -285,7 +285,7 @@
                             {% if p == page %}
                                 <span class="pagination-number active">{{ p }}</span>
                             {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
-                                <a href="{{ url_for('users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="pagination-number">{{ p }}</a>
+                                <a href="{{ url_for('admin.users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="pagination-number">{{ p }}</a>
                             {% elif p == 4 or p == total_pages - 3 %}
                                 <span class="pagination-ellipsis">…</span>
                             {% endif %}
@@ -293,7 +293,7 @@
                     </div>
                     
                     {% if page < total_pages %}
-                        <a href="{{ url_for('users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
+                        <a href="{{ url_for('admin.users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
                            class="pagination-btn pagination-next" aria-label="下一页">
                             <span>下一页</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -495,5 +495,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/users-modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin_users.js') }}"></script>
 {% endblock %}

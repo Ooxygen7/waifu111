@@ -100,21 +100,21 @@
                         <div class="stat-item-icon">📥</div>
                         <div class="stat-item-content">
                             <div class="stat-item-label">输入 Tokens</div>
-                            <div class="stat-item-value">{{ "{:,}".format(stats.total_input_tokens) }}</div>
+                            <div class="stat-item-value">{{ stats.total_input_tokens | format_large_number }}</div>
                         </div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-item-icon">📤</div>
                         <div class="stat-item-content">
                             <div class="stat-item-label">输出 Tokens</div>
-                            <div class="stat-item-value">{{ "{:,}".format(stats.total_output_tokens) }}</div>
+                            <div class="stat-item-value">{{ stats.total_output_tokens | format_large_number }}</div>
                         </div>
                     </div>
                     <div class="stat-item">
                         <div class="stat-item-icon">💎</div>
                         <div class="stat-item-content">
                             <div class="stat-item-label">总计 Tokens</div>
-                            <div class="stat-item-value">{{ "{:,}".format(stats.total_input_tokens + stats.total_output_tokens) }}</div>
+                            <div class="stat-item-value">{{ (stats.total_input_tokens + stats.total_output_tokens) | format_large_number }}</div>
                         </div>
                     </div>
                     <div class="stat-item">
@@ -151,7 +151,9 @@
                          <div class="top-name">{{ user[1] or user[2] or '用户 ' + user[0]|string }}</div>
                          <div class="top-value">{{ user[4] }} 条消息</div>
                      </div>
-                     <div class="top-badge">{{ user[4] }}</div>
+                     <a href="{{ url_for('admin.conversations', search=user[0]) }}" class="top-action-btn" title="查看该用户的对话">
+                        <i class="icon">💬</i>
+                    </a>
                 </div>
                 {% endfor %}
             </div>
@@ -171,7 +173,9 @@
                          <div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div>
                          <div class="top-value">{{ group[2] }} 条消息</div>
                      </div>
-                     <div class="top-badge">{{ group[2] }}</div>
+                     <a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="top-action-btn" title="查看群组聊天记录">
+                        <i class="icon">👥</i>
+                    </a>
                 </div>
                 {% endfor %}
             </div>
@@ -235,23 +239,23 @@
     </div>
     <div class="card-body">
         <div class="quick-actions">
-            <a href="{{ url_for('users') }}" class="btn btn-primary btn-with-icon">
+            <a href="{{ url_for('admin.users') }}" class="btn btn-primary btn-with-icon">
                 <i class="icon">👥</i>
                 <span>用户管理</span>
             </a>
-            <a href="{{ url_for('conversations') }}" class="btn btn-success btn-with-icon">
+            <a href="{{ url_for('admin.conversations') }}" class="btn btn-success btn-with-icon">
                 <i class="icon">💬</i>
                 <span>对话记录</span>
             </a>
-            <a href="{{ url_for('groups') }}" class="btn btn-warning btn-with-icon">
+            <a href="{{ url_for('admin.groups') }}" class="btn btn-warning btn-with-icon">
                 <i class="icon">👥</i>
                 <span>群组管理</span>
             </a>
-            <a href="{{ url_for('config_management') }}" class="btn btn-secondary btn-with-icon">
+            <a href="{{ url_for('admin.config_management') }}" class="btn btn-secondary btn-with-icon">
                 <i class="icon">⚙️</i>
                 <span>配置管理</span>
             </a>
-            <a href="{{ url_for('search') }}" class="btn btn-info btn-with-icon">
+            <a href="{{ url_for('admin.search') }}" class="btn btn-info btn-with-icon">
                 <i class="icon">🔍</i>
                 <span>数据搜索</span>
             </a>
@@ -270,15 +274,23 @@ Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
 
 // 时间粒度切换功能
-document.querySelectorAll('input[name="timeRange"]').forEach(radio => {
-    radio.addEventListener('change', function() {
-        if (this.checked) {
-            const url = new URL(window.location);
-            url.searchParams.set('time_range', this.value);
-            window.location.href = url.toString();
-        }
+document.querySelectorAll('.period-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const period = this.dataset.period;
+        const url = new URL(window.location);
+        url.searchParams.set('time_range', period);
+        window.location.href = url.toString();
     });
 });
+
+// 根据URL参数设置active按钮
+const urlParams = new URLSearchParams(window.location.search);
+const timeRange = urlParams.get('time_range') || '7d';
+const activeButton = document.querySelector(`.period-btn[data-period="${timeRange}"]`);
+if (activeButton) {
+    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+    activeButton.classList.add('active');
+}
 
 // 用户增长趋势图
 const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
@@ -318,9 +330,9 @@ const userGrowthChart = new Chart(userGrowthCtx, {
     }
 });
 
-// 对话活跃度趋势图
-const dialogTrendCtx = document.getElementById('dialogTrendChart').getContext('2d');
-const dialogTrendChart = new Chart(dialogTrendCtx, {
+// 对话量趋势
+const conversationCtx = document.getElementById('conversationChart').getContext('2d');
+const conversationChart = new Chart(conversationCtx, {
     type: 'line',
     data: {
         labels: [{% for item in stats.dialog_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
@@ -357,8 +369,8 @@ const dialogTrendChart = new Chart(dialogTrendCtx, {
 });
 
 // Token消耗趋势图
-const tokenTrendCtx = document.getElementById('tokenTrendChart').getContext('2d');
-const tokenTrendChart = new Chart(tokenTrendCtx, {
+const tokenUsageCtx = document.getElementById('tokenUsageChart').getContext('2d');
+const tokenUsageChart = new Chart(tokenUsageCtx, {
     type: 'line',
     data: {
         labels: [{% for item in stats.token_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
@@ -404,9 +416,9 @@ const tokenTrendChart = new Chart(tokenTrendCtx, {
     }
 });
 
-// 群聊活跃趋势图
-const groupTrendCtx = document.getElementById('groupTrendChart').getContext('2d');
-const groupTrendChart = new Chart(groupTrendCtx, {
+// 活跃度分析
+const activityCtx = document.getElementById('activityChart').getContext('2d');
+const activityChart = new Chart(activityCtx, {
     type: 'line',
     data: {
         labels: [{% for item in stats.group_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
@@ -815,6 +827,27 @@ updateTime();
     border-radius: 1rem;
     font-size: 0.8rem;
     font-weight: 500;
+}
+.top-action-btn {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   width: 2rem;
+   height: 2rem;
+   background: var(--accent-color);
+   color: white;
+   border-radius: 50%;
+   text-decoration: none;
+   transition: all 0.2s ease;
+   margin-left: 0.5rem;
+}
+.top-action-btn:hover {
+   background: var(--primary-color);
+   transform: scale(1.1);
+}
+.top-action-btn .icon {
+   font-size: 1rem;
+   font-style: normal;
 }
 
 /* 数据趋势分析容器 */

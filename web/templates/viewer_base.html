@@ -43,30 +43,30 @@
             <nav>
                 <ul class="nav-menu">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'viewer_index' %}active{% endif %}"
-                            href="{{ url_for('viewer_index') }}"
-                            aria-current="{% if request.endpoint == 'viewer_index' %}page{% endif %}">
+                        <a class="nav-link {% if request.endpoint == 'viewer.viewer_index' %}active{% endif %}"
+                            href="{{ url_for('viewer.viewer_index') }}"
+                            aria-current="{% if request.endpoint == 'viewer.viewer_index' %}page{% endif %}">
                             <span class="nav-link-icon" aria-hidden="true">🏠</span> 首页概览
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'viewer_users' %}active{% endif %}"
-                            href="{{ url_for('viewer_users') }}"
-                            aria-current="{% if request.endpoint == 'viewer_users' %}page{% endif %}">
+                        <a class="nav-link {% if request.endpoint == 'viewer.viewer_users' %}active{% endif %}"
+                            href="{{ url_for('viewer.viewer_users') }}"
+                            aria-current="{% if request.endpoint == 'viewer.viewer_users' %}page{% endif %}">
                             <span class="nav-link-icon" aria-hidden="true">👥</span> 用户列表
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'viewer_conversations' %}active{% endif %}"
-                            href="{{ url_for('viewer_conversations') }}"
-                            aria-current="{% if request.endpoint == 'viewer_conversations' %}page{% endif %}">
+                        <a class="nav-link {% if request.endpoint == 'viewer.viewer_conversations' %}active{% endif %}"
+                            href="{{ url_for('viewer.viewer_conversations') }}"
+                            aria-current="{% if request.endpoint == 'viewer.viewer_conversations' %}page{% endif %}">
                             <span class="nav-link-icon" aria-hidden="true">💬</span> 对话记录
                         </a>
                     </li>
                 </ul>
             </nav>
             <div class="logout-link">
-                <a class="nav-link" href="{{ url_for('logout') }}">
+                <a class="nav-link" href="{{ url_for('auth.logout') }}">
                     <span class="nav-link-icon" aria-hidden="true">🚪</span> 退出登录
                 </a>
             </div>

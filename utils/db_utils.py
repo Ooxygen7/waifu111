@@ -133,6 +133,10 @@ class DatabaseConnectionPool:
         if db_file is None:
             db_file = os.environ.get("DB_PATH", get_config("database.default_path"))
 
+        # 确保数据库路径是绝对路径
+        if not os.path.isabs(db_file):
+            db_file = os.path.join(project_root, db_file.lstrip("./"))
+
         # 获取最大连接数
         if max_connections is None:
             max_connections = get_config("database.max_connections", 5)
@@ -150,11 +154,27 @@ class DatabaseConnectionPool:
         """
         for _ in range(self.max_connections):
             try:
-                conn = sqlite3.connect(self.db_file, check_same_thread=False)
+                # 添加并发优化参数
+                conn = sqlite3.connect(
+                    self.db_file, 
+                    check_same_thread=False,
+                    timeout=30.0  # 30秒超时
+                )
+                # 启用 WAL 模式以支持并发读写
+                conn.execute("PRAGMA journal_mode=WAL;")
+                # 设置忙等待超时
+                conn.execute("PRAGMA busy_timeout=30000;")
+                # 优化同步模式
+                conn.execute("PRAGMA synchronous=NORMAL;")
+                # 启用外键约束
+                conn.execute("PRAGMA foreign_keys=ON;")
+                conn.commit()
+                
                 self.connections.append(conn)
                 self.connection_locks.append(threading.Lock())
             except Error as e:
                 print(f"初始化连接池时发生错误: {e}")
+                print(f"数据库：{self.db_file}")
 
     def get_connection(self) -> Tuple[Optional[sqlite3.Connection], int]:
         """
@@ -172,7 +192,17 @@ class DatabaseConnectionPool:
                 return self.connections[i], i
         # 如果所有连接都在使用中，创建一个临时连接
         try:
-            temp_conn = sqlite3.connect(self.db_file, check_same_thread=False)
+            temp_conn = sqlite3.connect(
+                self.db_file, 
+                check_same_thread=False,
+                timeout=30.0
+            )
+            # 为临时连接也设置相同的优化参数
+            temp_conn.execute("PRAGMA journal_mode=WAL;")
+            temp_conn.execute("PRAGMA busy_timeout=30000;")
+            temp_conn.execute("PRAGMA synchronous=NORMAL;")
+            temp_conn.execute("PRAGMA foreign_keys=ON;")
+            temp_conn.commit()
             return temp_conn, -1  # -1 表示这是一个临时连接
         except Error as e:
             print(f"创建临时连接时发生错误: {e}")

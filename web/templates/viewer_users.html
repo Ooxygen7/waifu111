@@ -22,7 +22,7 @@
                            aria-label="搜索用户">
                     <div class="search-loading"></div>
                     {% if search_term %}
-                    <a href="{{ url_for('viewer_users') }}" class="clear-button" aria-label="清除搜索">
+                    <a href="{{ url_for('viewer.viewer_users') }}" class="clear-button" aria-label="清除搜索">
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </a>
                     {% endif %}
@@ -85,7 +85,7 @@
                 <thead>
                     <tr>
                         <th class="sortable" data-sort="number">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
+                            <a href="{{ url_for('viewer.viewer_users', search=search_term, sort_by='uid', sort_order=next_sort_order('uid')) }}" 
                                class="sort-link" aria-label="按用户ID排序">
                                 <span>用户ID</span>
                                 <span class="sort-indicator">
@@ -107,7 +107,7 @@
                             </a>
                         </th>
                         <th class="sortable" data-sort="text">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
+                            <a href="{{ url_for('viewer.viewer_users', search=search_term, sort_by='user_name', sort_order=next_sort_order('user_name')) }}" 
                                class="sort-link" aria-label="按用户名排序">
                                 <span>用户名</span>
                                 <span class="sort-indicator">
@@ -130,7 +130,7 @@
                         </th>
                         <th>姓名</th>
                         <th class="sortable" data-sort="number">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
+                            <a href="{{ url_for('viewer.viewer_users', search=search_term, sort_by='conversations', sort_order=next_sort_order('conversations')) }}" 
                                class="sort-link" aria-label="按对话数排序">
                                 <span>对话数</span>
                                 <span class="sort-indicator">
@@ -152,7 +152,7 @@
                             </a>
                         </th>
                         <th class="sortable" data-sort="number">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
+                            <a href="{{ url_for('viewer.viewer_users', search=search_term, sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}" 
                                class="sort-link" aria-label="按消息数排序">
                                 <span>消息数</span>
                                 <span class="sort-indicator">
@@ -174,7 +174,7 @@
                             </a>
                         </th>
                         <th class="sortable" data-sort="date">
-                            <a href="{{ url_for('viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
+                            <a href="{{ url_for('viewer.viewer_users', search=search_term, sort_by='create_at', sort_order=next_sort_order('create_at')) }}" 
                                class="sort-link" aria-label="按注册时间排序">
                                 <span>注册时间</span>
                                 <span class="sort-indicator">
@@ -249,7 +249,7 @@
                         </td>
                         <td>
                             <div class="action-buttons">
-                                <a href="{{ url_for('viewer_conversations', search=user.uid) }}" 
+                                <a href="{{ url_for('viewer.viewer_conversations', search=user.uid) }}" 
                                    class="btn btn-icon btn-sm" title="查看对话" aria-label="查看用户对话">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -280,13 +280,13 @@
             </div>
             <div class="pagination">
                 {% if page > 1 %}
-                <a class="page-item" href="{{ url_for('viewer_users', page=1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第一页" title="第一页">
+                <a class="page-item" href="{{ url_for('viewer.viewer_users', page=1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第一页" title="第一页">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="11 17 6 12 11 7"></polyline>
                         <polyline points="18 17 13 12 18 7"></polyline>
                     </svg>
                 </a>
-                <a class="page-item" href="{{ url_for('viewer_users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页" title="上一页">
+                <a class="page-item" href="{{ url_for('viewer.viewer_users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页" title="上一页">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="15 18 9 12 15 6"></polyline>
                     </svg>
@@ -306,18 +306,18 @@
                 {% endif %}
                 
                 {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
-                <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('viewer_users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ p }}页" {% if p == page %}aria-current="page"{% endif %}>
+                <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('viewer.viewer_users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ p }}页" {% if p == page %}aria-current="page"{% endif %}>
                     {{ p }}
                 </a>
                 {% endfor %}
                 
                 {% if page < total_pages %}
-                <a class="page-item" href="{{ url_for('viewer_users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页" title="下一页">
+                <a class="page-item" href="{{ url_for('viewer.viewer_users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页" title="下一页">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="9 18 15 12 9 6"></polyline>
                     </svg>
                 </a>
-                <a class="page-item" href="{{ url_for('viewer_users', page=total_pages, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="最后一页" title="最后一页">
+                <a class="page-item" href="{{ url_for('viewer.viewer_users', page=total_pages, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="最后一页" title="最后一页">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="13 17 18 12 13 7"></polyline>
                         <polyline points="6 17 11 12 6 7"></polyline>
@@ -352,7 +352,7 @@
             <h5 class="empty-title">暂无用户数据</h5>
             {% if search_term %}
             <p class="empty-text">没有找到匹配 "<span class="search-highlight">{{ search_term }}</span>" 的用户</p>
-            <a href="{{ url_for('viewer_users') }}" class="btn btn-primary">
+            <a href="{{ url_for('viewer.viewer_users') }}" class="btn btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-xs">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>

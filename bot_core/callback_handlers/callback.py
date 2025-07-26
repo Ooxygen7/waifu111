@@ -181,7 +181,7 @@ class SetPresetCallback(BaseCallback):
         """
         try:
             info = public.update_info_get(update)
-            if db.user_config_arg_update(info['user_id'], 'preset', data):
+            if db.user_config_arg_update(info['user_id'], 'preset', data) and db.conversation_private_arg_update(info.get('conv_id'),'preset',data):
                 await update.callback_query.message.edit_text(f"预设切换成功！当前预设: {data}。")
         except Exception as e:
             logger.error(f"设置预设失败, 错误: {str(e)}")

@@ -121,7 +121,7 @@
                     <div class="action-icon">👥</div>
                     <h3 class="action-title">查看用户列表</h3>
                     <p class="action-desc">浏览所有用户信息，查看详细资料和对话历史</p>
-                    <a href="{{ url_for('viewer_users') }}" class="btn btn-primary btn-with-icon">
+                    <a href="{{ url_for('viewer.viewer_users') }}" class="btn btn-primary btn-with-icon">
                         <span class="btn-icon">👁️</span> 查看用户
                     </a>
                 </div>
@@ -130,7 +130,7 @@
                     <div class="action-icon">💬</div>
                     <h3 class="action-title">浏览对话记录</h3>
                     <p class="action-desc">查看所有对话历史，搜索和筛选消息内容</p>
-                    <a href="{{ url_for('viewer_conversations') }}" class="btn btn-primary btn-with-icon">
+                    <a href="{{ url_for('viewer.viewer_conversations') }}" class="btn btn-primary btn-with-icon">
                         <span class="btn-icon">📜</span> 浏览对话
                     </a>
                 </div>

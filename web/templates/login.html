@@ -88,7 +88,7 @@
         </div>
         {% endif %}
         
-        <form method="POST">
+        <form method="POST" action="{{ url_for('auth.login') }}">
             <div class="mb-4">
                 <label for="password" class="form-label">管理员密码</label>
                 <div class="input-group">

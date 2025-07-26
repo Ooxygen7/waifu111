@@ -16,7 +16,7 @@
                     <input type="text" name="search" value="{{ search }}" class="search-input" 
                            placeholder="搜索用户名、用户ID..." aria-label="搜索对话">
                     {% if search %}
-                    <a href="{{ url_for('viewer_conversations') }}" class="clear-button" aria-label="清除搜索">✕</a>
+                    <a href="{{ url_for('viewer.viewer_conversations') }}" class="clear-button" aria-label="清除搜索">✕</a>
                     {% endif %}
                     <button type="submit" class="search-button" aria-label="搜索">
                         <span class="search-button-text">搜索</span>
@@ -33,32 +33,32 @@
                     </button>
                     <div class="sort-menu" id="sortMenu" role="menu">
                         <a class="sort-item {% if sort_by == 'conv_id' %}active{% endif %}" 
-                           href="{{ url_for('viewer_conversations', search=search, sort_by='conv_id', sort_order=next_sort_order('conv_id')) }}"
+                           href="{{ url_for('viewer.viewer_conversations', search=search, sort_by='conv_id', sort_order=next_sort_order('conv_id')) }}"
                            role="menuitem">
                            按对话ID排序 {% if sort_by == 'conv_id' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}
                         </a>
                         <a class="sort-item {% if sort_by == 'user_id' %}active{% endif %}" 
-                           href="{{ url_for('viewer_conversations', search=search, sort_by='user_id', sort_order=next_sort_order('user_id')) }}"
+                           href="{{ url_for('viewer.viewer_conversations', search=search, sort_by='user_id', sort_order=next_sort_order('user_id')) }}"
                            role="menuitem">
                            按用户排序 {% if sort_by == 'user_id' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}
                         </a>
                         <a class="sort-item {% if sort_by == 'character' %}active{% endif %}" 
-                           href="{{ url_for('viewer_conversations', search=search, sort_by='character', sort_order=next_sort_order('character')) }}"
+                           href="{{ url_for('viewer.viewer_conversations', search=search, sort_by='character', sort_order=next_sort_order('character')) }}"
                            role="menuitem">
                            按角色排序 {% if sort_by == 'character' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}
                         </a>
                         <a class="sort-item {% if sort_by == 'turns' %}active{% endif %}" 
-                           href="{{ url_for('viewer_conversations', search=search, sort_by='turns', sort_order=next_sort_order('turns')) }}"
+                           href="{{ url_for('viewer.viewer_conversations', search=search, sort_by='turns', sort_order=next_sort_order('turns')) }}"
                            role="menuitem">
                            按轮次排序 {% if sort_by == 'turns' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}
                         </a>
                         <a class="sort-item {% if sort_by == 'create_at' %}active{% endif %}" 
-                           href="{{ url_for('viewer_conversations', search=search, sort_by='create_at', sort_order=next_sort_order('create_at')) }}"
+                           href="{{ url_for('viewer.viewer_conversations', search=search, sort_by='create_at', sort_order=next_sort_order('create_at')) }}"
                            role="menuitem">
                            按创建时间排序 {% if sort_by == 'create_at' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}
                         </a>
                         <a class="sort-item {% if sort_by == 'update_at' %}active{% endif %}" 
-                           href="{{ url_for('viewer_conversations', search=search, sort_by='update_at', sort_order=next_sort_order('update_at')) }}"
+                           href="{{ url_for('viewer.viewer_conversations', search=search, sort_by='update_at', sort_order=next_sort_order('update_at')) }}"
                            role="menuitem">
                            按更新时间排序 {% if sort_by == 'update_at' %}{{ '↑' if sort_order == 'asc' else '↓' }}{% endif %}
                         </a>
@@ -84,7 +84,7 @@
             <div class="search-status">
                 搜索结果: "<span class="search-term">{{ search }}</span>"
                 <span class="search-result-count">{{ conversations|length }}</span>
-                <a href="{{ url_for('viewer_conversations') }}" class="filter-tag">
+                <a href="{{ url_for('viewer.viewer_conversations') }}" class="filter-tag">
                     清除筛选 <span class="filter-tag-close">✕</span>
                 </a>
             </div>
@@ -156,8 +156,8 @@
                 
                 <div class="conversation-footer">
                     <div class="conversation-actions">
-                        <a href="{{ url_for('viewer_dialogs', conv_id=conv.conv_id) }}" 
-                           class="conversation-action-btn conversation-action-btn-primary" 
+                        <a href="{{ url_for('viewer.viewer_dialogs', conv_id=conv.conv_id) }}"
+                           class="conversation-action-btn conversation-action-btn-primary"
                            title="查看对话详情">
                             <span class="conversation-action-btn-icon">👁️</span> 查看详情
                         </a>
@@ -172,13 +172,13 @@
         <div class="pagination-container">
             <div class="pagination" role="navigation" aria-label="分页导航">
                 {% if page > 1 %}
-                <a class="page-item page-prev" href="{{ url_for('viewer_conversations', page=page-1, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页">
+                <a class="page-item page-prev" href="{{ url_for('viewer.viewer_conversations', page=page-1, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页">
                     &laquo;
                 </a>
                 {% endif %}
                 
                 {% if page > 3 %}
-                <a class="page-item" href="{{ url_for('viewer_conversations', page=1, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第1页">1</a>
+                <a class="page-item" href="{{ url_for('viewer.viewer_conversations', page=1, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第1页">1</a>
                 
                 {% if page > 4 %}
                 <span class="page-ellipsis" aria-hidden="true">...</span>
@@ -187,7 +187,7 @@
                 
                 {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
                 <a class="page-item {% if p == page %}active{% endif %}" 
-                   href="{{ url_for('viewer_conversations', page=p, search=search, sort_by=sort_by, sort_order=sort_order) }}"
+                   href="{{ url_for('viewer.viewer_conversations', page=p, search=search, sort_by=sort_by, sort_order=sort_order) }}"
                    aria-label="第{{ p }}页" 
                    {% if p == page %}aria-current="page"{% endif %}>
                     {{ p }}
@@ -199,11 +199,11 @@
                 <span class="page-ellipsis" aria-hidden="true">...</span>
                 {% endif %}
                 
-                <a class="page-item" href="{{ url_for('viewer_conversations', page=total_pages, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ total_pages }}页">{{ total_pages }}</a>
+                <a class="page-item" href="{{ url_for('viewer.viewer_conversations', page=total_pages, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ total_pages }}页">{{ total_pages }}</a>
                 {% endif %}
                 
                 {% if page < total_pages %}
-                <a class="page-item page-next" href="{{ url_for('viewer_conversations', page=page+1, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页">
+                <a class="page-item page-next" href="{{ url_for('viewer.viewer_conversations', page=page+1, search=search, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页">
                     &raquo;
                 </a>
                 {% endif %}
@@ -221,7 +221,7 @@
             <h5 class="empty-title">暂无对话记录</h5>
             {% if search %}
             <p class="empty-text">没有找到匹配 "<span class="search-term">{{ search }}</span>" 的对话</p>
-            <a href="{{ url_for('viewer_conversations') }}" class="empty-btn">
+            <a href="{{ url_for('viewer.viewer_conversations') }}" class="empty-btn">
                 <span class="empty-btn-icon">🔄</span> 清除搜索
             </a>
             {% else %}

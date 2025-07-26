@@ -588,7 +588,7 @@ class PrivateConv:
         output_tokens = self.client.calculate_token_count(self.output.text_raw)  # 计算输出tokens
         logger.info(f"输出令牌：{output_tokens}")
         db.user_info_update(self.user.id, 'output_tokens', output_tokens, True)
-        db.conversation_private_arg_update(self.id, 'turns', 1, True)  # 增加对话轮次计数
+        db.conversation_private_arg_update(self.id, 'turns', self.turn+2)  # 增加对话轮次计数
         db.user_info_update(self.user.id, 'dialog_turns', 1, True)
         self._update_frequency()
 

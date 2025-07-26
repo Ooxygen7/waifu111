@@ -137,7 +137,7 @@ class DatabaseCommand(BaseCommand):
                 """
         
         # 使用LLMToolHandler处理请求
-        handler = LLMToolHandler(llm_api='gemini-2.5', max_iterations=5)
+        handler = LLMToolHandler(llm_api='gemini-2.5', max_iterations=15)
         prompt_text = DatabaseSuperToolRegistry.get_prompt_text()
         
         await handler.process_tool_request(

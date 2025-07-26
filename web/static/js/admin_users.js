@@ -1150,13 +1150,13 @@ function showUserEditModal(userId) {
                     
                     <div class="form-group form-row">
                         <div>
-                            <label class="form-label" for="edit-api-key">API密钥</label>
-                            <input type="text" class="form-input" id="edit-api-key" placeholder="请输入API密钥">
+                            <label class="form-label" for="edit-api-key">API</label>
+                            <input type="text" class="form-input" id="edit-api-key" placeholder="请输入API">
                             <div class="form-error" id="edit-api-key-error"></div>
                         </div>
                         <div>
-                            <label class="form-label" for="edit-model">模型</label>
-                            <input type="text" class="form-input" id="edit-model" placeholder="请输入模型">
+                            <label class="form-label" for="edit-model">昵称</label>
+                            <input type="text" class="form-input" id="edit-model" placeholder="请输入昵称">
                             <div class="form-error" id="edit-model-error"></div>
                         </div>
                     </div>
