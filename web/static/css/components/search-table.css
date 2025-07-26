@@ -25,17 +25,17 @@
 }
 
 /* 表格列宽定义 - 使用相对宽度而非固定宽度 */
-.search-data-table {
+/* .search-data-table {
     table-layout: fixed;
     width: 100%;
 }
 
 .search-data-table th:nth-child(1) { width: 8%; }   /* ID列 */
-.search-data-table th:nth-child(2) { width: 20%; }  /* 用户 */
-.search-data-table th:nth-child(3) { width: 15%; }  /* 角色 & 预设 */
-.search-data-table th:nth-child(4) { width: 8%; }   /* 轮次 */
-.search-data-table th:nth-child(5) { width: 39%; }  /* 摘要 */
-.search-data-table th:nth-child(6) { width: 10%; }  /* 操作 */
+/* .search-data-table th:nth-child(2) { width: 20%; }  /* 用户 */
+/* .search-data-table th:nth-child(3) { width: 15%; }  /* 角色 & 预设 */
+/* .search-data-table th:nth-child(4) { width: 8%; }   /* 轮次 */
+/* .search-data-table th:nth-child(5) { width: 39%; }  /* 摘要 */
+/* .search-data-table th:nth-child(6) { width: 10%; }  /* 操作 */
 
 .character-preset-cell {
     display: flex;
