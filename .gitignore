@@ -3,53 +3,25 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
+*.so
 
-# Virtual environment
-virtualenv/
-.venv/
-env/
+# Environments
+.env
 venv/
-ENV/
-env.bak/
-venv.bak/
+env/
 
-# Distribution / packaging
-.eggs/
-*.egg-info/
-build/
-dist/
-
-# Editors
+# IDE
 .vscode/
 .idea/
 
-# OS generated files
-.DS_Store
-.Trashes
-Thumbs.db
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
 
-# Logs and databases
-bot.log
-data.db
+# Log files
 *.log
-*.sqlite3
-*.db
 
-# User-specific configurations
-config/config_local.json
-data/data.db
-代码优化计划.md
-.gitignore
-.kiro/specs/web-page-beautification/design.md
-.kiro/specs/web-page-beautification/requirements.md
-.kiro/specs/web-page-beautification/tasks.md
-.vercel/project.json
-.kiro/specs/web-viewer-beautification/design.md
-.kiro/specs/web-viewer-beautification/requirements.md
-.kiro/specs/web-viewer-beautification/tasks.md
-characters/初音未来_7007822593.json
-characters/初音未来_7007822593_248132_del.json
-.kiro/specs/unified-frontend-refactor/design.md
-.kiro/specs/unified-frontend-refactor/requirements.md
-.kiro/specs/unified-frontend-refactor/tasks.md
+# Config backups
+config/*.json.bak
+config/*.json.deleted.*
