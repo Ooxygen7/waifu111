@@ -1,0 +1,351 @@
+/*
+ * CyberWaifu Bot Admin Panel - Index Page Final Styles
+ * Version 10: The Absolute Final Fix
+ */
+
+/* --- Unified Grid Layout --- */
+.unified-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-areas:
+        "users convos messages today"
+        "activity-and-tokens activity-and-tokens analytics analytics"
+        "top-users top-groups analytics analytics"
+        "quick-actions quick-actions analytics analytics";
+}
+
+/* --- Grid Area Assignments --- */
+.stat-card.users { grid-area: users; }
+.stat-card.convos { grid-area: convos; }
+.stat-card.messages { grid-area: messages; }
+.stat-card.today { grid-area: today; }
+.info-card.activity-and-tokens {
+    grid-area: activity-and-tokens;
+    flex-direction: row;
+    align-items: stretch;
+}
+
+.info-card.activity-and-tokens {
+    grid-area: activity-and-tokens;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0; /* Remove padding from the main card */
+}
+
+.sub-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    font-family: 'Orbitron', sans-serif;
+    /* Apply glass-card effect */
+    background-color: rgba(10, 20, 30, 0.2);
+    backdrop-filter: blur(3px) saturate(120%);
+    -webkit-backdrop-filter: blur(3px) saturate(120%);
+    border: 1px solid rgba(128, 128, 255, 0.15);
+    border-radius: 8px;
+    box-shadow: inset 0 0 80px rgba(128, 128, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.sub-stat:hover {
+    transform: translateY(-2px);
+    border-color: rgba(170, 120, 255, 0.4);
+    box-shadow: inset 0 0 80px rgba(128, 128, 255, 0.1), 0 0 16px rgba(170, 120, 255, 0.4);
+}
+
+.sub-stat span:first-child {
+    font-weight: 500;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.sub-stat span:last-child {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.card.top-users-list { grid-area: top-users; }
+.card.top-groups-list { grid-area: top-groups; }
+.analytics-container { grid-area: analytics; }
+.card.quick-actions-card { 
+    grid-area: quick-actions;
+    align-self: start;
+}
+
+/* --- Perfected Glassmorphism (Inspired by main.css) --- */
+.stat-card, .info-card, .card, .analytics-container, .chart-card {
+    /* Base styles are now in .glass-card in main.css */
+}
+
+/* Final Fix 2: Nuke hard borders on both container and inner cards */
+.analytics-container, .chart-card {
+    border: 1px solid rgba(128, 128, 255, 0.15) !important;
+}
+
+/* --- Emphasized Stat Value --- */
+.stat-value-wrapper {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.5rem;
+    color: #fff;
+    text-shadow: 0 0 12px var(--secondary-color);
+    background: rgba(255, 0, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 0, 255, 0.3);
+    box-shadow: 0 0 15px rgba(255, 0, 255, 0.2);
+}
+
+.stat-title {
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* --- Consistent Card Headers & Content --- */
+.info-card-title, .card-title, .analytics-title {
+    font-family: 'Orbitron', sans-serif;
+    color: var(--primary-color);
+    text-shadow: 0 0 5px var(--primary-color);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.card-body {
+    padding: 0;
+    flex-grow: 1;
+}
+
+.top-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.top-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.75rem;
+}
+
+.top-item:hover {
+    /* Hover effect is now handled by .glass-card */
+    transform: none;
+}
+
+.top-rank {
+    width: 2rem;
+    height: 2rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
+.top-content {
+    flex: 1;
+    min-width: 0; /* Prevents text overflow issues */
+}
+
+.top-name {
+    font-weight: 500;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.top-value {
+    color: var(--text-color);
+    opacity: 0.7;
+    font-size: 0.8rem;
+    margin-top: 0.1rem;
+}
+
+.top-item .btn-glass {
+    padding: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    margin-left: 0.5rem;
+    flex-shrink: 0;
+}
+
+.top-item .btn-glass .icon {
+    font-size: 1.2rem;
+    font-style: normal;
+    line-height: 1;
+}
+
+.info-card-content {
+    flex-grow: 1;
+}
+
+.info-section {
+    flex: 1;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.info-divider {
+    width: 1px;
+    background-color: var(--border-color);
+    margin: 1rem 0;
+}
+
+/* --- Analytics & Charts --- */
+.analytics-container {
+    gap: 1rem;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    flex-grow: 1;
+}
+
+.chart-body {
+    position: relative;
+    flex-grow: 1;
+    min-height: 200px;
+}
+
+/* --- Quick Actions (Final Polish) --- */
+.quick-actions-card .card-body {
+    padding-top: 0.5rem;
+}
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+}
+
+.quick-actions .btn-with-icon {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: rgba(230, 230, 240, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    text-decoration: none;
+    transition: all 0.2s ease-out;
+    background: rgba(30, 40, 60, 0.25);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: none;
+    overflow: hidden;
+    position: relative;
+    border-radius: 8px;
+    z-index: 1;
+    justify-content: center;
+}
+
+.quick-actions .btn-with-icon::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: inset 1px 1px 3px 2px rgba(255, 255, 255, 0.075), inset -1px -1px 3px 2px rgba(0, 0, 0, 0.15);
+    z-index: 0;
+}
+
+.quick-actions .btn-with-icon:hover {
+    color: #fff;
+    text-shadow: 0 0 8px #fff;
+    background: linear-gradient(90deg, rgba(255, 0, 255, 0.1), rgba(0, 212, 255, 0.1), rgba(0, 255, 136, 0.1), rgba(255, 255, 0, 0.1), rgba(255, 0, 255, 0.1));
+    background-size: 200% 200%;
+    animation: slide-glow 3s ease-in-out infinite;
+    transform: none;
+    box-shadow: none;
+}
+
+/* --- Period Selector (Final Polish) --- */
+.period-selector {
+    background: transparent;
+    padding: 0;
+}
+.period-btn {
+    background: rgba(30, 40, 60, 0.25);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    color: rgba(230, 230, 240, 0.7);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.period-btn:hover {
+    background: rgba(30, 40, 60, 0.5);
+    color: #fff;
+}
+
+.analytics-header .period-selector .period-btn.active {
+    background: var(--primary-color);
+    color: var(--background-color);
+    border-color: var(--primary-color);
+    /* Final Fix 3: Symmetrical outer glow + specified inner glow */
+    box-shadow: 
+        0 0 15px 5px rgba(0, 212, 255, 0.4), /* Symmetrical outer glow */
+        inset 0 0 15px rgba(255, 255, 255, 0.2); /* Softer inner glow with alpha 0.2 */
+    text-shadow: none;
+}
+
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 1400px) {
+    .unified-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-areas:
+            "users convos"
+            "messages today"
+            "activity tokens"
+            "top-users top-groups"
+            "analytics analytics"
+            "quick-actions quick-actions";
+    }
+}
+
+@media (max-width: 768px) {
+    .unified-grid, .charts-grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "users"
+            "convos"
+            "messages"
+            "today"
+            "activity"
+            "tokens"
+            "top-users"
+            "top-groups"
+            "analytics"
+            "quick-actions";
+    }
+}
+
+@keyframes slide-glow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}

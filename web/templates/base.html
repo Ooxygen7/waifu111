@@ -4,27 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CyberWaifu Bot 后台管理系统{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/stats-cards.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/stat-cards.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/dashboard.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/tables.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/cards.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/empty-states.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/action-cards.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/search.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/pagination.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/user.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/filter-dropdown.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/stats.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/conversation.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/conversation-detail.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/chat-interface.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/modal.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/buttons.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/forms.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/themes/tech.css') }}">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css', v=moment().timestamp() | int) }}">
     {% block extra_css %}{% endblock %}
     <meta name="theme-color" content="#00d4ff">
     <meta name="description" content="CyberWaifu Bot 后台管理系统 - 管理用户、对话和系统配置">
@@ -47,49 +30,49 @@
                         <a class="nav-link {% if request.endpoint == 'admin.index' %}active{% endif %}"
                             href="{{ url_for('admin.index') }}"
                             aria-current="{% if request.endpoint == 'admin.index' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">🏠</span> 首页概览
+                            <span class="nav-link-icon" aria-hidden="true">🏠</span><span class="nav-link-text"> 首页概览</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.users' %}active{% endif %}"
                             href="{{ url_for('admin.users') }}"
                             aria-current="{% if request.endpoint == 'admin.users' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">👥</span> 用户管理
+                            <span class="nav-link-icon" aria-hidden="true">👥</span><span class="nav-link-text"> 用户管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.conversations' %}active{% endif %}"
                             href="{{ url_for('admin.conversations') }}"
                             aria-current="{% if request.endpoint == 'admin.conversations' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">💬</span> 对话记录
+                            <span class="nav-link-icon" aria-hidden="true">💬</span><span class="nav-link-text"> 对话记录</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.groups' %}active{% endif %}"
                             href="{{ url_for('admin.groups') }}"
                             aria-current="{% if request.endpoint == 'admin.groups' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">👥</span> 群组管理
+                            <span class="nav-link-icon" aria-hidden="true">👥</span><span class="nav-link-text"> 群组管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.search' %}active{% endif %}"
                             href="{{ url_for('admin.search') }}"
                             aria-current="{% if request.endpoint == 'admin.search' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">🔍</span> 搜索功能
+                            <span class="nav-link-icon" aria-hidden="true">🔍</span><span class="nav-link-text"> 搜索功能</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'admin.config_management' else '' }}"
                             href="{{ url_for('admin.config_management') }}"
                             aria-current="{% if request.endpoint == 'admin.config_management' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">⚙️</span> 配置管理
+                            <span class="nav-link-icon" aria-hidden="true">⚙️</span><span class="nav-link-text"> 配置管理</span>
                         </a>
                     </li>
                 </ul>
             </nav>
             <div class="logout-link">
                 <a class="nav-link" href="{{ url_for('auth.logout') }}">
-                    <span class="nav-link-icon" aria-hidden="true">🚪</span> 退出登录
+                    <span class="nav-link-icon" aria-hidden="true">🚪</span><span class="nav-link-text"> 退出登录</span>
                 </a>
             </div>
             <button class="sidebar-toggle d-md-none" aria-label="切换菜单" aria-expanded="false" aria-controls="sidebar">
@@ -98,11 +81,11 @@
         </aside>
 
         <!-- 主内容区域 -->
-        <main id="main-content" class="main-content" tabindex="-1">
+        <main id="main-content" class="main-content" tabindex="-1" style="margin-top: 8px;">
             <header class="page-header">
                 <h1 class="page-title">{% block page_title %}后台管理{% endblock %}</h1>
                 <div class="d-flex align-items-center">
-                    <div class="current-time mr-md" aria-live="polite">{{ moment().strftime('%Y-%m-%d %H:%M:%S') }}</div>
+                    <div id="digital-clock" class="current-time mr-md" aria-live="polite">&nbsp;</div>
                     <button id="theme-toggle" class="btn btn-icon" aria-label="切换主题模式" aria-pressed="false">
                         <span class="theme-icon" aria-hidden="true">🔮</span>
                     </button>

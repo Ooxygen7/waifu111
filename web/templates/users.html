@@ -15,8 +15,13 @@
         <div class="card-header">
             <div class="header-container">
                 <div class="header-title">
-                    <h3><i class="icon">👥</i> 用户管理</h3>
-                    <p class="header-subtitle">管理系统用户信息和权限</p>
+                    <div class="header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </div>
+                    <div class="header-text">
+                        <h3>用户管理</h3>
+                        <p class="header-subtitle">管理系统用户信息和权限</p>
+                    </div>
                 </div>
                 <div class="search-container">
                     <form method="GET" class="search-form">
@@ -39,9 +44,6 @@
                     {% if search_term %}
                     <div class="search-status">找到与 "{{ search_term }}" 相关的结果</div>
                     {% endif %}
-                    <button onclick="location.reload()" class="btn btn-secondary btn-icon" title="刷新页面">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
-                    </button>
                 </div>
             </div>
         </div>
@@ -195,11 +197,12 @@
                                 </div>
                             </td>
                             <td class="user-fullname">{{ (user.first_name or '') + ' ' + (user.last_name or '') }}</td>
-                            <td><span class="badge info">{{ user.conversations or 0 }}</span></td>
-                            <td><span class="badge success">{{ user.dialog_turns or 0 }}</span></td>
-                            <td><span class="stat-badge token-input">{{ "{:,}".format((user.input_tokens or 0)|int) }}</span></td>
-                            <td><span class="stat-badge token-output">{{ "{:,}".format((user.output_tokens or 0)|int) }}</span></td>
+                            <td><span class="data-value">{{ user.conversations or 0 }}</span></td>
+                            <td><span class="data-value">{{ user.dialog_turns or 0 }}</span></td>
+                            <td><span class="data-value token-input">{{ user.input_tokens | format_tokens_m }}</span></td>
+                            <td><span class="data-value token-output">{{ user.output_tokens | format_tokens_m }}</span></td>
                             <td>
+                                <span class="data-value">
                                 {% if user.account_tier == 1 %}
                                     <span class="badge warning">VIP</span>
                                 {% elif user.account_tier == 2 %}
@@ -207,16 +210,13 @@
                                 {% else %}
                                     <span class="badge secondary">普通</span>
                                 {% endif %}
+                                </span>
                             </td>
-                            <td><span class="badge primary">{{ user.remain_frequency or 0 }}</span></td>
+                            <td><span class="data-value">{{ user.remain_frequency or 0 }}</span></td>
                             <td>
-                                <div class="balance-info">
-                                    {% if user.balance %}
-                                        <span class="balance-amount">¥{{ "%.2f"|format(user.balance) }}</span>
-                                    {% else %}
-                                        <span class="balance-amount balance-zero">¥0.00</span>
-                                    {% endif %}
-                                </div>
+                                <span class="data-value balance-amount {% if not user.balance %}balance-zero{% endif %}">
+                                    ¥{{ "%.2f"|format(user.balance or 0) }}
+                                </span>
                             </td>
                             <td>
                                 <div class="date-info">
@@ -226,7 +226,7 @@
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button type="button" class="btn btn-icon btn-sm view-user-btn" 
+                                    <button type="button" class="btn btn-icon btn-sm view-user-btn"
                                             data-uid="{{ user.uid }}"
                                             title="查看详情" aria-label="查看用户详情">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -234,7 +234,7 @@
                                             <circle cx="12" cy="12" r="3"></circle>
                                         </svg>
                                     </button>
-                                    <button type="button" class="btn btn-icon btn-sm edit-user-btn" 
+                                    <button type="button" class="btn btn-icon btn-sm edit-user-btn"
                                             data-uid="{{ user.uid }}"
                                             title="快速编辑" aria-label="编辑用户">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -242,7 +242,7 @@
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                         </svg>
                                     </button>
-                                    <a href="{{ url_for('admin.conversations', search=user.uid) }}" 
+                                    <a href="{{ url_for('admin.conversations', search=user.uid) }}"
                                        class="btn btn-icon btn-sm" title="查看对话" aria-label="查看对话">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>

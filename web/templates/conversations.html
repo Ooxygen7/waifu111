@@ -6,247 +6,47 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/users-modern.css') }}">
-<style>
-    /* 科技感全局样式 */
-    body {
-        background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
-        color: #ffffff;
-        font-family: 'Segoe UI', 'Courier New', monospace;
-    }
-    
-    .container-fluid {
-        background: rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
-        padding: 20px;
-        margin-top: 20px;
-        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
-    }
-    
-    .header-section {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        color: white;
-        padding: 25px;
-        border-radius: 15px;
-        margin-bottom: 25px;
-        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-    }
-    
-    .header-content {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    
-    .title-section h1 {
-        margin: 0;
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #00d4ff;
-        text-shadow: 0 0 20px rgba(0, 212, 255, 0.8);
-        font-family: 'Courier New', monospace;
-    }
-    
-    .controls-section {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        flex-wrap: wrap;
-    }
-    
-    .search-form {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .search-form input {
-        border: 2px solid #00d4ff;
-        border-radius: 25px;
-        padding: 10px 18px;
-        min-width: 220px;
-        background: rgba(0, 0, 0, 0.5);
-        color: #ffffff;
-        font-family: 'Courier New', monospace;
-        transition: all 0.3s ease;
-    }
-    
-    .search-form input:focus {
-        outline: none;
-        box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
-        background: rgba(0, 0, 0, 0.7);
-    }
-    
-    .search-form input::placeholder {
-        color: #888;
-    }
-    
-    .search-form button {
-        border-radius: 25px;
-        padding: 10px 18px;
-        border: 2px solid #00ff88;
-        background: linear-gradient(45deg, #00ff88, #00cc6a);
-        color: #000;
-        font-weight: bold;
-        transition: all 0.3s ease;
-        font-family: 'Courier New', monospace;
-    }
-    
-    .search-form button:hover {
-        background: linear-gradient(45deg, #00cc6a, #00ff88);
-        box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
-        transform: translateY(-2px);
-    }
-    
-    .refresh-btn {
-        border-radius: 25px;
-        padding: 10px 18px;
-        border: 2px solid #ffd93d;
-        background: linear-gradient(45deg, #ffd93d, #ffcc00);
-        color: #000;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-weight: bold;
-        font-family: 'Courier New', monospace;
-    }
-    
-    .refresh-btn:hover {
-        background: linear-gradient(45deg, #ffcc00, #ffd93d);
-        box-shadow: 0 0 15px rgba(255, 217, 61, 0.6);
-        transform: translateY(-2px);
-        text-decoration: none;
-        color: #000;
-    }
-    
-    /* 表格科技感样式 */
-    .table {
-        background: rgba(0, 0, 0, 0.4);
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
-        border: 1px solid rgba(0, 212, 255, 0.2);
-    }
-    
-    .table thead th {
-        background: linear-gradient(135deg, #1a1a2e, #16213e);
-        color: #00d4ff;
-        border: none;
-        padding: 15px;
-        font-weight: bold;
-        text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-        font-family: 'Courier New', monospace;
-    }
-    
-    .table tbody tr {
-        background: rgba(0, 0, 0, 0.3);
-        border-bottom: 1px solid rgba(0, 212, 255, 0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .table tbody tr:hover {
-        background: rgba(0, 212, 255, 0.1);
-        box-shadow: 0 4px 15px rgba(0, 212, 255, 0.2);
-        transform: translateY(-2px);
-    }
-    
-    .table tbody td {
-        border: none;
-        padding: 12px 15px;
-        color: #ffffff;
-        vertical-align: middle;
-    }
-    
-    /* 分页科技感样式 */
-    .pagination .page-link {
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid #00d4ff;
-        color: #00d4ff;
-        font-family: 'Courier New', monospace;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    
-    .pagination .page-link:hover {
-        background: linear-gradient(45deg, #00d4ff, #0099cc);
-        color: #000;
-        box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-    }
-    
-    .pagination .page-item.active .page-link {
-        background: linear-gradient(45deg, #00d4ff, #0099cc);
-        border-color: #00d4ff;
-        color: #000;
-        box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
-    }
-    
-    @media (max-width: 768px) {
-        .header-content {
-            flex-direction: column;
-            text-align: center;
-        }
-        
-        .controls-section {
-            width: 100%;
-            justify-content: center;
-        }
-        
-        .search-form input {
-            min-width: 180px;
-        }
-        
-        .title-section h1 {
-            font-size: 1.8rem;
-        }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="content-wrapper users-page" style="background: rgba(0, 0, 0, 0.2); border-radius: 15px; padding: 20px; backdrop-filter: blur(10px);">
-    <div class="card" style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 15px; box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);">
-        <div class="card-header" style="background: linear-gradient(135deg, #1a1a2e, #16213e); border-bottom: 2px solid rgba(0, 212, 255, 0.3); border-radius: 15px 15px 0 0;">
-            <div class="header-container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+<div class="content-wrapper users-page">
+    <div class="card">
+        <div class="card-header">
+            <div class="header-container">
                 <div class="header-title">
-                    <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;"><i class="icon">💬</i> 对话记录</h3>
-                    <p class="header-subtitle" style="margin: 0; color: #6c757d; font-size: 0.875rem;">管理系统对话记录和摘要</p>
+                    <div class="header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    </div>
+                    <div class="header-text">
+                        <h3>对话记录</h3>
+                        <p class="header-subtitle">管理系统对话记录和摘要</p>
+                    </div>
                 </div>
-                <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
-                    <form method="GET" class="search-form" style="display: flex; align-items: center; position: relative;">
-                        <div class="search-icon" style="position: absolute; left: 12px; z-index: 2; color: #6c757d;">
+                <div class="search-container">
+                    <form method="GET" class="search-form" action="{{ url_for('admin.conversations') }}">
+                        <div class="search-icon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </div>
                         <input type="text" name="search" class="search-input" 
                                placeholder="搜索用户ID、用户名..." value="{{ search or '' }}"
-                               aria-label="搜索对话"
-                               style="padding-left: 40px; padding-right: 40px; width: 300px; border: 1px solid #dee2e6; border-radius: 6px; height: 38px;">
+                               aria-label="搜索对话">
+                        <div class="search-loading"></div>
                         {% if search %}
-                        <a href="{{ url_for('admin.conversations') }}" class="clear-button" aria-label="清除搜索"
-                           style="position: absolute; right: 40px; z-index: 2; color: #6c757d; text-decoration: none;">
+                        <a href="{{ url_for('admin.conversations') }}" class="clear-button" aria-label="清除搜索">
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </a>
                         {% endif %}
-                        <button type="submit" class="search-button" aria-label="搜索" 
-                                style="position: absolute; right: 8px; z-index: 2; background: none; border: none; color: #6c757d; padding: 4px;">
+                        <button type="submit" class="search-button" aria-label="搜索">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </button>
                     </form>
-                    <button onclick="location.reload()" class="btn btn-secondary btn-icon" title="刷新页面" 
-                            style="display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 6px; border: 1px solid #6c757d; background: #f8f9fa; color: #6c757d;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
-                    </button>
+                    {% if search %}
+                    <div class="search-status">找到与 "{{ search }}" 相关的结果</div>
+                    {% endif %}
                 </div>
             </div>
-            {% if search %}
-            <div class="search-status" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #e3f2fd; border-radius: 4px; color: #1976d2; font-size: 0.875rem;">找到与 "{{ search }}" 相关的结果</div>
-            {% endif %}
         </div>
-        <div class="card-body" style="background: rgba(0, 0, 0, 0.2); border-radius: 0 0 15px 15px;">
+        <div class="card-body">
             <!-- 对话表格 -->
             <div class="table-container">
                 <table class="data-table">
@@ -256,10 +56,7 @@
                                 <a href="{{ url_for('admin.conversations', sort_by='conv_id', sort_order=next_sort_order('conv_id'), search=search) }}">
                                     <span>对话ID</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
                                     </span>
                                 </a>
                             </th>
@@ -267,10 +64,7 @@
                                 <a href="{{ url_for('admin.conversations', sort_by='user_id', sort_order=next_sort_order('user_id'), search=search) }}">
                                     <span>用户</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
                                     </span>
                                 </a>
                             </th>
@@ -278,22 +72,16 @@
                                 <a href="{{ url_for('admin.conversations', sort_by='character', sort_order=next_sort_order('character'), search=search) }}">
                                     <span>角色/预设</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
                                     </span>
                                 </a>
                             </th>
-                            <th style="width: 35%;">摘要</th>
+                            <th style="width: 30%;">摘要</th>
                             <th class="sortable" data-sort="number">
                                 <a href="{{ url_for('admin.conversations', sort_by='turns', sort_order=next_sort_order('turns'), search=search) }}">
                                     <span>轮数/状态</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
                                     </span>
                                 </a>
                             </th>
@@ -301,10 +89,7 @@
                                 <a href="{{ url_for('admin.conversations', sort_by='create_at', sort_order=next_sort_order('create_at'), search=search) }}">
                                     <span>创建时间</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
                                     </span>
                                 </a>
                             </th>
@@ -312,10 +97,7 @@
                                 <a href="{{ url_for('admin.conversations', sort_by='update_at', sort_order=next_sort_order('update_at'), search=search) }}">
                                     <span>更新时间</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
                                     </span>
                                 </a>
                             </th>
@@ -326,12 +108,11 @@
                         {% if conversations %}
                         {% for conv in conversations %}
                         <tr class="table-row-interactive">
-                            <td><span class="badge primary" style="background: linear-gradient(45deg, #00d4ff, #0099cc); color: #000; font-family: 'Courier New', monospace; font-weight: bold; text-shadow: none; border-radius: 12px; padding: 4px 12px;">#{{ conv.conv_id }}</span></td>
+                            <td><span class="badge primary user-id">#{{ conv.conv_id }}</span></td>
                             <td>
                                 <div class="user-info">
                                     <div class="user-details">
-                                        <span class="user-name" 
-                                              style="color: #00d4ff; font-weight: 500;"
+                                        <span class="user-name"
                                               title="用户ID: {{ conv.user_id }}{% if conv.user_name %} | 用户名: {{ conv.user_name }}{% endif %}{% if conv.first_name or conv.last_name %} | 姓名: {{ (conv.first_name or '') + ' ' + (conv.last_name or '') }}{% endif %}">
                                             {% if conv.first_name or conv.last_name %}
                                                 {{ (conv.first_name or '') + ' ' + (conv.last_name or '') }}
@@ -339,76 +120,57 @@
                                                 {{ conv.user_name or ('用户 ' + (conv.user_id|string)) }}
                                             {% endif %}
                                         </span>
-                                        <span class="user-id text-muted" style="font-size: 0.8em; color: #666;">ID: {{ conv.user_id }}</span>
+                                        <span class="user-id text-muted">ID: {{ conv.user_id }}</span>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <span class="badge info" style="background: linear-gradient(45deg, #ff6b6b, #ff5252); color: #fff; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); border-radius: 12px; padding: 4px 12px;">{{ conv.character or '未设置' }}</span>
-                                    <span class="badge secondary" style="background: linear-gradient(45deg, #ffd93d, #ffcc00); color: #000; font-weight: bold; text-shadow: none; border-radius: 12px; padding: 4px 12px;">{{ conv.preset or '默认' }}</span>
+                                <div class="stacked-badges">
+                                    <span class="badge info">{{ conv.character or '未设置' }}</span>
+                                    <span class="badge secondary">{{ conv.preset or '默认' }}</span>
                                 </div>
                             </td>
                             <td>
-                                <div class="summary-preview" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                <div class="summary-preview" title="{{ conv.summary if conv.summary else '暂无摘要' }}">
                                     {% if conv.summary %}
-                                        <span class="summary-text tech-text" 
-                                              style="color: #00ff88; font-family: 'Courier New', monospace; font-size: 0.9em;"
-                                              title="{{ conv.summary if conv.summary else '暂无摘要' }}">
-                                            {{ conv.summary[:30] + '...' if conv.summary|length > 30 else conv.summary }}
-                                        </span>
+                                        {{ conv.summary[:30] + '...' if conv.summary|length > 30 else conv.summary }}
                                     {% else %}
-                                        <span class="summary-text tech-text" 
-                                              style="color: #666; font-family: 'Courier New', monospace; font-size: 0.9em; font-style: italic;"
-                                              title="暂无摘要">
-                                            [暂无摘要]
-                                        </span>
+                                        <span class="text-muted">[暂无摘要]</span>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <span class="badge success" style="background: linear-gradient(45deg, #6bcf7f, #4caf50); color: #000; font-family: 'Courier New', monospace; font-weight: bold; text-shadow: none; border-radius: 12px; padding: 4px 12px;">{{ conv.turns or 0 }}</span>
+                                <div class="stacked-badges">
+                                    <span class="badge success">{{ conv.turns or 0 }} 轮</span>
                                     {% if conv.delete_mark %}
-                                        <span class="badge danger" style="background: linear-gradient(45deg, #ff4757, #ff3742); color: #fff; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3); border-radius: 12px; padding: 4px 12px;">已删除</span>
+                                        <span class="badge danger">已删除</span>
                                     {% else %}
-                                        <span class="badge success" style="background: linear-gradient(45deg, #00ff88, #00cc6a); color: #000; font-weight: bold; text-shadow: none; border-radius: 12px; padding: 4px 12px;">正常</span>
+                                        <span class="badge success">正常</span>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
                                 <div class="date-info">
-                                    <span class="date-value" style="color: #a0a0a0; font-family: 'Courier New', monospace; font-size: 0.9em; font-weight: bold;">{{ format_datetime(conv.create_at).split(' ')[0] if conv.create_at else '未知' }}</span>
-                                    <span class="date-time text-muted" style="color: #666; font-family: 'Courier New', monospace; font-size: 0.8em;">{{ format_datetime(conv.create_at).split(' ')[1] if conv.create_at and ' ' in format_datetime(conv.create_at) else '' }}</span>
+                                    <span class="date-value">{{ format_datetime(conv.create_at).split(' ')[0] if conv.create_at else '未知' }}</span>
+                                    <span class="date-time text-muted">{{ format_datetime(conv.create_at).split(' ')[1] if conv.create_at and ' ' in format_datetime(conv.create_at) else '' }}</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="date-info">
-                                    <span class="date-value" style="color: #a0a0a0; font-family: 'Courier New', monospace; font-size: 0.9em; font-weight: bold;">{{ format_datetime(conv.update_at).split(' ')[0] if conv.update_at else '未知' }}</span>
-                                    <span class="date-time text-muted" style="color: #666; font-family: 'Courier New', monospace; font-size: 0.8em;">{{ format_datetime(conv.update_at).split(' ')[1] if conv.update_at and ' ' in format_datetime(conv.update_at) else '' }}</span>
+                                    <span class="date-value">{{ format_datetime(conv.update_at).split(' ')[0] if conv.update_at else '未知' }}</span>
+                                    <span class="date-time text-muted">{{ format_datetime(conv.update_at).split(' ')[1] if conv.update_at and ' ' in format_datetime(conv.update_at) else '' }}</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="action-buttons">
                                     <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}"
-                                       class="btn btn-icon btn-sm" title="查看对话详情" aria-label="查看对话详情"
-                                       style="background: linear-gradient(45deg, #28a745, #1e7e34); border: none; border-radius: 8px; color: white; margin-right: 5px; transition: all 0.3s ease;"
-                                       onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 15px rgba(40,167,69,0.4)'"
-                                       onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                        </svg>
+                                       class="btn btn-icon btn-sm" title="查看对话详情" aria-label="查看对话详情">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                                     </a>
                                     <button type="button" class="btn btn-icon btn-sm generate-summary-btn" 
                                             data-conv-id="{{ conv.conv_id }}"
-                                            title="生成摘要" aria-label="生成摘要"
-                                            style="background: linear-gradient(45deg, #007bff, #0056b3); border: none; border-radius: 8px; color: white; transition: all 0.3s ease;"
-                                            onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 15px rgba(0,123,255,0.4)'"
-                                            onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none'">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
-                                        </svg>
+                                            title="生成摘要" aria-label="生成摘要">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
                                     </button>
                                 </div>
                             </td>
@@ -416,20 +178,22 @@
                         {% endfor %}
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-4">
+                            <td colspan="8" class="text-center py-4">
                                 <div class="empty-state">
-                                    <div class="empty-state-icon">💬</div>
-                                    <div class="empty-state-title">暂无对话记录</div>
-                                    <div class="empty-state-description">
+                                    <div class="empty-state-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                    </div>
+                                    <h3 class="empty-state-title">暂无对话记录</h3>
+                                    <p class="empty-state-description">
                                         {% if search %}
                                         没有找到包含 "{{ search }}" 的对话记录
                                         {% else %}
                                         系统中还没有任何对话记录
                                         {% endif %}
-                                    </div>
+                                    </p>
                                     {% if search %}
                                     <a href="{{ url_for('admin.conversations') }}" class="btn btn-primary btn-sm mt-2">
-                                        查看所有对话
+                                        清除搜索条件
                                     </a>
                                     {% endif %}
                                 </div>
@@ -439,6 +203,7 @@
                     </tbody>
                 </table>
             </div>
+
             <!-- 分页 -->
             {% if total_pages > 1 %}
             <div class="pagination-wrapper">
@@ -447,65 +212,65 @@
                 </div>
                 <div class="pagination-controls">
                     {% if page > 1 %}
-                        <a href="{{ url_for('admin.conversations', page=page-1, search=search, sort_by=sort_by, sort_order=sort_order) }}"
+                        <a href="{{ url_for('admin.conversations', page=page-1, search=search, sort_by=sort_by, sort_order=sort_order) }}" 
                            class="pagination-btn pagination-prev" aria-label="上一页">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <span>上一页</span>
                         </a>
+                    {% else %}
+                        <span class="pagination-btn pagination-prev disabled">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <span>上一页</span>
+                        </span>
                     {% endif %}
                     
-                    {% for p in range(max(1, page-5), min(total_pages+1, page+6)) %}
-                        {% if p == page %}
-                            <span class="pagination-btn pagination-current">{{ p }}</span>
-                        {% else %}
-                            <a href="{{ url_for('admin.conversations', page=p, search=search, sort_by=sort_by, sort_order=sort_order) }}"
-                               class="pagination-btn">{{ p }}</a>
-                        {% endif %}
-                    {% endfor %}
+                    <div class="pagination-numbers">
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == page %}
+                                <span class="pagination-number active">{{ p }}</span>
+                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                                <a href="{{ url_for('admin.conversations', page=p, search=search, sort_by=sort_by, sort_order=sort_order) }}" class="pagination-number">{{ p }}</a>
+                            {% elif p == 4 or p == total_pages - 3 %}
+                                <span class="pagination-ellipsis">…</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                     
                     {% if page < total_pages %}
-                        <a href="{{ url_for('admin.conversations', page=page+1, search=search, sort_by=sort_by, sort_order=sort_order) }}"
+                        <a href="{{ url_for('admin.conversations', page=page+1, search=search, sort_by=sort_by, sort_order=sort_order) }}" 
                            class="pagination-btn pagination-next" aria-label="下一页">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
+                            <span>下一页</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </a>
+                    {% else %}
+                        <span class="pagination-btn pagination-next disabled">
+                            <span>下一页</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </span>
                     {% endif %}
                 </div>
             </div>
             {% endif %}
         </div>
     </div>
-
-
-
-
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// 全局变量
-let summaryCache = {};
-
-// 将 summaryCache 移到全局作用域
-window.summaryCache = summaryCache;
 $(document).ready(function() {
-    // 生成摘要功能
-    
     // 生成摘要按钮点击事件
     $(document).on('click', '.generate-summary-btn', function() {
         const convId = $(this).data('conv-id');
         const button = $(this);
         
-        // 添加科技感的加载效果
-        button.prop('disabled', true)
-              .html('<span style="color: #00ff88;">⚡ 生成中...</span>')
-              .css({
-                  'background': 'linear-gradient(45deg, #333, #555)',
-                  'border-color': '#00ff88',
-                  'box-shadow': '0 0 10px rgba(0, 255, 136, 0.5)'
-              });
+        // 防止重复点击
+        if (button.hasClass('loading')) {
+            return;
+        }
+
+        const originalIcon = button.html();
+        button.prop('disabled', true).addClass('loading').html('<span class="btn-text">生成中...</span>');
         
         $.ajax({
             url: '/api/generate_summary',
@@ -514,85 +279,29 @@ $(document).ready(function() {
             data: JSON.stringify({ conversation_id: convId }),
             success: function(response) {
                 if (response.success) {
-                    // 更新摘要缓存
-                    summaryCache[convId] = response.summary;
-                    
-                    // 更新页面显示
-                    const summaryCell = button.closest('tr').find('.summary-preview .summary-text');
+                    const summaryCell = button.closest('tr').find('.summary-preview');
                     const truncatedSummary = response.summary.length > 30 ? response.summary.substring(0, 30) + '...' : response.summary;
-                    summaryCell.html(truncatedSummary)
-                              .attr('title', response.summary)
-                              .css('color', '#00ff88');
-                    
-                    // 显示科技感成功提示
-                    showTechNotification('✅ 摘要生成成功！', 'success');
+                    summaryCell.html(truncatedSummary).attr('title', response.summary);
+                    if (window.showNotification) {
+                        window.showNotification('摘要生成成功！', 'success');
+                    }
                 } else {
-                    showTechNotification('❌ 摘要生成失败：' + (response.message || '未知错误'), 'error');
+                    if (window.showNotification) {
+                        window.showNotification('摘要生成失败：' + (response.message || '未知错误'), 'error');
+                    }
                 }
             },
             error: function(xhr, status, error) {
                 console.error('生成摘要请求失败:', error);
-                showTechNotification('❌ 请求失败，请稍后重试', 'error');
+                if (window.showNotification) {
+                    window.showNotification('请求失败，请稍后重试', 'error');
+                }
             },
             complete: function() {
-                 button.prop('disabled', false)
-                       .html('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>')
-                       .css({
-                           'background': 'linear-gradient(45deg, #007bff, #0056b3)',
-                           'border': 'none',
-                           'box-shadow': 'none'
-                       });
+                 button.prop('disabled', false).removeClass('loading').html(originalIcon);
              }
         });
     });
-    
-    // 科技感通知函数
-    function showTechNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, ${type === 'success' ? '#1a4d3a, #2d7a2d' : '#4d1a1a, #7a2d2d'});
-            border: 2px solid ${type === 'success' ? '#00ff88' : '#ff4757'};
-            border-radius: 12px;
-            padding: 16px 20px;
-            color: #ffffff;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            z-index: 10000;
-            box-shadow: 0 8px 32px rgba(${type === 'success' ? '0, 255, 136' : '255, 71, 87'}, 0.3);
-            animation: techSlideIn 0.3s ease-out;
-            max-width: 300px;
-        `;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // 3秒后自动消失
-        setTimeout(() => {
-            notification.style.animation = 'techSlideOut 0.3s ease-in';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    }
-    
-    // 添加通知动画样式
-    const notificationStyle = document.createElement('style');
-    notificationStyle.textContent = `
-        @keyframes techSlideIn {
-            from { opacity: 0; transform: translateX(100%) scale(0.8); }
-            to { opacity: 1; transform: translateX(0) scale(1); }
-        }
-        @keyframes techSlideOut {
-            from { opacity: 1; transform: translateX(0) scale(1); }
-            to { opacity: 0; transform: translateX(100%) scale(0.8); }
-        }
-    `;
-    document.head.appendChild(notificationStyle);
 });
 </script>
 {% endblock %}

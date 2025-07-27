@@ -342,7 +342,7 @@ class RestartCommand(BaseCommand):
         command_type='admin',
         trigger='restart',
         menu_text='重启机器人',
-        show_in_menu=True,
+        show_in_menu=False,
         menu_weight=100,
         bot_admin_required=True,
     )

@@ -20,20 +20,25 @@ document.addEventListener('DOMContentLoaded', function() {
  * 初始化时间显示
  */
 function initTimeDisplay() {
-    // 设置中文
-    moment.locale('zh-cn');
-    
-    // 更新时间显示
-    function updateTime() {
-        const timeElements = document.querySelectorAll('.current-time');
-        timeElements.forEach(el => {
-            el.textContent = moment().format('YYYY-MM-DD HH:mm:ss');
-        });
+    const clockElement = document.getElementById('digital-clock');
+    if (!clockElement) return;
+
+    function updateClock() {
+        const now = moment();
+        const timeString = now.format('HH:mm:ss');
+        const dateString = now.format('YYYY-MM-DD');
+        
+        clockElement.innerHTML = `
+            <span class="time">${timeString}</span>
+            <span class="date">${dateString}</span>
+        `;
     }
-    
-    // 每秒更新时间
-    setInterval(updateTime, 1000);
-    updateTime();
+
+    // Initial call
+    updateClock();
+
+    // Update every second
+    setInterval(updateClock, 1000);
 }
 
 /**
@@ -42,180 +47,45 @@ function initTimeDisplay() {
 function initSidebarToggle() {
     const sidebarToggle = document.querySelector('.sidebar-toggle');
     const sidebar = document.querySelector('.sidebar');
-    const mainContent = document.querySelector('.main-content');
-    
-    if (sidebarToggle && sidebar) {
-        // 设置初始状态 - 在移动设备上默认隐藏侧边栏
-        if (window.innerWidth <= 768) {
+    const body = document.body;
+
+    function handleResize() {
+        if (window.innerWidth <= 992) {
+            sidebar.classList.add('collapsed');
+            body.classList.add('sidebar-collapsed');
+        } else {
             sidebar.classList.remove('collapsed');
-            sidebarToggle.setAttribute('aria-expanded', 'false');
+            body.classList.remove('sidebar-collapsed');
         }
-        
-        // 切换侧边栏
+    }
+
+    if (sidebarToggle && sidebar) {
         sidebarToggle.addEventListener('click', function() {
-            const isExpanded = sidebar.classList.toggle('collapsed');
-            sidebarToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-            
-            // 添加动画效果
-            sidebar.style.transition = 'transform var(--transition-base)';
-            
-            // 添加遮罩层（仅在移动设备上）
-            if (window.innerWidth <= 768) {
-                if (isExpanded) {
-                    // 创建遮罩层
-                    if (!document.querySelector('.sidebar-overlay')) {
-                        const overlay = document.createElement('div');
-                        overlay.className = 'sidebar-overlay';
-                        document.body.appendChild(overlay);
-                        
-                        // 点击遮罩层关闭侧边栏
-                        overlay.addEventListener('click', function() {
-                            sidebar.classList.remove('collapsed');
-                            sidebarToggle.setAttribute('aria-expanded', 'false');
-                            this.remove();
-                        });
-                    }
-                } else {
-                    // 移除遮罩层
-                    const overlay = document.querySelector('.sidebar-overlay');
-                    if (overlay) {
-                        overlay.remove();
-                    }
-                }
-            }
+            sidebar.classList.toggle('collapsed');
+            body.classList.toggle('sidebar-collapsed');
         });
     }
-    
-    // 在小屏幕上点击导航链接后自动收起侧边栏
-    const navLinks = document.querySelectorAll('.nav-link');
-    if (navLinks.length > 0) {
-        navLinks.forEach(link => {
-            link.addEventListener('click', function() {
-                if (sidebar && window.innerWidth <= 768) {
-                    sidebar.classList.remove('collapsed');
-                    
-                    // 移除遮罩层
-                    const overlay = document.querySelector('.sidebar-overlay');
-                    if (overlay) {
-                        overlay.remove();
-                    }
-                    
-                    // 更新按钮状态
-                    if (sidebarToggle) {
-                        sidebarToggle.setAttribute('aria-expanded', 'false');
-                    }
-                }
-            });
-        });
-    }
-    
-    // 添加键盘导航支持
-    if (sidebar) {
-        // 为侧边栏添加键盘导航
-        document.addEventListener('keydown', function(e) {
-            // ESC键关闭侧边栏
-            if (e.key === 'Escape' && sidebar.classList.contains('collapsed') && window.innerWidth <= 768) {
-                sidebar.classList.remove('collapsed');
-                if (sidebarToggle) {
-                    sidebarToggle.setAttribute('aria-expanded', 'false');
-                }
-                
-                // 移除遮罩层
-                const overlay = document.querySelector('.sidebar-overlay');
-                if (overlay) {
-                    overlay.remove();
-                }
-            }
-        });
-    }
-    
-    // 监听窗口大小变化
-    window.addEventListener('resize', function() {
-        if (sidebar) {
-            if (window.innerWidth <= 768) {
-                // 小屏幕默认收起侧边栏
-                sidebar.classList.remove('collapsed');
-                if (sidebarToggle) {
-                    sidebarToggle.setAttribute('aria-expanded', 'false');
-                }
-                
-                // 移除遮罩层
-                const overlay = document.querySelector('.sidebar-overlay');
-                if (overlay) {
-                    overlay.remove();
-                }
-            } else {
-                // 大屏幕默认展开侧边栏
-                sidebar.classList.remove('collapsed');
-                if (sidebarToggle) {
-                    sidebarToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-        }
-    });
+
+    // Initial check on page load
+    handleResize();
+
+    // Check on window resize
+    window.addEventListener('resize', handleResize);
 }
 
 /**
  * 初始化主题切换
  */
 function initThemeToggle() {
+    // 强制设置 'dark' 主题
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('theme', 'dark');
+
     const themeToggle = document.getElementById('theme-toggle');
-    const themeIcon = document.querySelector('.theme-icon');
-    const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-    
-    // 检查本地存储中的主题设置
-    const currentTheme = localStorage.getItem('theme');
-    
-    // 如果有存储的主题设置，应用它
-    if (currentTheme) {
-        document.documentElement.setAttribute('data-theme', currentTheme);
-        updateThemeIcon(currentTheme);
-    } else if (prefersDarkScheme.matches) {
-        // 如果用户系统偏好深色模式，应用深色主题
-        document.documentElement.setAttribute('data-theme', 'dark');
-        updateThemeIcon('dark');
-    }
-    
-    // 主题切换按钮点击事件
     if (themeToggle) {
-        themeToggle.addEventListener('click', function() {
-            let theme = 'tech';
-            
-            // 在tech主题和dark主题之间切换
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            if (!currentTheme || currentTheme === 'dark') {
-                theme = 'tech';
-            } else {
-                theme = 'dark';
-            }
-            
-            // 设置主题
-            document.documentElement.setAttribute('data-theme', theme);
-            localStorage.setItem('theme', theme);
-            updateThemeIcon(theme);
-        });
+        // 隐藏切换按钮
+        themeToggle.style.display = 'none';
     }
-    
-    // 更新主题图标
-    function updateThemeIcon(theme) {
-        if (themeIcon) {
-            if (theme === 'tech') {
-                themeIcon.textContent = '🔮';
-            } else {
-                themeIcon.textContent = '🌙';
-            }
-        }
-    }
-    
-    // 监听系统主题变化
-    prefersDarkScheme.addEventListener('change', function(e) {
-        // 只有在用户没有手动设置主题时才跟随系统
-        if (!localStorage.getItem('theme')) {
-            const newTheme = e.matches ? 'tech' : 'dark';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            updateThemeIcon(newTheme);
-        }
-    });
 }
 
 /**

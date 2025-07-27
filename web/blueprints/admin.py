@@ -1,10 +1,24 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, current_app
 from web.factory import admin_required, format_datetime
 from bot_core.public_functions.frequency_manager import get_dashboard_stats
 from utils import db_utils as db
 
 admin_bp = Blueprint("admin", __name__)
 
+def format_tokens_m(value):
+    """将数字格式化为以M为单位的字符串，如果小于1M则正常显示。"""
+    if value is None:
+        return "0"
+    value = int(value)
+    if value < 1_000_000:
+        return f"{value:,}"
+    else:
+        return f"{value / 1_000_000:.2f}M"
+
+@admin_bp.record_once
+def on_load(state):
+    """在蓝图注册时，将自定义过滤器添加到Jinja2环境中。"""
+    state.app.jinja_env.filters['format_tokens_m'] = format_tokens_m
 
 @admin_bp.route("/")
 @admin_required

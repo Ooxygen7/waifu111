@@ -4,262 +4,120 @@
 
 {% block page_title %}系统概览{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="content-wrapper">
-<div class="dashboard-grid">
-    <!-- 数据概览 -->
-    <div class="main-stats-row">
-        <div class="stat-card stat-card-users">
-            <div class="stat-content">
-                <h3 class="stat-title"><span class="stat-title-icon">👥</span> 总用户数</h3>
-                <div class="stat-value">{{ stats.total_users }}</div>
-                <div class="stat-desc">系统中注册的用户总数</div>
-            </div>
-            <div class="stat-bg-icon">👥</div>
+    <div class="unified-grid">
+        <!-- Main Stats -->
+        <div class="stat-card users glass-card">
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_users }}</span></div>
+            <div class="stat-title">👥 总用户数</div>
         </div>
-        
-        <div class="stat-card stat-card-conversations">
-            <div class="stat-content">
-                <h3 class="stat-title"><span class="stat-title-icon">💬</span> 总对话数</h3>
-                <div class="stat-value">{{ stats.total_conversations }}</div>
-                <div class="stat-desc">所有用户的对话总数</div>
-            </div>
-            <div class="stat-bg-icon">💬</div>
+        <div class="stat-card convos glass-card">
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_conversations }}</span></div>
+            <div class="stat-title">💬 总对话数</div>
         </div>
-        
-        <div class="stat-card stat-card-messages">
-            <div class="stat-content">
-                <h3 class="stat-title"><span class="stat-title-icon">📝</span> 总消息数</h3>
-                <div class="stat-value">{{ stats.total_dialogs }}</div>
-                <div class="stat-desc">所有对话中的消息总数</div>
-            </div>
-            <div class="stat-bg-icon">📝</div>
+        <div class="stat-card messages glass-card">
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_dialogs }}</span></div>
+            <div class="stat-title">📝 总消息数</div>
         </div>
-        
-        <div class="stat-card stat-card-today">
-            <div class="stat-content">
-                <h3 class="stat-title"><span class="stat-title-icon">📅</span> 今日对话</h3>
-                <div class="stat-value">{{ stats.today_conversations }}</div>
-                <div class="stat-desc">今天新增的对话数量</div>
-            </div>
-            <div class="stat-bg-icon">📅</div>
+        <div class="stat-card today glass-card">
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.today_conversations }}</span></div>
+            <div class="stat-title">📅 今日对话</div>
         </div>
-    </div>
 
-    <!-- 详细统计信息 -->
-    <div class="stats-row">
-        <div class="card card-compact">
-            <div class="card-header">
-                <h3 class="card-title">📊 今日活动统计</h3>
+        <!-- Combined Info Card -->
+        <div class="info-card activity-and-tokens glass-card">
+            <div class="info-section">
+                <h3 class="info-card-title">📊 今日活动</h3>
+                <div class="info-card-content">
+                    <div class="sub-stat"><span>新增对话:</span> <span>{{ stats.today_conversations }}</span></div>
+                    <div class="sub-stat"><span>私聊消息:</span> <span>{{ stats.today_dialogs }}</span></div>
+                    <div class="sub-stat"><span>群聊消息:</span> <span>{{ stats.today_group_dialogs }}</span></div>
+                    <div class="sub-stat"><span>消耗Tokens:</span> <span>{{ "{:,}".format(stats.today_total_tokens) }}</span></div>
+                </div>
             </div>
+            <div class="info-divider"></div>
+            <div class="info-section">
+                <h3 class="info-card-title">🎯 Token 统计</h3>
+                <div class="info-card-content">
+                    <div class="sub-stat"><span>输入:</span> <span>{{ stats.total_input_tokens | format_large_number }}</span></div>
+                    <div class="sub-stat"><span>输出:</span> <span>{{ stats.total_output_tokens | format_large_number }}</span></div>
+                    <div class="sub-stat"><span>总计:</span> <span>{{ (stats.total_input_tokens + stats.total_output_tokens) | format_large_number }}</span></div>
+                    {% set today_percentage = (stats.today_total_tokens / (stats.total_input_tokens + stats.total_output_tokens) * 100) if (stats.total_input_tokens + stats.total_output_tokens) > 0 else 0 %}
+                    <div class="sub-stat"><span>今日占比:</span> <span>{{ "{:.1f}".format(today_percentage) }}%</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Lists -->
+        <div class="card card-compact top-users-list glass-card">
+            <div class="card-header"><h3 class="card-title">🏆 今日最活跃用户 TOP5</h3></div>
             <div class="card-body">
-                <div class="compact-stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-item-icon">💬</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">新增对话</div>
-                            <div class="stat-item-value">{{ stats.today_conversations }}</div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-icon">📝</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">私聊消息</div>
-                            <div class="stat-item-value">{{ stats.today_dialogs }}</div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-icon">👥</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">群聊消息</div>
-                            <div class="stat-item-value">{{ stats.today_group_dialogs }}</div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-icon">🔥</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">今日消耗 Tokens</div>
-                            <div class="stat-item-value">{{ "{:,}".format(stats.today_total_tokens) }}</div>
-                            <div class="stat-item-desc">
-                                输入: {{ "{:,}".format(stats.today_input_tokens) }} | 
-                                输出: {{ "{:,}".format(stats.today_output_tokens) }}
-                            </div>
-                        </div>
-                    </div>
+                <div class="top-list">
+                    {% for user in stats.active_users[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-content"><div class="top-name">{{ user[1] or user[2] or '用户 ' + user[0]|string }}</div><div class="top-value">{{ user[4] }} 条消息</div></div><a href="{{ url_for('admin.conversations', search=user[0]) }}" class="btn-glass" title="查看该用户的对话"><i class="icon">💬</i></a></div>{% endfor %}
                 </div>
             </div>
         </div>
-
-        <div class="card card-compact">
-            <div class="card-header">
-                <h3 class="card-title">🎯 Token 使用统计</h3>
-            </div>
+        <div class="card card-compact top-groups-list glass-card">
+            <div class="card-header"><h3 class="card-title">👥 最活跃群组 TOP5</h3></div>
             <div class="card-body">
-                <div class="compact-stats-grid">
-                    <div class="stat-item">
-                        <div class="stat-item-icon">📥</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">输入 Tokens</div>
-                            <div class="stat-item-value">{{ stats.total_input_tokens | format_large_number }}</div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-icon">📤</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">输出 Tokens</div>
-                            <div class="stat-item-value">{{ stats.total_output_tokens | format_large_number }}</div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-icon">💎</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">总计 Tokens</div>
-                            <div class="stat-item-value">{{ (stats.total_input_tokens + stats.total_output_tokens) | format_large_number }}</div>
-                        </div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-icon">📊</div>
-                        <div class="stat-item-content">
-                            <div class="stat-item-label">今日占比</div>
-                            {% set today_percentage = (stats.today_total_tokens / (stats.total_input_tokens + stats.total_output_tokens) * 100) if (stats.total_input_tokens + stats.total_output_tokens) > 0 else 0 %}
-                            <div class="stat-item-value">{{ "{:.1f}".format(today_percentage) }}%</div>
-                            <div class="stat-item-progress">
-                                <div class="progress-bar" style="width: {{ today_percentage if today_percentage <= 100 else 100 }}%"></div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="top-list">
+                    {% for group in stats.active_groups[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-content"><div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div><div class="top-value">{{ group[2] }} 条消息</div></div><a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="btn-glass" title="查看群组聊天记录"><i class="icon">👥</i></a></div>{% endfor %}
                 </div>
             </div>
         </div>
-    </div>
 
-</div>
-</div>
-
-<!-- TOP排行榜 -->
-<div class="stats-row">
-    <div class="card card-compact">
-        <div class="card-header">
-            <h3 class="card-title">🏆 今日最活跃用户 TOP5</h3>
-        </div>
-        <div class="card-body">
-            <div class="top-list">
-                {% for user in stats.active_users[:5] %}
-                <div class="top-item">
-                    <div class="top-rank">{{ loop.index }}</div>
-                    <div class="top-content">
-                         <div class="top-name">{{ user[1] or user[2] or '用户 ' + user[0]|string }}</div>
-                         <div class="top-value">{{ user[4] }} 条消息</div>
-                     </div>
-                     <a href="{{ url_for('admin.conversations', search=user[0]) }}" class="top-action-btn" title="查看该用户的对话">
-                        <i class="icon">💬</i>
-                    </a>
+        <!-- Analytics Container -->
+        <div class="analytics-container glass-card">
+            <div class="analytics-header">
+                <h3 class="analytics-title">📈 数据趋势分析</h3>
+                <div class="period-selector">
+                    <button class="period-btn active" data-period="7d">近7天</button>
+                    <button class="period-btn" data-period="30d">近30天</button>
+                    <button class="period-btn" data-period="90d">近90天</button>
+                    <button class="period-btn" data-period="1d">24小时</button>
                 </div>
-                {% endfor %}
+            </div>
+            <div class="charts-grid">
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">📊 用户增长趋势</h4></div><div class="chart-body"><canvas id="userGrowthChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">💬 对话量趋势</h4></div><div class="chart-body"><canvas id="conversationChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">🔥 Token消耗趋势</h4></div><div class="chart-body"><canvas id="tokenUsageChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">⚡ 活跃度分析</h4></div><div class="chart-body"><canvas id="activityChart"></canvas></div></div>
             </div>
         </div>
-    </div>
 
-    <div class="card card-compact">
-        <div class="card-header">
-            <h3 class="card-title">👥 最活跃群组 TOP5</h3>
-        </div>
-        <div class="card-body">
-            <div class="top-list">
-                {% for group in stats.active_groups[:5] %}
-                <div class="top-item">
-                    <div class="top-rank">{{ loop.index }}</div>
-                    <div class="top-content">
-                         <div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div>
-                         <div class="top-value">{{ group[2] }} 条消息</div>
-                     </div>
-                     <a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="top-action-btn" title="查看群组聊天记录">
-                        <i class="icon">👥</i>
-                    </a>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 数据趋势分析 -->
-<div class="analytics-container">
-    <div class="analytics-header">
-        <h3 class="analytics-title">📈 数据趋势分析</h3>
-        <div class="period-selector">
-            <button class="period-btn active" data-period="7d">近7天</button>
-            <button class="period-btn" data-period="30d">近30天</button>
-            <button class="period-btn" data-period="90d">近90天</button>
-            <button class="period-btn" data-period="1d">24小时</button>
-        </div>
-    </div>
-    <div class="charts-grid">
-        <div class="chart-card">
-            <div class="chart-header">
-                <h4 class="chart-title">📊 用户增长趋势</h4>
-            </div>
-            <div class="chart-body">
-                <canvas id="userGrowthChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-        <div class="chart-card">
-            <div class="chart-header">
-                <h4 class="chart-title">💬 对话量趋势</h4>
-            </div>
-            <div class="chart-body">
-                <canvas id="conversationChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-        <div class="chart-card">
-            <div class="chart-header">
-                <h4 class="chart-title">🔥 Token消耗趋势</h4>
-            </div>
-            <div class="chart-body">
-                <canvas id="tokenUsageChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-        <div class="chart-card">
-            <div class="chart-header">
-                <h4 class="chart-title">⚡ 活跃度分析</h4>
-            </div>
-            <div class="chart-body">
-                <canvas id="activityChart" width="400" height="200"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-<!-- 快速导航 -->
-<div class="card card-bordered">
+        <!-- Quick Actions -->
+        <div class="card card-bordered quick-actions-card glass-card">
     <div class="card-header">
         <h3 class="card-title">⚡ 快速导航</h3>
     </div>
     <div class="card-body">
         <div class="quick-actions">
-            <a href="{{ url_for('admin.users') }}" class="btn btn-primary btn-with-icon">
+            <a href="{{ url_for('admin.users') }}" class="btn-glass btn-with-icon">
                 <i class="icon">👥</i>
                 <span>用户管理</span>
             </a>
-            <a href="{{ url_for('admin.conversations') }}" class="btn btn-success btn-with-icon">
+            <a href="{{ url_for('admin.conversations') }}" class="btn-glass btn-with-icon">
                 <i class="icon">💬</i>
                 <span>对话记录</span>
             </a>
-            <a href="{{ url_for('admin.groups') }}" class="btn btn-warning btn-with-icon">
+            <a href="{{ url_for('admin.groups') }}" class="btn-glass btn-with-icon">
                 <i class="icon">👥</i>
                 <span>群组管理</span>
             </a>
-            <a href="{{ url_for('admin.config_management') }}" class="btn btn-secondary btn-with-icon">
+            <a href="{{ url_for('admin.config_management') }}" class="btn-glass btn-with-icon">
                 <i class="icon">⚙️</i>
                 <span>配置管理</span>
             </a>
-            <a href="{{ url_for('admin.search') }}" class="btn btn-info btn-with-icon">
+            <a href="{{ url_for('admin.search') }}" class="btn-glass btn-with-icon">
                 <i class="icon">🔍</i>
                 <span>数据搜索</span>
             </a>
-            <button class="btn btn-dark btn-with-icon" onclick="location.reload()">
+            <button class="btn-glass btn-with-icon" onclick="location.reload()">
                 <i class="icon">🔄</i>
                 <span>刷新数据</span>
             </button>
@@ -301,30 +159,38 @@ const userGrowthChart = new Chart(userGrowthCtx, {
         datasets: [{
             label: '新增用户',
             data: [{% for item in stats.user_growth %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
-            borderColor: 'rgb(54, 162, 235)',
-            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            borderColor: '#00d4ff',
+            backgroundColor: 'rgba(0, 212, 255, 0.15)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            pointBackgroundColor: '#00d4ff',
+            pointBorderColor: '#fff',
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#00d4ff'
         }]
     },
     options: {
         responsive: true,
         plugins: {
-            legend: {
-                display: false
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#00d4ff',
+                borderWidth: 1
             }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             },
             x: {
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             }
         }
     }
@@ -339,30 +205,38 @@ const conversationChart = new Chart(conversationCtx, {
         datasets: [{
             label: '总消息量',
             data: [{% for item in stats.all_messages_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
-            borderColor: 'rgb(40, 167, 69)',
-            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            borderColor: '#00ff88',
+            backgroundColor: 'rgba(0, 255, 136, 0.15)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            pointBackgroundColor: '#00ff88',
+            pointBorderColor: '#fff',
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#00ff88'
         }]
     },
     options: {
         responsive: true,
         plugins: {
-            legend: {
-                display: false
+            legend: { display: false },
+             tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#00ff88',
+                borderWidth: 1
             }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             },
             x: {
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             }
         }
     }
@@ -377,40 +251,45 @@ const tokenUsageChart = new Chart(tokenUsageCtx, {
         datasets: [{
             label: 'Token消耗',
             data: [{% for item in stats.token_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
-            borderColor: 'rgb(255, 193, 7)',
-            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+            borderColor: '#ffaa00',
+            backgroundColor: 'rgba(255, 170, 0, 0.15)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            pointBackgroundColor: '#ffaa00',
+            pointBorderColor: '#fff',
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#ffaa00'
         }]
     },
     options: {
         responsive: true,
         plugins: {
-            legend: {
-                display: false
+            legend: { display: false },
+             tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#ffaa00',
+                borderWidth: 1
             }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                },
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
                 ticks: {
+                    color: 'rgba(255, 255, 255, 0.7)',
                     callback: function(value) {
-                        if (value >= 1000000) {
-                            return (value / 1000000).toFixed(1) + 'M';
-                        } else if (value >= 1000) {
-                            return (value / 1000).toFixed(1) + 'K';
-                        }
+                        if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                        if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
                         return value;
                     }
                 }
             },
             x: {
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             }
         }
     }
@@ -425,242 +304,48 @@ const activityChart = new Chart(activityCtx, {
         datasets: [{
             label: '群聊消息',
             data: [{% for item in stats.group_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
-            borderColor: 'rgb(23, 162, 184)',
-            backgroundColor: 'rgba(23, 162, 184, 0.1)',
+            borderColor: '#8844ff',
+            backgroundColor: 'rgba(136, 68, 255, 0.15)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            pointBackgroundColor: '#8844ff',
+            pointBorderColor: '#fff',
+            pointHoverRadius: 7,
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#8844ff'
         }]
     },
     options: {
         responsive: true,
         plugins: {
-            legend: {
-                display: false
+            legend: { display: false },
+             tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#8844ff',
+                borderWidth: 1
             }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             },
             x: {
-                grid: {
-                    color: 'rgba(0,0,0,0.1)'
-                }
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                ticks: { color: 'rgba(255, 255, 255, 0.7)' }
             }
         }
     }
 });
 
-// 实时时间显示
-function updateTime() {
-    const now = new Date();
-    const timeString = now.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    });
-    const timeElements = document.querySelectorAll('.current-time');
-    timeElements.forEach(el => el.textContent = timeString);
-}
-
-// 每秒更新时间
-setInterval(updateTime, 1000);
-updateTime();
+// 实时时间显示功能已移至 main.js
 </script>
 
 <style>
-.dashboard-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.main-stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.stats-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-@media (max-width: 768px) {
-    .stats-row {
-        grid-template-columns: 1fr;
-    }
-}
-
-.stat-card {
-    position: relative;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1rem;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    min-height: 120px;
-}
-
-.stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.stat-card-users {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.stat-card-conversations {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-}
-
-.stat-card-messages {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    color: white;
-}
-
-.stat-card-today {
-    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-    color: white;
-}
-
-.stat-content {
-    position: relative;
-    z-index: 2;
-}
-
-.stat-title {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    opacity: 0.9;
-}
-
-.stat-title-icon {
-    margin-right: 0.5rem;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-}
-
-.stat-desc {
-    font-size: 0.8rem;
-    opacity: 0.8;
-}
-
-.stat-bg-icon {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    font-size: 2.5rem;
-    opacity: 0.2;
-    z-index: 1;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 0.75rem;
-}
-
-.compact-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-}
-
-@media (max-width: 480px) {
-    .compact-stats-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.card-compact {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.card-compact .card-header {
-    background: var(--primary-color);
-    color: white;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.card-compact .card-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0;
-}
-
-.card-compact .card-body {
-    padding: 1rem;
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    transition: all 0.2s ease;
-    min-height: 80px;
-}
-
-.stat-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-item-icon {
-    font-size: 1.2rem;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 6px;
-    flex-shrink: 0;
-}
-
-.stat-item-content {
-    flex: 1;
-}
-
-.stat-item-label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-bottom: 0.25rem;
-}
-
-.stat-item-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    line-height: 1.2;
-}
+/* This style block is intentionally left empty. All styles have been moved to cyberpunk.css */
 
 .stat-item-desc {
     font-size: 0.75rem;
