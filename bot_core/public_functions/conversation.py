@@ -357,17 +357,11 @@ class GroupConv:
                               self.input.id, GROUP)  # 添加用户对话
         db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
                               self.output.id, GROUP)  # 添加助手对话
-
-        input_tokens = fm.circulate_token(str(self.client.messages))
-        output_tokens = fm.circulate_token(self.output.text_raw)  # 计算输出令牌
-        logger.debug(f"输入令牌:{input_tokens}")  # 计算对话令牌
-        logger.debug(f"输出令牌:{output_tokens}")
-        fm.update_user_usage(self,input_tokens,output_tokens,"group_chat")
-
         db.group_dialog_update(self.input.id, 'trigger_type', self.trigger, self.group.id)  # 更新触发类型
         db.group_dialog_update(self.input.id, 'raw_response', self.output.text_raw, self.group.id)  # 更新原始响应
         db.group_dialog_update(self.input.id, 'processed_response', self.output.text_processed,
                                self.group.id)  # 更新处理后响应
+        fm.update_user_usage(self,str(self.client.messages),self.output.text_raw,"group_chat")
 
 
 class ConvManager:
@@ -519,7 +513,7 @@ class PrivateConv:
         """
         if not self.output.text_raw.startswith('API调用失败'):
             self._save_turn_content_to_db()
-            await self._update_usage_info()
+            fm.update_user_usage(self.user,str(self.client.messages),self.output.text_raw,"private_chat")
 
     def set_callback_data(self, data):
         """
@@ -579,15 +573,7 @@ class PrivateConv:
                               self.output.id,
                               PRIVATE)
 
-    async def _update_usage_info(self):
-        """
-        更新用户的使用信息.
-        该方法计算输入和输出的 token 数量,并更新数据库中用户的
-        token 数量,对话轮次和剩余频率.
-        """
-        input_tokens = fm.circulate_token(str(self.client.messages))  # 计算输入tokens
-        output_tokens = fm.circulate_token(self.output.text_raw)  # 计算输出tokens
-        fm.update_user_usage(self.user,input_tokens,output_tokens,"private_chat")
+
 
 
 

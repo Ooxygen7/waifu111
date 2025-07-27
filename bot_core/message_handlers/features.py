@@ -223,7 +223,7 @@ async def _process_image_analysis(update: Update, context: ContextTypes.DEFAULT_
         llm = LLM_utils.LLM(api=fuck_api)
         llm.set_messages(messages)
         response = await llm.final_response()
-
+        fm.update_user_usage(update.message.chat.id,str(messages),response,"private_photo")
         # 尝试解析JSON并格式化输出
         try:
             # 尝试从Markdown代码块中提取JSON
@@ -265,9 +265,7 @@ async def _process_image_analysis(update: Update, context: ContextTypes.DEFAULT_
                     parse="markdown",
                     photo=photo_file
                 )
-            output_tokens = fm.circulate_token(response)
-            input_tokens = fm.circulate_token(str(messages))
-            fm.update_user_usage(update.message.chat.id,input_tokens,output_tokens,"private_photo")
+
 
         except Exception as e:
             # 如果发送失败，发送纯文本错误信息

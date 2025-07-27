@@ -191,7 +191,7 @@
             <button class="period-btn active" data-period="7d">近7天</button>
             <button class="period-btn" data-period="30d">近30天</button>
             <button class="period-btn" data-period="90d">近90天</button>
-            <button class="period-btn" data-period="1y">近1年</button>
+            <button class="period-btn" data-period="1d">24小时</button>
         </div>
     </div>
     <div class="charts-grid">
@@ -335,10 +335,10 @@ const conversationCtx = document.getElementById('conversationChart').getContext(
 const conversationChart = new Chart(conversationCtx, {
     type: 'line',
     data: {
-        labels: [{% for item in stats.dialog_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: [{% for item in stats.all_messages_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
-            label: '对话数量',
-            data: [{% for item in stats.dialog_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            label: '总消息量',
+            data: [{% for item in stats.all_messages_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
             borderColor: 'rgb(40, 167, 69)',
             backgroundColor: 'rgba(40, 167, 69, 0.1)',
             tension: 0.4,

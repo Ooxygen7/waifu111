@@ -650,18 +650,8 @@ class FuckCommand(BaseCommand):
 
             # 更新群聊调用计数和token统计
             group_id = update.message.chat.id
-            db.group_info_update(group_id, "call_count", 1, True)  # 更新调用计数
             logger.info("用户%s在群聊%s调用了fuck命令", user_id, group_id)
-            input_token = fm.circulate_token(
-                str(messages))  # 计算输入token
-            output_token = fm.circulate_token(response)  # 计算输出token
-            db.group_info_update(
-                group_id, "input_token", input_token, True
-            )  # 更新输入token
-            db.group_info_update(
-                group_id, "output_token", output_token, True
-            )  # 更新输出token
-
+            fm.update_user_usage(group_id,str(messages),response,"group_photo")
             # 尝试解析JSON并格式化输出
             try:
                 # 尝试从Markdown代码块中提取JSON

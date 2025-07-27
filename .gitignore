@@ -25,11 +25,9 @@ data/*.db-wal
 # Config backups
 config/*.json.bak
 config/*.json.deleted.*
-.kiro/specs/unified-frontend-refactor/design.md
-.kiro/specs/unified-frontend-refactor/requirements.md
-.kiro/specs/unified-frontend-refactor/tasks.md
-.kiro/specs/web-viewer-beautification/design.md
-.kiro/specs/web-viewer-beautification/requirements.md
-.kiro/specs/web-viewer-beautification/tasks.md
+.kiro/specs/*/*.md
 .vercel/project.json
 config/config_local.json
+data/pics/*.jpg
+data/pics/*.txt
+
