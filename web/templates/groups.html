@@ -4,8 +4,12 @@
 
 {% block page_title %}群组管理{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_glass.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="content-wrapper">
+<div class="content-wrapper users-page page-groups">
     <div class="card">
         <div class="card-header">
             <div class="header-container">
@@ -13,25 +17,27 @@
                     <h3><i class="icon">👥</i> 群组管理</h3>
                 </div>
                 <div class="search-container">
-                    <form method="GET" class="search-form">
-                        <div class="search-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <form method="GET" action="{{ url_for('admin.groups') }}" class="search-form">
+                        <div class="search-input-wrapper">
+                            <div class="search-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            </div>
+                            <input type="text" name="search" class="search-input" placeholder="搜索群组名称..." value="{{ search_term or '' }}" aria-label="搜索群组">
+                            {% if search_term %}
+                            <a href="{{ url_for('admin.groups') }}" class="clear-button" aria-label="清除搜索">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </a>
+                            {% endif %}
                         </div>
-                        <input type="text" name="search" class="search-input" 
-                               placeholder="搜索群组ID、名称..." value="{{ search_term }}"
-                               aria-label="搜索群组">
-                        <div class="search-loading"></div>
-                        {% if search_term %}
-                        <a href="{{ url_for('admin.groups') }}" class="clear-button" aria-label="清除搜索">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </a>
-                        {% endif %}
-                        <button type="submit" class="search-button" aria-label="搜索">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <button type="submit" class="btn-glass search-button" aria-label="搜索">
+                            <span>搜索</span>
                         </button>
                     </form>
                     {% if search_term %}
-                    <div class="search-status">找到与 "{{ search_term }}" 相关的结果</div>
+                    <div class="search-status">
+                        <span>找到与 "<strong>{{ search_term }}</strong>" 相关的结果</span>
+                        <a href="{{ url_for('admin.groups') }}" class="clear-search-link">清除搜索</a>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -43,151 +49,27 @@
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='group_id', sort_order=next_sort_order('group_id')) }}"
-                                   class="sort-link" aria-label="按群组ID排序">
-                                    <span>群组ID</span>
-                                    <span class="sort-indicator">
-                                        {% if sort_by == 'group_id' %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
-                                                {% if sort_order == 'asc' %}
-                                                <polyline points="18 15 12 9 6 15"></polyline>
-                                                {% else %}
-                                                <polyline points="6 9 12 15 18 9"></polyline>
-                                                {% endif %}
-                                            </svg>
-                                        {% else %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <polyline points="19 12 12 19 5 12"></polyline>
-                                            </svg>
-                                        {% endif %}
-                                    </span>
-                                </a>
-                            </th>
+                            <!-- Hidden Group ID Column -->
                             <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='group_name', sort_order=next_sort_order('group_name')) }}"
-                                   class="sort-link" aria-label="按群组名称排序">
-                                    <span>群组名称</span>
-                                    <span class="sort-indicator">
-                                        {% if sort_by == 'group_name' %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
-                                                {% if sort_order == 'asc' %}
-                                                <polyline points="18 15 12 9 6 15"></polyline>
-                                                {% else %}
-                                                <polyline points="6 9 12 15 18 9"></polyline>
-                                                {% endif %}
-                                            </svg>
-                                        {% else %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <polyline points="19 12 12 19 5 12"></polyline>
-                                            </svg>
-                                        {% endif %}
-                                    </span>
-                                </a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='group_name', sort_order=next_sort_order('group_name')) }}" class="sort-link"><span>群组名称</span><span class="sort-indicator"></span></a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='call_count', sort_order=next_sort_order('call_count')) }}"
-                                   class="sort-link" aria-label="按调用次数排序">
-                                    <span>调用次数</span>
-                                    <span class="sort-indicator">
-                                        {% if sort_by == 'call_count' %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
-                                                {% if sort_order == 'asc' %}
-                                                <polyline points="18 15 12 9 6 15"></polyline>
-                                                {% else %}
-                                                <polyline points="6 9 12 15 18 9"></polyline>
-                                                {% endif %}
-                                            </svg>
-                                        {% else %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <polyline points="19 12 12 19 5 12"></polyline>
-                                            </svg>
-                                        {% endif %}
-                                    </span>
-                                </a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='call_count', sort_order=next_sort_order('call_count')) }}" class="sort-link"><span>调用次数</span><span class="sort-indicator"></span></a>
                             </th>
-                            <th>角色</th>
-                            <th>API</th>
-                            <th>预设</th>
+                            <th>角色/API</th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='rate', sort_order=next_sort_order('rate')) }}"
-                                   class="sort-link" aria-label="按触发几率排序">
-                                    <span>触发几率</span>
-                                    <span class="sort-indicator">
-                                        {% if sort_by == 'rate' %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
-                                                {% if sort_order == 'asc' %}
-                                                <polyline points="18 15 12 9 6 15"></polyline>
-                                                {% else %}
-                                                <polyline points="6 9 12 15 18 9"></polyline>
-                                                {% endif %}
-                                            </svg>
-                                        {% else %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <polyline points="19 12 12 19 5 12"></polyline>
-                                            </svg>
-                                        {% endif %}
-                                    </span>
-                                </a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='rate', sort_order=next_sort_order('rate')) }}" class="sort-link"><span>触发几率</span><span class="sort-indicator"></span></a>
                             </th>
                             <th>Token使用</th>
-                            <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='active', sort_order=next_sort_order('active')) }}"
-                                   class="sort-link" aria-label="按状态排序">
-                                    <span>状态</span>
-                                    <span class="sort-indicator">
-                                        {% if sort_by == 'active' %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
-                                                {% if sort_order == 'asc' %}
-                                                <polyline points="18 15 12 9 6 15"></polyline>
-                                                {% else %}
-                                                <polyline points="6 9 12 15 18 9"></polyline>
-                                                {% endif %}
-                                            </svg>
-                                        {% else %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <polyline points="19 12 12 19 5 12"></polyline>
-                                            </svg>
-                                        {% endif %}
-                                    </span>
-                                </a>
-                            </th>
                             <th class="sortable" data-sort="date">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='update_time', sort_order=next_sort_order('update_time')) }}"
-                                   class="sort-link" aria-label="按更新时间排序">
-                                    <span>更新时间</span>
-                                    <span class="sort-indicator">
-                                        {% if sort_by == 'update_time' %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="{{ 'sort-asc' if sort_order == 'asc' else 'sort-desc' }}">
-                                                {% if sort_order == 'asc' %}
-                                                <polyline points="18 15 12 9 6 15"></polyline>
-                                                {% else %}
-                                                <polyline points="6 9 12 15 18 9"></polyline>
-                                                {% endif %}
-                                            </svg>
-                                        {% else %}
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                <polyline points="19 12 12 19 5 12"></polyline>
-                                            </svg>
-                                        {% endif %}
-                                    </span>
-                                </a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='update_time', sort_order=next_sort_order('update_time')) }}" class="sort-link"><span>更新时间</span><span class="sort-indicator"></span></a>
                             </th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for group in groups %}
-                        <tr class="table-row-interactive">
-                            <td>
-                                <span class="badge primary group-id">{{ group.group_id }}</span>
-                            </td>
+                        <tr class="table-row-interactive" data-group-id="{{ group.group_id }}">
                             <td>
                                 <div class="user-info">
                                     <div class="user-avatar">
@@ -200,26 +82,17 @@
                                     </div>
                                     <div class="user-details">
                                         <span class="user-name">{{ group.group_name or '未命名群组' }}</span>
-                                        {% if group.active %}
-                                        <span class="user-status active" title="活跃群组"></span>
-                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <div class="stat-badge">
-                                    <span class="stat-value">{{ "{:,}".format(group.call_count or 0) }}</span>
-                                    <span class="stat-label">次</span>
+                                <div>{{ "{:,}".format(group.call_count or 0) }} 次</div>
+                            </td>
+                            <td>
+                                <div class="stacked-badges">
+                                    <span>{{ group.char or '未设置' }}</span>
+                                    <span>{{ group.api or '默认' }}</span>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="badge info">{{ group.char or '未设置' }}</span>
-                            </td>
-                            <td>
-                                <span class="badge secondary">{{ group.api or '默认' }}</span>
-                            </td>
-                            <td>
-                                <span class="badge warning">{{ group.preset or '默认' }}</span>
                             </td>
                             <td>
                                 <div class="rate-indicator">
@@ -242,13 +115,6 @@
                                 </div>
                             </td>
                             <td>
-                                {% if group.active %}
-                                    <span class="badge success">活跃</span>
-                                {% else %}
-                                    <span class="badge danger">非活跃</span>
-                                {% endif %}
-                            </td>
-                            <td>
                                 <div class="date-info">
                                     <span class="date-value">{{ format_datetime(group.update_time).split(' ')[0] }}</span>
                                     <span class="date-time text-muted">{{ format_datetime(group.update_time).split(' ')[1] }}</span>
@@ -256,19 +122,14 @@
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button type="button" class="btn btn-icon btn-sm view-group-btn"
-                                            data-group-id="{{ group.group_id }}"
-                                            title="查看详情">
-                                        <i class="fas fa-info-circle"></i>
+                                    <button type="button" class="btn-glass view-group-btn" title="查看详情">
+                                        <span>ℹ️</span>
                                     </button>
-                                    <button type="button" class="btn btn-icon btn-sm edit-group-btn"
-                                            data-group-id="{{ group.group_id }}"
-                                            title="编辑群组">
-                                        <i class="fas fa-edit"></i>
+                                    <button type="button" class="btn-glass edit-group-btn" title="编辑群组">
+                                        <span>✏️</span>
                                     </button>
-                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}"
-                                       class="btn btn-icon btn-sm" title="查看对话">
-                                        <i class="fas fa-comments"></i>
+                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}" class="btn-glass" title="查看对话">
+                                        <span>💬</span>
                                     </a>
                                 </div>
                             </td>
@@ -278,71 +139,44 @@
                 </table>
             </div>
             
-            <!-- 分页 -->
             {% if total_pages > 1 %}
-            <div class="pagination-container">
+            <div class="pagination-wrapper">
                 <div class="pagination-info">
-                    显示第 <span class="text-primary">{{ (page - 1) * per_page + 1 }}</span> 至 
-                    <span class="text-primary">{{ min(page * per_page, total_groups) }}</span> 条，
-                    共 <span class="text-primary">{{ total_groups }}</span> 条记录
+                    <span class="pagination-text">显示第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <= total_groups else total_groups }} 条，共 {{ total_groups }} 条记录</span>
                 </div>
-                <div class="pagination">
+                <div class="pagination-controls">
                     {% if page > 1 %}
-                    <a class="page-item" href="{{ url_for('admin.groups', page=1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第一页" title="第一页">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="11 17 6 12 11 7"></polyline>
-                            <polyline points="18 17 13 12 18 7"></polyline>
-                        </svg>
-                    </a>
-                    <a class="page-item" href="{{ url_for('admin.groups', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="上一页" title="上一页">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </a>
+                        <a href="{{ url_for('admin.groups', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <span>上一页</span>
+                        </a>
                     {% else %}
-                    <span class="page-item disabled" aria-disabled="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="11 17 6 12 11 7"></polyline>
-                            <polyline points="18 17 13 12 18 7"></polyline>
-                        </svg>
-                    </span>
-                    <span class="page-item disabled" aria-disabled="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="15 18 9 12 15 6"></polyline>
-                        </svg>
-                    </span>
+                        <span class="btn-glass pagination-btn pagination-prev disabled">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <span>上一页</span>
+                        </span>
                     {% endif %}
-                    
-                    {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
-                    <a class="page-item {{ 'active' if p == page else '' }}" href="{{ url_for('admin.groups', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="第{{ p }}页" {% if p == page %}aria-current="page"{% endif %}>
-                        {{ p }}
-                    </a>
-                    {% endfor %}
-                    
+                    <div class="pagination-numbers">
+                        {% for p in range(1, total_pages + 1) %}
+                            {% if p == page %}
+                                <span class="btn-glass pagination-number active">{{ p }}</span>
+                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                                <a href="{{ url_for('admin.groups', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-number">{{ p }}</a>
+                            {% elif p == 4 or p == total_pages - 3 %}
+                                <span class="pagination-ellipsis">…</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                     {% if page < total_pages %}
-                    <a class="page-item" href="{{ url_for('admin.groups', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="下一页" title="下一页">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </a>
-                    <a class="page-item" href="{{ url_for('admin.groups', page=total_pages, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" aria-label="最后一页" title="最后一页">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="13 17 18 12 13 7"></polyline>
-                            <polyline points="6 17 11 12 6 7"></polyline>
-                        </svg>
-                    </a>
+                        <a href="{{ url_for('admin.groups', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-btn pagination-next" aria-label="下一页">
+                            <span>下一页</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </a>
                     {% else %}
-                    <span class="page-item disabled" aria-disabled="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                    </span>
-                    <span class="page-item disabled" aria-disabled="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="13 17 18 12 13 7"></polyline>
-                            <polyline points="6 17 11 12 6 7"></polyline>
-                        </svg>
-                    </span>
+                        <span class="btn-glass pagination-btn pagination-next disabled">
+                            <span>下一页</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </span>
                     {% endif %}
                 </div>
             </div>
@@ -350,132 +184,126 @@
             
             {% else %}
             <div class="empty-state">
-                <div class="empty-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
+                <div class="empty-state-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </div>
-                <h5 class="empty-title">暂无群组数据</h5>
+                <h3 class="empty-state-title">暂无群组数据</h3>
+                <p class="empty-state-description">
+                    {% if search_term %}
+                    没有找到包含 "{{ search_term }}" 的群组
+                    {% else %}
+                    系统中还没有任何群组数据
+                    {% endif %}
+                </p>
                 {% if search_term %}
-                <p class="empty-text">没有找到匹配 "<span class="search-highlight">{{ search_term }}</span>" 的群组</p>
-                <a href="{{ url_for('admin.groups') }}" class="btn btn-primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-xs">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                    清除搜索
-                </a>
-                {% else %}
-                <p class="empty-text">系统中还没有任何群组数据</p>
+                <a href="{{ url_for('admin.groups') }}" class="btn btn-primary btn-sm mt-2">清除搜索条件</a>
                 {% endif %}
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- 群组详情模态框 -->
-    <div class="modal-overlay" id="groupDetailModal" style="display: none;">
-        <div class="modal-container modal-large">
+    <!-- Edit Group Modal -->
+    <div class="modal-overlay" id="editGroupModal" style="display: none;">
+        <div class="modal-container glass-modal">
             <div class="modal-header">
-                <div class="modal-title-section">
-                    <div class="modal-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="16"></line>
-                            <line x1="8" y1="12" x2="16" y2="12"></line>
-                        </svg>
-                    </div>
-                    <div class="modal-title-text">
-                        <h3 class="modal-title">群组详情</h3>
-                        <p class="modal-subtitle">查看群组的详细信息和配置</p>
-                    </div>
-                </div>
-                <button class="modal-close" onclick="closeModal('groupDetailModal')" aria-label="关闭">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <h3 class="modal-title">编辑群组</h3>
+                <button class="modal-close-btn" aria-label="关闭">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
             <div class="modal-body">
-                <div id="groupDetailContent" class="group-detail-content">
-                    <div class="loading-state">
-                        <div class="loading-spinner"></div>
-                        <span>加载中...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 编辑群组模态框 -->
-    <div id="editGroupModal" class="modal">
-        <div class="modal-overlay" onclick="closeModal('editGroupModal')"></div>
-        <div class="modal-container modern-modal">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-edit"></i> 编辑群组</h5>
-                <button type="button" class="modal-close" onclick="closeModal('editGroupModal')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="editGroupForm">
-                    <input type="hidden" id="editGroupId">
-                    
-                    <div class="form-row">
-                        <div class="form-group col-md-8">
-                            <label for="editGroupName"><i class="fas fa-tag"></i> 群组名称</label>
-                            <input type="text" class="form-control modern-input" id="editGroupName" placeholder="请输入群组名称">
+                <form id="editGroupForm" class="edit-user-form">
+                    <input type="hidden" id="editGroupId" name="group_id">
+                    <div class="form-layout">
+                        <!-- Card 1: Basic Info -->
+                        <div class="form-card">
+                            <div class="form-card-header">基本信息</div>
+                            <div class="form-card-body">
+                                <div class="form-group">
+                                    <label for="editGroupName">群组名称</label>
+                                    <input type="text" id="editGroupName" name="group_name" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editActive">状态</label>
+                                    <div class="custom-select-wrapper">
+                                        <select id="editActive" name="active" class="form-control">
+                                            <option value="1">活跃</option>
+                                            <option value="0">非活跃</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group col-md-4">
-                            <label for="editActive"><i class="fas fa-toggle-on"></i> 状态</label>
-                            <select class="form-control modern-select" id="editActive">
-                                <option value="1">活跃</option>
-                                <option value="0">非活跃</option>
-                            </select>
+                        <!-- Card 2: Core Config -->
+                        <div class="form-card">
+                            <div class="form-card-header">核心配置</div>
+                            <div class="form-card-body">
+                                <div class="form-group">
+                                    <label for="editRate">触发几率 (0-1)</label>
+                                    <input type="number" id="editRate" name="rate" class="form-control" step="0.01" min="0" max="1">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editChar">角色</label>
+                                    <input type="text" id="editChar" name="char" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editApi">API</label>
+                                    <input type="text" id="editApi" name="api" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="editPreset">预设</label>
+                                    <input type="text" id="editPreset" name="preset" class="form-control">
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group col-md-4">
-                            <label for="editRate"><i class="fas fa-star"></i> 触发几率 (0-1)</label>
-                            <input type="number" class="form-control modern-input" id="editRate" step="any" min="0" max="1" placeholder="0.00">
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="editChar"><i class="fas fa-user"></i> 角色</label>
-                            <input type="text" class="form-control modern-input" id="editChar" placeholder="角色名称">
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="editApi"><i class="fas fa-plug"></i> API</label>
-                            <input type="text" class="form-control modern-input" id="editApi" placeholder="API配置">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="editPreset"><i class="fas fa-cogs"></i> 预设</label>
-                        <input type="text" class="form-control modern-input" id="editPreset" placeholder="预设配置">
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="editKeywords"><i class="fas fa-tags"></i> 关键词</label>
-                            <textarea class="form-control modern-textarea" id="editKeywords" rows="3" placeholder="用逗号分隔多个关键词"></textarea>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="editDisabledTopics"><i class="fas fa-ban"></i> 禁用话题</label>
-                            <textarea class="form-control modern-textarea" id="editDisabledTopics" rows="3" placeholder="用逗号分隔多个禁用话题"></textarea>
+                        <!-- Card 3: Content Rules -->
+                        <div class="form-card">
+                            <div class="form-card-header">内容规则</div>
+                            <div class="form-card-body">
+                                <div class="form-group">
+                                    <label for="editKeywords">关键词 (逗号分隔)</label>
+                                    <textarea id="editKeywords" name="keywords" class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="editDisabledTopics">禁用话题 (逗号分隔)</label>
+                                    <textarea id="editDisabledTopics" name="disabled_topics" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary modern-btn" onclick="closeModal('editGroupModal')">
-                    <i class="fas fa-times"></i> 取消
+                <button type="button" class="btn btn-secondary modal-close-btn">取消</button>
+                <button type="submit" form="editGroupForm" class="btn btn-primary">
+                    <span class="btn-text">保存更改</span>
+                    <span class="spinner"></span>
                 </button>
-                <button type="button" class="btn btn-primary modern-btn" onclick="saveGroupChanges()">
-                    <i class="fas fa-save"></i> 保存更改
+            </div>
+        </div>
+    </div>
+
+    <!-- View Group Modal -->
+    <div class="modal-overlay" id="viewGroupModal" style="display: none;">
+        <div class="modal-container glass-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">群组详情</h3>
+                <button class="modal-close-btn" aria-label="关闭">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
+            </div>
+            <div class="modal-body">
+                <div id="viewGroupContent">
+                    <!-- Content will be loaded here by JavaScript -->
+                    <div class="loading-state active">
+                        <div class="spinner"></div>
+                        <p>正在加载群组数据...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                 <a href="#" id="viewGroupDialogsLink" class="btn btn-primary">查看对话</a>
             </div>
         </div>
     </div>
@@ -483,563 +311,5 @@
 {% endblock %}
 
 {% block scripts %}
-<style>
-    /* 现代化模态框样式 */
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1000;
-    }
-    
-    .modal.show {
-        display: block;
-    }
-    
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(4px);
-        z-index: 1001;
-        animation: fadeIn 0.3s ease;
-    }
-    
-    .modal-container {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: var(--card-bg, #1a1d29);
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-        border: 1px solid var(--border-color, #2d3748);
-        z-index: 1002;
-        max-width: 90vw;
-        max-height: 90vh;
-        overflow: hidden;
-        animation: slideIn 0.3s ease;
-    }
-    
-    .modern-modal {
-        width: 800px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-    }
-    
-    .modal-large {
-        width: 800px;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -48%) scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-    }
-    
-    .modal-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 24px 32px;
-        border-bottom: none;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .modal-title {
-        margin: 0;
-        font-size: 1.4rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    
-    .modal-title i {
-        font-size: 1.2rem;
-        opacity: 0.9;
-    }
-    
-    .modal-close {
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 1.5rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s ease;
-    }
-    
-    .modal-close:hover {
-        background: rgba(255, 255, 255, 0.3);
-        transform: scale(1.05);
-    }
-    
-    .modal-body {
-        padding: 32px;
-        max-height: 60vh;
-        overflow-y: auto;
-        background: var(--card-bg, #1a1d29);
-        color: var(--text-color, #e2e8f0);
-    }
-    
-    .modal-footer {
-        padding: 24px 32px;
-        border-top: 1px solid var(--border-color, #2d3748);
-        background: var(--card-bg, #1a1d29);
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-    }
-    
-    /* 现代化表单样式 */
-    .form-row {
-        display: flex;
-        flex-wrap: wrap;
-        margin: 0 -8px;
-    }
-    
-    .form-group {
-        margin-bottom: 24px;
-        padding: 0 8px;
-    }
-    
-    .col-md-4 {
-        flex: 0 0 33.333333%;
-        max-width: 33.333333%;
-    }
-    
-    .col-md-6 {
-        flex: 0 0 50%;
-        max-width: 50%;
-    }
-    
-    .col-md-8 {
-        flex: 0 0 66.666667%;
-        max-width: 66.666667%;
-    }
-    
-    .form-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-        color: var(--text-color, #e2e8f0);
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .form-group label i {
-        color: #667eea;
-        font-size: 0.85rem;
-    }
-    
-    .modern-input, .modern-select, .modern-textarea {
-        width: 100%;
-        padding: 12px 16px;
-        border: 2px solid var(--border-color, #2d3748);
-        border-radius: 10px;
-        font-size: 0.95rem;
-        transition: all 0.2s ease;
-        background: var(--input-bg, #2d3748);
-        color: var(--text-color, #e2e8f0);
-        box-sizing: border-box;
-    }
-    
-    .modern-input:focus, .modern-select:focus, .modern-textarea:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-        background: var(--input-focus-bg, #374151);
-    }
-    
-    .modern-input:hover, .modern-select:hover, .modern-textarea:hover {
-        border-color: var(--border-hover, #4a5568);
-    }
-    
-    .modern-textarea {
-        resize: vertical;
-        min-height: 80px;
-        font-family: inherit;
-    }
-    
-    .modern-btn {
-        padding: 12px 24px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.95rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 120px;
-        justify-content: center;
-    }
-    
-    .btn-primary.modern-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-    
-    .btn-primary.modern-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-    }
-    
-    .btn-secondary.modern-btn {
-        background: var(--secondary-bg, #2d3748);
-        color: var(--text-color, #e2e8f0);
-        border: 2px solid var(--border-color, #4a5568);
-    }
-    
-    .btn-secondary.modern-btn:hover {
-        background: var(--secondary-hover, #374151);
-        transform: translateY(-1px);
-    }
-    
-    /* 响应式设计 */
-    @media (max-width: 768px) {
-        .modern-modal {
-            width: 95vw;
-            margin: 20px;
-        }
-        
-        .modal-container {
-            top: 20px;
-            transform: translateX(-50%);
-            position: absolute;
-        }
-        
-        .col-md-4, .col-md-6, .col-md-8 {
-            flex: 0 0 100%;
-            max-width: 100%;
-        }
-        
-        .modal-header, .modal-body, .modal-footer {
-            padding: 20px;
-        }
-        
-        .form-row {
-            margin: 0;
-        }
-        
-        .form-group {
-            padding: 0;
-        }
-    }
-</style>
-<script src="{{ url_for('static', filename='js/search.js') }}"></script>
-<script src="{{ url_for('static', filename='js/user-table.js') }}"></script>
-<script src="{{ url_for('static', filename='js/user-filter.js') }}"></script>
-<script>
-// 群组数据存储
-let groupsData = {{ groups|tojson|safe }};
-
-// 关闭模态框函数
-function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
-}
-
-// 关闭模态框函数
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.classList.remove('show');
-        setTimeout(() => {
-            modal.style.display = 'none';
-        }, 300);
-    }
-}
-
-// 保存群组更改函数
-function saveGroupChanges() {
-    const groupId = document.getElementById('editGroupId').value;
-    const groupName = document.getElementById('editGroupName').value;
-    const active = document.getElementById('editActive').value;
-    const char = document.getElementById('editChar').value;
-    const api = document.getElementById('editApi').value;
-    const preset = document.getElementById('editPreset').value;
-    const rate = document.getElementById('editRate').value;
-    const keywords = document.getElementById('editKeywords').value;
-    const disabledTopics = document.getElementById('editDisabledTopics').value;
-    
-    const data = {
-        group_name: groupName,
-        active: parseInt(active),
-        char: char,
-        api: api,
-        preset: preset,
-        rate: parseFloat(rate) || 0,
-        keywords: keywords,
-        disabled_topics: disabledTopics
-    };
-    
-    fetch(`/api/groups/${groupId}`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('群组信息更新成功！');
-            closeModal('editGroupModal');
-            location.reload(); // 刷新页面以显示更新后的数据
-        } else {
-            alert('更新失败：' + (data.message || '未知错误'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('更新失败：网络错误');
-    });
-}
-
-function viewGroupDetail(groupId) {
-    const modal = document.getElementById('groupDetailModal');
-    const content = document.getElementById('groupDetailContent');
-    
-    // 从群组数据中查找群组信息
-    const group = groupsData.find(g => g.group_id === groupId);
-    
-    if (!group) {
-        content.innerHTML = '<div class="alert alert-danger">群组信息不存在</div>';
-        modal.classList.add('show');
-        return;
-    }
-    
-    // 显示模态框
-    modal.style.display = 'block';
-    setTimeout(() => {
-        modal.classList.add('show');
-    }, 10);
-    
-    // 更新模态框标题
-    const titleLabel = document.querySelector('#groupDetailModal .modal-title');
-    if (titleLabel) {
-        titleLabel.textContent = `群组详情 - ${group.group_name || '未命名群组'}`;
-    }
-    
-    // 解析成员列表
-    let membersList = [];
-    if (group.members_list) {
-        membersList = group.members_list.split(',').filter(m => m.trim());
-    }
-    
-    // 解析关键词
-    let keywords = [];
-    if (group.keywords) {
-        try {
-            keywords = JSON.parse(group.keywords);
-        } catch (e) {
-            keywords = group.keywords.split(',').filter(k => k.trim());
-        }
-    }
-    
-    // 解析禁用话题
-    let disabledTopics = [];
-    if (group.disabled_topics) {
-        try {
-            disabledTopics = JSON.parse(group.disabled_topics);
-        } catch (e) {
-            disabledTopics = group.disabled_topics.split(',').filter(t => t.trim());
-        }
-    }
-    
-    content.innerHTML = `
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-primary"><i class="fas fa-info-circle"></i> 基本信息</h6>
-                <table class="table table-borderless table-sm">
-                    <tr><td><strong>群组ID:</strong></td><td><span class="badge primary">${group.group_id}</span></td></tr>
-                    <tr><td><strong>群组名称:</strong></td><td>${group.group_name || '未命名群组'}</td></tr>
-                    <tr><td><strong>成员数量:</strong></td><td><span class="badge info">${membersList.length} 人</span></td></tr>
-                    <tr><td><strong>调用次数:</strong></td><td><span class="badge success">${group.call_count || 0}</span></td></tr>
-                    <tr><td><strong>状态:</strong></td><td>
-                        ${group.active ? '<span class="badge success">活跃</span>' : '<span class="badge danger">非活跃</span>'}
-                    </td></tr>
-                    <tr><td><strong>更新时间:</strong></td><td>${group.update_time || '未知'}</td></tr>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-success"><i class="fas fa-cog"></i> 配置信息</h6>
-                <table class="table table-borderless table-sm">
-                    <tr><td><strong>角色:</strong></td><td><span class="badge info">${group.char || '未设置'}</span></td></tr>
-                    <tr><td><strong>API:</strong></td><td><span class="badge secondary">${group.api || '默认'}</span></td></tr>
-                    <tr><td><strong>预设:</strong></td><td><span class="badge warning">${group.preset || '默认'}</span></td></tr>
-                    <tr><td><strong>评分:</strong></td><td>
-                        ${group.rate ? 
-                            (group.rate * 100 >= 80 ? `<span class="badge success">${(group.rate * 100).toFixed(1)}%</span>` :
-                             group.rate * 100 >= 60 ? `<span class="badge warning">${(group.rate * 100).toFixed(1)}%</span>` :
-                             `<span class="badge danger">${(group.rate * 100).toFixed(1)}%</span>`) :
-                            '<span class="badge secondary">未评分</span>'}
-                    </td></tr>
-                </table>
-            </div>
-        </div>
-        <hr>
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-warning"><i class="fas fa-bar-chart"></i> Token 使用统计</h6>
-                <table class="table table-borderless table-sm">
-                    <tr><td><strong>输入Token:</strong></td><td><span class="text-primary">${(group.input_token || 0).toLocaleString()}</span></td></tr>
-                    <tr><td><strong>输出Token:</strong></td><td><span class="text-success">${(group.output_token || 0).toLocaleString()}</span></td></tr>
-                    <tr><td><strong>总计Token:</strong></td><td><span class="text-info">${((group.input_token || 0) + (group.output_token || 0)).toLocaleString()}</span></td></tr>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-info"><i class="fas fa-users"></i> 成员列表</h6>
-                <div class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
-                    ${membersList.length > 0 ? 
-                        membersList.map(member => `<span class="badge primary me-1 mb-1">${member}</span>`).join('') :
-                        '<span class="text-muted">暂无成员</span>'}
-                </div>
-            </div>
-        </div>
-        <hr>
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-primary"><i class="fas fa-tags"></i> 关键词</h6>
-                <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto;">
-                    ${keywords.length > 0 ? 
-                        keywords.map(keyword => `<span class="badge primary me-1 mb-1">${keyword}</span>`).join('') :
-                        '<span class="text-muted">暂无关键词</span>'}
-                </div>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-danger"><i class="fas fa-ban"></i> 禁用话题</h6>
-                <div class="border rounded p-2" style="max-height: 100px; overflow-y: auto;">
-                    ${disabledTopics.length > 0 ? 
-                        disabledTopics.map(topic => `<span class="badge danger me-1 mb-1">${topic}</span>`).join('') :
-                        '<span class="text-muted">暂无禁用话题</span>'}
-                </div>
-            </div>
-        </div>
-        <div class="mt-3">
-            <a href="/group_dialogs/${group.group_id}" class="btn btn-primary">
-                <i class="fas fa-comments"></i> 查看群组对话
-            </a>
-        </div>
-    `;
-    
-    modal.classList.add('show');
-}
-
-function editGroup(groupId) {
-    const modal = document.getElementById('editGroupModal');
-    const group = groupsData.find(g => g.group_id === groupId);
-    
-    if (!group) {
-        alert('群组信息不存在');
-        return;
-    }
-    
-    // 填充表单数据
-    const editGroupId = document.getElementById('editGroupId');
-    const editGroupName = document.getElementById('editGroupName');
-    const editActive = document.getElementById('editActive');
-    const editChar = document.getElementById('editChar');
-    const editApi = document.getElementById('editApi');
-    const editPreset = document.getElementById('editPreset');
-    const editRate = document.getElementById('editRate');
-    const editKeywords = document.getElementById('editKeywords');
-    const editDisabledTopics = document.getElementById('editDisabledTopics');
-    
-    if (editGroupId) editGroupId.value = group.group_id;
-    if (editGroupName) editGroupName.value = group.group_name || '';
-    if (editActive) editActive.value = group.active ? '1' : '0';
-    if (editChar) editChar.value = group.char || '';
-    if (editApi) editApi.value = group.api || '';
-    if (editPreset) editPreset.value = group.preset || '';
-    if (editRate) editRate.value = group.rate || '';
-    if (editKeywords) editKeywords.value = group.keywords || '';
-    if (editDisabledTopics) editDisabledTopics.value = group.disabled_topics || '';
-    
-    // 显示模态框
-    modal.style.display = 'block';
-    setTimeout(() => {
-        modal.classList.add('show');
-    }, 10);
-    
-    // 更新模态框标题
-    const editTitleLabel = document.querySelector('#editGroupModal .modal-title');
-    if (editTitleLabel) {
-        editTitleLabel.innerHTML = `<i class="fas fa-edit"></i> 编辑群组 - ${group.group_name || '未命名群组'}`;
-    }
-}
-
-// 事件监听器
-document.addEventListener('DOMContentLoaded', function() {
-    // 查看详情按钮
-    document.querySelectorAll('.view-group-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const groupId = parseInt(this.dataset.groupId, 10);
-            viewGroupDetail(groupId);
-        });
-    });
-    
-    // 编辑按钮
-    document.querySelectorAll('.edit-group-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const groupId = parseInt(this.dataset.groupId, 10);
-            editGroup(groupId);
-        });
-    });
-    
-    // 点击模态框外部关闭
-    document.getElementById('groupDetailModal').addEventListener('click', function(e) {
-        if (e.target === this || e.target.classList.contains('modal-overlay')) {
-            closeModal('groupDetailModal');
-        }
-    });
-    
-    document.getElementById('editGroupModal').addEventListener('click', function(e) {
-        if (e.target === this || e.target.classList.contains('modal-overlay')) {
-            closeModal('editGroupModal');
-        }
-    });
-    
-    // 阻止模态框内容区域的点击事件冒泡
-    document.querySelectorAll('.modal-container').forEach(container => {
-        container.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-    });
-    
-    // ESC键关闭模态框
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeModal('groupDetailModal');
-            closeModal('editGroupModal');
-        }
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/admin_groups.js') }}"></script>
 {% endblock %}

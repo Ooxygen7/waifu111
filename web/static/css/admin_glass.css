@@ -1,0 +1,887 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&amp;display=swap');
+/*
+ * CyberWaifu Bot Admin Panel - Users Page Stylesheet
+ * Final version: Inherits styles from main.css for consistency and applies specific tweaks.
+ */
+
+/* ==========================================================================
+   Main Card Styling - Inheriting from main.css
+   ========================================================================== */
+
+/*
+ * The .content-wrapper.users-page now acts as the main glass card.
+ * We apply styles similar to .main-content from main.css to achieve a consistent look.
+ */
+.content-wrapper.users-page {
+    background-color: rgba(10, 20, 30, 0.2);
+    backdrop-filter: blur(3px) saturate(120%);
+    -webkit-backdrop-filter: blur(3px) saturate(120%);
+    border: 1px solid rgba(128, 128, 255, 0.15);
+    border-radius: 15px;
+    padding: 24px;
+    position: relative;
+}
+
+.content-wrapper.users-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 15px;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    box-shadow: inset 0 0 80px rgba(128, 128, 255, 0.05);
+}
+
+/* We no longer need complex card-header/card-body structures */
+.users-page .card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.users-page .card-header {
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.users-page .card-body {
+    padding: 0;
+}
+
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.header-title { display: flex; align-items: center; gap: 15px; }
+.header-icon svg { color: var(--primary-color); filter: drop-shadow(0 0 5px var(--glow-color)); }
+.header-text h3 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 600; }
+.header-subtitle { margin: 5px 0 0; color: var(--text-color); opacity: 0.8; }
+
+/* ==========================================================================
+   Search Component Styles - Using .btn-glass
+   ========================================================================== */
+
+.search-container { flex-grow: 1; max-width: 500px; }
+.search-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    /* Remove background and border to eliminate the outer box */
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+.search-input-wrapper {
+    flex-grow: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    /* Darker, more distinct glass effect for the input area */
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(2px) saturate(100%);
+    -webkit-backdrop-filter: blur(2px) saturate(100%);
+}
+.search-input-wrapper:focus-within { border-color: var(--primary-color); box-shadow: 0 0 10px var(--glow-color); }
+.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-color); opacity: 0.7; pointer-events: none; }
+.search-input { width: 100%; padding: 12px 15px 12px 45px; background: transparent; border: none; outline: none; color: var(--text-color); font-size: 1rem; font-family: var(--font-family-body); }
+.search-input::placeholder { color: var(--text-color); opacity: 0.5; }
+.clear-button { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-color); opacity: 0.7; transition: all 0.2s ease; }
+.clear-button:hover { color: #fff; opacity: 1; transform: translateY(-50%) scale(1.1); }
+/* The .search-button now fully relies on .btn-glass from main.css */
+.search-form .search-button {
+    /* Force glass styles to override potential conflicts */
+    background: var(--glass-bg-dark) !important;
+    border: 1px solid var(--glass-border-color) !important;
+    color: var(--text-color) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    transition: all 0.3s ease !important;
+    border-radius: 8px !important; /* Ensure consistent corner radius */
+}
+.search-form .search-button:hover {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 10px var(--glow-color) !important;
+    transform: translateY(-2px) !important;
+    color: #fff !important;
+}
+.search-button .search-button-icon { display: none; }
+.search-status { margin-top: 12px; padding: 8px 12px; background: rgba(0, 212, 255, 0.1); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; color: var(--text-color); display: flex; justify-content: space-between; align-items: center; }
+.clear-search-link { font-size: 0.85rem; font-weight: 600; }
+
+/* ==========================================================================
+   Table Styles
+   ========================================================================== */
+
+@keyframes table-glow {
+    0% {
+        box-shadow: 0 0 15px -5px rgba(0, 212, 255, 0.3), 0 0 25px -10px rgba(255, 0, 255, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 25px -5px rgba(0, 212, 255, 0.6), 0 0 35px -10px rgba(255, 0, 255, 0.6);
+    }
+    100% {
+        box-shadow: 0 0 15px -5px rgba(0, 212, 255, 0.3), 0 0 25px -10px rgba(255, 0, 255, 0.3);
+    }
+}
+
+.table-container {
+    overflow: hidden; /* Important for child border-radius to work */
+    border-radius: 10px; /* Rounded corners for the whole container */
+    position: relative;
+}
+
+.table-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    animation: table-glow 8s ease-in-out infinite; /* Slower animation */
+    z-index: 0;
+}
+
+.table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.table-container::-webkit-scrollbar { height: 8px; }
+.table-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+.table-container::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
+.table-container::-webkit-scrollbar-thumb:hover { background: #00ffff; }
+
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed; /* Prevents intermittent layout collapse */
+    position: relative;
+    z-index: 1;
+    font-size: 0.9rem; /* Slightly smaller font to save space */
+}
+.data-table th, .data-table td { padding: 16px 20px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; white-space: nowrap; position: relative; overflow: hidden; text-overflow: ellipsis; }
+.data-table td:not(:last-child)::after, .data-table th:not(:last-child)::after { content: ''; position: absolute; top: 20%; right: 0; width: 1px; height: 60%; background: linear-gradient(to bottom, transparent, var(--border-color) 50%, transparent); opacity: 0.8; }
+.data-table thead th {
+    background: linear-gradient(to bottom, rgba(0, 212, 255, 0.25), rgba(0, 212, 255, 0.2)); /* Increased transparency */
+    color: #fff;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.data-table thead th:first-child {
+    border-top-left-radius: 10px;
+}
+
+.data-table thead th:last-child {
+    border-top-right-radius: 10px;
+}
+.data-table thead th a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 8px; }
+.data-table tbody tr { transition: background-color 0.3s ease; }
+.data-table tbody tr:hover { background-color: rgba(0, 212, 255, 0.08); }
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* Specific rule for user details cell to allow wrapping */
+.data-table .user-details-cell {
+    white-space: normal;
+}
+
+.user-details { display: flex; flex-direction: column; }
+.user-username { font-size: 0.85rem; opacity: 0.7; }
+.user-info { display: flex; align-items: center; gap: 12px; }
+.user-avatar .avatar-image { width: 36px; height: 36px; border-radius: 50%; background: rgba(0, 212, 255, 0.1); display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); }
+.user-avatar svg { color: var(--primary-color); }
+.user-name { font-weight: 600; color: #fff; }
+/* .data-value rule is now handled by the general td rule below */
+.token-input { color: #ffc107; }
+.token-output { color: #28a745; }
+.balance-amount { font-weight: 600; }
+.balance-zero { opacity: 0.6; }
+.date-info { display: flex; flex-direction: column; }
+.date-value { font-weight: 500; }
+.date-time { font-size: 0.85rem; opacity: 0.7; }
+.action-buttons { display: flex; align-items: center; gap: 8px; }
+
+.stacked-badges {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+/* Fix for intermittent icon scaling issue */
+.action-buttons .btn-glass svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ==========================================================================
+   Pagination Styles - Relying on .btn-glass
+   ========================================================================== */
+
+.pagination-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0 0 0; /* Adjusted padding */
+    border-top: 1px solid var(--border-color);
+    margin-top: 20px;
+}
+
+.pagination-info {
+    margin-bottom: 15px;
+    color: var(--text-color);
+    opacity: 0.8;
+    font-size: 0.9rem;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px; /* Increased gap for better spacing */
+}
+
+/* Remove custom styles, rely on .btn-glass from main.css */
+.pagination-btn,
+.pagination-number {
+    /* All styling is now handled by .btn-glass */
+}
+
+.pagination-number.active {
+    /* The base style is now handled by .btn-glass, we only add the glow */
+    box-shadow: 0 0 15px var(--glow-color), 0 0 5px var(--glow-color) inset;
+    text-shadow: 0 0 8px #fff;
+    color: #fff;
+}
+
+.pagination-btn.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: rgba(30, 40, 60, 0.1);
+    pointer-events: none; /* Ensure it's not clickable */
+}
+
+.pagination-btn.disabled:hover {
+    box-shadow: none;
+}
+
+.pagination-ellipsis {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    color: rgba(230, 230, 240, 0.9);
+    border: none;
+    background: transparent;
+}
+
+/* ==========================================================================
+   Style Overrides & Fixes
+   ========================================================================== */
+
+/*
+ * FIX: Force display property for pagination links.
+ * The .btn-glass style requires a flex container, but the default 'a' tag
+ * display style can interfere. This ensures they render correctly as buttons.
+ */
+.pagination-controls .pagination-btn,
+.pagination-controls .pagination-number {
+    display: inline-flex;
+}
+
+/* ==========================================================================
+   Column Widths
+   ========================================================================== */
+
+.data-table .col-user-id      { width: 9.5%; }
+.data-table .col-username     { width: 19.1%; }
+.data-table .col-conversations{ width: 7.14%; }
+.data-table .col-dialog-turns { width: 7.14%; }
+.data-table .col-tokens       { width: 14.28%; }
+.data-table .col-tier         { width: 7.14%; }
+.data-table .col-balance      { width: 7.14%; }
+.data-table .col-created-at   { width: 14.28%; }
+.data-table .col-actions      { width: 14.28%; }
+/* Apply tech-savvy font to numbers and English text in the table */
+.data-table td, .data-table td span {
+    font-family: 'Orbitron', 'Mi Sans', 'Microsoft YaHei', sans-serif;
+}
+
+/* Use a monospaced font for User ID for better alignment */
+.data-table .col-user-id {
+    font-family: 'monospace', 'Orbitron', sans-serif;
+    letter-spacing: 0.5px; /* Optional: adjust spacing for clarity */
+}
+/* ==========================================================================
+   Modal Overhaul Styles
+   ========================================================================== */
+
+/* Enhance the main modal container's glass effect */
+.modal-container {
+    background-color: rgba(15, 25, 45, 0.15); /* Transparency adjusted to ~85% */
+    backdrop-filter: blur(3px) saturate(150%); /* Adjusted blur value to 3px */
+    -webkit-backdrop-filter: blur(3px) saturate(150%);
+    border: 1px solid rgba(128, 128, 255, 0.25);
+    box-shadow:
+        inset 0 0 1px 1px rgba(255, 255, 255, 0.1), /* Inner highlight */
+        0 0 40px rgba(0, 212, 255, 0.2), /* Outer glow */
+        0 0 80px rgba(0, 0, 0, 0.5); /* Deeper shadow for depth */
+    max-width: 980px; /* Reduced width by 30% as requested */
+    overflow: hidden; /* Fix for glowing elements overflowing border-radius */
+}
+
+/* Refine the modal header */
+.modal-header {
+    padding: 20px 25px;
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: rotate(90deg) scale(1.1);
+}
+
+/* Refine the modal body */
+.modal-body {
+    padding: 20px 25px;
+    /* overflow-y: auto; */ /* Removed to prevent scrolling as per new requirement */
+}
+
+/* Custom Scrollbar for Modal Body */
+.modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+.modal-body::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+}
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #00ffff;
+}
+
+/* Overhaul the modal footer */
+.modal-footer {
+    padding: 15px 25px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-top: 1px solid rgba(128, 128, 255, 0.25);
+}
+
+/*
+ * Footer buttons now fully rely on .btn-glass and modifier classes (.btn-primary)
+ * from main.css. The conflicting override styles have been removed.
+ * We just ensure the SVG icon has cái margin.
+ */
+.modal-footer .btn-glass > svg {
+    margin-right: 8px;
+}
+/* ==========================================================================
+   Edit User Modal Form Overhaul
+   ========================================================================== */
+
+#userEditModal .modal-body {
+    padding: 10px;
+}
+
+/* This is the new flex container for the 3 cards */
+#userEditModal .form-sections {
+    display: flex;
+    gap: 20px;
+}
+
+#userEditModal .form-section {
+    flex: 1; /* Each card takes equal space */
+    padding: 20px;
+    margin-bottom: 0; /* No margin as gap is handled by flex container */
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    /* Subtle glow effect for the card */
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1); /* Slightly more visible glow */
+    transition: box-shadow 0.3s ease;
+}
+
+#userEditModal .form-section:hover {
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.2);
+}
+
+#userEditModal .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#userEditModal .section-icon {
+    color: var(--primary-color);
+    filter: drop-shadow(0 0 5px var(--glow-color));
+}
+
+#userEditModal .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+#userEditModal .form-grid {
+    display: block; /* Revert from grid to simple block layout */
+}
+
+#userEditModal .form-group {
+    margin-bottom: 18px; /* Space between form groups */
+}
+#userEditModal .form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Divider is no longer needed */
+#userEditModal .form-divider {
+    display: none;
+}
+
+/* Refine form elements to match the new glass theme */
+#userEditModal .form-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-color);
+    opacity: 0.9;
+    margin-bottom: 8px; /* Add space between label and input */
+    display: block; /* Ensure margin is applied */
+}
+
+#userEditModal .form-input,
+#userEditModal .form-select {
+    background-color: rgba(10, 20, 40, 0.2);
+    border: 1px solid rgba(128, 128, 255, 0.3);
+    /* Subtle inner shadow and a very faint outer glow */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 5px rgba(0, 212, 255, 0.05);
+    width: 100%; /* Inputs should fill the form-group, now safe with box-sizing */
+    /* max-width: 300px; */ /* Removed to allow proper filling */
+    transition: all 0.3s ease;
+}
+
+/* Hide arrows from number inputs */
+#userEditModal .form-input[type=number]::-webkit-inner-spin-button,
+#userEditModal .form-input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+#userEditModal .form-input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* Style the dropdown menu */
+#userEditModal .form-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300d4ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    padding-right: 40px;
+}
+
+/*
+Browser rendering limitations prevent styling <option> elements with transparency.
+The following rule is ineffective and has been removed to avoid confusion.
+#userEditModal .form-select option {
+    background-color: rgba(10, 20, 40, 0.9);
+    color: var(--text-color);
+}
+*/
+
+#userEditModal .form-input:focus,
+#userEditModal .form-select:focus {
+    border-color: var(--primary-color);
+    /* Enhance glow on focus */
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0,0,0,0.3);
+}
+
+#userEditModal .input-group .input-prefix {
+    background-color: rgba(0, 0, 0, 0.2); /* Increased transparency */
+    border-color: rgba(128, 128, 255, 0.3);
+}
+/* ==========================================================================
+   User Detail Modal Content Styles
+   ========================================================================== */
+
+.user-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto auto;
+    gap: 20px;
+    grid-template-areas:
+        "profile stats"
+        "config config";
+}
+
+.detail-card {
+    background: rgba(0, 0, 0, 0.05); /* Drastically increased transparency */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.detail-card .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.profile-card { grid-area: profile; }
+.stats-card { grid-area: stats; }
+.config-card { grid-area: config; }
+
+/* Profile Card Styles */
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.profile-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(0, 212, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+.profile-avatar svg { color: var(--primary-color); }
+.profile-info { flex-grow: 1; }
+.profile-name { font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; }
+.profile-username { font-size: 0.9rem; color: var(--text-color); opacity: 0.7; margin: 4px 0 0; }
+.profile-tier { align-self: flex-start; }
+
+.profile-body .info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.profile-body .info-item:last-child { border-bottom: none; }
+.info-label { color: var(--text-color); opacity: 0.8; }
+.info-value { font-weight: 500; color: #fff; }
+.user-id-mono { font-family: 'monospace'; letter-spacing: 0.5px; }
+
+/* Stats Card Styles */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+.stat-item {
+    background: rgba(0, 0, 0, 0.08); /* Drastically increased transparency */
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    /* Add a faint, persistent glow */
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.15); /* Slightly more visible glow */
+    transition: box-shadow 0.3s ease;
+}
+
+.stat-item:hover {
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.25);
+}
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: 'Orbitron', sans-serif;
+}
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+/* Config Card Styles */
+.config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+.config-item {
+    background: rgba(0, 0, 0, 0.08); /* Drastically increased transparency */
+    padding: 12px 15px;
+    border-radius: 8px;
+    /* Add a faint, persistent glow */
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+    transition: box-shadow 0.3s ease;
+}
+
+.config-item:hover {
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.25);
+}
+.config-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin-bottom: 4px;
+}
+.config-value {
+    font-family: 'monospace';
+    font-size: 0.9rem;
+    color: #fff;
+    word-wrap: break-word;
+}
+
+/* Badge styles inside modal */
+.detail-card .badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+}
+.badge.warning { background-color: #ffc107; color: #000; }
+.badge.danger { background-color: #dc3545; color: #fff; }
+.badge.secondary { background-color: #6c757d; color: #fff; }
+
+/* Loading and Error States */
+.loading-state, .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+.error-state svg {
+    color: #dc3545;
+    margin-bottom: 15px;
+}
+.error-state h3 {
+    margin: 0 0 10px 0;
+    color: #fff;
+}
+
+/* ==========================================================================
+   Final Badge Style Overhaul
+   ========================================================================== */
+/* Applying glassmorphism effect to badges in the data table. */
+/* Applying glassmorphism effect to ALL badges */
+.badge {
+    display: inline-block;
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    padding: 5px 10px;
+    font-weight: 600;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    color: #fff;
+}
+
+.badge.secondary {
+    background-color: rgba(108, 117, 125, 0.3); /* Gray glass */
+}
+
+.badge.warning {
+    background-color: rgba(255, 193, 7, 0.3); /* Yellow glass */
+}
+
+.badge.danger {
+    background-color: rgba(220, 53, 69, 0.3); /* Red glass */
+}
+
+/* Ensure specificity for modal badges if needed, but the general rule should cover it */
+.detail-card .badge {
+    font-size: 0.8rem; /* Keep slightly smaller size in detail view */
+    padding: 4px 8px;
+}
+
+/* As per user feedback, user-id should be plain text: no border, no background. */
+.badge.primary.user-id {
+    border: none;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 0;
+    text-shadow: none;
+    font-weight: 500; /* A bit of weight to stand out, but not bold */
+    color: var(--text-color); /* Ensure it's readable */
+    vertical-align: baseline; /* Align with surrounding text */
+}
+/* ==========================================================================
+   Custom Select Dropdown
+   ========================================================================== */
+
+.custom-select-wrapper {
+    position: relative;
+}
+
+.original-select {
+    display: none; /* Hide the original select */
+}
+
+.custom-select {
+    position: relative;
+    width: 100%;
+}
+
+.custom-select-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    cursor: pointer;
+    width: 100%;
+    
+    /* Inherit the glass style from form-input */
+    background-color: rgba(10, 20, 40, 0.2);
+    border: 1px solid rgba(128, 128, 255, 0.3);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1rem;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 5px rgba(0, 212, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+.custom-select.open .custom-select-trigger {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.arrow-container {
+    transition: transform 0.3s ease;
+}
+
+.custom-select.open .arrow-container {
+    transform: rotate(180deg);
+}
+
+.arrow-container svg {
+    color: var(--primary-color);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+.custom-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    z-index: 100;
+    border-radius: 12px;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+
+    /* The desired glass effect for the dropdown */
+    background-color: rgba(15, 25, 45, 0.5);
+    backdrop-filter: blur(5px) saturate(150%);
+    -webkit-backdrop-filter: blur(5px) saturate(150%);
+    border: 1px solid rgba(128, 128, 255, 0.25);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.custom-select.open .custom-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.custom-option {
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: var(--text-color);
+    border-bottom: 1px solid rgba(128, 128, 255, 0.1);
+}
+
+.custom-option:last-child {
+    border-bottom: none;
+}
+
+.custom-option:hover {
+    background-color: rgba(0, 212, 255, 0.15);
+}
+
+.custom-option.selected {
+    background-color: rgba(0, 212, 255, 0.25);
+    font-weight: 600;
+    color: #fff;
+}
+/* ==========================================================================
+   Page-specific table layouts
+   ========================================================================== */
+
+/* Conversations Page Table Layout */
+.page-conversations .data-table th:nth-child(1),
+.page-conversations .data-table td:nth-child(1) { display: none; } /* 隐藏对话ID列 */
+
+.page-conversations .data-table th:nth-child(2) { width: 12%; } /* 用户 */
+.page-conversations .data-table th:nth-child(3) { width: 12%; } /* 角色/预设 */
+.page-conversations .data-table th:nth-child(4) { width: 37%; } /* 摘要 */
+.page-conversations .data-table th:nth-child(5) { width: 8%; }  /* 轮数/状态 */
+.page-conversations .data-table th:nth-child(6) { width: 10%; } /* 创建时间 */
+.page-conversations .data-table th:nth-child(7) { width: 10%; } /* 更新时间 */
+.page-conversations .data-table th:nth-child(8) { width: 11%; }  /* 操作 */
+
+/* Groups Page Table Layout */
+.page-groups .data-table th:nth-child(1) { width: 25%; } /* 群组名称 */
+.page-groups .data-table th:nth-child(2) { width: 8%;  } /* 调用次数 */
+.page-groups .data-table th:nth-child(3) { width: 15%; } /* 角色/API */
+.page-groups .data-table th:nth-child(4) { width: 8%;  } /* 触发几率 */
+.page-groups .data-table th:nth-child(5) { width: 14%; } /* Token使用 */
+.page-groups .data-table th:nth-child(6) { width: 15%; } /* 更新时间 */
+.page-groups .data-table th:nth-child(7) { width: 15%; } /* 操作 */

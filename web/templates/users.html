@@ -5,7 +5,7 @@
 {% block page_title %}用户管理{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/users-modern.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_glass.css') }}">
 {% endblock %}
 
 
@@ -19,30 +19,38 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     </div>
                     <div class="header-text">
-                        <h3>用户管理</h3>
+                        <h3>用户列表</h3>
                         <p class="header-subtitle">管理系统用户信息和权限</p>
                     </div>
                 </div>
                 <div class="search-container">
-                    <form method="GET" class="search-form">
-                        <div class="search-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <form method="GET" action="{{ url_for('admin.users') }}" class="search-form">
+                        <div class="search-input-wrapper">
+                            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" name="search" class="search-input" placeholder="搜索用户ID、用户名..." value="{{ search_term or '' }}" aria-label="搜索用户">
+                            <div class="search-loading" style="display: none;"></div>
+                            {% if search_term %}
+                            <a href="{{ url_for('admin.users') }}" class="clear-button" aria-label="清除搜索">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </a>
+                            {% endif %}
                         </div>
-                        <input type="text" name="search" class="search-input" 
-                               placeholder="搜索用户ID、用户名..." value="{{ search_term or '' }}"
-                               aria-label="搜索用户">
-                        <div class="search-loading"></div>
-                        {% if search_term %}
-                        <a href="{{ url_for('admin.users') }}" class="clear-button" aria-label="清除搜索">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </a>
-                        {% endif %}
-                        <button type="submit" class="search-button" aria-label="搜索">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <button type="submit" class="btn-glass" aria-label="搜索">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-button-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <span>搜索</span>
                         </button>
                     </form>
                     {% if search_term %}
-                    <div class="search-status">找到与 "{{ search_term }}" 相关的结果</div>
+                    <div class="search-status">
+                        <span>找到与 "<strong>{{ search_term }}</strong>" 相关的结果</span>
+                        <a href="{{ url_for('admin.users') }}" class="clear-search-link">清除搜索</a>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -50,10 +58,11 @@
         <div class="card-body">
             <!-- 用户表格 -->
             <div class="table-container">
-                <table class="data-table">
+                <div class="table-scroll-wrapper">
+                    <table class="data-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-sort="number">
+                            <th class="sortable col-user-id" data-sort="number">
                                 <a href="{{ url_for('admin.users', sort_by='uid', sort_order=next_sort_order('uid')) }}">
                                     <span>用户ID</span>
                                     <span class="sort-indicator">
@@ -64,7 +73,7 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="text">
+                            <th class="sortable col-username" data-sort="text">
                                 <a href="{{ url_for('admin.users', sort_by='user_name', sort_order=next_sort_order('user_name')) }}">
                                     <span>用户名</span>
                                     <span class="sort-indicator">
@@ -75,20 +84,10 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('admin.users', sort_by='first_name', sort_order=next_sort_order('first_name')) }}">
-                                    <span>姓名</span>
-                                    <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
-                                    </span>
-                                </a>
-                            </th>
-                            <th class="sortable" data-sort="number">
+                            <!-- The 'Name' column is now merged with 'Username' -->
+                            <th class="sortable col-conversations" data-sort="number">
                                 <a href="{{ url_for('admin.users', sort_by='conversations', sort_order=next_sort_order('conversations')) }}">
-                                    <span>对话数</span>
+                                    <span>对话</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
                                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -97,9 +96,9 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="number">
+                            <th class="sortable col-dialog-turns" data-sort="number">
                                 <a href="{{ url_for('admin.users', sort_by='dialog_turns', sort_order=next_sort_order('dialog_turns')) }}">
-                                    <span>对话轮数</span>
+                                    <span>轮数</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
                                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -108,9 +107,9 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="number">
+                            <th class="sortable col-tokens" data-sort="number">
                                 <a href="{{ url_for('admin.users', sort_by='input_tokens', sort_order=next_sort_order('input_tokens')) }}">
-                                    <span>输入Token</span>
+                                    <span>Token (输入/输出)</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
                                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -119,20 +118,9 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.users', sort_by='output_tokens', sort_order=next_sort_order('output_tokens')) }}">
-                                    <span>输出Token</span>
-                                    <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
-                                    </span>
-                                </a>
-                            </th>
-                            <th class="sortable" data-sort="number">
+                            <th class="sortable col-tier" data-sort="number">
                                 <a href="{{ url_for('admin.users', sort_by='account_tier', sort_order=next_sort_order('account_tier')) }}">
-                                    <span>账户等级</span>
+                                    <span>等级</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
                                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -141,18 +129,7 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.users', sort_by='remain_frequency', sort_order=next_sort_order('remain_frequency')) }}">
-                                    <span>剩余额度</span>
-                                    <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
-                                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                                            <polyline points="19 12 12 19 5 12"></polyline>
-                                        </svg>
-                                    </span>
-                                </a>
-                            </th>
-                            <th class="sortable" data-sort="number">
+                            <th class="sortable col-balance" data-sort="number">
                                 <a href="{{ url_for('admin.users', sort_by='balance', sort_order=next_sort_order('balance')) }}">
                                     <span>余额</span>
                                     <span class="sort-indicator">
@@ -163,9 +140,9 @@
                                     </span>
                                 </a>
                             </th>
-                            <th class="sortable" data-sort="date">
+                            <th class="sortable col-created-at" data-sort="date">
                                 <a href="{{ url_for('admin.users', sort_by='create_at', sort_order=next_sort_order('create_at')) }}">
-                                    <span>注册时间</span>
+                                    <span>注册于</span>
                                     <span class="sort-indicator">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both">
                                             <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -174,14 +151,14 @@
                                     </span>
                                 </a>
                             </th>
-                            <th>操作</th>
+                            <th class="col-actions">操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for user in users %}
                         <tr class="table-row-interactive">
                             <td><span class="badge primary user-id">{{ user.uid }}</span></td>
-                            <td>
+                            <td class="user-details-cell">
                                 <div class="user-info">
                                     <div class="user-avatar">
                                         <div class="avatar-image">
@@ -192,15 +169,17 @@
                                         </div>
                                     </div>
                                     <div class="user-details">
-                                        <span class="user-name">{{ user.user_name or '未设置' }}</span>
+                                        <span class="user-name">{{ (user.first_name or '') ~ ' ' ~ (user.last_name or '') | trim or user.user_name or '未设置' }}</span>
+                                        <span class="user-username text-muted">@{{ user.user_name or 'N/A' }}</span>
                                     </div>
                                 </div>
                             </td>
-                            <td class="user-fullname">{{ (user.first_name or '') + ' ' + (user.last_name or '') }}</td>
+                            <!-- The 'Name' column data is now merged into the 'Username' column -->
                             <td><span class="data-value">{{ user.conversations or 0 }}</span></td>
                             <td><span class="data-value">{{ user.dialog_turns or 0 }}</span></td>
-                            <td><span class="data-value token-input">{{ user.input_tokens | format_tokens_m }}</span></td>
-                            <td><span class="data-value token-output">{{ user.output_tokens | format_tokens_m }}</span></td>
+                            <td>
+                                <span class="data-value token-input">{{ user.input_tokens | format_large_number }}</span> / <span class="data-value token-output">{{ user.output_tokens | format_large_number }}</span>
+                            </td>
                             <td>
                                 <span class="data-value">
                                 {% if user.account_tier == 1 %}
@@ -212,7 +191,6 @@
                                 {% endif %}
                                 </span>
                             </td>
-                            <td><span class="data-value">{{ user.remain_frequency or 0 }}</span></td>
                             <td>
                                 <span class="data-value balance-amount {% if not user.balance %}balance-zero{% endif %}">
                                     ¥{{ "%.2f"|format(user.balance or 0) }}
@@ -226,27 +204,19 @@
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button type="button" class="btn btn-icon btn-sm view-user-btn"
+                                    <button type="button" class="btn-glass btn-icon btn-sm view-user-btn"
                                             data-uid="{{ user.uid }}"
                                             title="查看详情" aria-label="查看用户详情">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                        </svg>
+                                        <span>👁️</span>
                                     </button>
-                                    <button type="button" class="btn btn-icon btn-sm edit-user-btn"
+                                    <button type="button" class="btn-glass btn-icon btn-sm edit-user-btn"
                                             data-uid="{{ user.uid }}"
                                             title="快速编辑" aria-label="编辑用户">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                        </svg>
+                                        <span>✏️</span>
                                     </button>
                                     <a href="{{ url_for('admin.conversations', search=user.uid) }}"
-                                       class="btn btn-icon btn-sm" title="查看对话" aria-label="查看对话">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                        </svg>
+                                       class="btn-glass btn-icon btn-sm" title="查看对话" aria-label="查看对话">
+                                        <span>💬</span>
                                     </a>
                                 </div>
                             </td>
@@ -254,6 +224,7 @@
                         {% endfor %}
                     </tbody>
                     </table>
+                </div>
             </div>
 
             <!-- 分页 -->
@@ -264,8 +235,8 @@
                 </div>
                 <div class="pagination-controls">
                     {% if page > 1 %}
-                        <a href="{{ url_for('admin.users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
-                           class="pagination-btn pagination-prev" aria-label="上一页">
+                        <a href="{{ url_for('admin.users', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                           class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="15 18 9 12 15 6"></polyline>
                             </svg>
@@ -283,9 +254,9 @@
                     <div class="pagination-numbers">
                         {% for p in range(1, total_pages + 1) %}
                             {% if p == page %}
-                                <span class="pagination-number active">{{ p }}</span>
+                                <span class="btn-glass pagination-number active">{{ p }}</span>
                             {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
-                                <a href="{{ url_for('admin.users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="pagination-number">{{ p }}</a>
+                                <a href="{{ url_for('admin.users', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-number">{{ p }}</a>
                             {% elif p == 4 or p == total_pages - 3 %}
                                 <span class="pagination-ellipsis">…</span>
                             {% endif %}
@@ -293,8 +264,8 @@
                     </div>
                     
                     {% if page < total_pages %}
-                        <a href="{{ url_for('admin.users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" 
-                           class="pagination-btn pagination-next" aria-label="下一页">
+                        <a href="{{ url_for('admin.users', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                           class="btn-glass pagination-btn pagination-next" aria-label="下一页">
                             <span>下一页</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polyline points="9 18 15 12 9 6"></polyline>
@@ -314,9 +285,11 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block modals %}
 <!-- 用户详情模态框 -->
-<div class="modal-overlay" id="userDetailModal" style="display: none;">
+<div class="modal-overlay" id="userDetailModal">
     <div class="modal-container modal-large">
         <div class="modal-header">
             <div class="modal-title-section">
@@ -331,7 +304,7 @@
                     <p class="modal-subtitle">查看用户的详细信息和统计数据</p>
                 </div>
             </div>
-            <button class="modal-close" onclick="closeModal('userDetailModal')" aria-label="关闭">
+            <button class="modal-close" aria-label="关闭">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -350,7 +323,7 @@
 </div>
 
 <!-- 用户编辑模态框 -->
-<div class="modal-overlay" id="userEditModal" style="display: none;">
+<div class="modal-overlay" id="userEditModal">
     <div class="modal-container modal-large">
         <div class="modal-header">
             <div class="modal-title-section">
@@ -365,7 +338,7 @@
                     <p class="modal-subtitle">修改用户的基本信息和账户设置</p>
                 </div>
             </div>
-            <button class="modal-close" onclick="closeModal('userEditModal')" aria-label="关闭">
+            <button class="modal-close" aria-label="关闭">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -393,16 +366,16 @@
                                 <input type="text" class="form-input" id="editUserName" name="user_name" placeholder="请输入用户名">
                             </div>
                             <div class="form-group">
+                                <label for="editNick" class="form-label">昵称</label>
+                                <input type="text" class="form-input" id="editNick" name="nick" placeholder="RN">
+                            </div>
+                            <div class="form-group">
                                 <label for="editFirstName" class="form-label">名</label>
-                                <input type="text" class="form-input" id="editFirstName" name="first_name" placeholder="请输入名">
+                                <input type="text" class="form-input" id="editFirstName" name="first_name" placeholder="R">
                             </div>
                             <div class="form-group">
                                 <label for="editLastName" class="form-label">姓</label>
-                                <input type="text" class="form-input" id="editLastName" name="last_name" placeholder="请输入姓">
-                            </div>
-                            <div class="form-group">
-                                <label for="editNick" class="form-label">昵称</label>
-                                <input type="text" class="form-input" id="editNick" name="nick" placeholder="请输入昵称">
+                                <input type="text" class="form-input" id="editLastName" name="last_name" placeholder="N">
                             </div>
                         </div>
                     </div>
@@ -423,11 +396,26 @@
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="editAccountTier" class="form-label">账户等级</label>
-                                <select class="form-input form-select" id="editAccountTier" name="account_tier">
-                                    <option value="0">普通用户</option>
-                                    <option value="1">VIP用户</option>
-                                    <option value="2">SVIP用户</option>
-                                </select>
+                                <div class="custom-select-wrapper">
+                                    <select class="original-select" id="editAccountTier" name="account_tier">
+                                        <option value="0">普通用户</option>
+                                        <option value="1">VIP用户</option>
+                                        <option value="2">SVIP用户</option>
+                                    </select>
+                                    <div class="custom-select">
+                                        <div class="custom-select-trigger">
+                                            <span>普通用户</span>
+                                            <div class="arrow-container">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                            </div>
+                                        </div>
+                                        <div class="custom-options">
+                                            <div class="custom-option" data-value="0"><span>普通用户</span></div>
+                                            <div class="custom-option" data-value="1"><span>VIP用户</span></div>
+                                            <div class="custom-option" data-value="2"><span>SVIP用户</span></div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="editRemainFrequency" class="form-label">剩余额度</label>
@@ -478,10 +466,7 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeModal('userEditModal')">
-                <span>取消</span>
-            </button>
-            <button type="button" class="btn btn-primary" onclick="saveUserChanges()">
+            <button type="button" class="btn-glass btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                     <polyline points="17 21 17 13 7 13 7 21"></polyline>

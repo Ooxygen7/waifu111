@@ -1,3 +1,6 @@
+* {
+    box-sizing: border-box;
+}
 /*
  * CyberWaifu Bot Admin Panel - Main Stylesheet
  * Theme: Cyberpunk Dark
@@ -488,4 +491,261 @@ a:hover {
 
 body.sidebar-collapsed .main-content {
     margin-left: 120px;
+}
+/* ==========================================================================
+   Modern Form Styles
+   ========================================================================== */
+
+.modern-form .form-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.modern-form .form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modern-form .form-input,
+.modern-form .form-select {
+    width: 100%;
+    padding: 12px 15px;
+    background-color: rgba(10, 20, 40, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.modern-form .form-input:focus,
+.modern-form .form-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5), inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.modern-form .input-group {
+    display: flex;
+}
+
+.modern-form .input-group .input-prefix {
+    padding: 12px 15px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    color: var(--primary-color);
+}
+
+.modern-form .input-group .form-input {
+    border-radius: 0 8px 8px 0;
+}
+
+/* ==========================================================================
+   Modal Styles
+   ========================================================================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(10, 10, 26, 0.1); /* Further reduce overlay darkness */
+    /* backdrop-filter: blur(10px) saturate(150%); -- Removed as per request */
+    /* -webkit-backdrop-filter: blur(10px) saturate(150%); -- Removed as per request */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s;
+    pointer-events: none;
+    visibility: hidden;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+}
+
+.modal-container {
+    /* Apply glass-card effect */
+    background-color: rgba(10, 20, 30, 0.2);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    border: 1px solid rgba(128, 128, 255, 0.2);
+    border-radius: 15px;
+    box-shadow: inset 0 0 80px rgba(128, 128, 255, 0.1), 0 0 30px rgba(0, 212, 255, 0.2);
+    width: 90%;
+    max-width: 800px;
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.modal-overlay.active .modal-container {
+    transform: scale(1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 30px;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+}
+
+.modal-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+    animation: modal-header-glow 4s linear infinite;
+}
+
+@keyframes modal-header-glow {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.modal-title-section {
+    display: flex;
+    align-items: center;
+}
+
+.modal-icon {
+    color: var(--primary-color);
+    margin-right: 15px;
+}
+
+.modal-title {
+    font-family: var(--font-family);
+    font-size: 1.5rem;
+    color: #fff;
+    text-shadow: 0 0 10px var(--glow-color);
+    margin: 0;
+}
+
+.modal-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    opacity: 0.8;
+    margin: 0;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 5px;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    color: var(--primary-color);
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 20px 30px;
+    border-top: 1px solid var(--border-color);
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 0 0 15px 15px;
+}
+
+.modal-footer .btn {
+    margin-left: 10px;
+}
+
+/* ==========================================================================
+   Search Box Styles
+   ========================================================================== */
+
+.search-container {
+    position: relative;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    background-color: rgba(10, 20, 40, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 25px;
+    padding: 5px;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+}
+
+.search-form:focus-within {
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+    border-color: var(--primary-color);
+}
+
+.search-icon {
+    color: var(--primary-color);
+    padding: 0 10px;
+}
+
+.search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-size: 1rem;
+    width: 250px;
+}
+
+.search-input::placeholder {
+    color: rgba(224, 224, 224, 0.5);
+}
+
+.search-button {
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--background-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.search-button:hover {
+    box-shadow: 0 0 10px var(--glow-color);
+}
+
+.clear-button {
+    color: var(--text-color);
+    margin: 0 10px;
+    display: flex;
+    align-items: center;
 }
