@@ -31,3 +31,6 @@ config/config_local.json
 data/pics/*.jpg
 data/pics/*.txt
 
+.DS_Store
+characters/初音未来_7007822593.json
+characters/初音未来_7007822593_248132_del.json

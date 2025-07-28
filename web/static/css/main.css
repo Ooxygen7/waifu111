@@ -1,6 +1,7 @@
 * {
     box-sizing: border-box;
 }
+
 /*
  * CyberWaifu Bot Admin Panel - Main Stylesheet
  * Theme: Cyberpunk Dark
@@ -30,7 +31,8 @@ body {
     padding: 0;
     line-height: 1.6;
     overflow-x: hidden;
-    position: relative; /* Needed for z-index on pseudo-element */
+    position: relative;
+    /* Needed for z-index on pseudo-element */
     z-index: 1;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='90'%3E%3Cpath d='M26 0 L52 15 L52 45 L26 60 L0 45 L0 15 Z' fill='none' stroke='rgba(0, 212, 255, 0.1)' stroke-width='1.5'/%3E%3Cpath d='M0 45 l26 15 v30' fill='none' stroke='rgba(0, 212, 255, 0.1)' stroke-width='1.5'/%3E%3Cpath d='M52 45 l-26 15' fill='none' stroke='rgba(0, 212, 255, 0.1)' stroke-width='1.5'/%3E%3C/svg%3E");
 }
@@ -44,13 +46,13 @@ body::after {
     height: 100%;
     pointer-events: none;
     z-index: -1;
-    
+
     background: radial-gradient(circle at var(--x) var(--y), var(--primary-color) 0%, transparent 20%);
     opacity: 0.4;
 
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='90'%3E%3Cpath d='M26 0 L52 15 L52 45 L26 60 L0 45 L0 15 Z' fill='none' stroke='white' stroke-width='1.5'/%3E%3Cpath d='M0 45 l26 15 v30' fill='none' stroke='white' stroke-width='1.5'/%3E%3Cpath d='M52 45 l-26 15' fill='none' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='90'%3E%3Cpath d='M26 0 L52 15 L52 45 L26 60 L0 45 L0 15 Z' fill='none' stroke='white' stroke-width='1.5'/%3E%3Cpath d='M0 45 l26 15 v30' fill='none' stroke='white' stroke-width='1.5'/%3E%3Cpath d='M52 45 l-26 15' fill='none' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E");
-    
+
     animation: background-glow-move 20s linear infinite;
 }
 
@@ -59,18 +61,22 @@ body::after {
         --x: -25%;
         --y: -25%;
     }
+
     25% {
         --x: 125%;
         --y: 50%;
     }
+
     50% {
         --x: 50%;
         --y: 125%;
     }
+
     75% {
         --x: -25%;
         --y: 50%;
     }
+
     100% {
         --x: -25%;
         --y: -25%;
@@ -86,19 +92,24 @@ body::after {
 /* Sidebar */
 .sidebar {
     width: 250px;
-    background-color: rgba(10, 10, 26, 0.1); /* Increased transparency */
-    backdrop-filter: blur(3px); /* Further reduced blur */
+    background-color: rgba(10, 10, 26, 0.1);
+    /* Increased transparency */
+    backdrop-filter: blur(3px);
+    /* Further reduced blur */
     -webkit-backdrop-filter: blur(3px);
-    border-right: 1px solid rgba(255, 255, 255, 0.1); /* Brighter border */
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    /* Brighter border */
     padding: 20px;
     display: flex;
     flex-direction: column;
     transition: width 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
-    position: fixed; /* Keep sidebar fixed on scroll */
+    position: fixed;
+    /* Keep sidebar fixed on scroll */
     top: 0;
     left: 0;
     height: 100vh;
-    z-index: 1000; /* High z-index for fixed positioning */
+    z-index: 1000;
+    /* High z-index for fixed positioning */
 }
 
 .sidebar::after {
@@ -109,8 +120,10 @@ body::after {
     right: 0;
     bottom: 0;
     pointer-events: none;
-    border-radius: inherit; /* Match parent's rounding if any */
-    box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.2), 0 0 8px rgba(0, 212, 255, 0.3); /* Added outer glow */
+    border-radius: inherit;
+    /* Match parent's rounding if any */
+    box-shadow: inset 0 0 2px rgba(255, 255, 255, 0.2), 0 0 8px rgba(0, 212, 255, 0.3);
+    /* Added outer glow */
 }
 
 .sidebar-header {
@@ -149,12 +162,15 @@ body::after {
     flex: 1;
     padding: 30px;
     margin: 20px;
-    margin-left: 290px; /* Increased offset for fixed sidebar */
+    margin-left: 290px;
+    /* Increased offset for fixed sidebar */
     transition: margin-left 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
     border-radius: 15px;
     position: relative;
-    background-color: rgba(10, 20, 30, 0.2); /* Adjusted for better visibility */
-    backdrop-filter: blur(3px) saturate(120%); /* Further reduced blur */
+    background-color: rgba(10, 20, 30, 0.2);
+    /* Adjusted for better visibility */
+    backdrop-filter: blur(3px) saturate(120%);
+    /* Further reduced blur */
     -webkit-backdrop-filter: blur(3px) saturate(120%);
     border: 1px solid rgba(128, 128, 255, 0.15);
 }
@@ -188,6 +204,7 @@ body::after {
     text-shadow: 0 0 15px var(--glow-color);
     margin: 0;
 }
+
 /* Navigation Menu */
 .nav-menu {
     list-style: none;
@@ -201,18 +218,31 @@ body::after {
 }
 
 @keyframes breathing-glow {
-    0% { box-shadow: 0 0 8px rgba(170, 120, 255, 0.4); border-color: rgba(170, 120, 255, 0.4); }
-    50% { box-shadow: 0 0 16px rgba(170, 120, 255, 0.8); border-color: rgba(170, 120, 255, 0.8); }
-    100% { box-shadow: 0 0 8px rgba(170, 120, 255, 0.4); border-color: rgba(170, 120, 255, 0.4); }
+    0% {
+        box-shadow: 0 0 8px rgba(170, 120, 255, 0.4);
+        border-color: rgba(170, 120, 255, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 16px rgba(170, 120, 255, 0.8);
+        border-color: rgba(170, 120, 255, 0.8);
+    }
+
+    100% {
+        box-shadow: 0 0 8px rgba(170, 120, 255, 0.4);
+        border-color: rgba(170, 120, 255, 0.4);
+    }
 }
 
 @keyframes slide-glow {
     0% {
         background-position: 0% 50%;
     }
+
     50% {
         background-position: 100% 50%;
     }
+
     100% {
         background-position: 0% 50%;
     }
@@ -291,7 +321,7 @@ body::after {
     left: -50%;
     width: 20px;
     height: 100%;
-    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%);
+    background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.3) 50%, rgba(255, 255, 255, 0) 100%);
     transform: skewX(-25deg);
     transition: left 0.5s ease;
 }
@@ -313,6 +343,7 @@ body::after {
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
 }
+
 /* Buttons */
 .btn {
     background-color: transparent;
@@ -469,6 +500,7 @@ a:hover {
     font-size: 0.8rem;
     opacity: 0.7;
 }
+
 /* Collapsed Sidebar Styles */
 .sidebar.collapsed {
     width: 80px;
@@ -492,6 +524,7 @@ a:hover {
 body.sidebar-collapsed .main-content {
     margin-left: 120px;
 }
+
 /* ==========================================================================
    Modern Form Styles
    ========================================================================== */
@@ -523,14 +556,14 @@ body.sidebar-collapsed .main-content {
     transition: all 0.3s ease;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .modern-form .form-input:focus,
 .modern-form .form-select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5), inset 0 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5), inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .modern-form .input-group {
@@ -560,7 +593,8 @@ body.sidebar-collapsed .main-content {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(10, 10, 26, 0.1); /* Further reduce overlay darkness */
+    background-color: rgba(10, 10, 26, 0.1);
+    /* Further reduce overlay darkness */
     /* backdrop-filter: blur(10px) saturate(150%); -- Removed as per request */
     /* -webkit-backdrop-filter: blur(10px) saturate(150%); -- Removed as per request */
     display: flex;
@@ -621,8 +655,13 @@ body.sidebar-collapsed .main-content {
 }
 
 @keyframes modal-header-glow {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
 }
 
 .modal-title-section {
@@ -674,7 +713,7 @@ body.sidebar-collapsed .main-content {
     justify-content: flex-end;
     padding: 20px 30px;
     border-top: 1px solid var(--border-color);
-    background-color: rgba(0,0,0,0.2);
+    background-color: rgba(0, 0, 0, 0.2);
     border-radius: 0 0 15px 15px;
 }
 
@@ -686,66 +725,9 @@ body.sidebar-collapsed .main-content {
    Search Box Styles
    ========================================================================== */
 
-.search-container {
-    position: relative;
-}
-
-.search-form {
-    display: flex;
-    align-items: center;
-    background-color: rgba(10, 20, 40, 0.5);
-    border: 1px solid var(--border-color);
-    border-radius: 25px;
-    padding: 5px;
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-    transition: all 0.3s ease;
-}
-
-.search-form:focus-within {
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
-    border-color: var(--primary-color);
-}
-
-.search-icon {
-    color: var(--primary-color);
-    padding: 0 10px;
-}
-
-.search-input {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-color);
-    font-size: 1rem;
-    width: 250px;
-}
-
-.search-input::placeholder {
-    color: rgba(224, 224, 224, 0.5);
-}
-
-.search-button {
-    background-color: var(--primary-color);
-    border: none;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--background-color);
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.search-button:hover {
-    box-shadow: 0 0 10px var(--glow-color);
-}
-
-.clear-button {
-    color: var(--text-color);
-    margin: 0 10px;
-    display: flex;
-    align-items: center;
-}
+/*
+  NOTE: The generic search box styles have been removed from main.css
+  as they were conflicting with the more specific styles in admin_glass.css.
+  All search box styling is now handled by admin_glass.css to ensure
+  a consistent look and feel across all admin pages.
+*/

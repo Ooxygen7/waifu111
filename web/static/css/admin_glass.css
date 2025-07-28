@@ -60,16 +60,39 @@
     flex-wrap: wrap;
 }
 
-.header-title { display: flex; align-items: center; gap: 15px; }
-.header-icon svg { color: var(--primary-color); filter: drop-shadow(0 0 5px var(--glow-color)); }
-.header-text h3 { margin: 0; font-size: 1.5rem; color: #fff; font-weight: 600; }
-.header-subtitle { margin: 5px 0 0; color: var(--text-color); opacity: 0.8; }
+.header-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.header-icon svg {
+    color: var(--primary-color);
+    filter: drop-shadow(0 0 5px var(--glow-color));
+}
+
+.header-text h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #fff;
+    font-weight: 600;
+}
+
+.header-subtitle {
+    margin: 5px 0 0;
+    color: var(--text-color);
+    opacity: 0.8;
+}
 
 /* ==========================================================================
    Search Component Styles - Using .btn-glass
    ========================================================================== */
 
-.search-container { flex-grow: 1; max-width: 500px; }
+.search-container {
+    flex-grow: 1;
+    max-width: 500px;
+}
+
 .search-form {
     display: flex;
     gap: 10px;
@@ -79,6 +102,7 @@
     border: none;
     padding: 0;
 }
+
 .search-input-wrapper {
     flex-grow: 1;
     position: relative;
@@ -92,33 +116,81 @@
     backdrop-filter: blur(2px) saturate(100%);
     -webkit-backdrop-filter: blur(2px) saturate(100%);
 }
-.search-input-wrapper:focus-within { border-color: var(--primary-color); box-shadow: 0 0 10px var(--glow-color); }
-.search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-color); opacity: 0.7; pointer-events: none; }
-.search-input { width: 100%; padding: 12px 15px 12px 45px; background: transparent; border: none; outline: none; color: var(--text-color); font-size: 1rem; font-family: var(--font-family-body); }
-.search-input::placeholder { color: var(--text-color); opacity: 0.5; }
-.clear-button { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-color); opacity: 0.7; transition: all 0.2s ease; }
-.clear-button:hover { color: #fff; opacity: 1; transform: translateY(-50%) scale(1.1); }
-/* The .search-button now fully relies on .btn-glass from main.css */
-.search-form .search-button {
-    /* Force glass styles to override potential conflicts */
-    background: var(--glass-bg-dark) !important;
-    border: 1px solid var(--glass-border-color) !important;
-    color: var(--text-color) !important;
-    backdrop-filter: blur(5px) !important;
-    -webkit-backdrop-filter: blur(5px) !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-    transition: all 0.3s ease !important;
-    border-radius: 8px !important; /* Ensure consistent corner radius */
+
+.search-input-wrapper:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px var(--glow-color);
 }
-.search-form .search-button:hover {
-    border-color: var(--primary-color) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 10px var(--glow-color) !important;
-    transform: translateY(-2px) !important;
-    color: #fff !important;
+
+.search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color);
+    opacity: 0.7;
+    pointer-events: none;
 }
-.search-button .search-button-icon { display: none; }
-.search-status { margin-top: 12px; padding: 8px 12px; background: rgba(0, 212, 255, 0.1); border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem; color: var(--text-color); display: flex; justify-content: space-between; align-items: center; }
-.clear-search-link { font-size: 0.85rem; font-weight: 600; }
+
+.search-input {
+    width: 100%;
+    padding: 12px 15px 12px 45px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-size: 1rem;
+    font-family: var(--font-family-body);
+}
+
+.search-input::placeholder {
+    color: var(--text-color);
+    opacity: 0.5;
+}
+
+.clear-button {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.clear-button:hover {
+    color: #fff;
+    opacity: 1;
+    transform: translateY(-50%) scale(1.1);
+}
+
+/*
+  The problematic .search-form .search-button rule has been removed.
+  All search buttons now correctly and exclusively use the .btn-glass
+  class for consistent styling, resolving the override issue.
+*/
+
+.search-button .search-button-icon {
+    display: none;
+}
+
+.search-status {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.clear-search-link {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
 
 /* ==========================================================================
    Table Styles
@@ -128,17 +200,21 @@
     0% {
         box-shadow: 0 0 15px -5px rgba(0, 212, 255, 0.3), 0 0 25px -10px rgba(255, 0, 255, 0.3);
     }
+
     50% {
         box-shadow: 0 0 25px -5px rgba(0, 212, 255, 0.6), 0 0 35px -10px rgba(255, 0, 255, 0.6);
     }
+
     100% {
         box-shadow: 0 0 15px -5px rgba(0, 212, 255, 0.3), 0 0 25px -10px rgba(255, 0, 255, 0.3);
     }
 }
 
 .table-container {
-    overflow: hidden; /* Important for child border-radius to work */
-    border-radius: 10px; /* Rounded corners for the whole container */
+    overflow: hidden;
+    /* Important for child border-radius to work */
+    border-radius: 10px;
+    /* Rounded corners for the whole container */
     position: relative;
 }
 
@@ -151,7 +227,8 @@
     bottom: 0;
     border-radius: inherit;
     pointer-events: none;
-    animation: table-glow 8s ease-in-out infinite; /* Slower animation */
+    animation: table-glow 8s ease-in-out infinite;
+    /* Slower animation */
     z-index: 0;
 }
 
@@ -159,24 +236,66 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
 }
-.table-container::-webkit-scrollbar { height: 8px; }
-.table-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
-.table-container::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
-.table-container::-webkit-scrollbar-thumb:hover { background: #00ffff; }
+
+.table-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #00ffff;
+}
 
 .data-table {
     width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    table-layout: fixed; /* Prevents intermittent layout collapse */
+    table-layout: fixed;
+    /* Prevents intermittent layout collapse */
     position: relative;
     z-index: 1;
-    font-size: 0.9rem; /* Slightly smaller font to save space */
+    font-size: 0.9rem;
+    /* Slightly smaller font to save space */
 }
-.data-table th, .data-table td { padding: 16px 20px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; white-space: nowrap; position: relative; overflow: hidden; text-overflow: ellipsis; }
-.data-table td:not(:last-child)::after, .data-table th:not(:last-child)::after { content: ''; position: absolute; top: 20%; right: 0; width: 1px; height: 60%; background: linear-gradient(to bottom, transparent, var(--border-color) 50%, transparent); opacity: 0.8; }
+
+.data-table th,
+.data-table td {
+    padding: 16px 20px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.data-table td:not(:last-child)::after,
+.data-table th:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    right: 0;
+    width: 1px;
+    height: 60%;
+    background: linear-gradient(to bottom, transparent, var(--border-color) 50%, transparent);
+    opacity: 0.8;
+}
+
 .data-table thead th {
-    background: linear-gradient(to bottom, rgba(0, 212, 255, 0.25), rgba(0, 212, 255, 0.2)); /* Increased transparency */
+    background: linear-gradient(to bottom, rgba(0, 212, 255, 0.25), rgba(0, 212, 255, 0.2));
+    /* Increased transparency */
     color: #fff;
     font-weight: 600;
     text-transform: uppercase;
@@ -193,31 +312,104 @@
 .data-table thead th:last-child {
     border-top-right-radius: 10px;
 }
-.data-table thead th a { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 8px; }
-.data-table tbody tr { transition: background-color 0.3s ease; }
-.data-table tbody tr:hover { background-color: rgba(0, 212, 255, 0.08); }
-.data-table tbody tr:last-child td { border-bottom: none; }
+
+.data-table thead th a {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.data-table tbody tr {
+    transition: background-color 0.3s ease;
+}
+
+.data-table tbody tr:hover {
+    background-color: rgba(0, 212, 255, 0.08);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
 
 /* Specific rule for user details cell to allow wrapping */
 .data-table .user-details-cell {
     white-space: normal;
 }
 
-.user-details { display: flex; flex-direction: column; }
-.user-username { font-size: 0.85rem; opacity: 0.7; }
-.user-info { display: flex; align-items: center; gap: 12px; }
-.user-avatar .avatar-image { width: 36px; height: 36px; border-radius: 50%; background: rgba(0, 212, 255, 0.1); display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color); }
-.user-avatar svg { color: var(--primary-color); }
-.user-name { font-weight: 600; color: #fff; }
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-username {
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.user-avatar .avatar-image {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(0, 212, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+}
+
+.user-avatar svg {
+    color: var(--primary-color);
+}
+
+.user-name {
+    font-weight: 600;
+    color: #fff;
+}
+
 /* .data-value rule is now handled by the general td rule below */
-.token-input { color: #ffc107; }
-.token-output { color: #28a745; }
-.balance-amount { font-weight: 600; }
-.balance-zero { opacity: 0.6; }
-.date-info { display: flex; flex-direction: column; }
-.date-value { font-weight: 500; }
-.date-time { font-size: 0.85rem; opacity: 0.7; }
-.action-buttons { display: flex; align-items: center; gap: 8px; }
+.token-input {
+    color: #ffc107;
+}
+
+.token-output {
+    color: #28a745;
+}
+
+.balance-amount {
+    font-weight: 600;
+}
+
+.balance-zero {
+    opacity: 0.6;
+}
+
+.date-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.date-value {
+    font-weight: 500;
+}
+
+.date-time {
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.action-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
 .stacked-badges {
     display: flex;
@@ -240,7 +432,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px 0 0 0; /* Adjusted padding */
+    padding: 20px 0 0 0;
+    /* Adjusted padding */
     border-top: 1px solid var(--border-color);
     margin-top: 20px;
 }
@@ -256,7 +449,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px; /* Increased gap for better spacing */
+    gap: 8px;
+    /* Increased gap for better spacing */
 }
 
 /* Remove custom styles, rely on .btn-glass from main.css */
@@ -276,7 +470,8 @@
     opacity: 0.5;
     cursor: not-allowed;
     background: rgba(30, 40, 60, 0.1);
-    pointer-events: none; /* Ensure it's not clickable */
+    pointer-events: none;
+    /* Ensure it's not clickable */
 }
 
 .pagination-btn.disabled:hover {
@@ -313,41 +508,78 @@
    Column Widths
    ========================================================================== */
 
-.data-table .col-user-id      { width: 9.5%; }
-.data-table .col-username     { width: 19.1%; }
-.data-table .col-conversations{ width: 7.14%; }
-.data-table .col-dialog-turns { width: 7.14%; }
-.data-table .col-tokens       { width: 14.28%; }
-.data-table .col-tier         { width: 7.14%; }
-.data-table .col-balance      { width: 7.14%; }
-.data-table .col-created-at   { width: 14.28%; }
-.data-table .col-actions      { width: 14.28%; }
+.data-table .col-user-id {
+    width: 9.5%;
+}
+
+.data-table .col-username {
+    width: 19.1%;
+}
+
+.data-table .col-conversations {
+    width: 7.14%;
+}
+
+.data-table .col-dialog-turns {
+    width: 7.14%;
+}
+
+.data-table .col-tokens {
+    width: 14.28%;
+}
+
+.data-table .col-tier {
+    width: 7.14%;
+}
+
+.data-table .col-balance {
+    width: 7.14%;
+}
+
+.data-table .col-created-at {
+    width: 14.28%;
+}
+
+.data-table .col-actions {
+    width: 14.28%;
+}
+
 /* Apply tech-savvy font to numbers and English text in the table */
-.data-table td, .data-table td span {
+.data-table td,
+.data-table td span {
     font-family: 'Orbitron', 'Mi Sans', 'Microsoft YaHei', sans-serif;
 }
 
 /* Use a monospaced font for User ID for better alignment */
 .data-table .col-user-id {
     font-family: 'monospace', 'Orbitron', sans-serif;
-    letter-spacing: 0.5px; /* Optional: adjust spacing for clarity */
+    letter-spacing: 0.5px;
+    /* Optional: adjust spacing for clarity */
 }
+
 /* ==========================================================================
    Modal Overhaul Styles
-   ========================================================================== */
+  ========================================================================== */
 
 /* Enhance the main modal container's glass effect */
 .modal-container {
-    background-color: rgba(15, 25, 45, 0.15); /* Transparency adjusted to ~85% */
-    backdrop-filter: blur(3px) saturate(150%); /* Adjusted blur value to 3px */
+    background-color: rgba(15, 25, 45, 0.15);
+    /* Transparency adjusted to ~85% */
+    backdrop-filter: blur(3px) saturate(150%);
+    /* Adjusted blur value to 3px */
     -webkit-backdrop-filter: blur(3px) saturate(150%);
     border: 1px solid rgba(128, 128, 255, 0.25);
     box-shadow:
-        inset 0 0 1px 1px rgba(255, 255, 255, 0.1), /* Inner highlight */
-        0 0 40px rgba(0, 212, 255, 0.2), /* Outer glow */
-        0 0 80px rgba(0, 0, 0, 0.5); /* Deeper shadow for depth */
-    max-width: 980px; /* Reduced width by 30% as requested */
-    overflow: hidden; /* Fix for glowing elements overflowing border-radius */
+        inset 0 0 1px 1px rgba(255, 255, 255, 0.1),
+        /* Inner highlight */
+        0 0 40px rgba(0, 212, 255, 0.2),
+        /* Outer glow */
+        0 0 80px rgba(0, 0, 0, 0.5);
+    /* Deeper shadow for depth */
+    max-width: 980px;
+    /* Reduced width by 30% as requested */
+    overflow: hidden;
+    /* Fix for glowing elements overflowing border-radius */
 }
 
 /* Refine the modal header */
@@ -364,6 +596,7 @@
     align-items: center;
     justify-content: center;
 }
+
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
@@ -373,23 +606,27 @@
 /* Refine the modal body */
 .modal-body {
     padding: 20px 25px;
-    /* overflow-y: auto; */ /* Removed to prevent scrolling as per new requirement */
+    /* overflow-y: auto; */
+    /* Removed to prevent scrolling as per new requirement */
 }
 
 /* Custom Scrollbar for Modal Body */
 .modal-body::-webkit-scrollbar {
     width: 6px;
 }
+
 .modal-body::-webkit-scrollbar-track {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 3px;
 }
+
 .modal-body::-webkit-scrollbar-thumb {
     background: var(--primary-color);
     border-radius: 3px;
     border: 1px solid transparent;
     background-clip: content-box;
 }
+
 .modal-body::-webkit-scrollbar-thumb:hover {
     background: #00ffff;
 }
@@ -406,9 +643,10 @@
  * from main.css. The conflicting override styles have been removed.
  * We just ensure the SVG icon has cái margin.
  */
-.modal-footer .btn-glass > svg {
+.modal-footer .btn-glass>svg {
     margin-right: 8px;
 }
+
 /* ==========================================================================
    Edit User Modal Form Overhaul
    ========================================================================== */
@@ -424,14 +662,17 @@
 }
 
 #userEditModal .form-section {
-    flex: 1; /* Each card takes equal space */
+    flex: 1;
+    /* Each card takes equal space */
     padding: 20px;
-    margin-bottom: 0; /* No margin as gap is handled by flex container */
+    margin-bottom: 0;
+    /* No margin as gap is handled by flex container */
     background: rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     /* Subtle glow effect for the card */
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1); /* Slightly more visible glow */
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+    /* Slightly more visible glow */
     transition: box-shadow 0.3s ease;
 }
 
@@ -461,12 +702,15 @@
 }
 
 #userEditModal .form-grid {
-    display: block; /* Revert from grid to simple block layout */
+    display: block;
+    /* Revert from grid to simple block layout */
 }
 
 #userEditModal .form-group {
-    margin-bottom: 18px; /* Space between form groups */
+    margin-bottom: 18px;
+    /* Space between form groups */
 }
+
 #userEditModal .form-group:last-child {
     margin-bottom: 0;
 }
@@ -482,8 +726,10 @@
     font-weight: 500;
     color: var(--text-color);
     opacity: 0.9;
-    margin-bottom: 8px; /* Add space between label and input */
-    display: block; /* Ensure margin is applied */
+    margin-bottom: 8px;
+    /* Add space between label and input */
+    display: block;
+    /* Ensure margin is applied */
 }
 
 #userEditModal .form-input,
@@ -491,9 +737,11 @@
     background-color: rgba(10, 20, 40, 0.2);
     border: 1px solid rgba(128, 128, 255, 0.3);
     /* Subtle inner shadow and a very faint outer glow */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 5px rgba(0, 212, 255, 0.05);
-    width: 100%; /* Inputs should fill the form-group, now safe with box-sizing */
-    /* max-width: 300px; */ /* Removed to allow proper filling */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(0, 212, 255, 0.05);
+    width: 100%;
+    /* Inputs should fill the form-group, now safe with box-sizing */
+    /* max-width: 300px; */
+    /* Removed to allow proper filling */
     transition: all 0.3s ease;
 }
 
@@ -503,6 +751,7 @@
     -webkit-appearance: none;
     margin: 0;
 }
+
 #userEditModal .form-input[type=number] {
     -moz-appearance: textfield;
 }
@@ -531,13 +780,15 @@ The following rule is ineffective and has been removed to avoid confusion.
 #userEditModal .form-select:focus {
     border-color: var(--primary-color);
     /* Enhance glow on focus */
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 #userEditModal .input-group .input-prefix {
-    background-color: rgba(0, 0, 0, 0.2); /* Increased transparency */
+    background-color: rgba(0, 0, 0, 0.2);
+    /* Increased transparency */
     border-color: rgba(128, 128, 255, 0.3);
 }
+
 /* ==========================================================================
    User Detail Modal Content Styles
    ========================================================================== */
@@ -553,7 +804,8 @@ The following rule is ineffective and has been removed to avoid confusion.
 }
 
 .detail-card {
-    background: rgba(0, 0, 0, 0.05); /* Drastically increased transparency */
+    background: rgba(0, 0, 0, 0.05);
+    /* Drastically increased transparency */
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     padding: 20px;
@@ -568,9 +820,17 @@ The following rule is ineffective and has been removed to avoid confusion.
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.profile-card { grid-area: profile; }
-.stats-card { grid-area: stats; }
-.config-card { grid-area: config; }
+.profile-card {
+    grid-area: profile;
+}
+
+.stats-card {
+    grid-area: stats;
+}
+
+.config-card {
+    grid-area: config;
+}
 
 /* Profile Card Styles */
 .profile-header {
@@ -579,6 +839,7 @@ The following rule is ineffective and has been removed to avoid confusion.
     gap: 15px;
     margin-bottom: 20px;
 }
+
 .profile-avatar {
     width: 60px;
     height: 60px;
@@ -590,11 +851,32 @@ The following rule is ineffective and has been removed to avoid confusion.
     border: 1px solid var(--border-color);
     flex-shrink: 0;
 }
-.profile-avatar svg { color: var(--primary-color); }
-.profile-info { flex-grow: 1; }
-.profile-name { font-size: 1.25rem; font-weight: 700; color: #fff; margin: 0; }
-.profile-username { font-size: 0.9rem; color: var(--text-color); opacity: 0.7; margin: 4px 0 0; }
-.profile-tier { align-self: flex-start; }
+
+.profile-avatar svg {
+    color: var(--primary-color);
+}
+
+.profile-info {
+    flex-grow: 1;
+}
+
+.profile-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+}
+
+.profile-username {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin: 4px 0 0;
+}
+
+.profile-tier {
+    align-self: flex-start;
+}
 
 .profile-body .info-item {
     display: flex;
@@ -603,10 +885,25 @@ The following rule is ineffective and has been removed to avoid confusion.
     font-size: 0.9rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.profile-body .info-item:last-child { border-bottom: none; }
-.info-label { color: var(--text-color); opacity: 0.8; }
-.info-value { font-weight: 500; color: #fff; }
-.user-id-mono { font-family: 'monospace'; letter-spacing: 0.5px; }
+
+.profile-body .info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.info-value {
+    font-weight: 500;
+    color: #fff;
+}
+
+.user-id-mono {
+    font-family: 'monospace';
+    letter-spacing: 0.5px;
+}
 
 /* Stats Card Styles */
 .stats-grid {
@@ -614,19 +911,23 @@ The following rule is ineffective and has been removed to avoid confusion.
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 15px;
 }
+
 .stat-item {
-    background: rgba(0, 0, 0, 0.08); /* Drastically increased transparency */
+    background: rgba(0, 0, 0, 0.08);
+    /* Drastically increased transparency */
     padding: 15px;
     border-radius: 8px;
     text-align: center;
     /* Add a faint, persistent glow */
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.15); /* Slightly more visible glow */
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+    /* Slightly more visible glow */
     transition: box-shadow 0.3s ease;
 }
 
 .stat-item:hover {
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.25);
 }
+
 .stat-value {
     display: block;
     font-size: 1.5rem;
@@ -634,6 +935,7 @@ The following rule is ineffective and has been removed to avoid confusion.
     color: var(--primary-color);
     font-family: 'Orbitron', sans-serif;
 }
+
 .stat-label {
     font-size: 0.8rem;
     color: var(--text-color);
@@ -646,8 +948,10 @@ The following rule is ineffective and has been removed to avoid confusion.
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 15px;
 }
+
 .config-item {
-    background: rgba(0, 0, 0, 0.08); /* Drastically increased transparency */
+    background: rgba(0, 0, 0, 0.08);
+    /* Drastically increased transparency */
     padding: 12px 15px;
     border-radius: 8px;
     /* Add a faint, persistent glow */
@@ -658,6 +962,7 @@ The following rule is ineffective and has been removed to avoid confusion.
 .config-item:hover {
     box-shadow: 0 0 15px rgba(0, 212, 255, 0.25);
 }
+
 .config-label {
     display: block;
     font-size: 0.8rem;
@@ -665,6 +970,7 @@ The following rule is ineffective and has been removed to avoid confusion.
     opacity: 0.7;
     margin-bottom: 4px;
 }
+
 .config-value {
     font-family: 'monospace';
     font-size: 0.9rem;
@@ -677,12 +983,25 @@ The following rule is ineffective and has been removed to avoid confusion.
     font-size: 0.75rem;
     padding: 4px 8px;
 }
-.badge.warning { background-color: #ffc107; color: #000; }
-.badge.danger { background-color: #dc3545; color: #fff; }
-.badge.secondary { background-color: #6c757d; color: #fff; }
+
+.badge.warning {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.badge.danger {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.badge.secondary {
+    background-color: #6c757d;
+    color: #fff;
+}
 
 /* Loading and Error States */
-.loading-state, .error-state {
+.loading-state,
+.error-state {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -691,6 +1010,7 @@ The following rule is ineffective and has been removed to avoid confusion.
     color: var(--text-color);
     opacity: 0.8;
 }
+
 .loading-spinner {
     width: 40px;
     height: 40px;
@@ -700,13 +1020,18 @@ The following rule is ineffective and has been removed to avoid confusion.
     animation: spin 1s linear infinite;
     margin-bottom: 15px;
 }
+
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
+
 .error-state svg {
     color: #dc3545;
     margin-bottom: 15px;
 }
+
 .error-state h3 {
     margin: 0 0 10px 0;
     color: #fff;
@@ -730,20 +1055,24 @@ The following rule is ineffective and has been removed to avoid confusion.
 }
 
 .badge.secondary {
-    background-color: rgba(108, 117, 125, 0.3); /* Gray glass */
+    background-color: rgba(108, 117, 125, 0.3);
+    /* Gray glass */
 }
 
 .badge.warning {
-    background-color: rgba(255, 193, 7, 0.3); /* Yellow glass */
+    background-color: rgba(255, 193, 7, 0.3);
+    /* Yellow glass */
 }
 
 .badge.danger {
-    background-color: rgba(220, 53, 69, 0.3); /* Red glass */
+    background-color: rgba(220, 53, 69, 0.3);
+    /* Red glass */
 }
 
 /* Ensure specificity for modal badges if needed, but the general rule should cover it */
 .detail-card .badge {
-    font-size: 0.8rem; /* Keep slightly smaller size in detail view */
+    font-size: 0.8rem;
+    /* Keep slightly smaller size in detail view */
     padding: 4px 8px;
 }
 
@@ -755,10 +1084,14 @@ The following rule is ineffective and has been removed to avoid confusion.
     -webkit-backdrop-filter: none;
     padding: 0;
     text-shadow: none;
-    font-weight: 500; /* A bit of weight to stand out, but not bold */
-    color: var(--text-color); /* Ensure it's readable */
-    vertical-align: baseline; /* Align with surrounding text */
+    font-weight: 500;
+    /* A bit of weight to stand out, but not bold */
+    color: var(--text-color);
+    /* Ensure it's readable */
+    vertical-align: baseline;
+    /* Align with surrounding text */
 }
+
 /* ==========================================================================
    Custom Select Dropdown
    ========================================================================== */
@@ -768,7 +1101,8 @@ The following rule is ineffective and has been removed to avoid confusion.
 }
 
 .original-select {
-    display: none; /* Hide the original select */
+    display: none;
+    /* Hide the original select */
 }
 
 .custom-select {
@@ -784,20 +1118,20 @@ The following rule is ineffective and has been removed to avoid confusion.
     padding: 12px 15px;
     cursor: pointer;
     width: 100%;
-    
+
     /* Inherit the glass style from form-input */
     background-color: rgba(10, 20, 40, 0.2);
     border: 1px solid rgba(128, 128, 255, 0.3);
     border-radius: 8px;
     color: var(--text-color);
     font-size: 1rem;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 5px rgba(0, 212, 255, 0.05);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(0, 212, 255, 0.05);
     transition: all 0.3s ease;
 }
 
 .custom-select.open .custom-select-trigger {
     border-color: var(--primary-color);
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0,0,0,0.3);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .arrow-container {
@@ -861,27 +1195,620 @@ The following rule is ineffective and has been removed to avoid confusion.
     font-weight: 600;
     color: #fff;
 }
+
 /* ==========================================================================
    Page-specific table layouts
    ========================================================================== */
 
 /* Conversations Page Table Layout */
 .page-conversations .data-table th:nth-child(1),
-.page-conversations .data-table td:nth-child(1) { display: none; } /* 隐藏对话ID列 */
+.page-conversations .data-table td:nth-child(1) {
+    display: none;
+}
 
-.page-conversations .data-table th:nth-child(2) { width: 12%; } /* 用户 */
-.page-conversations .data-table th:nth-child(3) { width: 12%; } /* 角色/预设 */
-.page-conversations .data-table th:nth-child(4) { width: 37%; } /* 摘要 */
-.page-conversations .data-table th:nth-child(5) { width: 8%; }  /* 轮数/状态 */
-.page-conversations .data-table th:nth-child(6) { width: 10%; } /* 创建时间 */
-.page-conversations .data-table th:nth-child(7) { width: 10%; } /* 更新时间 */
-.page-conversations .data-table th:nth-child(8) { width: 11%; }  /* 操作 */
+/* 隐藏对话ID列 */
+
+.page-conversations .data-table th:nth-child(2) {
+    width: 12%;
+}
+
+/* 用户 */
+.page-conversations .data-table th:nth-child(3) {
+    width: 12%;
+}
+
+/* 角色/预设 */
+.page-conversations .data-table th:nth-child(4) {
+    width: 37%;
+}
+
+/* 摘要 */
+.page-conversations .data-table th:nth-child(5) {
+    width: 8%;
+}
+
+/* 轮数/状态 */
+.page-conversations .data-table th:nth-child(6) {
+    width: 10%;
+}
+
+/* 创建时间 */
+.page-conversations .data-table th:nth-child(7) {
+    width: 10%;
+}
+
+/* 更新时间 */
+.page-conversations .data-table th:nth-child(8) {
+    width: 11%;
+}
+
+/* 操作 */
 
 /* Groups Page Table Layout */
-.page-groups .data-table th:nth-child(1) { width: 25%; } /* 群组名称 */
-.page-groups .data-table th:nth-child(2) { width: 8%;  } /* 调用次数 */
-.page-groups .data-table th:nth-child(3) { width: 15%; } /* 角色/API */
-.page-groups .data-table th:nth-child(4) { width: 8%;  } /* 触发几率 */
-.page-groups .data-table th:nth-child(5) { width: 14%; } /* Token使用 */
-.page-groups .data-table th:nth-child(6) { width: 15%; } /* 更新时间 */
-.page-groups .data-table th:nth-child(7) { width: 15%; } /* 操作 */
+.page-groups .data-table th:nth-child(1) {
+    width: 25%;
+}
+
+/* 群组名称 */
+.page-groups .data-table th:nth-child(2) {
+    width: 8%;
+}
+
+/* 调用次数 */
+.page-groups .data-table th:nth-child(3) {
+    width: 15%;
+}
+
+/* 角色/API */
+.page-groups .data-table th:nth-child(4) {
+    width: 8%;
+}
+
+/* 触发几率 */
+.page-groups .data-table th:nth-child(5) {
+    width: 14%;
+}
+
+/* Token使用 */
+.page-groups .data-table th:nth-child(6) {
+    width: 15%;
+}
+
+/* 更新时间 */
+.page-groups .data-table th:nth-child(7) {
+    width: 15%;
+}
+
+/* 操作 */
+/* ==========================================================================
+   Group Modal Overhaul Styles (Mirrors User Modal Styles)
+   ========================================================================== */
+
+/* Edit Group Modal - Three-column layout */
+#groupEditModal .modal-body {
+    padding: 10px;
+}
+
+#groupEditModal .form-sections {
+    display: flex;
+    gap: 20px;
+}
+
+#groupEditModal .form-section {
+    flex: 1;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+#groupEditModal .form-section:hover {
+    box-shadow: 0 0 25px rgba(0, 212, 255, 0.2);
+}
+
+#groupEditModal .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#groupEditModal .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+#groupEditModal .form-group {
+    margin-bottom: 18px;
+}
+
+#groupEditModal .form-group:last-child {
+    margin-bottom: 0;
+}
+
+#groupEditModal .form-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-color);
+    opacity: 0.9;
+    margin-bottom: 8px;
+    display: block;
+}
+
+#groupEditModal .form-input,
+#groupEditModal .form-select {
+    background-color: rgba(10, 20, 40, 0.2);
+    border: 1px solid rgba(128, 128, 255, 0.3);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(0, 212, 255, 0.05);
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+#groupEditModal .form-input:focus,
+#groupEditModal .form-select:focus,
+#groupEditModal .custom-select.open .custom-select-trigger {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3), inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Ensure textarea has the same styling */
+#groupEditModal textarea.form-input {
+    padding: 12px 15px;
+    font-family: var(--font-family-body);
+    font-size: 1rem;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+/* Detail Group Modal - Grid layout */
+#groupDetailModal .user-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto auto;
+    gap: 20px;
+    grid-template-areas:
+        "profile stats"
+        "config config";
+}
+
+#groupDetailModal .detail-card {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+#groupDetailModal .detail-card .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#groupDetailModal .profile-card {
+    grid-area: profile;
+}
+
+#groupDetailModal .stats-card {
+    grid-area: stats;
+}
+
+#groupDetailModal .config-card {
+    grid-area: config;
+}
+
+#groupDetailModal .profile-body .info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 0.9rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#groupDetailModal .profile-body .info-item:last-child {
+    border-bottom: none;
+}
+
+#groupDetailModal .info-label {
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+#groupDetailModal .info-value {
+    font-weight: 500;
+    color: #fff;
+}
+
+#groupDetailModal .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+#groupDetailModal .stat-item {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+    transition: box-shadow 0.3s ease;
+}
+
+#groupDetailModal .stat-item:hover {
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.25);
+}
+
+#groupDetailModal .stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    font-family: 'Orbitron', sans-serif;
+}
+
+#groupDetailModal .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+#groupDetailModal .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+#groupDetailModal .config-item {
+    background: rgba(0, 0, 0, 0.08);
+    padding: 12px 15px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.15);
+}
+
+#groupDetailModal .config-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin-bottom: 4px;
+}
+
+#groupDetailModal .config-value {
+    font-family: 'monospace';
+    font-size: 0.9rem;
+    color: #fff;
+    word-wrap: break-word;
+}
+
+#groupDetailModal .config-value-box {
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+    min-height: 40px;
+}
+
+#groupDetailModal .mt-3 {
+    margin-top: 1rem !important;
+}
+
+/* ==========================================================================
+   Dialogs Page - General Layout
+   ========================================================================== */
+
+.content-wrapper.dialogs-page {
+    background-color: rgba(10, 20, 30, 0.2);
+    backdrop-filter: blur(3px) saturate(120%);
+    -webkit-backdrop-filter: blur(3px) saturate(120%);
+    border: 1px solid rgba(128, 128, 255, 0.15);
+    border-radius: 15px;
+    padding: 24px;
+    position: relative;
+}
+
+.content-wrapper.dialogs-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 15px;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    box-shadow: inset 0 0 80px rgba(128, 128, 255, 0.05);
+}
+
+.glass-card {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+}
+
+.glass-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.glass-card .card-header .header-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-grow: 1;
+}
+
+.glass-card .card-header .header-icon {
+    color: var(--primary-color);
+    filter: drop-shadow(0 0 5px var(--glow-color));
+    font-size: 1.2rem;
+}
+
+.glass-card .card-header .card-title-text {
+    margin: 0;
+    font-size: 1.25rem;
+    /* Larger than body text */
+    color: #fff;
+    font-weight: 600;
+}
+
+.glass-card .card-header .header-subtitle {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    opacity: 0.8;
+    font-weight: 400;
+    margin-left: 10px;
+}
+
+.glass-card .card-header .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Ensure search form in header doesn't wrap */
+.chat-history-card .card-header .search-form {
+    min-width: 350px;
+}
+
+
+/* Styles for the new collapsible details card */
+.collapsible-header {
+    cursor: pointer;
+}
+
+#toggleDetailsBtn i {
+    transition: transform 0.3s ease;
+}
+
+.collapsible-card.collapsed #toggleDetailsBtn i {
+    transform: rotate(-180deg);
+}
+
+.collapsible-content {
+    transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out;
+    overflow: hidden;
+    max-height: 1000px;
+    /* Large enough for content */
+    opacity: 1;
+}
+
+.collapsible-card.collapsed .collapsible-content {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    border: none;
+}
+
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 15px;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.1);
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: var(--text-color);
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.detail-item .badge {
+    font-size: 0.85rem;
+}
+
+.detail-item.full-width {
+    grid-column: 1 / -1;
+}
+
+.summary-item {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.summary-text {
+    margin: 8px 0 0 0;
+    color: #e0e0e0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    width: 100%;
+}
+
+/* Remove default padding from card-body when it's part of a chat card */
+.chat-history-card .card-body {
+    padding: 0;
+}
+
+/* ==========================================================================
+   Dialogs Page - Chat Bubble Styles
+   ========================================================================== */
+
+.chat-history-card {
+    padding: 20px;
+}
+
+.message-bubble-container.highlight .message-bubble {
+    transition: all 0.5s ease-in-out;
+    box-shadow: 0 0 15px 5px var(--primary-color), 0 0 30px 10px var(--glow-color);
+    border-color: var(--primary-color);
+    transform: scale(1.02);
+}
+
+.message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.message-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.message-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.message-list::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+}
+
+.message-bubble-container {
+    display: flex;
+    max-width: 75%;
+    position: relative;
+}
+
+.message-bubble-container.ai-message {
+    align-self: flex-start;
+}
+
+.message-bubble-container.user-message {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.message-bubble {
+    padding: 15px 20px;
+    border-radius: 20px;
+    position: relative;
+    color: #e0e0e0;
+    line-height: 1.5;
+    word-wrap: break-word;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.message-bubble::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 20px;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.05);
+}
+
+.message-bubble:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.ai-bubble {
+    background-color: rgba(0, 123, 255, 0.2);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    border-bottom-left-radius: 5px;
+    box-shadow: 0 5px 15px rgba(0, 123, 255, 0.1);
+}
+
+.user-bubble {
+    background-color: rgba(40, 167, 69, 0.2);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    border-bottom-right-radius: 5px;
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.1);
+}
+
+.message-content {
+    margin-bottom: 10px;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    text-align: right;
+}
+
+.message-time i {
+    margin-right: 5px;
+}
+
+.edit-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.message-bubble-container.ai-message .edit-btn {
+    right: -40px;
+}
+
+.message-bubble-container.user-message .edit-btn {
+    left: -40px;
+}
+
+.message-bubble-container:hover .edit-btn {
+    opacity: 1;
+}
+
+.edit-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-50%) scale(1.1);
+}

@@ -20,16 +20,27 @@
                     <form method="GET" action="{{ url_for('admin.groups') }}" class="search-form">
                         <div class="search-input-wrapper">
                             <div class="search-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
                             </div>
-                            <input type="text" name="search" class="search-input" placeholder="搜索群组名称..." value="{{ search_term or '' }}" aria-label="搜索群组">
+                            <input type="text" name="search" class="search-input" placeholder="搜索群组名称..."
+                                value="{{ search_term or '' }}" aria-label="搜索群组">
                             {% if search_term %}
                             <a href="{{ url_for('admin.groups') }}" class="clear-button" aria-label="清除搜索">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
                             </a>
                             {% endif %}
                         </div>
-                        <button type="submit" class="btn-glass search-button" aria-label="搜索">
+                        <button type="submit" class="btn-glass" aria-label="搜索">
                             <span>搜索</span>
                         </button>
                     </form>
@@ -41,7 +52,7 @@
                     {% endif %}
                 </div>
             </div>
-            
+
         </div>
         <div class="card-body">
             {% if groups %}
@@ -51,18 +62,22 @@
                         <tr>
                             <!-- Hidden Group ID Column -->
                             <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='group_name', sort_order=next_sort_order('group_name')) }}" class="sort-link"><span>群组名称</span><span class="sort-indicator"></span></a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='group_name', sort_order=next_sort_order('group_name')) }}"
+                                    class="sort-link"><span>群组名称</span><span class="sort-indicator"></span></a>
                             </th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='call_count', sort_order=next_sort_order('call_count')) }}" class="sort-link"><span>调用次数</span><span class="sort-indicator"></span></a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='call_count', sort_order=next_sort_order('call_count')) }}"
+                                    class="sort-link"><span>调用次数</span><span class="sort-indicator"></span></a>
                             </th>
                             <th>角色/API</th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='rate', sort_order=next_sort_order('rate')) }}" class="sort-link"><span>触发几率</span><span class="sort-indicator"></span></a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='rate', sort_order=next_sort_order('rate')) }}"
+                                    class="sort-link"><span>触发几率</span><span class="sort-indicator"></span></a>
                             </th>
                             <th>Token使用</th>
                             <th class="sortable" data-sort="date">
-                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='update_time', sort_order=next_sort_order('update_time')) }}" class="sort-link"><span>更新时间</span><span class="sort-indicator"></span></a>
+                                <a href="{{ url_for('admin.groups', search=search_term, sort_by='update_time', sort_order=next_sort_order('update_time')) }}"
+                                    class="sort-link"><span>更新时间</span><span class="sort-indicator"></span></a>
                             </th>
                             <th>操作</th>
                         </tr>
@@ -74,7 +89,9 @@
                                 <div class="user-info">
                                     <div class="user-avatar">
                                         <div class="avatar-image">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
                                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                                 <circle cx="12" cy="7" r="4"></circle>
                                             </svg>
@@ -106,29 +123,36 @@
                                 <div class="token-stats">
                                     <div class="token-item">
                                         <span class="token-label">输入</span>
-                                        <span class="token-value text-primary">{{ "{:,}".format(group.input_token or 0) }}</span>
+                                        <span class="token-value text-primary">{{ "{:,}".format(group.input_token or 0)
+                                            }}</span>
                                     </div>
                                     <div class="token-item">
                                         <span class="token-label">输出</span>
-                                        <span class="token-value text-success">{{ "{:,}".format(group.output_token or 0) }}</span>
+                                        <span class="token-value text-success">{{ "{:,}".format(group.output_token or 0)
+                                            }}</span>
                                     </div>
                                 </div>
                             </td>
                             <td>
                                 <div class="date-info">
-                                    <span class="date-value">{{ format_datetime(group.update_time).split(' ')[0] }}</span>
-                                    <span class="date-time text-muted">{{ format_datetime(group.update_time).split(' ')[1] }}</span>
+                                    <span class="date-value">{{ format_datetime(group.update_time).split(' ')[0]
+                                        }}</span>
+                                    <span class="date-time text-muted">{{ format_datetime(group.update_time).split('
+                                        ')[1] }}</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button type="button" class="btn-glass view-group-btn" title="查看详情">
+                                    <button type="button" class="btn-glass view-group-btn" title="查看详情"
+                                        data-group-id="{{ group.group_id }}">
                                         <span>ℹ️</span>
                                     </button>
-                                    <button type="button" class="btn-glass edit-group-btn" title="编辑群组">
+                                    <button type="button" class="btn-glass edit-group-btn" title="编辑群组"
+                                        data-group-id="{{ group.group_id }}">
                                         <span>✏️</span>
                                     </button>
-                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}" class="btn-glass" title="查看对话">
+                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}"
+                                        class="btn-glass" title="查看对话">
                                         <span>💬</span>
                                     </a>
                                 </div>
@@ -138,54 +162,77 @@
                     </tbody>
                 </table>
             </div>
-            
+
             {% if total_pages > 1 %}
             <div class="pagination-wrapper">
                 <div class="pagination-info">
-                    <span class="pagination-text">显示第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <= total_groups else total_groups }} 条，共 {{ total_groups }} 条记录</span>
+                    <span class="pagination-text">显示第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <=
+                            total_groups else total_groups }} 条，共 {{ total_groups }} 条记录</span>
                 </div>
                 <div class="pagination-controls">
                     {% if page > 1 %}
-                        <a href="{{ url_for('admin.groups', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                            <span>上一页</span>
-                        </a>
+                    <a href="{{ url_for('admin.groups', page=page-1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                        class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>上一页</span>
+                    </a>
                     {% else %}
-                        <span class="btn-glass pagination-btn pagination-prev disabled">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                            <span>上一页</span>
-                        </span>
+                    <span class="btn-glass pagination-btn pagination-prev disabled">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>上一页</span>
+                    </span>
                     {% endif %}
                     <div class="pagination-numbers">
                         {% for p in range(1, total_pages + 1) %}
-                            {% if p == page %}
-                                <span class="btn-glass pagination-number active">{{ p }}</span>
-                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
-                                <a href="{{ url_for('admin.groups', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-number">{{ p }}</a>
-                            {% elif p == 4 or p == total_pages - 3 %}
+                        {% if p == page %}
+                        <span class="btn-glass pagination-number active">{{ p }}</span>
+                        {% elif p <= 3 or p> total_pages - 3 or (p >= page - 2 and p <= page + 2) %} <a
+                                href="{{ url_for('admin.groups', page=p, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                                class="btn-glass pagination-number">{{ p }}</a>
+                                {% elif p == 4 or p == total_pages - 3 %}
                                 <span class="pagination-ellipsis">…</span>
-                            {% endif %}
-                        {% endfor %}
+                                {% endif %}
+                                {% endfor %}
                     </div>
-                    {% if page < total_pages %}
-                        <a href="{{ url_for('admin.groups', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-btn pagination-next" aria-label="下一页">
-                            <span>下一页</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    {% if page < total_pages %} <a
+                        href="{{ url_for('admin.groups', page=page+1, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                        class="btn-glass pagination-btn pagination-next" aria-label="下一页">
+                        <span>下一页</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
                         </a>
-                    {% else %}
+                        {% else %}
                         <span class="btn-glass pagination-btn pagination-next disabled">
                             <span>下一页</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </span>
-                    {% endif %}
+                        {% endif %}
                 </div>
             </div>
             {% endif %}
-            
+
             {% else %}
             <div class="empty-state">
                 <div class="empty-state-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
                 </div>
                 <h3 class="empty-state-title">暂无群组数据</h3>
                 <p class="empty-state-description">
@@ -203,108 +250,153 @@
         </div>
     </div>
 
-    <!-- Edit Group Modal -->
-    <div class="modal-overlay" id="editGroupModal" style="display: none;">
-        <div class="modal-container glass-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">编辑群组</h3>
-                <button class="modal-close-btn" aria-label="关闭">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="editGroupForm" class="edit-user-form">
-                    <input type="hidden" id="editGroupId" name="group_id">
-                    <div class="form-layout">
-                        <!-- Card 1: Basic Info -->
-                        <div class="form-card">
-                            <div class="form-card-header">基本信息</div>
-                            <div class="form-card-body">
-                                <div class="form-group">
-                                    <label for="editGroupName">群组名称</label>
-                                    <input type="text" id="editGroupName" name="group_name" class="form-control">
-                                </div>
-                                <div class="form-group">
-                                    <label for="editActive">状态</label>
-                                    <div class="custom-select-wrapper">
-                                        <select id="editActive" name="active" class="form-control">
-                                            <option value="1">活跃</option>
-                                            <option value="0">非活跃</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Card 2: Core Config -->
-                        <div class="form-card">
-                            <div class="form-card-header">核心配置</div>
-                            <div class="form-card-body">
-                                <div class="form-group">
-                                    <label for="editRate">触发几率 (0-1)</label>
-                                    <input type="number" id="editRate" name="rate" class="form-control" step="0.01" min="0" max="1">
-                                </div>
-                                <div class="form-group">
-                                    <label for="editChar">角色</label>
-                                    <input type="text" id="editChar" name="char" class="form-control">
-                                </div>
-                                <div class="form-group">
-                                    <label for="editApi">API</label>
-                                    <input type="text" id="editApi" name="api" class="form-control">
-                                </div>
-                                <div class="form-group">
-                                    <label for="editPreset">预设</label>
-                                    <input type="text" id="editPreset" name="preset" class="form-control">
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Card 3: Content Rules -->
-                        <div class="form-card">
-                            <div class="form-card-header">内容规则</div>
-                            <div class="form-card-body">
-                                <div class="form-group">
-                                    <label for="editKeywords">关键词 (逗号分隔)</label>
-                                    <textarea id="editKeywords" name="keywords" class="form-control" rows="3"></textarea>
-                                </div>
-                                <div class="form-group">
-                                    <label for="editDisabledTopics">禁用话题 (逗号分隔)</label>
-                                    <textarea id="editDisabledTopics" name="disabled_topics" class="form-control" rows="3"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary modal-close-btn">取消</button>
-                <button type="submit" form="editGroupForm" class="btn btn-primary">
-                    <span class="btn-text">保存更改</span>
-                    <span class="spinner"></span>
-                </button>
-            </div>
-        </div>
-    </div>
+</div>
+{% endblock %}
 
-    <!-- View Group Modal -->
-    <div class="modal-overlay" id="viewGroupModal" style="display: none;">
-        <div class="modal-container glass-modal">
-            <div class="modal-header">
-                <h3 class="modal-title">群组详情</h3>
-                <button class="modal-close-btn" aria-label="关闭">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="viewGroupContent">
-                    <!-- Content will be loaded here by JavaScript -->
-                    <div class="loading-state active">
-                        <div class="spinner"></div>
-                        <p>正在加载群组数据...</p>
-                    </div>
+{% block modals %}
+<!-- 群组详情模态框 -->
+<div class="modal-overlay" id="groupDetailModal">
+    <div class="modal-container modal-large">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="modal-title-text">
+                    <h3 class="modal-title">群组详情</h3>
+                    <p class="modal-subtitle">查看群组的详细信息和统计数据</p>
                 </div>
             </div>
-            <div class="modal-footer">
-                 <a href="#" id="viewGroupDialogsLink" class="btn btn-primary">查看对话</a>
+            <button class="modal-close" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="groupDetailContent" class="user-detail-content">
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>加载中...</span>
+                </div>
             </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#" id="viewGroupDialogsBtn" class="btn-glass btn-primary">查看对话</a>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑群组模态框 -->
+<div class="modal-overlay" id="groupEditModal">
+    <div class="modal-container modal-large">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="modal-title-text">
+                    <h3 class="modal-title">编辑群组</h3>
+                    <p class="modal-subtitle">修改群组的基本信息和配置</p>
+                </div>
+            </div>
+            <button class="modal-close" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <form id="groupEditForm" class="modern-form">
+                <input type="hidden" id="editGroupId" name="group_id">
+                <div class="form-sections">
+                    <!-- Section 1: Basic Info -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h4 class="section-title">基本信息</h4>
+                        </div>
+                        <div class="form-group">
+                            <label for="editGroupName" class="form-label">群组名称</label>
+                            <input type="text" id="editGroupName" name="group_name" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="editActive" class="form-label">状态</label>
+                            <div class="custom-select-wrapper">
+                                <select class="original-select" id="editActive" name="active">
+                                    <option value="1">活跃</option>
+                                    <option value="0">非活跃</option>
+                                </select>
+                                <!-- Custom select will be generated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Section 2: Core Config -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h4 class="section-title">核心配置</h4>
+                        </div>
+                        <div class="form-group">
+                            <label for="editRate" class="form-label">触发几率 (0-1)</label>
+                            <input type="number" id="editRate" name="rate" class="form-input" step="0.01" min="0"
+                                max="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="editChar" class="form-label">角色</label>
+                            <input type="text" id="editChar" name="char" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="editApi" class="form-label">API</label>
+                            <input type="text" id="editApi" name="api" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="editPreset" class="form-label">预设</label>
+                            <input type="text" id="editPreset" name="preset" class="form-input">
+                        </div>
+                    </div>
+                    <!-- Section 3: Content Rules -->
+                    <div class="form-section">
+                        <div class="section-header">
+                            <h4 class="section-title">内容规则</h4>
+                        </div>
+                        <div class="form-group">
+                            <label for="editKeywords" class="form-label">关键词 (逗号分隔)</label>
+                            <textarea id="editKeywords" name="keywords" class="form-input" rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="editDisabledTopics" class="form-label">禁用话题 (逗号分隔)</label>
+                            <textarea id="editDisabledTopics" name="disabled_topics" class="form-input"
+                                rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="saveGroupChangesBtn" class="btn-glass btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                <span>保存更改</span>
+            </button>
         </div>
     </div>
 </div>

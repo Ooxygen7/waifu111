@@ -117,52 +117,88 @@ def export_group_dialogs(group_id):
     return jsonify(export_data)
 
 
-@api_bp.route("/user/<int:user_id>")
+@api_bp.route("/user/<int:user_id>", methods=["GET", "PUT"])
 @admin_required
 def api_user_detail(user_id):
-    """获取用户详细信息API"""
-    user_data = db.query_db("SELECT * FROM users WHERE uid = ?", (user_id,))
-    if not user_data:
-        return jsonify({"error": "用户不存在"}), 404
-    user_config_data = db.query_db(
-        "SELECT * FROM user_config WHERE uid = ?", (user_id,)
-    )
-    conversations_count_data = db.query_db(
-        "SELECT COUNT(*) FROM conversations WHERE user_id = ?", (user_id,)
-    )
-    conversations_count = (
-        conversations_count_data[0][0] if conversations_count_data else 0
-    )
-    user_columns = [
-        "uid",
-        "first_name",
-        "last_name",
-        "user_name",
-        "create_at",
-        "conversations",
-        "dialog_turns",
-        "update_at",
-        "input_tokens",
-        "output_tokens",
-        "account_tier",
-        "remain_frequency",
-        "balance",
-    ]
-    user_dict = {user_columns[i]: user_data[0][i] for i in range(len(user_columns))}
-    user_config_dict = None
-    if user_config_data:
-        config_columns = ["uid", "char", "api", "preset", "conv_id", "stream", "nick"]
-        user_config_dict = {
-            config_columns[i]: user_config_data[0][i]
-            for i in range(len(config_columns))
-        }
-    return jsonify(
-        {
+    """获取或更新用户详细信息API"""
+    if request.method == "GET":
+        user_data = db.query_db("SELECT * FROM users WHERE uid = ?", (user_id,))
+        if not user_data:
+            return jsonify({"error": "用户不存在"}), 404
+        user_config_data = db.query_db(
+            "SELECT * FROM user_config WHERE uid = ?", (user_id,)
+        )
+        conversations_count_data = db.query_db(
+            "SELECT COUNT(*) FROM conversations WHERE user_id = ?", (user_id,)
+        )
+        conversations_count = (
+            conversations_count_data[0][0] if conversations_count_data else 0
+        )
+        user_columns = [
+            "uid", "first_name", "last_name", "user_name", "create_at",
+            "conversations", "dialog_turns", "update_at", "input_tokens",
+            "output_tokens", "account_tier", "remain_frequency", "balance",
+        ]
+        user_dict = {user_columns[i]: user_data[0][i] for i in range(len(user_columns))}
+        user_config_dict = None
+        if user_config_data:
+            config_columns = ["uid", "char", "api", "preset", "conv_id", "stream", "nick"]
+            user_config_dict = {
+                config_columns[i]: user_config_data[0][i]
+                for i in range(len(config_columns))
+            }
+        return jsonify({
             "user": user_dict,
             "config": user_config_dict,
             "conversations_count": conversations_count,
-        }
-    )
+        })
+
+    elif request.method == "PUT":
+        try:
+            data = request.get_json()
+            
+            # 更新 users 表
+            user_updates = {}
+            user_fields = ["user_name", "first_name", "last_name", "account_tier", "balance", "remain_frequency"]
+            for field in user_fields:
+                if field in data:
+                    user_updates[field] = data[field]
+
+            if user_updates:
+                user_updates["update_at"] = datetime.now()
+                set_clause = ", ".join([f"{key} = ?" for key in user_updates.keys()])
+                params = list(user_updates.values()) + [user_id]
+                user_sql = f"UPDATE users SET {set_clause} WHERE uid = ?"
+                db.revise_db(user_sql, tuple(params))
+
+            # 更新 user_config 表
+            if "config" in data and isinstance(data["config"], dict):
+                config_data = data["config"]
+                config_updates = {}
+                config_fields = ["char", "api", "preset", "stream", "nick"]
+                for field in config_fields:
+                    if field in config_data:
+                        config_updates[field] = config_data[field]
+                
+                if config_updates:
+                    existing_config = db.query_db("SELECT uid FROM user_config WHERE uid = ?", (user_id,))
+                    if existing_config:
+                        set_clause = ", ".join([f"{key} = ?" for key in config_updates.keys()])
+                        params = list(config_updates.values()) + [user_id]
+                        config_sql = f"UPDATE user_config SET {set_clause} WHERE uid = ?"
+                        db.revise_db(config_sql, tuple(params))
+                    else:
+                        config_updates["uid"] = user_id
+                        columns = ", ".join(config_updates.keys())
+                        placeholders = ", ".join(["?"] * len(config_updates))
+                        params = list(config_updates.values())
+                        config_sql = f"INSERT INTO user_config ({columns}) VALUES ({placeholders})"
+                        db.revise_db(config_sql, tuple(params))
+
+            return jsonify({"success": True, "message": "用户信息更新成功"})
+        except Exception as e:
+            app_logger.error(f"更新用户 {user_id} 信息失败: {e}")
+            return jsonify({"success": False, "message": str(e)}), 500
 
 
 @api_bp.route("/viewer/api/user/<int:user_id>")
@@ -216,129 +252,70 @@ def viewer_api_user_detail(user_id):
     )
 
 
-@api_bp.route("/user/<int:user_id>/update", methods=["POST"])
-@admin_required
-def api_user_update(user_id):
-    """更新用户信息API"""
-    try:
-        data = request.get_json()
-        user_updates = []
-        user_params = []
-        if "user_name" in data:
-            user_updates.append("user_name = ?")
-            user_params.append(data["user_name"])
-        if "first_name" in data:
-            user_updates.append("first_name = ?")
-            user_params.append(data["first_name"])
-        if "last_name" in data:
-            user_updates.append("last_name = ?")
-            user_params.append(data["last_name"])
-        if "account_tier" in data:
-            user_updates.append("account_tier = ?")
-            user_params.append(data["account_tier"])
-        if "balance" in data:
-            user_updates.append("balance = ?")
-            user_params.append(data["balance"])
-        if "remain_frequency" in data:
-            user_updates.append("remain_frequency = ?")
-            user_params.append(data["remain_frequency"])
-        if user_updates:
-            user_params.append(user_id)
-            user_sql = f"UPDATE users SET {', '.join(user_updates)}, update_at = datetime('now') WHERE uid = ?"
-            db.revise_db(user_sql, tuple(user_params))
-        config_updates = []
-        config_params = []
-        if "char" in data:
-            config_updates.append("char = ?")
-            config_params.append(data["char"])
-        if "api" in data:
-            config_updates.append("api = ?")
-            config_params.append(data["api"])
-        if "preset" in data:
-            config_updates.append("preset = ?")
-            config_params.append(data["preset"])
-        if "stream" in data:
-            config_updates.append("stream = ?")
-            config_params.append(data["stream"])
-        if "nick" in data:
-            config_updates.append("nick = ?")
-            config_params.append(data["nick"])
-        if config_updates:
-            existing_config = db.query_db(
-                "SELECT uid FROM user_config WHERE uid = ?", (user_id,)
-            )
-            if existing_config:
-                config_params.append(user_id)
-                config_sql = (
-                    f"UPDATE user_config SET {', '.join(config_updates)} WHERE uid = ?"
-                )
-                db.revise_db(config_sql, tuple(config_params))
-            else:
-                config_columns = ["uid"] + [
-                    col.split(" = ?")[0] for col in config_updates
-                ]
-                config_values = [user_id] + config_params
-                placeholders = ", ".join(["?"] * len(config_values))
-                config_sql = f"INSERT INTO user_config ({', '.join(config_columns)}) VALUES ({placeholders})"
-                db.revise_db(config_sql, tuple(config_values))
-        return jsonify({"success": True, "message": "用户信息更新成功"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@api_bp.route("/groups/<group_id>", methods=["PUT"])
+@api_bp.route("/groups/<group_id>", methods=["GET", "PUT"])
 @admin_required
-def api_group_update(group_id):
-    """更新群组信息API"""
+def api_group_detail_update(group_id):
+    """获取或更新群组信息API"""
     try:
-        try:
-            group_id = int(group_id)
-        except ValueError:
-            return jsonify({"success": False, "message": "无效的群组ID"}), 400
+        group_id = int(group_id)
+    except ValueError:
+        return jsonify({"success": False, "message": "无效的群组ID"}), 400
+
+    if request.method == "GET":
+        group_data = db.query_db("SELECT * FROM groups WHERE group_id = ?", (group_id,))
+        if not group_data:
+            return jsonify({"success": False, "message": "群组不存在"}), 404
+        
+        columns = [
+            "group_id", "members_list", "call_count", "keywords", "active",
+            "api", "char", "preset", "input_token", "group_name",
+            "update_time", "rate", "output_token", "disabled_topics"
+        ]
+        group_dict = {columns[i]: group_data[0][i] for i in range(len(columns))}
+        return jsonify(group_dict)
+
+    elif request.method == "PUT":
         data = request.get_json()
-        existing_group = db.query_db(
-            "SELECT group_id FROM groups WHERE group_id = ?", (group_id,)
-        )
+        if not data:
+            return jsonify({"success": False, "message": "无效的请求数据"}), 400
+
+        existing_group = db.query_db("SELECT group_id FROM groups WHERE group_id = ?", (group_id,))
         if not existing_group:
             return jsonify({"success": False, "message": "群组不存在"}), 404
+
         updates = []
         params = []
-        if "group_name" in data:
-            updates.append("group_name = ?")
-            params.append(data["group_name"])
-        if "active" in data:
-            updates.append("active = ?")
-            params.append(int(data["active"]))
-        if "char" in data:
-            updates.append("char = ?")
-            params.append(data["char"])
-        if "api" in data:
-            updates.append("api = ?")
-            params.append(data["api"])
-        if "preset" in data:
-            updates.append("preset = ?")
-            params.append(data["preset"])
-        if "rate" in data:
-            updates.append("rate = ?")
-            params.append(float(data["rate"]) if data["rate"] else None)
-        if "members_list" in data:
-            updates.append("members_list = ?")
-            params.append(data["members_list"])
-        if "keywords" in data:
-            updates.append("keywords = ?")
-            params.append(data["keywords"])
-        if "disabled_topics" in data:
-            updates.append("disabled_topics = ?")
-            params.append(data["disabled_topics"])
+        
+        allowed_fields = [
+            "group_name", "active", "char", "api", "preset", "rate",
+            "members_list", "keywords", "disabled_topics"
+        ]
+        
+        for field in allowed_fields:
+            if field in data:
+                updates.append(f"{field} = ?")
+                value = data[field]
+                if field == 'active':
+                    value = int(value)
+                elif field == 'rate':
+                    value = float(value) if value is not None else None
+                params.append(value)
+
         if updates:
+            updates.append("update_time = ?")
+            params.append(datetime.now())
             params.append(group_id)
+            
             sql = f"UPDATE groups SET {', '.join(updates)} WHERE group_id = ?"
             db.revise_db(sql, tuple(params))
             return jsonify({"success": True, "message": "群组信息更新成功"})
         else:
             return jsonify({"success": False, "message": "没有提供要更新的字段"}), 400
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    
+    # This part should not be reached, but as a fallback
+    return jsonify({"success": False, "message": "不支持的请求方法"}), 405
 
 
 @api_bp.route("/config/list")

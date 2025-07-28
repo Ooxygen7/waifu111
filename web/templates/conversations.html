@@ -15,7 +15,10 @@
             <div class="header-container">
                 <div class="header-title">
                     <div class="header-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                        </svg>
                     </div>
                     <div class="header-text">
                         <h3>对话记录</h3>
@@ -26,16 +29,27 @@
                     <form method="GET" action="{{ url_for('admin.conversations') }}" class="search-form">
                         <div class="search-input-wrapper">
                             <div class="search-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
                             </div>
-                            <input type="text" name="search" class="search-input" placeholder="搜索用户ID、用户名..." value="{{ search or '' }}" aria-label="搜索对话">
+                            <input type="text" name="search" class="search-input" placeholder="搜索用户ID、用户名..."
+                                value="{{ search or '' }}" aria-label="搜索对话">
                             {% if search %}
                             <a href="{{ url_for('admin.conversations') }}" class="clear-button" aria-label="清除搜索">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
                             </a>
                             {% endif %}
                         </div>
-                        <button type="submit" class="btn-glass search-button" aria-label="搜索">
+                        <button type="submit" class="btn-glass" aria-label="搜索">
                             <span>搜索</span>
                         </button>
                     </form>
@@ -55,51 +69,87 @@
                     <thead>
                         <tr>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.conversations', sort_by='conv_id', sort_order=next_sort_order('conv_id'), search=search) }}">
+                                <a
+                                    href="{{ url_for('admin.conversations', sort_by='conv_id', sort_order=next_sort_order('conv_id'), search=search) }}">
                                     <span>对话ID</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
                                     </span>
                                 </a>
                             </th>
                             <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('admin.conversations', sort_by='user_id', sort_order=next_sort_order('user_id'), search=search) }}">
+                                <a
+                                    href="{{ url_for('admin.conversations', sort_by='user_id', sort_order=next_sort_order('user_id'), search=search) }}">
                                     <span>用户</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
                                     </span>
                                 </a>
                             </th>
                             <th class="sortable" data-sort="text">
-                                <a href="{{ url_for('admin.conversations', sort_by='character', sort_order=next_sort_order('character'), search=search) }}">
+                                <a
+                                    href="{{ url_for('admin.conversations', sort_by='character', sort_order=next_sort_order('character'), search=search) }}">
                                     <span>角色/预设</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
                                     </span>
                                 </a>
                             </th>
                             <th>摘要</th>
                             <th class="sortable" data-sort="number">
-                                <a href="{{ url_for('admin.conversations', sort_by='turns', sort_order=next_sort_order('turns'), search=search) }}">
+                                <a
+                                    href="{{ url_for('admin.conversations', sort_by='turns', sort_order=next_sort_order('turns'), search=search) }}">
                                     <span>轮数/状态</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
                                     </span>
                                 </a>
                             </th>
                             <th class="sortable" data-sort="date">
-                                <a href="{{ url_for('admin.conversations', sort_by='create_at', sort_order=next_sort_order('create_at'), search=search) }}">
+                                <a
+                                    href="{{ url_for('admin.conversations', sort_by='create_at', sort_order=next_sort_order('create_at'), search=search) }}">
                                     <span>创建时间</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
                                     </span>
                                 </a>
                             </th>
                             <th class="sortable" data-sort="date">
-                                <a href="{{ url_for('admin.conversations', sort_by='update_at', sort_order=next_sort_order('update_at'), search=search) }}">
+                                <a
+                                    href="{{ url_for('admin.conversations', sort_by='update_at', sort_order=next_sort_order('update_at'), search=search) }}">
                                     <span>更新时间</span>
                                     <span class="sort-indicator">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="sort-both"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" class="sort-both">
+                                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                                            <polyline points="19 12 12 19 5 12"></polyline>
+                                        </svg>
                                     </span>
                                 </a>
                             </th>
@@ -115,7 +165,7 @@
                                 <div class="user-info">
                                     <div class="user-details">
                                         <span class="user-name"
-                                              title="用户ID: {{ conv.user_id }}{% if conv.user_name %} | 用户名: {{ conv.user_name }}{% endif %} | 姓名: {{ (conv.first_name or '') + ' ' + (conv.last_name or '') }}">
+                                            title="用户ID: {{ conv.user_id }}{% if conv.user_name %} | 用户名: {{ conv.user_name }}{% endif %} | 姓名: {{ (conv.first_name or '') + ' ' + (conv.last_name or '') }}">
                                             {{ (conv.first_name or '') + ' ' + (conv.last_name or '') }}
                                         </span>
                                     </div>
@@ -123,16 +173,17 @@
                             </td>
                             <td>
                                 <div class="stacked-badges">
-                                    <span>{{ conv.character.rsplit('_', 1)[0] if conv.character and '_' in conv.character else conv.character or '未设置' }}</span>
+                                    <span>{{ conv.character.rsplit('_', 1)[0] if conv.character and '_' in
+                                        conv.character else conv.character or '未设置' }}</span>
                                     <span>{{ conv.preset or '默认' }}</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="summary-preview" title="{{ conv.summary if conv.summary else '暂无摘要' }}">
                                     {% if conv.summary %}
-                                        {{ conv.summary[:30] + '...' if conv.summary|length > 30 else conv.summary }}
+                                    {{ conv.summary[:30] + '...' if conv.summary|length > 30 else conv.summary }}
                                     {% else %}
-                                        <span class="text-muted">[暂无摘要]</span>
+                                    <span class="text-muted">[暂无摘要]</span>
                                     {% endif %}
                                 </div>
                             </td>
@@ -140,30 +191,36 @@
                                 <div class="stacked-badges">
                                     <span>{{ conv.turns or 0 }} 轮</span>
                                     {% if conv.delete_mark %}
-                                        <span class="text-danger">已删除</span>
+                                    <span class="text-danger">已删除</span>
                                     {% else %}
-                                        <span class="text-success">正常</span>
+                                    <span class="text-success">正常</span>
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
                                 <div class="date-info">
-                                    <span class="date-value">{{ format_datetime(conv.create_at)[:10] if conv.create_at else '未知' }}</span>
-                                    <span class="date-time text-muted">{{ format_datetime(conv.create_at)[11:19] if conv.create_at else '' }}</span>
+                                    <span class="date-value">{{ format_datetime(conv.create_at)[:10] if conv.create_at
+                                        else '未知' }}</span>
+                                    <span class="date-time text-muted">{{ format_datetime(conv.create_at)[11:19] if
+                                        conv.create_at else '' }}</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="date-info">
-                                    <span class="date-value">{{ format_datetime(conv.update_at)[:10] if conv.update_at else '未知' }}</span>
-                                    <span class="date-time text-muted">{{ format_datetime(conv.update_at)[11:19] if conv.update_at else '' }}</span>
+                                    <span class="date-value">{{ format_datetime(conv.update_at)[:10] if conv.update_at
+                                        else '未知' }}</span>
+                                    <span class="date-time text-muted">{{ format_datetime(conv.update_at)[11:19] if
+                                        conv.update_at else '' }}</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}" class="btn-glass" title="查看对话详情" aria-label="查看对话详情">
+                                    <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}" class="btn-glass"
+                                        title="查看对话详情" aria-label="查看对话详情">
                                         <span>👁️</span>
                                     </a>
-                                    <button type="button" class="btn-glass generate-summary-btn" data-conv-id="{{ conv.conv_id }}" title="生成摘要" aria-label="生成摘要">
+                                    <button type="button" class="btn-glass generate-summary-btn"
+                                        data-conv-id="{{ conv.conv_id }}" title="生成摘要" aria-label="生成摘要">
                                         <span>✨</span>
                                     </button>
                                 </div>
@@ -175,7 +232,12 @@
                             <td colspan="8" class="text-center py-4">
                                 <div class="empty-state">
                                     <div class="empty-state-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z">
+                                            </path>
+                                        </svg>
                                     </div>
                                     <h3 class="empty-state-title">暂无对话记录</h3>
                                     <p class="empty-state-description">
@@ -202,46 +264,61 @@
             {% if total_pages > 1 %}
             <div class="pagination-wrapper">
                 <div class="pagination-info">
-                    <span class="pagination-text">显示第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <= total_conversations else total_conversations }} 条，共 {{ total_conversations }} 条记录</span>
+                    <span class="pagination-text">显示第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <=
+                            total_conversations else total_conversations }} 条，共 {{ total_conversations }} 条记录</span>
                 </div>
                 <div class="pagination-controls">
                     {% if page > 1 %}
-                        <a href="{{ url_for('admin.conversations', page=page-1, search=search, sort_by=sort_by, sort_order=sort_order) }}"
-                           class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                            <span>上一页</span>
-                        </a>
+                    <a href="{{ url_for('admin.conversations', page=page-1, search=search, sort_by=sort_by, sort_order=sort_order) }}"
+                        class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>上一页</span>
+                    </a>
                     {% else %}
-                        <span class="btn-glass pagination-btn pagination-prev disabled">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                            <span>上一页</span>
-                        </span>
+                    <span class="btn-glass pagination-btn pagination-prev disabled">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                        <span>上一页</span>
+                    </span>
                     {% endif %}
-                    
+
                     <div class="pagination-numbers">
                         {% for p in range(1, total_pages + 1) %}
-                            {% if p == page %}
-                                <span class="btn-glass pagination-number active">{{ p }}</span>
-                            {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
-                                <a href="{{ url_for('admin.conversations', page=p, search=search, sort_by=sort_by, sort_order=sort_order) }}" class="btn-glass pagination-number">{{ p }}</a>
-                            {% elif p == 4 or p == total_pages - 3 %}
+                        {% if p == page %}
+                        <span class="btn-glass pagination-number active">{{ p }}</span>
+                        {% elif p <= 3 or p> total_pages - 3 or (p >= page - 2 and p <= page + 2) %} <a
+                                href="{{ url_for('admin.conversations', page=p, search=search, sort_by=sort_by, sort_order=sort_order) }}"
+                                class="btn-glass pagination-number">{{ p }}</a>
+                                {% elif p == 4 or p == total_pages - 3 %}
                                 <span class="pagination-ellipsis">…</span>
-                            {% endif %}
-                        {% endfor %}
+                                {% endif %}
+                                {% endfor %}
                     </div>
-                    
-                    {% if page < total_pages %}
-                        <a href="{{ url_for('admin.conversations', page=page+1, search=search, sort_by=sort_by, sort_order=sort_order) }}"
-                           class="btn-glass pagination-btn pagination-next" aria-label="下一页">
-                            <span>下一页</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+
+                    {% if page < total_pages %} <a
+                        href="{{ url_for('admin.conversations', page=page+1, search=search, sort_by=sort_by, sort_order=sort_order) }}"
+                        class="btn-glass pagination-btn pagination-next" aria-label="下一页">
+                        <span>下一页</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
                         </a>
-                    {% else %}
+                        {% else %}
                         <span class="btn-glass pagination-btn pagination-next disabled">
                             <span>下一页</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
                         </span>
-                    {% endif %}
+                        {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -252,50 +329,50 @@
 
 {% block scripts %}
 <script>
-$(document).ready(function() {
-    // 生成摘要按钮点击事件
-    $(document).on('click', '.generate-summary-btn', function() {
-        const convId = $(this).data('conv-id');
-        const button = $(this);
-        
-        // 防止重复点击
-        if (button.hasClass('loading')) {
-            return;
-        }
+    $(document).ready(function () {
+        // 生成摘要按钮点击事件
+        $(document).on('click', '.generate-summary-btn', function () {
+            const convId = $(this).data('conv-id');
+            const button = $(this);
 
-        const originalIcon = button.html();
-        button.prop('disabled', true).addClass('loading').html('<span class="btn-text">生成中...</span>');
-        
-        $.ajax({
-            url: '/api/generate_summary',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ conversation_id: convId }),
-            success: function(response) {
-                if (response.success) {
-                    const summaryCell = button.closest('tr').find('.summary-preview');
-                    const truncatedSummary = response.summary.length > 30 ? response.summary.substring(0, 30) + '...' : response.summary;
-                    summaryCell.html(truncatedSummary).attr('title', response.summary);
-                    if (window.showNotification) {
-                        window.showNotification('摘要生成成功！', 'success');
+            // 防止重复点击
+            if (button.hasClass('loading')) {
+                return;
+            }
+
+            const originalIcon = button.html();
+            button.prop('disabled', true).addClass('loading').html('<span class="btn-text">生成中...</span>');
+
+            $.ajax({
+                url: '/api/generate_summary',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ conversation_id: convId }),
+                success: function (response) {
+                    if (response.success) {
+                        const summaryCell = button.closest('tr').find('.summary-preview');
+                        const truncatedSummary = response.summary.length > 30 ? response.summary.substring(0, 30) + '...' : response.summary;
+                        summaryCell.html(truncatedSummary).attr('title', response.summary);
+                        if (window.showNotification) {
+                            window.showNotification('摘要生成成功！', 'success');
+                        }
+                    } else {
+                        if (window.showNotification) {
+                            window.showNotification('摘要生成失败：' + (response.message || '未知错误'), 'error');
+                        }
                     }
-                } else {
+                },
+                error: function (xhr, status, error) {
+                    console.error('生成摘要请求失败:', error);
                     if (window.showNotification) {
-                        window.showNotification('摘要生成失败：' + (response.message || '未知错误'), 'error');
+                        window.showNotification('请求失败，请稍后重试', 'error');
                     }
+                },
+                complete: function () {
+                    button.prop('disabled', false).removeClass('loading').html(originalIcon);
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('生成摘要请求失败:', error);
-                if (window.showNotification) {
-                    window.showNotification('请求失败，请稍后重试', 'error');
-                }
-            },
-            complete: function() {
-                 button.prop('disabled', false).removeClass('loading').html(originalIcon);
-             }
+            });
         });
     });
-});
 </script>
 {% endblock %}
