@@ -352,3 +352,67 @@
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
+/* ==========================================================================
+   Light Theme for index.css
+   ========================================================================== */
+
+[data-theme='light'] {
+    .sub-stat {
+        background-color: rgba(255, 255, 255, 0.4);
+        border-color: rgba(0, 0, 0, 0.1);
+        box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.05);
+    }
+
+    .sub-stat:hover {
+        border-color: var(--primary-color);
+        box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.05), 0 0 16px var(--glow-color);
+    }
+
+    .analytics-container, .chart-card {
+        border-color: rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .stat-value {
+        color: var(--text-color);
+        text-shadow: 0 0 12px rgba(0, 123, 255, 0.3);
+        background: rgba(0, 123, 255, 0.1);
+        border-color: rgba(0, 123, 255, 0.3);
+        box-shadow: 0 0 15px rgba(0, 123, 255, 0.2);
+    }
+
+    .top-rank {
+        text-shadow: 0 0 4px var(--primary-color);
+    }
+
+    .quick-actions .btn-with-icon {
+        background: rgba(255, 255, 255, 0.3);
+        color: var(--text-color);
+        text-shadow: none;
+    }
+
+    .quick-actions .btn-with-icon::before {
+        box-shadow: inset 1px 1px 3px 2px rgba(255, 255, 255, 0.5), inset -1px -1px 3px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .quick-actions .btn-with-icon:hover {
+        color: var(--primary-color);
+        text-shadow: 0 0 8px var(--glow-color);
+        background: linear-gradient(90deg, rgba(0, 123, 255, 0.1), rgba(0, 212, 255, 0.1), rgba(0, 255, 136, 0.1), rgba(255, 255, 0, 0.1), rgba(0, 123, 255, 0.1));
+    }
+
+    .period-btn {
+        background: rgba(255, 255, 255, 0.3);
+        border-color: rgba(0, 0, 0, 0.1);
+        color: var(--text-color);
+    }
+
+    .period-btn:hover {
+        background: rgba(255, 255, 255, 0.5);
+        color: var(--primary-color);
+    }
+
+    .analytics-header .period-selector .period-btn.active {
+        color: #fff; /* Keep text white on active */
+        box-shadow: 0 0 15px 5px var(--glow-color), inset 0 0 15px rgba(255, 255, 255, 0.2);
+    }
+}

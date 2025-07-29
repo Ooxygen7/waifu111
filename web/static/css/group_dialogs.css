@@ -229,3 +229,53 @@
     gap: 15px;
     padding: 15px;
 }
+/* ==========================================================================
+   Light Theme for group_dialogs.css
+   ========================================================================== */
+
+[data-theme='light'] {
+    .search-keyword-display {
+        background: var(--primary-color);
+        color: #fff;
+    }
+
+    .user-bubble .sender-name {
+        color: #155724; /* Dark green text for readability on light green bubble */
+    }
+
+    .ai-bubble .sender-name {
+        color: var(--text-color);
+    }
+
+    .forward-btn {
+        background: rgba(0, 123, 255, 0.5); /* Primary color glass */
+        color: white;
+    }
+
+    .forward-btn:hover {
+        background: rgba(0, 123, 255, 0.7);
+    }
+
+    .search-highlight {
+        background: var(--primary-color);
+        color: #fff;
+    }
+
+    .empty-state {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+    }
+
+    .empty-content .empty-title {
+        color: var(--text-color);
+    }
+
+    #messageDetailModal .content-display {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    #messageDetailModal .meta-value {
+        color: var(--text-color);
+    }
+}

@@ -77,15 +77,33 @@ function initSidebarToggle() {
  * 初始化主题切换
  */
 function initThemeToggle() {
-    // 强制设置 'dark' 主题
-    document.documentElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-
     const themeToggle = document.getElementById('theme-toggle');
-    if (themeToggle) {
-        // 隐藏切换按钮
-        themeToggle.style.display = 'none';
-    }
+    const doc = document.documentElement;
+
+    if (!themeToggle) return;
+
+    const themeIcon = themeToggle.querySelector('.theme-icon');
+
+    const applyTheme = (theme) => {
+        doc.setAttribute('data-theme', theme);
+        if (themeIcon) {
+            themeIcon.setAttribute('data-feather', theme === 'dark' ? 'sun' : 'moon');
+        }
+        if (typeof feather !== 'undefined') {
+            feather.replace();
+        }
+    };
+
+    themeToggle.addEventListener('click', () => {
+        let currentTheme = doc.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem('theme', newTheme);
+        applyTheme(newTheme);
+    });
+
+    // Apply saved theme on initial load
+    const savedTheme = localStorage.getItem('theme') || 'dark'; // Default to dark
+    applyTheme(savedTheme);
 }
 
 /**

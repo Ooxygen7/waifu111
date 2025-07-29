@@ -2045,3 +2045,334 @@ The following rule is ineffective and has been removed to avoid confusion.
     font-size: 1.2rem;
     filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
 }
+/* ==========================================================================
+   Light Theme for admin_glass.css
+   ========================================================================== */
+
+[data-theme='light'] {
+    /* ==========================================================================
+       Main Card Styling
+       ========================================================================== */
+    .content-wrapper.users-page,
+    .content-wrapper.dialogs-page {
+        background-color: rgba(255, 255, 255, 0.4); /* Lighter glass */
+        backdrop-filter: blur(5px) saturate(100%);
+        -webkit-backdrop-filter: blur(5px) saturate(100%);
+        border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .content-wrapper.users-page::before,
+    .content-wrapper.dialogs-page::before {
+        box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.05);
+        opacity: 0.05;
+    }
+
+    .header-text h3,
+    .user-name,
+    .info-value,
+    .config-value,
+    .glass-card .card-header .card-title-text,
+    #messageDetailModal .meta-value,
+    #userEditModal .section-title,
+    #groupEditModal .section-title,
+    .profile-name,
+    #groupDetailModal .info-value,
+    #groupDetailModal .config-value {
+        color: var(--text-color);
+    }
+    
+    .clear-button:hover {
+        color: var(--primary-color);
+    }
+
+    /* ==========================================================================
+       Search Component
+       ========================================================================== */
+    .search-input-wrapper {
+        background: rgba(255, 255, 255, 0.5);
+        border-color: rgba(0, 0, 0, 0.15);
+    }
+
+    .search-status {
+        background: rgba(0, 123, 255, 0.1);
+        border-color: rgba(0, 123, 255, 0.2);
+    }
+
+    /* ==========================================================================
+       Table Styles
+       ========================================================================== */
+    .table-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .data-table thead th {
+        background: linear-gradient(to bottom, rgba(0, 123, 255, 0.1), rgba(0, 123, 255, 0.05));
+        color: var(--text-color);
+    }
+
+    .data-table tbody tr:hover {
+        background-color: rgba(0, 123, 255, 0.08);
+    }
+
+    /* ==========================================================================
+       Pagination
+       ========================================================================== */
+    .pagination-number.active {
+        color: #fff; /* Keep white on primary color background */
+        text-shadow: none;
+    }
+
+    .pagination-btn.disabled {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .pagination-ellipsis {
+        color: var(--text-color);
+        opacity: 0.6;
+    }
+
+    /* ==========================================================================
+       Modal Styles
+       ========================================================================== */
+    .modal-container {
+        background-color: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(5px) saturate(100%);
+        -webkit-backdrop-filter: blur(5px) saturate(100%);
+        border-color: rgba(0, 0, 0, 0.1);
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-close {
+        background: rgba(0, 0, 0, 0.05);
+    }
+    
+    .modal-close:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: var(--primary-color);
+    }
+
+    .modal-footer {
+        background-color: rgba(248, 249, 250, 0.7);
+        border-top-color: rgba(0, 0, 0, 0.1);
+    }
+
+    /* ==========================================================================
+       Edit Modal Form
+       ========================================================================== */
+    #userEditModal .form-section,
+    #groupEditModal .form-section {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(0, 0, 0, 0.08);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+    }
+    
+    #userEditModal .form-section:hover,
+    #groupEditModal .form-section:hover {
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.1);
+    }
+
+    #userEditModal .section-header,
+    #groupEditModal .section-header {
+        border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+
+    #userEditModal .form-input,
+    #userEditModal .form-select,
+    #groupEditModal .form-input,
+    #groupEditModal .form-select,
+    .custom-select-trigger {
+        background-color: rgba(255, 255, 255, 0.4);
+        border-color: rgba(0, 0, 0, 0.15);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    #userEditModal .form-input:focus,
+    #userEditModal .form-select:focus,
+    #groupEditModal .form-input:focus,
+    #groupEditModal .form-select:focus,
+    .custom-select.open .custom-select-trigger {
+        box-shadow: 0 0 15px var(--glow-color), inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    #userEditModal .input-group .input-prefix {
+        background-color: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.15);
+    }
+
+    .custom-options {
+        background-color: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(8px) saturate(120%);
+        -webkit-backdrop-filter: blur(8px) saturate(120%);
+        border-color: rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .custom-option:hover {
+        background-color: rgba(0, 123, 255, 0.1);
+    }
+
+    .custom-option.selected {
+        background-color: rgba(0, 123, 255, 0.2);
+        color: var(--text-color);
+    }
+
+    /* ==========================================================================
+       Detail Modal Content
+       ========================================================================== */
+    .detail-card,
+    #groupDetailModal .detail-card {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    .detail-card .card-title,
+    #groupDetailModal .detail-card .card-title {
+        border-bottom-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .profile-body .info-item,
+    #groupDetailModal .profile-body .info-item {
+        border-bottom-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .stat-item,
+    .config-item,
+    #groupDetailModal .stat-item,
+    #groupDetailModal .config-item {
+        background: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+    }
+    
+    .stat-item:hover,
+    .config-item:hover,
+    #groupDetailModal .stat-item:hover,
+    #groupDetailModal .config-item:hover {
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ==========================================================================
+       Badges
+       ========================================================================== */
+    .badge {
+        border-color: rgba(0, 0, 0, 0.1);
+        text-shadow: none;
+        color: var(--text-color);
+    }
+
+    .badge.secondary {
+        background-color: rgba(108, 117, 125, 0.2);
+    }
+
+    .badge.warning {
+        background-color: rgba(255, 193, 7, 0.2);
+        color: #000; /* Keep black text for yellow background */
+    }
+
+    .badge.danger {
+        background-color: rgba(220, 53, 69, 0.2);
+    }
+
+    /* ==========================================================================
+       Dialogs Page
+       ========================================================================== */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(0, 0, 0, 0.08);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .detail-item {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    .summary-text {
+        color: var(--text-color);
+        opacity: 0.8;
+    }
+
+    .message-bubble {
+        color: var(--text-color);
+    }
+
+    .message-bubble:hover {
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .ai-bubble {
+        background-color: rgba(0, 123, 255, 0.1);
+        box-shadow: 0 5px 15px rgba(0, 123, 255, 0.05);
+    }
+
+    .user-bubble {
+        background-color: rgba(230, 245, 233, 1); /* A light, solid green */
+        box-shadow: 0 5px 15px rgba(40, 167, 69, 0.05);
+        color: #155724; /* Dark green text for readability */
+    }
+    
+    .edit-btn {
+        background: rgba(0, 0, 0, 0.1);
+        color: var(--text-color);
+    }
+
+    .edit-btn:hover {
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    #messageDetailModal .detail-card {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(0, 0, 0, 0.08);
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+    }
+
+    #messageDetailModal .message-meta-container {
+        background: rgba(0, 0, 0, 0.05);
+        border-color: rgba(0, 0, 0, 0.05);
+    }
+
+    #messageDetailModal .content-display {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    #editMessageModal .form-input {
+        background-color: rgba(255, 255, 255, 0.5);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    #editMessageModal .form-input:focus {
+        box-shadow: 0 0 15px var(--glow-color), inset 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    #editMessageModal .form-info-banner {
+        background: rgba(0, 123, 255, 0.1);
+        border-color: rgba(0, 123, 255, 0.2);
+    }
+
+    /* ==========================================================================
+       Toast Notifications
+       ========================================================================== */
+    .toast-notification {
+        background-color: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(8px) saturate(120%);
+        -webkit-backdrop-filter: blur(8px) saturate(120%);
+        border-color: rgba(0, 0, 0, 0.1);
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.1);
+        color: var(--text-color);
+    }
+
+    .toast-notification.success {
+        background-color: rgba(40, 167, 69, 0.8);
+        border-color: rgba(40, 167, 69, 0.5);
+        color: #fff;
+    }
+
+    .toast-notification.error {
+        background-color: rgba(220, 53, 69, 0.8);
+        border-color: rgba(220, 53, 69, 0.5);
+        color: #fff;
+    }
+    
+    .toast-notification.success .toast-icon,
+    .toast-notification.error .toast-icon {
+        filter: none;
+    }
+}
