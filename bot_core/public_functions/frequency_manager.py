@@ -275,17 +275,11 @@ def _get_trends(time_range):
             ORDER BY {group_group_format}
         """)
     stats["group_trend"] = group_trend or []
-    
-    # 合并私聊和群聊趋势
-    merged_trend = {}
-    for date, count in dialog_trend:
-        merged_trend[date] = merged_trend.get(date, 0) + count
-    for date, count in group_trend:
-        merged_trend[date] = merged_trend.get(date, 0) + count
-    
-    # 转换为与 Chart.js 兼容的格式
-    all_messages_trend = sorted(merged_trend.items())
-    stats["all_messages_trend"] = all_messages_trend
+
+    # 不再合并私聊和群聊趋势，将它们分开返回
+    # 确保数据按日期排序
+    stats["dialog_trend"] = sorted(dialog_trend or [])
+    stats["group_trend"] = sorted(group_trend or [])
 
     return stats
 
@@ -336,15 +330,28 @@ def get_dashboard_stats(time_range="7d"):
     trend_stats = _get_trends(time_range)
     stats.update(trend_stats)
     
+    # 为令牌趋势计算，在函数内部临时合并消息趋势
+    merged_trend = {}
+    for date, count in stats.get("dialog_trend", []):
+        merged_trend[date] = merged_trend.get(date, 0) + count
+    for date, count in stats.get("group_trend", []):
+        merged_trend[date] = merged_trend.get(date, 0) + count
+    all_messages_trend = sorted(merged_trend.items())
+
     # 计算令牌趋势
     token_trend = []
     total_messages = stats["total_dialogs"] + stats["total_group_dialogs"]
-    for item in stats["all_messages_trend"]:
+    for item in all_messages_trend:
         if total_messages > 0:
-            ratio = item[1] / total_messages
-            estimated_tokens = int(
-                (stats["total_input_tokens"] + stats["total_output_tokens"]) * ratio
-            )
+            # 避免除以零的错误
+            total_messages_in_range = sum(v for k, v in all_messages_trend)
+            if total_messages_in_range > 0:
+                ratio = item[1] / total_messages_in_range
+                estimated_tokens = int(
+                    (stats["total_input_tokens"] + stats["total_output_tokens"]) * ratio
+                )
+            else:
+                estimated_tokens = 0
         else:
             estimated_tokens = 0
         token_trend.append((item[0], estimated_tokens))

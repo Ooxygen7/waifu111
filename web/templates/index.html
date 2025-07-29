@@ -14,25 +14,25 @@
         <!-- Main Stats -->
         <div class="stat-card users glass-card">
             <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_users }}</span></div>
-            <div class="stat-title">👥 总用户数</div>
+            <div class="stat-title"><i data-feather="users" class="icon"></i> 总用户数</div>
         </div>
         <div class="stat-card convos glass-card">
             <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_conversations }}</span></div>
-            <div class="stat-title">💬 总对话数</div>
+            <div class="stat-title"><i data-feather="message-circle" class="icon"></i> 总对话数</div>
         </div>
         <div class="stat-card messages glass-card">
             <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_dialogs }}</span></div>
-            <div class="stat-title">📝 总消息数</div>
+            <div class="stat-title"><i data-feather="file-text" class="icon"></i> 总消息数</div>
         </div>
         <div class="stat-card today glass-card">
             <div class="stat-value-wrapper"><span class="stat-value">{{ stats.today_conversations }}</span></div>
-            <div class="stat-title">📅 今日对话</div>
+            <div class="stat-title"><i data-feather="calendar" class="icon"></i> 今日对话</div>
         </div>
 
         <!-- Combined Info Card -->
         <div class="info-card activity-and-tokens glass-card">
             <div class="info-section">
-                <h3 class="info-card-title">📊 今日活动</h3>
+                <h3 class="info-card-title"><i data-feather="activity" class="icon"></i> 今日活动</h3>
                 <div class="info-card-content">
                     <div class="sub-stat"><span>新增对话:</span> <span>{{ stats.today_conversations }}</span></div>
                     <div class="sub-stat"><span>私聊消息:</span> <span>{{ stats.today_dialogs }}</span></div>
@@ -42,7 +42,7 @@
             </div>
             <div class="info-divider"></div>
             <div class="info-section">
-                <h3 class="info-card-title">🎯 Token 统计</h3>
+                <h3 class="info-card-title"><i data-feather="target" class="icon"></i> Token 统计</h3>
                 <div class="info-card-content">
                     <div class="sub-stat"><span>输入:</span> <span>{{ stats.total_input_tokens | format_large_number }}</span></div>
                     <div class="sub-stat"><span>输出:</span> <span>{{ stats.total_output_tokens | format_large_number }}</span></div>
@@ -55,18 +55,18 @@
 
         <!-- Top Lists -->
         <div class="card card-compact top-users-list glass-card">
-            <div class="card-header"><h3 class="card-title">🏆 今日最活跃用户 TOP5</h3></div>
+            <div class="card-header"><h3 class="card-title"><i data-feather="award" class="icon"></i> 今日最活跃用户 TOP5</h3></div>
             <div class="card-body">
                 <div class="top-list">
-                    {% for user in stats.active_users[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-content"><div class="top-name">{{ user[1] or user[2] or '用户 ' + user[0]|string }}</div><div class="top-value">{{ user[4] }} 条消息</div></div><a href="{{ url_for('admin.conversations', search=user[0]) }}" class="btn-glass" title="查看该用户的对话"><i class="icon">💬</i></a></div>{% endfor %}
+                    {% for user in stats.active_users[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-divider"></div><div class="top-content"><div class="top-name">{{ (user[2] ~ ' ' ~ user[3])|trim or user[1] or '用户 ' ~ user[0]|string }}</div><div class="top-value">{{ user[4] }} 条消息</div></div><div class="top-divider"></div><a href="{{ url_for('admin.conversations', search=user[0]) }}" class="btn-glass" title="查看该用户的对话"><i data-feather="message-square"></i></a></div>{% endfor %}
                 </div>
             </div>
         </div>
         <div class="card card-compact top-groups-list glass-card">
-            <div class="card-header"><h3 class="card-title">👥 最活跃群组 TOP5</h3></div>
+            <div class="card-header"><h3 class="card-title"><i data-feather="users" class="icon"></i> 最活跃群组 TOP5</h3></div>
             <div class="card-body">
                 <div class="top-list">
-                    {% for group in stats.active_groups[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-content"><div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div><div class="top-value">{{ group[2] }} 条消息</div></div><a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="btn-glass" title="查看群组聊天记录"><i class="icon">👥</i></a></div>{% endfor %}
+                    {% for group in stats.active_groups[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-divider"></div><div class="top-content"><div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div><div class="top-value">{{ group[2] }} 条消息</div></div><div class="top-divider"></div><a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="btn-glass" title="查看群组聊天记录"><i data-feather="message-square"></i></a></div>{% endfor %}
                 </div>
             </div>
         </div>
@@ -74,7 +74,7 @@
         <!-- Analytics Container -->
         <div class="analytics-container glass-card">
             <div class="analytics-header">
-                <h3 class="analytics-title">📈 数据趋势分析</h3>
+                <h3 class="analytics-title"><i data-feather="bar-chart-2" class="icon"></i> 数据趋势分析</h3>
                 <div class="period-selector">
                     <button class="period-btn active" data-period="7d">近7天</button>
                     <button class="period-btn" data-period="30d">近30天</button>
@@ -83,42 +83,42 @@
                 </div>
             </div>
             <div class="charts-grid">
-                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">📊 用户增长趋势</h4></div><div class="chart-body"><canvas id="userGrowthChart"></canvas></div></div>
-                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">💬 对话量趋势</h4></div><div class="chart-body"><canvas id="conversationChart"></canvas></div></div>
-                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">🔥 Token消耗趋势</h4></div><div class="chart-body"><canvas id="tokenUsageChart"></canvas></div></div>
-                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title">⚡ 活跃度分析</h4></div><div class="chart-body"><canvas id="activityChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title"><i data-feather="users" class="icon"></i> 用户增长趋势</h4></div><div class="chart-body"><canvas id="userGrowthChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title"><i data-feather="message-circle" class="icon"></i> 对话量趋势</h4></div><div class="chart-body"><canvas id="conversationChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title"><i data-feather="zap" class="icon"></i> Token消耗趋势</h4></div><div class="chart-body"><canvas id="tokenUsageChart"></canvas></div></div>
+                <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title"><i data-feather="activity" class="icon"></i> 活跃度分析</h4></div><div class="chart-body"><canvas id="activityChart"></canvas></div></div>
             </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="card card-bordered quick-actions-card glass-card">
     <div class="card-header">
-        <h3 class="card-title">⚡ 快速导航</h3>
+        <h3 class="card-title"><i data-feather="navigation" class="icon"></i> 快速导航</h3>
     </div>
     <div class="card-body">
         <div class="quick-actions">
             <a href="{{ url_for('admin.users') }}" class="btn-glass btn-with-icon">
-                <i class="icon">👥</i>
+                <i data-feather="users"></i>
                 <span>用户管理</span>
             </a>
             <a href="{{ url_for('admin.conversations') }}" class="btn-glass btn-with-icon">
-                <i class="icon">💬</i>
+                <i data-feather="message-square"></i>
                 <span>对话记录</span>
             </a>
             <a href="{{ url_for('admin.groups') }}" class="btn-glass btn-with-icon">
-                <i class="icon">👥</i>
+                <i data-feather="users"></i>
                 <span>群组管理</span>
             </a>
             <a href="{{ url_for('admin.config_management') }}" class="btn-glass btn-with-icon">
-                <i class="icon">⚙️</i>
+                <i data-feather="settings"></i>
                 <span>配置管理</span>
             </a>
             <a href="{{ url_for('admin.search') }}" class="btn-glass btn-with-icon">
-                <i class="icon">🔍</i>
+                <i data-feather="search"></i>
                 <span>数据搜索</span>
             </a>
             <button class="btn-glass btn-with-icon" onclick="location.reload()">
-                <i class="icon">🔄</i>
+                <i data-feather="refresh-cw"></i>
                 <span>刷新数据</span>
             </button>
         </div>
@@ -201,10 +201,10 @@ const conversationCtx = document.getElementById('conversationChart').getContext(
 const conversationChart = new Chart(conversationCtx, {
     type: 'line',
     data: {
-        labels: [{% for item in stats.all_messages_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: [{% for item in stats.dialog_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
-            label: '总消息量',
-            data: [{% for item in stats.all_messages_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            label: '私聊消息量',
+            data: [{% for item in stats.dialog_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
             borderColor: '#00ff88',
             backgroundColor: 'rgba(0, 255, 136, 0.15)',
             tension: 0.4,
@@ -480,17 +480,21 @@ const activityChart = new Chart(activityCtx, {
     transform: translateY(-1px);
 }
 .top-rank {
-    width: 2rem;
-    height: 2rem;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    background: transparent;
+    color: var(--primary-color);
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    font-size: 0.9rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 1.8rem;
     margin-right: 0.75rem;
+    flex-shrink: 0;
+    text-shadow: 0 0 4px white, 0 0 12px var(--primary-color);
+    line-height: 1;
 }
 .top-content {
     flex: 1;
@@ -512,6 +516,30 @@ const activityChart = new Chart(activityCtx, {
     border-radius: 1rem;
     font-size: 0.8rem;
     font-weight: 500;
+}
+.top-divider {
+    width: 1px;
+    align-self: stretch;
+    margin: 0 0.75rem;
+    background: linear-gradient(
+        0deg,
+        transparent,
+        var(--secondary-color),
+        var(--primary-color),
+        transparent
+    );
+    background-size: 100% 300%;
+    animation: rgb-flow 4s linear infinite;
+    box-shadow: 0 0 3px var(--primary-color), 0 0 5px var(--secondary-color);
+}
+
+@keyframes rgb-flow {
+    0% {
+        background-position: 0% 0%;
+    }
+    100% {
+        background-position: 0% 300%;
+    }
 }
 .top-action-btn {
    display: flex;

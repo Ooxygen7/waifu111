@@ -30,49 +30,49 @@
                         <a class="nav-link {% if request.endpoint == 'admin.index' %}active{% endif %}"
                             href="{{ url_for('admin.index') }}"
                             aria-current="{% if request.endpoint == 'admin.index' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">🏠</span><span class="nav-link-text"> 首页概览</span>
+                            <i data-feather="home" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 首页概览</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.users' %}active{% endif %}"
                             href="{{ url_for('admin.users') }}"
                             aria-current="{% if request.endpoint == 'admin.users' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">👥</span><span class="nav-link-text"> 用户管理</span>
+                            <i data-feather="users" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 用户管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.conversations' %}active{% endif %}"
                             href="{{ url_for('admin.conversations') }}"
                             aria-current="{% if request.endpoint == 'admin.conversations' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">💬</span><span class="nav-link-text"> 对话记录</span>
+                            <i data-feather="message-square" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 对话记录</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.groups' %}active{% endif %}"
                             href="{{ url_for('admin.groups') }}"
                             aria-current="{% if request.endpoint == 'admin.groups' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">👥</span><span class="nav-link-text"> 群组管理</span>
+                            <i data-feather="users" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 群组管理</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.search' %}active{% endif %}"
                             href="{{ url_for('admin.search') }}"
                             aria-current="{% if request.endpoint == 'admin.search' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">🔍</span><span class="nav-link-text"> 全局搜索</span>
+                            <i data-feather="search" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 全局搜索</span>
                         </a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'admin.config_management' else '' }}"
                             href="{{ url_for('admin.config_management') }}"
                             aria-current="{% if request.endpoint == 'admin.config_management' %}page{% endif %}">
-                            <span class="nav-link-icon" aria-hidden="true">⚙️</span><span class="nav-link-text"> 配置管理</span>
+                            <i data-feather="settings" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 配置管理</span>
                         </a>
                     </li>
                 </ul>
             </nav>
             <div class="logout-link">
                 <a class="nav-link" href="{{ url_for('auth.logout') }}">
-                    <span class="nav-link-icon" aria-hidden="true">🚪</span><span class="nav-link-text"> 退出登录</span>
+                    <i data-feather="log-out" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 退出登录</span>
                 </a>
             </div>
             <button class="sidebar-toggle d-md-none" aria-label="切换菜单" aria-expanded="false" aria-controls="sidebar">
@@ -87,7 +87,7 @@
                 <div class="d-flex align-items-center">
                     <div id="digital-clock" class="current-time mr-md" aria-live="polite">&nbsp;</div>
                     <button id="theme-toggle" class="btn btn-icon" aria-label="切换主题模式" aria-pressed="false">
-                        <span class="theme-icon" aria-hidden="true">🔮</span>
+                        <i data-feather="moon" class="theme-icon" aria-hidden="true"></i>
                     </button>
                 </div>
             </header>
@@ -100,6 +100,12 @@
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/zh-cn.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+        });
+    </script>
     {% block scripts %}{% endblock %}
 
     {% block modals %}{% endblock %}

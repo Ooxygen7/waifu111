@@ -144,18 +144,21 @@
 }
 
 .top-rank {
-    width: 2rem;
-    height: 2rem;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    background: transparent;
+    color: var(--primary-color);
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: bold;
-    font-size: 0.9rem;
+    font-family: 'Orbitron', sans-serif; /* 保持科技感字体 */
+    font-weight: 700;
+    font-size: 1.8rem;
     margin-right: 0.75rem;
     flex-shrink: 0;
+    text-shadow: 0 0 4px white, 0 0 12px var(--primary-color); /* 保持辉光效果 */
+    line-height: 1;
 }
 
 .top-content {

@@ -134,7 +134,7 @@
                 <div class="card-header" aria-expanded="{{ 'false' if is_private_collapsed else 'true' }}" aria-controls="privateDialogsCollapse" style="cursor: pointer;">
                     <div class="header-container">
                         <div class="header-title">
-                            <div class="header-icon">👤</div>
+                            <div class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
                             <div class="header-text">
                                 <h3>私聊对话消息</h3>
                                 <span >{{ private_dialogs|length }}</span>
@@ -209,8 +209,8 @@
                                             </td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <a href="{{ url_for('admin.dialogs', conv_id=dialog.conv_id) }}#msg-{{ dialog.id }}" class="btn-glass btn-icon btn-sm" title="查看完整对话">👁️</a>
-                                                    <button class="btn-glass btn-icon btn-sm" onclick="copyForwardCommand('{{ dialog.user_id }}', '{{ dialog.msg_id }}')" title="复制转发指令">📋</button>
+                                                    <a href="{{ url_for('admin.dialogs', conv_id=dialog.conv_id) }}#msg-{{ dialog.id }}" class="btn-glass btn-icon btn-sm" title="查看完整对话"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></a>
+                                                    <button class="btn-glass btn-icon btn-sm" onclick="copyForwardCommand('{{ dialog.user_id }}', '{{ dialog.msg_id }}')" title="复制转发指令"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -232,7 +232,7 @@
                 <div class="card-header" aria-expanded="{{ 'false' if is_group_collapsed else 'true' }}" aria-controls="groupMessagesCollapse" style="cursor: pointer;">
                     <div class="header-container">
                         <div class="header-title">
-                            <div class="header-icon">👥</div>
+                            <div class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
                             <div class="header-text">
                                 <h3>群聊消息</h3>
                                 <span >{{ group_dialogs|length }}</span>
@@ -294,8 +294,8 @@
                                             <td><span >{{ dialog.msg_id or '-' }}</span></td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <button class="btn-glass btn-icon btn-sm" onclick="jumpToGroupMessage('{{ dialog.group_id }}', '{{ dialog.msg_id }}')" title="查看群聊记录">👁️</button>
-                                                    <button class="btn-glass btn-icon btn-sm" onclick="copyForwardCommand('{{ dialog.group_id }}', '{{ dialog.msg_id }}')" title="复制转发指令">📋</button>
+                                                    <button class="btn-glass btn-icon btn-sm" onclick="jumpToGroupMessage('{{ dialog.group_id }}', '{{ dialog.msg_id }}')" title="查看群聊记录"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+                                                    <button class="btn-glass btn-icon btn-sm" onclick="copyForwardCommand('{{ dialog.group_id }}', '{{ dialog.msg_id }}')" title="复制转发指令"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -315,7 +315,7 @@
                 <div class="card-header" aria-expanded="true" aria-controls="userInfoCollapse" style="cursor: pointer;">
                     <div class="header-container">
                         <div class="header-title">
-                            <div class="header-icon">👥</div>
+                            <div class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
                             <div class="header-text">
                                 <h3>用户信息</h3>
                                 <span >{{ results.users|length }}</span>
@@ -371,7 +371,7 @@
                                             </td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <a href="{{ url_for('admin.conversations', search=user.uid) }}" class="btn-glass btn-icon btn-sm" title="查看对话">💬</a>
+                                                    <a href="{{ url_for('admin.conversations', search=user.uid) }}" class="btn-glass btn-icon btn-sm" title="查看对话"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
                                                 </div>
                                             </td>
                                         </tr>
@@ -391,7 +391,7 @@
                 <div class="card-header" aria-expanded="true" aria-controls="groupInfoCollapse" style="cursor: pointer;">
                     <div class="header-container">
                         <div class="header-title">
-                            <div class="header-icon">👥</div>
+                            <div class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
                             <div class="header-text">
                                 <h3>群组信息</h3>
                                 <span >{{ results.groups|length }}</span>
@@ -455,7 +455,7 @@
                                             </td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}" class="btn-glass btn-icon btn-sm" title="查看群组对话">👥</a>
+                                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}" class="btn-glass btn-icon btn-sm" title="查看群组对话"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
                                                 </div>
                                             </td>
                                         </tr>
@@ -475,7 +475,7 @@
                 <div class="card-header" aria-expanded="true" aria-controls="conversationsCollapse" style="cursor: pointer;">
                     <div class="header-container">
                         <div class="header-title">
-                            <div class="header-icon">💬</div>
+                            <div class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
                             <div class="header-text">
                                 <h3>对话记录</h3>
                                 <span >{{ results.conversations|length }}</span>
@@ -545,8 +545,8 @@
                                             </td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}" class="btn-glass btn-icon btn-sm" title="查看对话详情">👁️</a>
-                                                    <button type="button" class="btn-glass btn-icon btn-sm generate-summary-btn" data-conv-id="{{ conv.conv_id }}" title="生成摘要">✨</button>
+                                                    <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}" class="btn-glass btn-icon btn-sm" title="查看对话详情"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></a>
+                                                    <button type="button" class="btn-glass btn-icon btn-sm generate-summary-btn" data-conv-id="{{ conv.conv_id }}" title="生成摘要"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L14.39 8.36L21 9.27L16.5 13.5L17.61 20.02L12 17.27L6.39 20.02L7.5 13.5L3 9.27L9.61 8.36L12 2z"></path></svg></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -585,19 +585,19 @@
                 
                 <div class="placeholder-categories">
                     <div class="category-item">
-                        <span class="category-icon">👤</span>
+                        <span class="category-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
                         <span class="category-text">私聊消息</span>
                     </div>
                     <div class="category-item">
-                        <span class="category-icon">👥</span>
+                        <span class="category-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
                         <span class="category-text">群组消息</span>
                     </div>
                     <div class="category-item">
-                        <span class="category-icon">🧑‍💻</span>
+                        <span class="category-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></span>
                         <span class="category-text">用户信息</span>
                     </div>
                     <div class="category-item">
-                        <span class="category-icon">💬</span>
+                        <span class="category-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>
                         <span class="category-text">对话记录</span>
                     </div>
                 </div>
