@@ -1580,6 +1580,13 @@ The following rule is ineffective and has been removed to avoid confusion.
     flex-shrink: 0;
 }
 
+.header-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px; /* 统一高度 */
+}
+
 /* Ensure search form in header doesn't wrap */
 .chat-history-card .card-header .search-form {
     min-width: 350px;
@@ -1748,17 +1755,17 @@ The following rule is ineffective and has been removed to avoid confusion.
 }
 
 .ai-bubble {
-    background-color: rgba(0, 123, 255, 0.2);
-    backdrop-filter: blur(8px) saturate(150%);
-    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    background-color: rgba(0, 123, 255, 0.07); /* 93% 透明度 */
+    backdrop-filter: blur(5px) saturate(180%); /* 玻璃质感 */
+    -webkit-backdrop-filter: blur(5px) saturate(180%); /* 玻璃质感 for Safari */
     border-bottom-left-radius: 5px;
     box-shadow: 0 5px 15px rgba(0, 123, 255, 0.1);
 }
 
 .user-bubble {
-    background-color: rgba(40, 167, 69, 0.2);
-    backdrop-filter: blur(8px) saturate(150%);
-    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    background-color: rgba(40, 167, 69, 0.07); /* 93% 透明度 */
+    backdrop-filter: blur(5px) saturate(180%); /* 玻璃质感 */
+    -webkit-backdrop-filter: blur(5px) saturate(180%); /* 玻璃质感 for Safari */
     border-bottom-right-radius: 5px;
     box-shadow: 0 5px 15px rgba(40, 167, 69, 0.1);
 }
@@ -1779,8 +1786,7 @@ The following rule is ineffective and has been removed to avoid confusion.
 
 .edit-btn {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    bottom: -10px; /* 定位在气泡外部下方 */
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -1797,11 +1803,11 @@ The following rule is ineffective and has been removed to avoid confusion.
 }
 
 .message-bubble-container.ai-message .edit-btn {
-    right: -40px;
+    right: -15px; /* AI消息按钮在右下角 */
 }
 
 .message-bubble-container.user-message .edit-btn {
-    left: -40px;
+    left: -15px; /* 用户消息按钮在左下角 */
 }
 
 .message-bubble-container:hover .edit-btn {
@@ -1810,5 +1816,232 @@ The following rule is ineffective and has been removed to avoid confusion.
 
 .edit-btn:hover {
     background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-50%) scale(1.1);
+    transform: scale(1.1); /* 移除Y轴的transform */
+}
+
+/* ==========================================================================
+   Dialogs Page - Modal Redesign
+   ========================================================================== */
+
+/* 消息详情模态框 */
+#messageDetailModal .modal-body {
+    padding: 15px;
+}
+
+#messageDetailModal .detail-card {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+}
+
+#messageDetailModal .message-meta-container {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#messageDetailModal .meta-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s ease;
+}
+
+#messageDetailModal .message-meta-container:not(.collapsed) .meta-header {
+    border-color: var(--border-color);
+}
+
+#messageDetailModal .meta-header .btn-icon i {
+    transition: transform 0.3s ease;
+}
+
+#messageDetailModal .message-meta-container.collapsed .meta-header .btn-icon i {
+    transform: rotate(-180deg);
+}
+
+#messageDetailModal .message-meta {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    padding: 15px;
+    transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+    overflow: hidden;
+    max-height: 500px; /* or enough for content */
+    opacity: 1;
+}
+
+#messageDetailModal .message-meta-container.collapsed .message-meta {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+#messageDetailModal .meta-item {
+    display: flex;
+    flex-direction: column;
+}
+
+#messageDetailModal .meta-label {
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin-bottom: 5px;
+}
+
+#messageDetailModal .meta-value {
+    font-weight: 600;
+    color: #fff;
+}
+
+#messageDetailModal .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin: 0 0 10px 0;
+}
+
+#messageDetailModal .content-display {
+    background: rgba(0, 0, 0, 0.2); /* 80% 透明度 */
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'monospace';
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 40vh;
+    overflow-y: auto;
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+}
+
+#messageDetailModal .modal-footer {
+    justify-content: flex-end; /* 按钮右对齐 */
+}
+
+/* 编辑消息模态框 */
+#editMessageModal .modal-container {
+    height: 70vh; /* 增加高度 */
+}
+
+#editMessageModal .modal-body {
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* 允许body区域增长 */
+}
+
+#editMessageModal .edit-form-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* 允许表单容器增长 */
+}
+
+#editMessageModal .form-group {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#editMessageModal .form-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#editMessageModal .form-input {
+    background-color: rgba(10, 20, 40, 0.2); /* 80% 透明度 */
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1rem;
+    padding: 15px;
+    width: 100%;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(9px);
+    -webkit-backdrop-filter: blur(9px);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+    resize: vertical;
+    font-family: var(--font-family-body); /* 统一字体 */
+    flex-grow: 1; /* 允许文本域增长 */
+}
+
+#editMessageModal .form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 15px rgba(0, 212, 255, 0.4), inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+#editMessageModal .form-info-banner {
+    margin-top: 20px;
+    padding: 12px 15px;
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+/* ==========================================================================
+   Toast Notification Styles
+   ========================================================================== */
+
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    padding: 15px 25px;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    
+    background-color: rgba(10, 20, 30, 0.5);
+    backdrop-filter: blur(8px) saturate(150%);
+    -webkit-backdrop-filter: blur(8px) saturate(150%);
+    border: 1px solid rgba(128, 128, 255, 0.25);
+    box-shadow: 
+        0 5px 25px rgba(0, 0, 0, 0.3),
+        inset 0 0 1px 1px rgba(255, 255, 255, 0.1);
+
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+}
+
+.toast-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast-notification.success {
+    background-color: rgba(40, 167, 69, 0.4); /* Green glass */
+    border-color: rgba(40, 167, 69, 0.5);
+}
+
+.toast-notification.error {
+    background-color: rgba(220, 53, 69, 0.4); /* Red glass */
+    border-color: rgba(220, 53, 69, 0.5);
+}
+
+.toast-notification .toast-icon {
+    font-size: 1.2rem;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
 }

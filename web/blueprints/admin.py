@@ -194,7 +194,7 @@ def conversations():
     )
 
 
-@admin_bp.route("/dialogs/<int:conv_id>")
+@admin_bp.route("/dialogs/<string:conv_id>")
 @admin_required
 def dialogs(conv_id):
     """查看对话详情"""
@@ -397,9 +397,25 @@ def group_dialogs(group_id):
     ]
     group = {group_columns[i]: group_data[0][i] for i in range(len(group_columns))}
     if search:
+        # When searching, we need to find the original page of each message.
+        # We use a subquery with ROW_NUMBER() to get the original position.
+        query = """
+            WITH ranked_dialogs AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (ORDER BY create_at DESC) as rn
+                FROM group_dialogs
+                WHERE group_id = ?
+            )
+            SELECT *,
+                   ( (rn - 1) / ? ) + 1 as original_page
+            FROM ranked_dialogs
+            WHERE msg_text LIKE ?
+            ORDER BY create_at DESC
+            LIMIT ? OFFSET ?
+        """
         dialogs_data = db.query_db(
-            "SELECT * FROM group_dialogs WHERE group_id = ? AND msg_text LIKE ? ORDER BY create_at DESC LIMIT ? OFFSET ?",
-            (group_id, f"%{search}%", per_page, offset),
+            query,
+            (group_id, per_page, f"%{search}%", per_page, offset)
         )
         total_result = db.query_db(
             "SELECT COUNT(*) FROM group_dialogs WHERE group_id = ? AND msg_text LIKE ?",
@@ -417,19 +433,20 @@ def group_dialogs(group_id):
     total_pages = (total_dialogs + per_page - 1) // per_page
     dialogs_list = []
     if dialogs_data:
-        dialog_columns = [
-            "group_id",
-            "msg_user",
-            "trigger_type",
-            "msg_text",
-            "msg_user_name",
-            "msg_id",
-            "raw_response",
-            "processed_response",
-            "delete_mark",
-            "group_name",
-            "create_at",
-        ]
+        if search:
+            dialog_columns = [
+                "group_id", "msg_user", "trigger_type", "msg_text",
+                "msg_user_name", "msg_id", "raw_response",
+                "processed_response", "delete_mark", "group_name",
+                "create_at", "rn", "original_page"
+            ]
+        else:
+            dialog_columns = [
+                "group_id", "msg_user", "trigger_type", "msg_text",
+                "msg_user_name", "msg_id", "raw_response",
+                "processed_response", "delete_mark", "group_name",
+                "create_at"
+            ]
         for row in dialogs_data:
             dialog_dict = {
                 dialog_columns[i]: row[i] for i in range(len(dialog_columns))

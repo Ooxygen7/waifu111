@@ -5,68 +5,116 @@
 {% block page_title %}全局搜索{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/search-table.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_glass.css') }}">
+<style>
+    .search-placeholder-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Align to top */
+        text-align: center;
+        padding-top: 10vh; /* Use viewport height for padding */
+        min-height: 60vh;
+        color: #a9b1d6;
+    }
+    .search-placeholder {
+        max-width: 600px;
+    }
+    .placeholder-icon {
+        margin-bottom: 24px;
+    }
+    .placeholder-icon svg {
+        width: 64px;
+        height: 64px;
+        color: #414868;
+    }
+    .placeholder-title {
+        font-size: 2rem;
+        font-weight: 500;
+        color: #c0caf5;
+        margin-bottom: 12px;
+    }
+    .placeholder-subtitle {
+        font-size: 1rem;
+        color: #7aa2f7;
+        margin-bottom: 60px;
+    }
+    .placeholder-categories {
+        display: flex;
+        justify-content: center;
+        gap: 50px;
+        flex-wrap: wrap;
+        padding-top: 30px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .category-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    .category-icon {
+        font-size: 1.75rem;
+        color: #7aa2f7;
+    }
+    .category-text {
+        font-size: 0.9rem;
+        color: #a9b1d6;
+    }
+    .collapsible-text .text-preview {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%; /* Ensure it doesn't overflow its container */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="content-wrapper">
+<div class="content-wrapper users-page">
     <!-- 搜索表单和结果统计 -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="search-container">
-                <form method="GET" class="search-form">
-                    <div class="search-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <div class="card card-glass">
+        <div class="card-header">
+            <div class="header-container">
+                <div class="header-title">
+                    <div class="header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" name="q" class="search-input" 
-                           placeholder="输入关键词搜索用户、群组、对话记录等..." value="{{ query }}"
-                           aria-label="搜索关键词" id="searchQuery" required>
-                    <div class="search-loading"></div>
-                    {% if query %}
-                    <a href="{{ url_for('admin.search') }}" class="clear-button" aria-label="清除搜索">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                    </a>
-                    {% endif %}
-                    <button type="submit" class="search-button" aria-label="搜索">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    </button>
-                </form>
-                
-                <!-- 搜索状态和结果统计 -->
-                {% if query %}
-                <div class="search-status-section mt-3">
-                    <div class="search-keyword mb-3">
-                        <span class="search-label">搜索关键词：</span>
-                        <span class="search-term">{{ query }}</span>
+                    <div class="header-text">
+                        <h3>全局搜索</h3>
+                        <p class="header-subtitle">在所有数据中查找信息</p>
                     </div>
-                    
-                    <!-- 搜索结果统计 -->
-                    {% if results %}
-                    <div class="search-stats-compact">
-                        <div class="stats-item">
-                            <span class="stats-icon">📊</span>
-                            <span class="stats-number">{{ results.total_count or 0 }}</span>
-                            <span class="stats-label">总结果</span>
+                </div>
+                <div class="search-container">
+                    <form method="GET" action="{{ url_for('admin.search') }}" class="search-form">
+                        <div class="search-input-wrapper">
+                            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" name="q" class="search-input" placeholder="搜索用户、群组、对话..." value="{{ query or '' }}" aria-label="搜索" id="searchQuery" required>
+                            <div class="search-loading" style="display: none;"></div>
+                            {% if query %}
+                            <a href="{{ url_for('admin.search') }}" class="clear-button" aria-label="清除搜索">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </a>
+                            {% endif %}
                         </div>
-                        <div class="stats-item">
-                            <span class="stats-icon">💬</span>
-                            <span class="stats-number">{{ (results.dialogs|selectattr('type', 'equalto', 'private')|list|length) or 0 }}</span>
-                            <span class="stats-label">私聊消息</span>
-                        </div>
-                        <div class="stats-item">
-                            <span class="stats-icon">👥</span>
-                            <span class="stats-number">{{ (results.dialogs|selectattr('type', 'equalto', 'group')|list|length) or 0 }}</span>
-                            <span class="stats-label">群聊消息</span>
-                        </div>
-                        <div class="stats-item">
-                            <span class="stats-icon">👤</span>
-                            <span class="stats-number">{{ (results.users|length) or 0 }}</span>
-                            <span class="stats-label">用户信息</span>
-                        </div>
+                        <button type="submit" class="btn-glass" aria-label="搜索">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="search-button-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <span>搜索</span>
+                        </button>
+                    </form>
+                    {% if query and results %}
+                    {% set total_count = (results.dialogs|length) + (results.users|length) + (results.groups|length) + (results.conversations|length) %}
+                    <div class="search-status">
+                        <span>为 "<strong>{{ query }}</strong>" 找到 {{ total_count }} 个结果</span>
+                        <a href="{{ url_for('admin.search') }}" class="clear-search-link">清除搜索</a>
                     </div>
                     {% endif %}
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -80,124 +128,96 @@
         {% if total_results > 0 %}
             <!-- 私聊对话消息结果 -->
             {% if results.dialogs and results.dialogs|selectattr('type', 'equalto', 'private')|list %}
-            <div class="card mb-4 collapsible-card">
-                <div class="card-header" data-bs-toggle="collapse" data-bs-target="#privateDialogsCollapse" aria-expanded="true" aria-controls="privateDialogsCollapse" style="cursor: pointer;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <span class="card-header-icon">👤</span>
-                            <h2 class="card-header-title">私聊对话消息</h2>
-                            <span class="badge primary ml-sm">{{ results.dialogs|selectattr('type', 'equalto', 'private')|list|length }}</span>
+            {% set private_dialogs = results.dialogs|selectattr('type', 'equalto', 'private')|list %}
+            {% set is_private_collapsed = private_dialogs|length > 20 %}
+            <div class="card card-glass mb-4 collapsible-card">
+                <div class="card-header" aria-expanded="{{ 'false' if is_private_collapsed else 'true' }}" aria-controls="privateDialogsCollapse" style="cursor: pointer;">
+                    <div class="header-container">
+                        <div class="header-title">
+                            <div class="header-icon">👤</div>
+                            <div class="header-text">
+                                <h3>私聊对话消息</h3>
+                                <span >{{ private_dialogs|length }}</span>
+                            </div>
                         </div>
-                        <div class="card-header-actions">
-                            <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据" onclick="event.stopPropagation();">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 4 23 10 17 10"></polyline>
-                                    <polyline points="1 20 1 14 7 14"></polyline>
-                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                                </svg>
-                                刷新
-                            </button>
-                            <button class="btn btn-sm btn-outline collapse-toggle" aria-label="折叠/展开">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                        <div class="header-actions">
+                            <button class="btn-glass btn-icon btn-sm collapse-toggle" aria-label="折叠/展开">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                         </div>
                     </div>
                 </div>
-                <div class="collapse show" id="privateDialogsCollapse">
-                <div class="card-body">
-                    <div class="search-table-container">
-                        <table class="search-data-table">
-                            <thead>
-                                <tr>
-                                    <th>对话ID</th>
-                                    <th>角色</th>
-                                    <th>用户姓名</th>
-                                    <th>用户ID</th>
-                                    <th>处理后内容</th>
-                                    <th>轮次</th>
-                                    <th>创建时间</th>
-                                    <th>消息ID</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dialog in results.dialogs|selectattr('type', 'equalto', 'private') %}
-                                <tr class="table-row-interactive">
-                                    <td>
-                                        <span class="badge primary">{{ dialog.conv_id }}</span>
-                                    </td>
-                                    <td>
-                                        {% if dialog.role == 'user' %}
-                                            <span class="badge info"><i class="fas fa-user"></i> 用户</span>
-                                        {% else %}
-                                            <span class="badge success"><i class="fas fa-robot"></i> AI</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="user-avatar">
-                                                <div class="avatar-image">
-                                                    {% if dialog.user_name %}
-                                                        {{ dialog.user_name[0] }}
-                                                    {% else %}
-                                                        U
-                                                    {% endif %}
+                <div class="collapse {{ 'show' if not is_private_collapsed else '' }}" id="privateDialogsCollapse">
+                    <div class="card-body">
+                        <div class="table-container">
+                            <div class="table-scroll-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">对话信息</th>
+                                            <th style="width: 15%;">用户</th>
+                                            <th style="width: 45%;">内容</th>
+                                            <th style="width: 10%;">时间</th>
+                                            <th style="width: 15%;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for dialog in private_dialogs %}
+                                        <tr class="table-row-interactive">
+                                            <td>
+                                                <div class="stacked-info">
+                                                    <div class="info-primary">{{ dialog.conv_id }}</div>
+                                                    <div class="info-secondary">
+                                                        {% if dialog.role == 'user' %}
+                                                            <i class="fas fa-user"></i> 用户
+                                                        {% else %}
+                                                            <i class="fas fa-robot"></i> AI
+                                                        {% endif %}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div class="user-details">
-                                                <span class="user-name">{{ (dialog.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge secondary">{{ dialog.user_id or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        {% set processed_content = (dialog.processed_content or dialog.raw_content or '')|string %}
-                                        {% if processed_content|length > 50 %}
-                                            <div class="collapsible-text">
-                                                <div class="text-preview">{{ (processed_content[:50] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                <div class="text-full" style="display: none;">{{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                <button class="btn btn-text btn-sm toggle-text" onclick="toggleText(this)">展开</button>
-                                            </div>
-                                        {% else %}
-                                            {{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <span class="badge secondary">{{ dialog.turn_order or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">{{ format_datetime(dialog.created_at) }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge light">{{ dialog.msg_id or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <a href="{{ url_for('admin.dialogs', conv_id=dialog.conv_id) }}#msg-{{ dialog.id }}"
-                                               class="btn btn-icon btn-sm" title="查看完整对话">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            </a>
-                                            <button class="btn btn-icon btn-sm" 
-                                                    onclick="copyForwardCommand('{{ dialog.user_id }}', '{{ dialog.msg_id }}')"
-                                                    title="复制转发指令">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                            </td>
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="user-avatar">
+                                                        <div class="avatar-image">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                        </div>
+                                                    </div>
+                                                    <div class="user-details">
+                                                        <div class="user-name">{{ (dialog.first_name or '') ~ ' ' ~ (dialog.last_name or '') }}</div>
+                                                        <div class="user-id">@{{ dialog.user_name or dialog.user_id }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td style="white-space: normal; word-break: break-all;">
+                                                {% set processed_content = (dialog.processed_content or dialog.raw_content or '')|string %}
+                                                {% if processed_content|length > 50 %}
+                                                    <div class="collapsible-text">
+                                                        <div class="text-preview">{{ (processed_content[:50] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="text-full" style="display: none;">{{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <button class="btn-glass btn-text btn-sm toggle-text">展开</button>
+                                                    </div>
+                                                {% else %}
+                                                    {{ processed_content|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="time-split">
+                                                    <div class="time-date">{{ format_datetime(dialog.created_at).split(' ')[0] }}</div>
+                                                    <div class="time-clock">{{ format_datetime(dialog.created_at).split(' ')[1].split('.')[0] }}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <a href="{{ url_for('admin.dialogs', conv_id=dialog.conv_id) }}#msg-{{ dialog.id }}" class="btn-glass btn-icon btn-sm" title="查看完整对话">👁️</a>
+                                                    <button class="btn-glass btn-icon btn-sm" onclick="copyForwardCommand('{{ dialog.user_id }}', '{{ dialog.msg_id }}')" title="复制转发指令">📋</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -206,114 +226,84 @@
             
             <!-- 群聊消息结果 -->
             {% if results.dialogs and results.dialogs|selectattr('type', 'equalto', 'group')|list %}
-            <div class="card mb-4 collapsible-card">
-                <div class="card-header" data-bs-target="#groupMessagesCollapse" style="cursor: pointer;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <span class="card-header-icon">👥</span>
-                            <h2 class="card-header-title">群聊消息</h2>
-                            <span class="badge warning ml-sm">{{ results.dialogs|selectattr('type', 'equalto', 'group')|list|length }}</span>
+            {% set group_dialogs = results.dialogs|selectattr('type', 'equalto', 'group')|list %}
+            {% set is_group_collapsed = group_dialogs|length > 20 %}
+            <div class="card card-glass mb-4 collapsible-card">
+                <div class="card-header" aria-expanded="{{ 'false' if is_group_collapsed else 'true' }}" aria-controls="groupMessagesCollapse" style="cursor: pointer;">
+                    <div class="header-container">
+                        <div class="header-title">
+                            <div class="header-icon">👥</div>
+                            <div class="header-text">
+                                <h3>群聊消息</h3>
+                                <span >{{ group_dialogs|length }}</span>
+                            </div>
                         </div>
-                        <div class="card-header-actions">
-                            <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据" onclick="event.stopPropagation();">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 4 23 10 17 10"></polyline>
-                                    <polyline points="1 20 1 14 7 14"></polyline>
-                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                                </svg>
-                                刷新
-                            </button>
-                            <button class="btn btn-sm btn-outline collapse-toggle" aria-label="折叠/展开">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                        <div class="header-actions">
+                            <button class="btn-glass btn-icon btn-sm collapse-toggle" aria-label="折叠/展开">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                         </div>
                     </div>
                 </div>
-                <div class="collapse show" id="groupMessagesCollapse">
+                <div class="collapse {{ 'show' if not is_group_collapsed else '' }}" id="groupMessagesCollapse">
                     <div class="card-body">
-                        <div class="search-table-container">
-                        <table class="search-data-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>群组名</th>
-                                    <th>用户姓名</th>
-                                    <th>消息文本</th>
-                                    <th>处理后响应</th>
-                                    <th>创建时间</th>
-                                    <th>消息ID</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for dialog in results.dialogs|selectattr('type', 'equalto', 'group') %}
-                                <tr class="table-row-interactive">
-                                    <td>
-                                        <span class="badge secondary">{{ dialog.id or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge info">{{ dialog.group_name or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge success">{{ dialog.msg_user_name or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        {% set msg_text = (dialog.msg_text or '')|string %}
-                                        {% if msg_text|length > 50 %}
-                                            <div class="collapsible-text">
-                                                <div class="text-preview">{{ (msg_text[:50] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                <div class="text-full" style="display: none;">{{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                <button class="btn btn-text btn-sm toggle-text" onclick="toggleText(this)">展开</button>
-                                            </div>
-                                        {% else %}
-                                            {{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% set processed_response = (dialog.processed_response or dialog.raw_response or '')|string %}
-                                        {% if processed_response|length > 50 %}
-                                            <div class="collapsible-text">
-                                                <div class="text-preview">{{ (processed_response[:50] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                <div class="text-full" style="display: none;">{{ processed_response|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                                <button class="btn btn-text btn-sm toggle-text" onclick="toggleText(this)">展开</button>
-                                            </div>
-                                        {% else %}
-                                            {{ processed_response|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">{{ format_datetime(dialog.create_at) }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="badge light">{{ dialog.msg_id or '-' }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <button class="btn btn-icon btn-sm" 
-                                                    onclick="jumpToGroupMessage('{{ dialog.group_id }}', '{{ dialog.msg_id }}')"
-                                                    title="查看群聊记录">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            </button>
-                                            <button class="btn btn-icon btn-sm" 
-                                                    onclick="copyForwardCommand('{{ dialog.group_id }}', '{{ dialog.msg_id }}')"
-                                                    title="复制转发指令">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                        <div class="table-container">
+                            <div class="table-scroll-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">群组/用户</th>
+                                            <th style="width: 55%;">消息内容</th>
+                                            <th style="width: 10%;">时间</th>
+                                            <th style="width: 10%;">消息ID</th>
+                                            <th style="width: 10%;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for dialog in group_dialogs %}
+                                        <tr class="table-row-interactive">
+                                            <td>
+                                                <div class="stacked-info">
+                                                    <div class="info-primary">{{ dialog.group_name or '-' }}</div>
+                                                    <div class="info-secondary">{{ dialog.msg_user_name or '-' }}</div>
+                                                </div>
+                                            </td>
+                                            <td style="white-space: normal; word-break: break-all;">
+                                                {% set msg_text = (dialog.msg_text or '')|string %}
+                                                {% set processed_response = (dialog.processed_response or dialog.raw_response or '')|string %}
+                                                <div class="collapsible-text">
+                                                    <div class="text-preview">
+                                                        {{ (msg_text + ' -> ' + processed_response)[:80]|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                        {% if (msg_text + processed_response)|length > 80 %}...{% endif %}
+                                                    </div>
+                                                    <div class="text-full" style="display: none;">
+                                                        <strong>消息:</strong> {{ msg_text|replace(query, '<mark>' + query + '</mark>')|safe }}<br>
+                                                        <strong>响应:</strong> {{ processed_response|replace(query, '<mark>' + query + '</mark>')|safe }}
+                                                    </div>
+                                                    {% if (msg_text + processed_response)|length > 80 %}
+                                                        <button class="btn-glass btn-text btn-sm toggle-text">展开</button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="time-split">
+                                                    <div class="time-date">{{ format_datetime(dialog.create_at).split(' ')[0] }}</div>
+                                                    <div class="time-clock">{{ format_datetime(dialog.create_at).split(' ')[1].split('.')[0] }}</div>
+                                                </div>
+                                            </td>
+                                            <td><span >{{ dialog.msg_id or '-' }}</span></td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="btn-glass btn-icon btn-sm" onclick="jumpToGroupMessage('{{ dialog.group_id }}', '{{ dialog.msg_id }}')" title="查看群聊记录">👁️</button>
+                                                    <button class="btn-glass btn-icon btn-sm" onclick="copyForwardCommand('{{ dialog.group_id }}', '{{ dialog.msg_id }}')" title="复制转发指令">📋</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -321,100 +311,75 @@
             
             <!-- 用户信息结果 -->
             {% if results.users %}
-            <div class="card mb-4 collapsible-card">
-                <div class="card-header" data-bs-target="#userInfoCollapse" style="cursor: pointer;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <span class="card-header-icon">👥</span>
-                            <h2 class="card-header-title">用户信息</h2>
-                            <span class="badge success ml-sm">{{ results.users|length }}</span>
+            <div class="card card-glass mb-4 collapsible-card">
+                <div class="card-header" aria-expanded="true" aria-controls="userInfoCollapse" style="cursor: pointer;">
+                    <div class="header-container">
+                        <div class="header-title">
+                            <div class="header-icon">👥</div>
+                            <div class="header-text">
+                                <h3>用户信息</h3>
+                                <span >{{ results.users|length }}</span>
+                            </div>
                         </div>
-                        <div class="card-header-actions">
-                            <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据" onclick="event.stopPropagation();">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 4 23 10 17 10"></polyline>
-                                    <polyline points="1 20 1 14 7 14"></polyline>
-                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                                </svg>
-                                刷新
-                            </button>
-                            <button class="btn btn-sm btn-outline collapse-toggle" aria-label="折叠/展开">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                        <div class="header-actions">
+                            <button class="btn-glass btn-icon btn-sm collapse-toggle" aria-label="折叠/展开">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="collapse show" id="userInfoCollapse">
                     <div class="card-body">
-                    <div class="search-table-container">
-                        <table class="search-data-table">
-                            <thead>
-                                <tr>
-                                    <th>用户ID</th>
-                                    <th>用户名</th>
-                                    <th>姓名</th>
-                                    <th>对话数</th>
-                                    <th>消息轮次</th>
-                                    <th>注册时间</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in results.users %}
-                                <tr class="table-row-interactive">
-                                    <td>
-                                        <span class="badge secondary">{{ user.uid }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="user-avatar">
-                                                <div class="avatar-image">
-                                                    {% if user.user_name %}
-                                                        {{ user.user_name[0] }}
-                                                    {% else %}
-                                                        U
-                                                    {% endif %}
+                        <div class="table-container">
+                            <div class="table-scroll-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>用户ID</th>
+                                            <th>用户名</th>
+                                            <th>姓名</th>
+                                            <th>对话数</th>
+                                            <th>消息轮次</th>
+                                            <th>注册时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user in results.users %}
+                                        <tr class="table-row-interactive">
+                                            <td><span >{{ user.uid }}</span></td>
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="user-avatar">
+                                                        <div class="avatar-image">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                        </div>
+                                                    </div>
+                                                    <div class="user-details">
+                                                        <span class="user-name">{{ (user.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div class="user-details">
-                                                <span class="user-name">{{ (user.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {{ ((user.first_name or '') + ' ' + (user.last_name or ''))|replace(query, '<mark>' + query + '</mark>')|safe }}
-                                    </td>
-                                    <td>
-                                        <div class="stat-badge">
-                                            <span class="stat-value">{{ user.conversations or 0 }}</span>
-                                            <span class="stat-label">对话</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="stat-badge">
-                                            <span class="stat-value">{{ user.dialog_turns or 0 }}</span>
-                                            <span class="stat-label">消息</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">{{ format_datetime(user.create_at) }}</small>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <a href="{{ url_for('admin.conversations', search=user.uid) }}"
-                                               class="btn btn-icon btn-sm" title="查看对话">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                                </svg>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                            </td>
+                                            <td>{{ ((user.first_name or '') + ' ' + (user.last_name or ''))|replace(query, '<mark>' + query + '</mark>')|safe }}</td>
+                                            <td><span class="data-value">{{ user.conversations or 0 }}</span></td>
+                                            <td><span class="data-value">{{ user.dialog_turns or 0 }}</span></td>
+                                            <td>
+                                                <div class="time-split">
+                                                    <div class="time-date">{{ format_datetime(user.create_at).split(' ')[0] }}</div>
+                                                    <div class="time-clock">{{ format_datetime(user.create_at).split(' ')[1].split('.')[0] }}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <a href="{{ url_for('admin.conversations', search=user.uid) }}" class="btn-glass btn-icon btn-sm" title="查看对话">💬</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -422,110 +387,83 @@
             
             <!-- 群组信息结果 -->
             {% if results.groups %}
-            <div class="card mb-4 collapsible-card">
-                <div class="card-header" data-bs-target="#groupInfoCollapse" style="cursor: pointer;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <span class="card-header-icon">👥</span>
-                            <h2 class="card-header-title">群组信息</h2>
-                            <span class="badge warning ml-sm">{{ results.groups|length }}</span>
+            <div class="card card-glass mb-4 collapsible-card">
+                <div class="card-header" aria-expanded="true" aria-controls="groupInfoCollapse" style="cursor: pointer;">
+                    <div class="header-container">
+                        <div class="header-title">
+                            <div class="header-icon">👥</div>
+                            <div class="header-text">
+                                <h3>群组信息</h3>
+                                <span >{{ results.groups|length }}</span>
+                            </div>
                         </div>
-                        <div class="card-header-actions">
-                            <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据" onclick="event.stopPropagation();">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 4 23 10 17 10"></polyline>
-                                    <polyline points="1 20 1 14 7 14"></polyline>
-                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                                </svg>
-                                刷新
-                            </button>
-                            <button class="btn btn-sm btn-outline collapse-toggle" aria-label="折叠/展开">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                        <div class="header-actions">
+                            <button class="btn-glass btn-icon btn-sm collapse-toggle" aria-label="折叠/展开">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="collapse show" id="groupInfoCollapse">
                     <div class="card-body">
-                    <div class="search-table-container">
-                        <table class="search-data-table">
-                            <thead>
-                                <tr>
-                                    <th>群组ID</th>
-                                    <th>群组名称</th>
-                                    <th>对话数</th>
-                                    <th>调用次数</th>
-                                    <th>角色</th>
-                                    <th>状态</th>
-                                    <th>更新时间</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for group in results.groups %}
-                                <tr class="table-row-interactive">
-                                    <td>
-                                        <span class="badge primary">{{ group.group_id }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="user-avatar">
-                                                <div class="avatar-image">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                                        <circle cx="9" cy="7" r="4"></circle>
-                                                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                                                    </svg>
+                        <div class="table-container">
+                            <div class="table-scroll-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>群组ID</th>
+                                            <th>群组名称</th>
+                                            <th>对话数</th>
+                                            <th>调用次数</th>
+                                            <th>角色</th>
+                                            <th>状态</th>
+                                            <th>更新时间</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for group in results.groups %}
+                                        <tr class="table-row-interactive">
+                                            <td><span >{{ group.group_id }}</span></td>
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="user-avatar">
+                                                        <div class="avatar-image">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                                        </div>
+                                                    </div>
+                                                    <div class="user-details">
+                                                        <span class="user-name">{{ (group.group_name or '未命名群组')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div class="user-details">
-                                                <span class="user-name">{{ (group.group_name or '未命名群组')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="stat-badge">
-                                            <span class="stat-value">{{ group.dialog_count or 0 }}</span>
-                                            <span class="stat-label">对话</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="stat-badge">
-                                            <span class="stat-value">{{ group.call_count or 0 }}</span>
-                                            <span class="stat-label">调用</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span class="badge info">{{ group.char or '未设置' }}</span>
-                                    </td>
-                                    <td>
-                                        {% if group.active %}
-                                            <span class="badge success">活跃</span>
-                                        {% else %}
-                                            <span class="badge danger">非活跃</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">{{ format_datetime(group.update_time) }}</small>
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}"
-                                               class="btn btn-icon btn-sm" title="查看群组对话">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                                </svg>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </td>
+                                            <td><span class="data-value">{{ group.dialog_count or 0 }}</span></td>
+                                            <td><span class="data-value">{{ group.call_count or 0 }}</span></td>
+                                            <td><span >{{ group.char or '未设置' }}</span></td>
+                                            <td>
+                                                {% if group.active %}
+                                                    <span >活跃</span>
+                                                {% else %}
+                                                    <span >非活跃</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="time-split">
+                                                    <div class="time-date">{{ format_datetime(group.update_time).split(' ')[0] }}</div>
+                                                    <div class="time-clock">{{ format_datetime(group.update_time).split(' ')[1].split('.')[0] }}</div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}" class="btn-glass btn-icon btn-sm" title="查看群组对话">👥</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -533,201 +471,134 @@
             
             <!-- 对话记录结果 -->
             {% if results.conversations %}
-            <div class="card mb-4 collapsible-card">
-                <div class="card-header" data-bs-target="#conversationsCollapse" style="cursor: pointer;">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <span class="card-header-icon">💬</span>
-                            <h2 class="card-header-title">对话记录</h2>
-                            <span class="badge secondary ml-sm">{{ results.conversations|length }}</span>
+            <div class="card card-glass mb-4 collapsible-card">
+                <div class="card-header" aria-expanded="true" aria-controls="conversationsCollapse" style="cursor: pointer;">
+                    <div class="header-container">
+                        <div class="header-title">
+                            <div class="header-icon">💬</div>
+                            <div class="header-text">
+                                <h3>对话记录</h3>
+                                <span >{{ results.conversations|length }}</span>
+                            </div>
                         </div>
-                        <div class="card-header-actions">
-                            <button class="btn btn-sm btn-outline refresh-data" aria-label="刷新数据" onclick="event.stopPropagation();">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 4 23 10 17 10"></polyline>
-                                    <polyline points="1 20 1 14 7 14"></polyline>
-                                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                                </svg>
-                                刷新
-                            </button>
-                            <button class="btn btn-sm btn-outline collapse-toggle" aria-label="折叠/展开">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                        <div class="header-actions">
+                            <button class="btn-glass btn-icon btn-sm collapse-toggle" aria-label="折叠/展开">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="collapse-icon"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </button>
                         </div>
                     </div>
                 </div>
                 <div class="collapse show" id="conversationsCollapse">
                     <div class="card-body">
-                    <div class="search-table-container">
-                        <table class="search-data-table">
-                            <thead>
-                                <tr>
-                                    <th>对话ID</th>
-                                    <th>用户</th>
-                                    <th>角色 & 预设</th>
-                                    <th>对话轮数</th>
-                                    <th>摘要</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for conv in results.conversations %}
-                                <tr class="table-row-interactive">
-                                    <td>
-                                        <span class="badge primary">{{ conv.conv_id }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <div class="user-avatar">
-                                                <div class="avatar-image">
-                                                    {% if conv.user_name %}
-                                                        {{ conv.user_name[0] }}
-                                                    {% else %}
-                                                        U
-                                                    {% endif %}
+                        <div class="table-container">
+                            <div class="table-scroll-wrapper">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%;">用户</th>
+                                            <th style="width: 15%;">对话信息</th>
+                                            <th style="width: 5%;">轮数</th>
+                                            <th style="width: 50%;">摘要</th>
+                                            <th style="width: 15%;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for conv in results.conversations %}
+                                        <tr class="table-row-interactive">
+                                            <td>
+                                                <div class="user-info">
+                                                    <div class="user-avatar">
+                                                        <div class="avatar-image">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                        </div>
+                                                    </div>
+                                                    <div class="user-details">
+                                                        <div class="user-name">{{ (conv.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        <div class="user-id">{{ conv.user_id }}</div>
+                                                        {% if conv.first_name or conv.last_name %}
+                                                            <div class="user-real-name">{{ ((conv.first_name or '') + ' ' + (conv.last_name or ''))|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                        {% endif %}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div class="user-details">
-                                                <span class="user-name">{{ (conv.user_name or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                                <span class="user-id">{{ conv.user_id }}</span>
-                                                {% if conv.first_name or conv.last_name %}
-                                                    <span class="user-real-name">{{ ((conv.first_name or '') + ' ' + (conv.last_name or ''))|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="character-preset-cell">
-                                            <span class="badge info">{{ (conv.character or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                            <span class="badge warning">{{ (conv.preset or '默认')|replace(query, '<mark>' + query + '</mark>')|safe }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="stat-badge">
-                                            <span class="stat-value">{{ conv.turns or 0 }}</span>
-                                            <span class="stat-label">轮次</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if conv.summary %}
-                                            <div class="summary-content-modern">{{ conv.summary|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
-                                        {% else %}
-                                            <div class="summary-placeholder-modern">
-                                                <i class="fas fa-info-circle"></i>
-                                                <span>无摘要</span>
-                                            </div>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}"
-                                               class="btn btn-icon btn-sm" title="查看对话详情">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                                    <circle cx="12" cy="12" r="3"></circle>
-                                                </svg>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </td>
+                                            <td>
+                                                <div class="stacked-info">
+                                                    <div class="info-primary">{{ conv.conv_id }}</div>
+                                                    <div class="info-secondary">{{ (conv.character or '未设置')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                    <div class="info-tertiary">{{ (conv.preset or '默认')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                </div>
+                                            </td>
+                                            <td><span class="data-value">{{ conv.turns or 0 }}</span></td>
+                                            <td style="white-space: normal; word-break: break-all;" class="summary-cell">
+                                               {% if conv.summary %}
+                                                   <div class="collapsible-text">
+                                                       <div class="text-preview">{{ (conv.summary[:50] + '...')|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                       <div class="text-full" style="display: none;">{{ conv.summary|replace(query, '<mark>' + query + '</mark>')|safe }}</div>
+                                                       <button class="btn-glass btn-text btn-sm toggle-text">展开</button>
+                                                   </div>
+                                               {% else %}
+                                                   <div class="summary-placeholder-modern">
+                                                       <i class="fas fa-info-circle"></i>
+                                                       <span>[无摘要]</span>
+                                                   </div>
+                                               {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <a href="{{ url_for('admin.dialogs', conv_id=conv.conv_id) }}" class="btn-glass btn-icon btn-sm" title="查看对话详情">👁️</a>
+                                                    <button type="button" class="btn-glass btn-icon btn-sm generate-summary-btn" data-conv-id="{{ conv.conv_id }}" title="生成摘要">✨</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             {% endif %}
         {% else %}
             <!-- 无搜索结果 -->
-            <div class="card mb-4">
-                <div class="card-body text-center py-5">
-                    <div class="empty-state">
-                        <div class="empty-icon">🔍</div>
-                        <h5 class="empty-title">未找到相关结果</h5>
-                        <p class="empty-text">请尝试使用其他关键词进行搜索</p>
+            <div class="card glass-card empty-state-card">
+                <div class="card-body">
+                    <div class="empty-state-content">
+                        <div class="empty-state-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </div>
+                        <h3 class="empty-state-title">未找到相关结果</h3>
+                        <p class="empty-state-text">请尝试使用其他关键词进行搜索</p>
                     </div>
                 </div>
             </div>
         {% endif %}
     {% else %}
-        <!-- 搜索提示 -->
-        <div class="card mb-4">
-            <div class="card-body text-center py-5">
-                <div class="empty-state">
-                    <div class="empty-icon">🔍</div>
-                    <h4 class="empty-title">全局搜索</h4>
-                    <p class="empty-text">输入关键词搜索用户、群组、对话记录和消息内容</p>
-                    
-                    <!-- 搜索功能介绍 -->
-                    <div class="row justify-content-center mt-4">
-                        <div class="col-md-10">
-                            <div class="row">
-                                <div class="col-md-3 mb-3">
-                                    <div class="card border-primary">
-                                        <div class="card-body text-center">
-                                            <i class="fas fa-comments text-primary" style="font-size: 2rem;"></i>
-                                            <h6 class="mt-2">对话消息</h6>
-                                            <small class="text-muted">搜索对话内容和AI回复</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <div class="card border-success">
-                                        <div class="card-body text-center">
-                                            <i class="fas fa-users text-success" style="font-size: 2rem;"></i>
-                                            <h6 class="mt-2">用户信息</h6>
-                                            <small class="text-muted">搜索用户ID、用户名和姓名</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <div class="card border-warning">
-                                        <div class="card-body text-center">
-                                            <i class="fas fa-object-group text-warning" style="font-size: 2rem;"></i>
-                                            <h6 class="mt-2">群组信息</h6>
-                                            <small class="text-muted">搜索群组ID和群组名称</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3 mb-3">
-                                    <div class="card border-secondary">
-                                        <div class="card-body text-center">
-                                            <i class="fas fa-comment-dots text-secondary" style="font-size: 2rem;"></i>
-                                            <h6 class="mt-2">对话记录</h6>
-                                            <small class="text-muted">搜索角色、预设和摘要</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <!-- NEW: Initial Search Page Placeholder -->
+        <div class="search-placeholder-wrapper">
+            <div class="search-placeholder">
+                <div class="placeholder-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </div>
+                <h2 class="placeholder-title">全局搜索</h2>
+                <p class="placeholder-subtitle">输入关键词可搜索用户、群组、对话及消息内容</p>
+                
+                <div class="placeholder-categories">
+                    <div class="category-item">
+                        <span class="category-icon">👤</span>
+                        <span class="category-text">私聊消息</span>
                     </div>
-                    
-                    <!-- 搜索技巧 -->
-                    <div class="mt-4">
-                        <h6 class="text-primary">搜索特性</h6>
-                        <div class="row justify-content-center">
-                            <div class="col-md-8">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <ul class="list-unstyled text-start">
-                                            <li><i class="fas fa-check-circle text-success"></i> 全局模糊搜索，一次搜索所有数据</li>
-                                            <li><i class="fas fa-check-circle text-success"></i> 搜索结果按类型分类展示</li>
-                                            <li><i class="fas fa-check-circle text-success"></i> 搜索结果会高亮显示关键词</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <ul class="list-unstyled text-start">
-                                            <li><i class="fas fa-check-circle text-success"></i> 每个类型最多显示50条结果</li>
-                                            <li><i class="fas fa-check-circle text-success"></i> 支持搜索用户ID、群组ID等数字</li>
-                                            <li><i class="fas fa-check-circle text-success"></i> 可以点击结果查看详细信息</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="category-item">
+                        <span class="category-icon">👥</span>
+                        <span class="category-text">群组消息</span>
+                    </div>
+                    <div class="category-item">
+                        <span class="category-icon">🧑‍💻</span>
+                        <span class="category-text">用户信息</span>
+                    </div>
+                    <div class="category-item">
+                        <span class="category-icon">💬</span>
+                        <span class="category-text">对话记录</span>
                     </div>
                 </div>
             </div>
@@ -740,97 +611,152 @@
 <script src="{{ url_for('static', filename='js/search.js') }}"></script>
 <script>
 // 自动聚焦搜索框
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchQuery');
-    if (searchInput && !searchInput.value) {
+$(document).ready(function() {
+    // 自动聚焦搜索框
+    const searchInput = $('#searchQuery');
+    if (searchInput.length > 0 && !searchInput.val()) {
         searchInput.focus();
     }
-    
-    // 初始化卡片折叠功能
-    initializeCardCollapse();
+
+    // 自定义卡片折叠功能
+    $('.collapsible-card .card-header').on('click', function(e) {
+        // 如果点击的是按钮或链接，则不触发折叠
+        if ($(e.target).is('button, a, .btn-glass') || $(e.target).closest('button, a, .btn-glass').length) {
+            return;
+        }
+
+        const card = $(this).closest('.collapsible-card');
+        const body = card.find('.collapse');
+        const icon = $(this).find('.collapse-icon');
+
+        // 使用 slideToggle 实现平滑的展开/收起
+        body.slideToggle(300, function() {
+            // 切换图标的旋转状态
+            if (body.is(':visible')) {
+                icon.css('transform', 'rotate(0deg)');
+                card.addClass('is-expanded');
+            } else {
+                icon.css('transform', 'rotate(-90deg)');
+                card.removeClass('is-expanded');
+            }
+        });
+    });
+
+    // 为折叠按钮添加独立的点击事件
+    $('.collapse-toggle').on('click', function(e) {
+        e.stopPropagation(); // 阻止事件冒泡到 card-header
+        
+        const card = $(this).closest('.collapsible-card');
+        const body = card.find('.collapse');
+        const icon = $(this).find('.collapse-icon');
+
+        body.slideToggle(300, function() {
+            if (body.is(':visible')) {
+                icon.css('transform', 'rotate(0deg)');
+                card.addClass('is-expanded');
+            } else {
+                icon.css('transform', 'rotate(-90deg)');
+                card.removeClass('is-expanded');
+            }
+        });
+    });
+
+    // 初始时，为所有卡片设置正确的图标状态
+    $('.collapsible-card').each(function() {
+        const card = $(this);
+        const body = card.find('.collapse');
+        const icon = card.find('.collapse-icon');
+        if (body.hasClass('show')) {
+            icon.css('transform', 'rotate(0deg)');
+            card.addClass('is-expanded');
+        } else {
+            icon.css('transform', 'rotate(-90deg)');
+            card.removeClass('is-expanded');
+        }
+    });
+
+    // 使用jQuery重写文本展开/收起功能
+    $('.data-table').on('click', '.toggle-text', function() {
+        const button = $(this);
+        const container = button.closest('.collapsible-text');
+        const preview = container.find('.text-preview');
+        const full = container.find('.text-full');
+
+        if (full.is(':hidden')) {
+            preview.hide();
+            full.slideDown(300); // Use slideDown for smooth animation
+            button.text('收起').addClass('expanded');
+        } else {
+            full.slideUp(300, function() { // Use slideUp for smooth animation
+                preview.show();
+            });
+            button.text('展开').removeClass('expanded');
+        }
+    });
+
+    // 生成摘要按钮点击事件
+    $(document).on('click', '.generate-summary-btn', function () {
+        const convId = $(this).data('conv-id');
+        const button = $(this);
+
+        if (button.hasClass('loading')) {
+            return;
+        }
+
+        const originalIcon = button.html();
+        button.prop('disabled', true).addClass('loading').html('<span class="btn-text">...</span>');
+
+        $.ajax({
+            url: '/api/generate_summary',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ conversation_id: convId }),
+            success: function (response) {
+                if (response.success) {
+                    const summaryCell = button.closest('tr').find('.summary-cell');
+                    const summary = response.summary || '';
+                    const query = $('#searchQuery').val();
+                    
+                    // Function to safely highlight text
+                    function highlight(text, term) {
+                        if (!term) return text;
+                        const regex = new RegExp(term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+                        return text.replace(regex, '<mark>$&</mark>');
+                    }
+
+                    const highlightedSummary = highlight(summary, query);
+                    const previewText = summary.length > 50 ? highlight(summary.substring(0, 50) + '...', query) : highlightedSummary;
+
+                    const newSummaryHtml = `
+                        <div class="collapsible-text">
+                            <div class="text-preview">${previewText}</div>
+                            <div class="text-full" style="display: none;">${highlightedSummary}</div>
+                            <button class="btn-glass btn-text btn-sm toggle-text">展开</button>
+                        </div>
+                    `;
+                    summaryCell.html(newSummaryHtml);
+
+                    if (window.showToast) {
+                        showToast('摘要生成成功！', 'success');
+                    }
+                } else {
+                    if (window.showToast) {
+                        showToast('摘要生成失败：' + (response.message || '未知错误'), 'error');
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('生成摘要请求失败:', error);
+                if (window.showToast) {
+                    showToast('请求失败，请稍后重试', 'error');
+                }
+            },
+            complete: function () {
+                button.prop('disabled', false).removeClass('loading').html(originalIcon);
+            }
+        });
+    });
 });
-
-// 初始化卡片折叠功能
-function initializeCardCollapse() {
-    // 为所有卡片头部添加点击事件
-    document.querySelectorAll('.collapsible-card .card-header').forEach(header => {
-        header.addEventListener('click', function(e) {
-            // 如果点击的是按钮，不触发折叠
-            if (e.target.closest('button')) {
-                return;
-            }
-            
-            const targetId = this.getAttribute('data-bs-target');
-            if (targetId) {
-                const targetElement = document.querySelector(targetId);
-                const icon = this.querySelector('.collapse-icon');
-                
-                if (targetElement) {
-                    if (targetElement.classList.contains('show')) {
-                        targetElement.classList.remove('show');
-                        if (icon) {
-                            icon.style.transform = 'rotate(-90deg)';
-                        }
-                    } else {
-                        targetElement.classList.add('show');
-                        if (icon) {
-                            icon.style.transform = 'rotate(0deg)';
-                        }
-                    }
-                }
-            }
-        });
-    });
-    
-    // 为折叠按钮添加点击事件
-    document.querySelectorAll('.collapse-toggle').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const header = this.closest('.card-header');
-            const targetId = header.getAttribute('data-bs-target');
-            
-            if (targetId) {
-                const targetElement = document.querySelector(targetId);
-                const icon = this.querySelector('.collapse-icon');
-                
-                if (targetElement) {
-                    if (targetElement.classList.contains('show')) {
-                        targetElement.classList.remove('show');
-                        if (icon) {
-                            icon.style.transform = 'rotate(-90deg)';
-                        }
-                    } else {
-                        targetElement.classList.add('show');
-                        if (icon) {
-                            icon.style.transform = 'rotate(0deg)';
-                        }
-                    }
-                }
-            }
-        });
-    });
-}
-
-// 文本展开/收起功能
-function toggleText(button) {
-    const container = button.closest('.collapsible-text');
-    const preview = container.querySelector('.text-preview');
-    const full = container.querySelector('.text-full');
-    
-    if (full.style.display === 'none' || full.style.display === '') {
-        // 展开
-        preview.style.display = 'none';
-        full.style.display = 'block';
-        button.textContent = '收起';
-        button.classList.add('expanded');
-    } else {
-        // 收起
-        preview.style.display = 'block';
-        full.style.display = 'none';
-        button.textContent = '展开';
-        button.classList.remove('expanded');
-    }
-}
 
 // 复制转发指令功能
 function copyForwardCommand(targetId, msgId) {

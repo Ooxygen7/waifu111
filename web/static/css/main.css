@@ -600,7 +600,7 @@ body.sidebar-collapsed .main-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2000;
+    z-index: 9999; /* Ensure it's on top of everything */
     opacity: 0;
     transition: opacity 0.3s ease, visibility 0.3s;
     pointer-events: none;
@@ -731,3 +731,31 @@ body.sidebar-collapsed .main-content {
   All search box styling is now handled by admin_glass.css to ensure
   a consistent look and feel across all admin pages.
 */
+
+/* ==========================================================================
+  Global Scrollbar Styles
+  ========================================================================== */
+::-webkit-scrollbar {
+   width: 8px;
+   height: 8px;
+}
+
+::-webkit-scrollbar-track {
+   background: rgba(10, 20, 40, 0.1);
+   border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+   background: rgba(0, 212, 255, 0.3);
+   border-radius: 10px;
+   border: 1px solid rgba(0, 212, 255, 0.4);
+   transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+   background: rgba(0, 212, 255, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+   background: transparent;
+}

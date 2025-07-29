@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set page_has_custom_scripts = true %}
 
 {% block title %}对话详情 - CyberWaifu Bot 后台管理系统{% endblock %}
 
@@ -7,17 +8,17 @@
 {% block content %}
 <div class="content-wrapper dialogs-page">
     <!-- 对话信息卡片 (可折叠) -->
-    <div class="glass-card collapsible-card" id="conversationDetailsCard">
+    <div class="glass-card collapsible-card collapsed" id="conversationDetailsCard">
         <div class="card-header collapsible-header">
             <div class="header-title">
                 <i class="fas fa-info-circle header-icon"></i>
                 <h3 class="card-title-text">对话详情</h3>
             </div>
             <div class="header-actions">
-                <button id="exportBtn" class="btn btn-glass btn-sm" title="导出对话为JSON">
+                <button id="exportBtn" class="btn btn-glass btn-sm header-action-btn" title="导出对话为JSON">
                     <i class="fas fa-download"></i> <span>导出</span>
                 </button>
-                <a href="{{ url_for('admin.conversations') }}" class="btn btn-glass btn-sm" title="返回对话列表">
+                <a href="{{ url_for('admin.conversations') }}" class="btn btn-glass btn-sm header-action-btn" title="返回对话列表">
                     <i class="fas fa-arrow-left"></i> <span>返回</span>
                 </a>
                 <button class="btn btn-glass btn-sm btn-icon" id="toggleDetailsBtn" title="折叠/展开">
@@ -180,39 +181,47 @@
             </button>
         </div>
         <div class="modal-body">
-            <div class="message-meta">
-                <div class="meta-item">
-                    <span class="meta-label">角色:</span>
-                    <span class="meta-value" id="modal-role"></span>
+            <div class="detail-card">
+                <div class="message-meta-container collapsible-card collapsed">
+                    <div class="meta-header collapsible-header">
+                        <h3 class="section-title">
+                            <i class="fas fa-info-circle"></i>
+                            消息元数据
+                        </h3>
+                        <button class="btn btn-glass btn-sm btn-icon" title="折叠/展开">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="message-meta collapsible-content">
+                        <div class="meta-item">
+                            <span class="meta-label">角色:</span>
+                            <span class="meta-value" id="modal-role"></span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">轮次:</span>
+                            <span class="meta-value" id="modal-turn"></span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">时间:</span>
+                            <span class="meta-value" id="modal-time"></span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">消息ID:</span>
+                            <span class="meta-value" id="modal-msg-id"></span>
+                        </div>
+                    </div>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">轮次:</span>
-                    <span class="meta-value" id="modal-turn"></span>
+                <div class="detail-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-code"></i>
+                        原始内容
+                    </h3>
+                    <div class="content-display raw-content" id="modal-raw-content"></div>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">时间:</span>
-                    <span class="meta-value" id="modal-time"></span>
-                </div>
-                <div class="meta-item">
-                    <span class="meta-label">消息ID:</span>
-                    <span class="meta-value" id="modal-msg-id"></span>
-                </div>
-            </div>
-
-            <div class="detail-section">
-                <h3 class="section-title">
-                    <i class="fas fa-code"></i>
-                    原始内容
-                </h3>
-                <div class="content-display raw-content" id="modal-raw-content"></div>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary modal-close-btn">
-                <i class="fas fa-times"></i>
-                关闭
-            </button>
-            <button class="btn btn-primary" id="editMessageDetailBtn">
+            <button class="btn btn-glass btn-primary" id="editMessageDetailBtn">
                 <i class="fas fa-edit"></i>
                 编辑内容
             </button>
@@ -233,25 +242,24 @@
             </button>
         </div>
         <div class="modal-body">
-            <div class="form-group">
-                <label for="edit-content" class="form-label">
-                    <i class="fas fa-comment-alt"></i>
-                    处理后内容:
-                </label>
-                <textarea id="edit-content" class="form-control" rows="8" placeholder="请输入新的消息内容..."></textarea>
-            </div>
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> 编辑的是处理后内容，原始内容保持不变。
+            <div class="edit-form-container">
+                <div class="form-group">
+                    <label for="edit-content" class="form-label">
+                        <i class="fas fa-comment-alt"></i>
+                        处理后内容
+                    </label>
+                    <textarea id="edit-content" class="form-input" rows="10" placeholder="请输入新的消息内容..."></textarea>
+                </div>
+                <div class="form-info-banner">
+                    <i class="fas fa-info-circle"></i>
+                    <span>编辑的是处理后内容，原始内容保持不变。</span>
+                </div>
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-secondary modal-close-btn">
-                <i class="fas fa-times"></i>
-                取消
-            </button>
-            <button id="saveEditBtn" class="btn btn-primary">
+            <button id="saveEditBtn" class="btn btn-glass btn-primary">
                 <i class="fas fa-save"></i>
-                保存
+                <span>保存</span>
             </button>
         </div>
     </div>
@@ -267,6 +275,9 @@
     // 安全地将后端数据传递给前端
     window.conversationData = {{ conversation | tojson | safe }};
     window.dialogsData = {{ dialogs | tojson | safe }};
+    window.dialogsUrl = "{{ url_for('admin.dialogs', conv_id=conversation.conv_id) }}";
 </script>
 <script src="{{ url_for('static', filename='js/dialogs.js') }}" defer></script>
+<!-- The conflicting modal-dialog.js script has been removed to prevent issues. -->
+<!-- 移除冲突的 modal-dialog.js 脚本 -->
 {% endblock %}

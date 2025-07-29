@@ -1,0 +1,231 @@
+/* Styles for the group dialogs page, aligned with admin_glass.css */
+
+/* Ensure the page wrapper has the correct styling */
+.dialogs-page .glass-card {
+    margin-bottom: 24px;
+}
+
+/* Collapsible card functionality */
+.collapsible-header {
+    cursor: pointer;
+}
+
+#toggleDetailsBtn i {
+    transition: transform 0.3s ease;
+}
+
+.collapsible-card.collapsed #toggleDetailsBtn i {
+    transform: rotate(-180deg);
+}
+
+.collapsible-content {
+    transition: max-height 0.5s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out;
+    overflow: hidden;
+    max-height: 1000px; /* Large enough for content */
+    opacity: 1;
+}
+
+.collapsible-card.collapsed .collapsible-content {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+    border: none;
+}
+
+/* Search keyword display */
+.search-keyword-display {
+    display: inline-block;
+    background: linear-gradient(120deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+/* Message bubble adjustments */
+.message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    max-height: 600px; /* Default max height */
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.message-bubble-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.message-bubble-container.user-message {
+    align-items: flex-start;
+}
+
+.message-bubble-container.ai-message {
+    align-items: flex-end;
+}
+
+.message-row {
+    display: flex;
+    width: 100%;
+}
+
+.message-row.user-message {
+    justify-content: flex-start;
+}
+
+.message-row.ai-message {
+    justify-content: flex-end;
+}
+
+.message-bubble .sender-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    opacity: 0.8;
+}
+
+.user-bubble .sender-name {
+    color: #fff;
+}
+
+.ai-bubble .sender-name {
+    color: #e0e0e0;
+}
+
+/* Forward button styling */
+.forward-btn {
+    position: absolute;
+    bottom: -10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(40, 167, 69, 0.5); /* Green glass */
+    color: white;
+    font-size: 0.8rem;
+    opacity: 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+}
+
+.message-bubble-container.ai-message .forward-btn {
+    right: -15px;
+}
+
+.message-bubble-container.user-message .forward-btn {
+    left: -15px;
+}
+
+.message-bubble-container:hover .forward-btn {
+    opacity: 1;
+}
+
+.forward-btn:hover {
+    background: rgba(40, 167, 69, 0.7);
+    transform: scale(1.1);
+}
+
+/* Search highlight */
+.search-highlight {
+    background: linear-gradient(120deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+/* Highlight pulse for scrolling */
+.highlight-pulse {
+    animation: highlightPulse 2s ease-in-out;
+}
+
+@keyframes highlightPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(102, 126, 234, 0.1);
+    }
+}
+
+/* Empty state styling */
+.empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 50px 20px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+}
+
+.empty-content .empty-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    opacity: 0.5;
+    margin-bottom: 20px;
+}
+
+.empty-content .empty-title {
+    font-size: 1.25rem;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.empty-content .empty-message {
+    color: var(--text-color);
+    opacity: 0.8;
+    margin-bottom: 20px;
+}
+
+.empty-content .clear-search-button {
+    text-decoration: none;
+}
+
+/* Modal content display */
+#messageDetailModal .content-display {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'monospace';
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 30vh;
+    overflow-y: auto;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#messageDetailModal .meta-value {
+    font-weight: 600;
+    color: #fff;
+}
+
+#messageDetailModal .meta-label {
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.7;
+    margin-bottom: 5px;
+}
+
+#messageDetailModal .meta-item {
+    display: flex;
+    flex-direction: column;
+}
+
+#messageDetailModal .message-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    padding: 15px;
+}

@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('dialogs.js loaded and DOM ready.');
     // 从 window 对象安全地获取由 Jinja2 模板传递过来的数据
     const conversation = window.conversationData;
     const dialogs = window.dialogsData;
+    const baseUrl = window.dialogsUrl;
     let currentEditingDialogId = null;
 
     // --- 模态框和通用UI功能 ---
@@ -11,11 +13,20 @@ document.addEventListener('DOMContentLoaded', function () {
      * @param {string} modalId - 模态框的ID
      */
     function openModal(modalId) {
+        console.log('Attempting to open modal:', modalId);
         const modal = document.getElementById(modalId);
+        console.log('Modal element found:', modal);
         if (modal) {
-            modal.style.display = 'flex';
-            modal.style.visibility = 'visible';
+            modal.style.display = 'flex'; // 确保 display 是 flex
+            // 延迟一帧以确保 transition 生效
+            setTimeout(() => {
+                modal.style.opacity = '1';
+                modal.style.visibility = 'visible';
+                modal.style.pointerEvents = 'auto';
+            }, 10);
             modal.setAttribute('aria-hidden', 'false');
+        } else {
+            console.error('Modal element not found for ID:', modalId);
         }
     }
 
@@ -24,18 +35,26 @@ document.addEventListener('DOMContentLoaded', function () {
      * @param {string} modalId - 模态框的ID
      */
     function closeModal(modalId) {
+        console.log('Attempting to close modal:', modalId);
         const modal = document.getElementById(modalId);
+        console.log('Modal element found:', modal);
         if (modal) {
-            modal.style.display = 'none';
-            modal.style.visibility = 'hidden';
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+            // 在 transition 结束后再隐藏
+            setTimeout(() => {
+                modal.style.display = 'none';
+                modal.style.visibility = 'hidden';
+            }, 300); // 匹配 main.css 中的 transition 时间
             modal.setAttribute('aria-hidden', 'true');
+        } else {
+            console.error('Modal element not found for ID:', modalId);
         }
     }
 
     // 为所有关闭按钮和遮罩层添加关闭事件
     document.querySelectorAll('.modal-close, .modal-overlay, .modal-close-btn').forEach(el => {
         el.addEventListener('click', function (event) {
-            // 防止点击模态框内容区域导致关闭
             if (event.target === this || this.classList.contains('modal-close-btn') || this.classList.contains('modal-close')) {
                 const modal = this.closest('.modal-overlay');
                 if (modal) {
@@ -44,16 +63,79 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    
+    // 键盘支持 - ESC键关闭模态框
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const openModal = document.querySelector('.modal-overlay[aria-hidden="false"]');
+            if (openModal) {
+                closeModal(openModal.id);
+            }
+        }
+    });
 
-    // --- 卡片折叠功能 ---
+
+    // --- 浮动提示 (Toast) ---
+    /**
+     * 显示一个浮动提示
+     * @param {string} message - 要显示的消息
+     * @param {string} type - 'success' 或 'error'
+     */
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast-notification ${type}`;
+        
+        const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+        toast.innerHTML = `
+            <i class="fas ${iconClass} toast-icon"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+
+        // 触发显示动画
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+
+        // 3秒后自动隐藏
+        setTimeout(() => {
+            toast.classList.remove('show');
+            // 在动画结束后从DOM中移除
+            toast.addEventListener('transitionend', () => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, { once: true });
+        }, 3000);
+    }
+
+    // --- 卡片折叠与高度调整 ---
     const toggleBtn = document.getElementById('toggleDetailsBtn');
     const detailsCard = document.getElementById('conversationDetailsCard');
 
     if (toggleBtn && detailsCard) {
+        function adjustChatHistoryHeight() {
+            const chatHistoryCard = document.querySelector('.chat-history-card');
+            if (!chatHistoryCard) return;
+
+            const detailsHeight = detailsCard.offsetHeight;
+            const windowHeight = window.innerHeight;
+            // 适当调整，留出边距
+            const newMaxHeight = windowHeight - detailsHeight - 200; 
+            chatHistoryCard.querySelector('.message-list').style.maxHeight = `${newMaxHeight}px`;
+        }
+
         toggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // 防止触发其他点击事件
+            e.stopPropagation();
             detailsCard.classList.toggle('collapsed');
+            // 在动画结束后调整高度
+            setTimeout(adjustChatHistoryHeight, 500); 
         });
+
+        // 初始加载和窗口大小改变时也调整高度
+        adjustChatHistoryHeight();
+        window.addEventListener('resize', adjustChatHistoryHeight);
     }
 
     // --- 搜索结果跳转和高亮 ---
@@ -75,46 +157,60 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // --- 消息点击逻辑 (详情/跳转) ---
+    // --- 消息点击逻辑 (详情/跳转/编辑) ---
     const messageList = document.getElementById('messageList');
     if (messageList) {
         messageList.addEventListener('click', function (event) {
-            const bubbleContainer = event.target.closest('.message-bubble-container');
+            console.log('Click detected on message list.');
+            const target = event.target;
+            const bubbleContainer = target.closest('.message-bubble-container');
+            console.log('Clicked target:', target);
+            console.log('Bubble container found:', bubbleContainer);
+
             if (!bubbleContainer) return;
 
-            // 如果点击的是编辑按钮，则不执行后续操作
-            if (event.target.closest('.edit-btn')) {
+            // 点击编辑按钮
+            if (target.closest('.edit-btn')) {
+                event.stopPropagation();
+                const dialogId = bubbleContainer.dataset.dialogId;
+                console.log('Edit button clicked for dialogId:', dialogId);
+                const content = bubbleContainer.dataset.processedContent;
+                editMessage(dialogId, content);
                 return;
             }
 
-            // 如果是搜索结果页面，点击则跳转到完整对话并高亮
-            if (isSearchResult) {
-                const convId = conversation.conv_id;
-                const msgId = bubbleContainer.id;
-                // 构建 URL 并跳转
-                const url = new URL(window.location.origin + `/admin/dialogs/${convId}`);
-                url.hash = msgId;
-                window.location.href = url.toString();
-                return; // 阻止打开详情模态框
+            // 点击消息气泡本身
+            if (target.closest('.message-bubble')) {
+                // 如果是搜索结果页面，则跳转
+                if (isSearchResult) {
+                    const msgId = bubbleContainer.id;
+                    // 使用字符串拼接来构建 URL
+                    const finalUrl = baseUrl + '#' + msgId;
+                    window.location.href = finalUrl;
+                    return;
+                }
+
+                // 否则，打开详情模态框
+                console.log('Message bubble clicked, preparing to open detail modal.');
+                console.log('Data from container:', JSON.parse(JSON.stringify(bubbleContainer.dataset)));
+
+                const roleText = bubbleContainer.dataset.role === 'user' ? '用户' : 'AI';
+                const roleClass = bubbleContainer.dataset.role === 'user' ? 'tag secondary' : 'tag info';
+
+                document.getElementById('modal-role').innerHTML = `<span class="tag ${roleClass}">${roleText}</span>`;
+                document.getElementById('modal-turn').textContent = bubbleContainer.dataset.turn;
+                document.getElementById('modal-time').textContent = bubbleContainer.dataset.time;
+                document.getElementById('modal-msg-id').textContent = bubbleContainer.dataset.msgId || 'N/A';
+                document.getElementById('modal-raw-content').textContent = bubbleContainer.dataset.rawContent;
+
+                const editBtn = document.getElementById('editMessageDetailBtn');
+                editBtn.onclick = () => {
+                    closeModal('messageDetailModal');
+                    editMessage(bubbleContainer.dataset.dialogId, bubbleContainer.dataset.processedContent);
+                };
+
+                openModal('messageDetailModal');
             }
-
-            // 正常打开消息详情模态框
-            const roleText = bubbleContainer.dataset.role === 'user' ? '用户' : 'AI';
-            const roleClass = bubbleContainer.dataset.role === 'user' ? 'tag secondary' : 'tag info';
-
-            document.getElementById('modal-role').innerHTML = `<span class="tag ${roleClass}">${roleText}</span>`;
-            document.getElementById('modal-turn').textContent = bubbleContainer.dataset.turn;
-            document.getElementById('modal-time').textContent = bubbleContainer.dataset.time;
-            document.getElementById('modal-msg-id').textContent = bubbleContainer.dataset.msgId || 'N/A';
-            document.getElementById('modal-raw-content').textContent = bubbleContainer.dataset.rawContent;
-
-            const editBtn = document.getElementById('editMessageDetailBtn');
-            editBtn.onclick = () => {
-                closeModal('messageDetailModal');
-                editMessage(bubbleContainer.dataset.dialogId, bubbleContainer.dataset.processedContent);
-            };
-
-            openModal('messageDetailModal');
         });
     }
 
@@ -126,6 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * @param {string} currentContent - 当前处理后的内容
      */
     function editMessage(dialogId, currentContent) {
+        console.log(`Preparing edit modal for dialogId: ${dialogId}`);
         currentEditingDialogId = dialogId;
         const textarea = document.getElementById('edit-content');
         textarea.value = currentContent;
@@ -159,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (result.success) {
                 // 更新页面上的消息气泡
-                const messageContainer = document.getElementById(`msg-${currentEditingDialogId}`);
+                const messageContainer = document.querySelector(`[data-dialog-id="${currentEditingDialogId}"]`);
                 if (messageContainer) {
                     const contentDiv = messageContainer.querySelector('.message-content');
                     contentDiv.innerHTML = newContent.replace(/\n/g, '<br>');
@@ -167,13 +264,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     messageContainer.dataset.processedContent = newContent;
                 }
                 closeModal('editMessageModal');
-                // 可以添加一个成功提示，例如使用SweetAlert或自定义通知
+                showToast('保存成功！', 'success');
             } else {
-                alert('保存失败: ' + result.error);
+                showToast('保存失败: ' + result.error, 'error');
             }
         } catch (error) {
             console.error('保存消息时出错:', error);
-            alert('保存过程中发生网络错误。');
+            showToast('保存过程中发生网络错误。', 'error');
         }
     }
 
@@ -209,19 +306,15 @@ document.addEventListener('DOMContentLoaded', function () {
         saveEditBtn.addEventListener('click', saveMessageEdit);
     }
 
-    // 为所有编辑按钮添加事件监听
-    document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', function (event) {
-            event.stopPropagation(); // 阻止事件冒泡到消息气泡容器
-            const container = this.closest('.message-bubble-container');
-            if (container) {
-                const dialogId = container.dataset.dialogId;
-                const content = container.dataset.processedContent;
-                editMessage(dialogId, content);
-            }
-        });
-    });
-
     // 页面加载时检查并执行高亮
     highlightAndScrollToMessage();
+
+    // 消息详情模态框中的元数据折叠
+    const metaContainer = document.querySelector('#messageDetailModal .message-meta-container');
+    if (metaContainer) {
+        const metaHeader = metaContainer.querySelector('.meta-header');
+        metaHeader.addEventListener('click', () => {
+            metaContainer.classList.toggle('collapsed');
+        });
+    }
 });
