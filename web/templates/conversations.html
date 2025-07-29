@@ -219,10 +219,12 @@
                                         title="查看对话详情" aria-label="查看对话详情">
                                         <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
                                     </a>
+                                    {% if session.user_role == 'admin' %}
                                     <button type="button" class="btn-glass generate-summary-btn"
                                         data-conv-id="{{ conv.conv_id }}" title="生成摘要" aria-label="生成摘要">
                                         <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L14.39 8.36L21 9.27L16.5 13.5L17.61 20.02L12 17.27L6.39 20.02L7.5 13.5L3 9.27L9.61 8.36L12 2z"></path></svg></span>
                                     </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>

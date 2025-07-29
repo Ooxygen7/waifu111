@@ -18,7 +18,7 @@ def login():
         if session.get("user_role") == "admin":
             return redirect(url_for("admin.index"))
         elif session.get("user_role") == "viewer":
-            return redirect(url_for("viewer.viewer_index"))
+            return redirect(url_for("admin.index"))
         else:
             # 清除无效的session
             session.pop("logged_in", None)
@@ -39,7 +39,7 @@ def login():
         elif password == config["VIEWER_PW"]:
             session["logged_in"] = True
             session["user_role"] = "viewer"
-            return redirect(url_for("viewer.viewer_index"))
+            return redirect(url_for("admin.index"))
         else:
             error = "密码错误"
 

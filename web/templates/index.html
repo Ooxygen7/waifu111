@@ -13,19 +13,19 @@
     <div class="unified-grid">
         <!-- Main Stats -->
         <div class="stat-card users glass-card">
-            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_users }}</span></div>
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_users or 0 }}</span></div>
             <div class="stat-title"><i data-feather="users" class="icon"></i> 总用户数</div>
         </div>
         <div class="stat-card convos glass-card">
-            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_conversations }}</span></div>
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_conversations or 0 }}</span></div>
             <div class="stat-title"><i data-feather="message-circle" class="icon"></i> 总对话数</div>
         </div>
         <div class="stat-card messages glass-card">
-            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_dialogs }}</span></div>
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.total_dialogs or 0 }}</span></div>
             <div class="stat-title"><i data-feather="file-text" class="icon"></i> 总消息数</div>
         </div>
         <div class="stat-card today glass-card">
-            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.today_conversations }}</span></div>
+            <div class="stat-value-wrapper"><span class="stat-value">{{ stats.today_conversations or 0 }}</span></div>
             <div class="stat-title"><i data-feather="calendar" class="icon"></i> 今日对话</div>
         </div>
 
@@ -34,20 +34,20 @@
             <div class="info-section">
                 <h3 class="info-card-title"><i data-feather="activity" class="icon"></i> 今日活动</h3>
                 <div class="info-card-content">
-                    <div class="sub-stat"><span>新增对话:</span> <span>{{ stats.today_conversations }}</span></div>
-                    <div class="sub-stat"><span>私聊消息:</span> <span>{{ stats.today_dialogs }}</span></div>
-                    <div class="sub-stat"><span>群聊消息:</span> <span>{{ stats.today_group_dialogs }}</span></div>
-                    <div class="sub-stat"><span>消耗Tokens:</span> <span>{{ "{:,}".format(stats.today_total_tokens) }}</span></div>
+                    <div class="sub-stat"><span>新增对话:</span> <span>{{ stats.today_conversations or 0 }}</span></div>
+                    <div class="sub-stat"><span>私聊消息:</span> <span>{{ stats.today_dialogs or 0 }}</span></div>
+                    <div class="sub-stat"><span>群聊消息:</span> <span>{{ stats.today_group_dialogs or 0 }}</span></div>
+                    <div class="sub-stat"><span>消耗Tokens:</span> <span>{{ "{:,}".format(stats.today_total_tokens or 0) }}</span></div>
                 </div>
             </div>
             <div class="info-divider"></div>
             <div class="info-section">
                 <h3 class="info-card-title"><i data-feather="target" class="icon"></i> Token 统计</h3>
                 <div class="info-card-content">
-                    <div class="sub-stat"><span>输入:</span> <span>{{ stats.total_input_tokens | format_large_number }}</span></div>
-                    <div class="sub-stat"><span>输出:</span> <span>{{ stats.total_output_tokens | format_large_number }}</span></div>
-                    <div class="sub-stat"><span>总计:</span> <span>{{ (stats.total_input_tokens + stats.total_output_tokens) | format_large_number }}</span></div>
-                    {% set today_percentage = (stats.today_total_tokens / (stats.total_input_tokens + stats.total_output_tokens) * 100) if (stats.total_input_tokens + stats.total_output_tokens) > 0 else 0 %}
+                    <div class="sub-stat"><span>输入:</span> <span>{{ (stats.total_input_tokens or 0) | format_large_number }}</span></div>
+                    <div class="sub-stat"><span>输出:</span> <span>{{ (stats.total_output_tokens or 0) | format_large_number }}</span></div>
+                    <div class="sub-stat"><span>总计:</span> <span>{{ ((stats.total_input_tokens or 0) + (stats.total_output_tokens or 0)) | format_large_number }}</span></div>
+                    {% set today_percentage = ((stats.today_total_tokens or 0) / ((stats.total_input_tokens or 0) + (stats.total_output_tokens or 0)) * 100) if ((stats.total_input_tokens or 0) + (stats.total_output_tokens or 0)) > 0 else 0 %}
                     <div class="sub-stat"><span>今日占比:</span> <span>{{ "{:.1f}".format(today_percentage) }}%</span></div>
                 </div>
             </div>
@@ -58,20 +58,23 @@
             <div class="card-header"><h3 class="card-title"><i data-feather="award" class="icon"></i> 今日最活跃用户 TOP5</h3></div>
             <div class="card-body">
                 <div class="top-list">
-                    {% for user in stats.active_users[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-divider"></div><div class="top-content"><div class="top-name">{{ (user[2] ~ ' ' ~ user[3])|trim or user[1] or '用户 ' ~ user[0]|string }}</div><div class="top-value">{{ user[4] }} 条消息</div></div><div class="top-divider"></div><a href="{{ url_for('admin.conversations', search=user[0]) }}" class="btn-glass" title="查看该用户的对话"><i data-feather="message-square"></i></a></div>{% endfor %}
+                    {% for user in stats.active_users[:5] or [] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-divider"></div><div class="top-content"><div class="top-name">{{ (user[2] ~ ' ' ~ user[3])|trim or user[1] or '用户 ' ~ user[0]|string }}</div><div class="top-value">{{ user[4] }} 条消息</div></div><div class="top-divider"></div><a href="{{ url_for('admin.conversations', search=user[0]) }}" class="btn-glass" title="查看该用户的对话"><i data-feather="message-square"></i></a></div>{% endfor %}
                 </div>
             </div>
         </div>
+        {% if session.user_role == 'admin' %}
         <div class="card card-compact top-groups-list glass-card">
             <div class="card-header"><h3 class="card-title"><i data-feather="users" class="icon"></i> 最活跃群组 TOP5</h3></div>
             <div class="card-body">
                 <div class="top-list">
-                    {% for group in stats.active_groups[:5] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-divider"></div><div class="top-content"><div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div><div class="top-value">{{ group[2] }} 条消息</div></div><div class="top-divider"></div><a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="btn-glass" title="查看群组聊天记录"><i data-feather="message-square"></i></a></div>{% endfor %}
+                    {% for group in stats.active_groups[:5] or [] %}<div class="top-item glass-card"><div class="top-rank">{{ loop.index }}</div><div class="top-divider"></div><div class="top-content"><div class="top-name">{{ group[1] or '群组 ' + group[0]|string }}</div><div class="top-value">{{ group[2] }} 条消息</div></div><div class="top-divider"></div><a href="{{ url_for('admin.group_dialogs', group_id=group[0]) }}" class="btn-glass" title="查看群组聊天记录"><i data-feather="message-square"></i></a></div>{% endfor %}
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Analytics Container -->
+        {% if session.user_role == 'admin' %}
         <div class="analytics-container glass-card">
             <div class="analytics-header">
                 <h3 class="analytics-title"><i data-feather="bar-chart-2" class="icon"></i> 数据趋势分析</h3>
@@ -89,6 +92,7 @@
                 <div class="chart-card glass-card"><div class="chart-header"><h4 class="chart-title"><i data-feather="activity" class="icon"></i> 活跃度分析</h4></div><div class="chart-body"><canvas id="activityChart"></canvas></div></div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Quick Actions -->
         <div class="card card-bordered quick-actions-card glass-card">
@@ -105,6 +109,7 @@
                 <i data-feather="message-square"></i>
                 <span>对话记录</span>
             </a>
+            {% if session.user_role == 'admin' %}
             <a href="{{ url_for('admin.groups') }}" class="btn-glass btn-with-icon">
                 <i data-feather="users"></i>
                 <span>群组管理</span>
@@ -117,6 +122,7 @@
                 <i data-feather="search"></i>
                 <span>数据搜索</span>
             </a>
+            {% endif %}
             <button class="btn-glass btn-with-icon" onclick="location.reload()">
                 <i data-feather="refresh-cw"></i>
                 <span>刷新数据</span>
@@ -125,6 +131,7 @@
     </div>
 </div>
 
+{% if session.user_role == 'admin' %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Chart.js 配置
@@ -155,10 +162,10 @@ const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d'
 const userGrowthChart = new Chart(userGrowthCtx, {
     type: 'line',
     data: {
-        labels: [{% for item in stats.user_growth %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: [{% for item in stats.user_growth or [] %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
             label: '新增用户',
-            data: [{% for item in stats.user_growth %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            data: [{% for item in stats.user_growth or [] %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
             borderColor: '#00d4ff',
             backgroundColor: 'rgba(0, 212, 255, 0.15)',
             tension: 0.4,
@@ -201,10 +208,10 @@ const conversationCtx = document.getElementById('conversationChart').getContext(
 const conversationChart = new Chart(conversationCtx, {
     type: 'line',
     data: {
-        labels: [{% for item in stats.dialog_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: [{% for item in stats.dialog_trend or [] %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
             label: '私聊消息量',
-            data: [{% for item in stats.dialog_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            data: [{% for item in stats.dialog_trend or [] %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
             borderColor: '#00ff88',
             backgroundColor: 'rgba(0, 255, 136, 0.15)',
             tension: 0.4,
@@ -247,10 +254,10 @@ const tokenUsageCtx = document.getElementById('tokenUsageChart').getContext('2d'
 const tokenUsageChart = new Chart(tokenUsageCtx, {
     type: 'line',
     data: {
-        labels: [{% for item in stats.token_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: [{% for item in stats.token_trend or [] %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
             label: 'Token消耗',
-            data: [{% for item in stats.token_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            data: [{% for item in stats.token_trend or [] %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
             borderColor: '#ffaa00',
             backgroundColor: 'rgba(255, 170, 0, 0.15)',
             tension: 0.4,
@@ -300,10 +307,10 @@ const activityCtx = document.getElementById('activityChart').getContext('2d');
 const activityChart = new Chart(activityCtx, {
     type: 'line',
     data: {
-        labels: [{% for item in stats.group_trend %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: [{% for item in stats.group_trend or [] %}'{{ item[0] }}'{% if not loop.last %},{% endif %}{% endfor %}],
         datasets: [{
             label: '群聊消息',
-            data: [{% for item in stats.group_trend %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
+            data: [{% for item in stats.group_trend or [] %}{{ item[1] }}{% if not loop.last %},{% endif %}{% endfor %}],
             borderColor: '#8844ff',
             backgroundColor: 'rgba(136, 68, 255, 0.15)',
             tension: 0.4,
@@ -343,6 +350,7 @@ const activityChart = new Chart(activityCtx, {
 
 // 实时时间显示功能已移至 main.js
 </script>
+{% endif %}
 
 <style>
 /* This style block is intentionally left empty. All styles have been moved to cyberpunk.css */

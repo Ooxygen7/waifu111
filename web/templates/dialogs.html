@@ -130,9 +130,11 @@
                                 <i class="fas fa-clock fa-xs"></i> {{ format_datetime(dialog.created_at) }}
                             </div>
                             <!-- 编辑按钮 -->
+                            {% if session.user_role == 'admin' %}
                             <button class="edit-btn" aria-label="编辑消息">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                     {% else %}
@@ -147,9 +149,11 @@
                                 <i class="fas fa-clock fa-xs"></i> {{ format_datetime(dialog.created_at) }}
                             </div>
                             <!-- 编辑按钮 -->
+                            {% if session.user_role == 'admin' %}
                             <button class="edit-btn" aria-label="编辑消息">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                     {% endif %}
@@ -221,14 +225,17 @@
             </div>
         </div>
         <div class="modal-footer">
+            {% if session.user_role == 'admin' %}
             <button class="btn btn-glass btn-primary" id="editMessageDetailBtn">
                 <i class="fas fa-edit"></i>
                 编辑内容
             </button>
+            {% endif %}
         </div>
     </div>
 </div>
 
+{% if session.user_role == 'admin' %}
 <!-- 编辑消息模态框 -->
 <div class="modal-overlay" id="editMessageModal" aria-hidden="true" style="display: none; visibility: hidden;">
     <div class="modal-container" role="dialog" aria-labelledby="editMessageModalLabel" aria-modal="true">
@@ -264,6 +271,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_css %}

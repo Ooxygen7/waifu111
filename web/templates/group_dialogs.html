@@ -133,9 +133,11 @@
                             <div class="message-time">
                                 <i class="fas fa-clock fa-xs"></i> {{ format_datetime(dialog.create_at) }}
                             </div>
+                            {% if session.user_role == 'admin' %}
                             <button class="forward-btn" title="复制转发命令" aria-label="复制转发命令">
                                 <i class="fas fa-share"></i>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -162,9 +164,11 @@
                             <div class="message-time">
                                 <i class="fas fa-clock fa-xs"></i> {{ format_datetime(dialog.create_at) }}
                             </div>
+                             {% if session.user_role == 'admin' %}
                              <button class="forward-btn" title="复制转发命令" aria-label="复制转发命令">
                                 <i class="fas fa-share"></i>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

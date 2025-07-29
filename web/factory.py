@@ -77,6 +77,17 @@ def viewer_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def viewer_or_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "logged_in" not in session:
+            return redirect(url_for("auth.login", next=request.url))
+        if session.get("user_role") not in ["admin", "viewer"]:
+            flash("您没有权限访问此页面", "error")
+            return redirect(url_for("auth.login"))
+        return f(*args, **kwargs)
+    return decorated_function
+
 def format_datetime(timestamp):
     """格式化时间戳"""
     if timestamp:
@@ -139,11 +150,9 @@ def create_app():
     # 注册蓝图
     from .blueprints.auth import auth_bp
     from .blueprints.admin import admin_bp
-    from .blueprints.viewer import viewer_bp
     from .blueprints.api import api_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
-    app.register_blueprint(viewer_bp)
     app.register_blueprint(api_bp)
 
     return app

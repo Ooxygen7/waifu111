@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request
 from utils import db_utils as db
 from utils import LLM_utils as llm
 from web.factory import admin_required, viewer_required, get_admin_ids, app_logger
+from web.factory import viewer_or_admin_required
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -117,10 +118,19 @@ def export_group_dialogs(group_id):
     return jsonify(export_data)
 
 
+from flask import session
+
 @api_bp.route("/user/<int:user_id>", methods=["GET", "PUT"])
-@admin_required
+@viewer_or_admin_required
 def api_user_detail(user_id):
     """获取或更新用户详细信息API"""
+    user_role = session.get("user_role")
+
+    if user_role == "viewer":
+        admin_ids = get_admin_ids()
+        if user_id in admin_ids:
+            return jsonify({"error": "无权限查看此用户信息"}), 403
+
     if request.method == "GET":
         user_data = db.query_db("SELECT * FROM users WHERE uid = ?", (user_id,))
         if not user_data:
@@ -154,6 +164,8 @@ def api_user_detail(user_id):
         })
 
     elif request.method == "PUT":
+        if user_role != "admin":
+            return jsonify({"error": "无权限执行此操作"}), 403
         try:
             data = request.get_json()
             
@@ -201,121 +213,8 @@ def api_user_detail(user_id):
             return jsonify({"success": False, "message": str(e)}), 500
 
 
-@api_bp.route("/viewer/api/user/<int:user_id>")
-@viewer_required
-def viewer_api_user_detail(user_id):
-    """浏览者权限获取用户详细信息API"""
-    admin_ids = get_admin_ids()
-    if user_id in admin_ids:
-        return jsonify({"error": "无权限查看此用户信息"}), 403
-    user_data = db.query_db("SELECT * FROM users WHERE uid = ?", (user_id,))
-    if not user_data:
-        return jsonify({"error": "用户不存在"}), 404
-    user_config_data = db.query_db(
-        "SELECT * FROM user_config WHERE uid = ?", (user_id,)
-    )
-    conversations_count_data = db.query_db(
-        "SELECT COUNT(*) FROM conversations WHERE user_id = ?", (user_id,)
-    )
-    conversations_count = (
-        conversations_count_data[0][0] if conversations_count_data else 0
-    )
-    user_columns = [
-        "uid",
-        "first_name",
-        "last_name",
-        "user_name",
-        "create_at",
-        "conversations",
-        "dialog_turns",
-        "update_at",
-        "input_tokens",
-        "output_tokens",
-        "account_tier",
-        "remain_frequency",
-        "balance",
-    ]
-    user_dict = {user_columns[i]: user_data[0][i] for i in range(len(user_columns))}
-    user_config_dict = None
-    if user_config_data:
-        config_columns = ["uid", "char", "api", "preset", "conv_id", "stream", "nick"]
-        user_config_dict = {
-            config_columns[i]: user_config_data[0][i]
-            for i in range(len(config_columns))
-        }
-    return jsonify(
-        {
-            "user": user_dict,
-            "config": user_config_dict,
-            "conversations_count": conversations_count,
-        }
-    )
 
 
-
-
-@api_bp.route("/groups/<group_id>", methods=["GET", "PUT"])
-@admin_required
-def api_group_detail_update(group_id):
-    """获取或更新群组信息API"""
-    try:
-        group_id = int(group_id)
-    except ValueError:
-        return jsonify({"success": False, "message": "无效的群组ID"}), 400
-
-    if request.method == "GET":
-        group_data = db.query_db("SELECT * FROM groups WHERE group_id = ?", (group_id,))
-        if not group_data:
-            return jsonify({"success": False, "message": "群组不存在"}), 404
-        
-        columns = [
-            "group_id", "members_list", "call_count", "keywords", "active",
-            "api", "char", "preset", "input_token", "group_name",
-            "update_time", "rate", "output_token", "disabled_topics"
-        ]
-        group_dict = {columns[i]: group_data[0][i] for i in range(len(columns))}
-        return jsonify(group_dict)
-
-    elif request.method == "PUT":
-        data = request.get_json()
-        if not data:
-            return jsonify({"success": False, "message": "无效的请求数据"}), 400
-
-        existing_group = db.query_db("SELECT group_id FROM groups WHERE group_id = ?", (group_id,))
-        if not existing_group:
-            return jsonify({"success": False, "message": "群组不存在"}), 404
-
-        updates = []
-        params = []
-        
-        allowed_fields = [
-            "group_name", "active", "char", "api", "preset", "rate",
-            "members_list", "keywords", "disabled_topics"
-        ]
-        
-        for field in allowed_fields:
-            if field in data:
-                updates.append(f"{field} = ?")
-                value = data[field]
-                if field == 'active':
-                    value = int(value)
-                elif field == 'rate':
-                    value = float(value) if value is not None else None
-                params.append(value)
-
-        if updates:
-            updates.append("update_time = ?")
-            params.append(datetime.now())
-            params.append(group_id)
-            
-            sql = f"UPDATE groups SET {', '.join(updates)} WHERE group_id = ?"
-            db.revise_db(sql, tuple(params))
-            return jsonify({"success": True, "message": "群组信息更新成功"})
-        else:
-            return jsonify({"success": False, "message": "没有提供要更新的字段"}), 400
-    
-    # This part should not be reached, but as a fallback
-    return jsonify({"success": False, "message": "不支持的请求方法"}), 405
 
 
 @api_bp.route("/config/list")

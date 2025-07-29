@@ -21,8 +21,20 @@
         <aside class="sidebar" role="navigation" aria-label="主导航">
             <div class="sidebar-header">
                 <h1 class="sidebar-title">CyberWaifu</h1>
-                <div class="sidebar-subtitle">后台管理系统</div>
-                <div class="admin-badge">管理员模式</div>
+                <div class="sidebar-subtitle">
+                    {% if session.user_role == 'admin' %}
+                        后台管理系统
+                    {% else %}
+                        浏览面板
+                    {% endif %}
+                </div>
+                <div class="admin-badge">
+                    {% if session.user_role == 'admin' %}
+                        管理员模式
+                    {% else %}
+                        浏览者模式
+                    {% endif %}
+                </div>
             </div>
             <nav>
                 <ul class="nav-menu">
@@ -47,6 +59,7 @@
                             <i data-feather="message-square" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 对话记录</span>
                         </a>
                     </li>
+                    {% if session.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin.groups' %}active{% endif %}"
                             href="{{ url_for('admin.groups') }}"
@@ -61,6 +74,8 @@
                             <i data-feather="search" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 全局搜索</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if session.user_role == 'admin' %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint == 'admin.config_management' else '' }}"
                             href="{{ url_for('admin.config_management') }}"
@@ -68,6 +83,7 @@
                             <i data-feather="settings" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 配置管理</span>
                         </a>
                     </li>
+                    {% endif %}
                 </ul>
             </nav>
             <div class="logout-link">

@@ -1,5 +1,15 @@
-from flask import Blueprint, render_template, request, current_app
-from web.factory import admin_required, format_datetime
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    current_app,
+    session,
+    flash,
+    redirect,
+    url_for,
+    abort,
+)
+from web.factory import viewer_or_admin_required, format_datetime, get_admin_ids
 from bot_core.public_functions.frequency_manager import get_dashboard_stats
 from utils import db_utils as db
 
@@ -21,40 +31,138 @@ def on_load(state):
     state.app.jinja_env.filters['format_tokens_m'] = format_tokens_m
 
 @admin_bp.route("/")
-@admin_required
+@viewer_or_admin_required
 def index():
     """主页 - 显示统计信息"""
+    user_role = session.get("user_role")
+    if user_role == "viewer":
+        admin_ids = get_admin_ids()
+        if not admin_ids:
+            return render_template("index.html", stats={}, user_role=user_role)
+
+        admin_ids_str = ",".join(map(str, admin_ids))
+        stats = {}
+        stats["total_users"] = (
+            db.query_db(f"SELECT COUNT(*) FROM users WHERE uid NOT IN ({admin_ids_str})")[0][0] or 0
+        )
+        stats["total_conversations"] = (
+            db.query_db(
+                f"SELECT COUNT(*) FROM conversations WHERE user_id NOT IN ({admin_ids_str})"
+            )[0][0]
+            or 0
+        )
+        stats["total_dialogs"] = (
+            db.query_db(
+                f"SELECT COUNT(*) FROM dialogs d JOIN conversations c ON d.conv_id = c.conv_id WHERE c.user_id NOT IN ({admin_ids_str})"
+            )[0][0]
+            or 0
+        )
+        from datetime import datetime
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_conversations = db.query_db(
+            f"SELECT COUNT(*) FROM conversations WHERE date(create_at) = ? AND user_id NOT IN ({admin_ids_str})",
+            (today,),
+        )
+        stats["today_conversations"] = (
+            today_conversations[0][0] if today_conversations else 0
+        )
+        today_dialogs = db.query_db(
+            f"SELECT COUNT(*) FROM dialogs d JOIN conversations c ON d.conv_id = c.conv_id WHERE date(d.created_at) = ? AND c.user_id NOT IN ({admin_ids_str})",
+            (today,),
+        )
+        stats["today_dialogs"] = today_dialogs[0][0] if today_dialogs else 0
+
+        # 为viewer补充群聊和token统计
+        stats["today_group_dialogs"] = 0 # viewer模式不统计群聊
+        stats["total_group_dialogs"] = 0
+
+        user_token_stats = db.query_db(
+            f"SELECT SUM(input_tokens), SUM(output_tokens) FROM users WHERE uid NOT IN ({admin_ids_str})"
+        )
+        stats["total_input_tokens"] = user_token_stats[0][0] or 0
+        stats["total_output_tokens"] = user_token_stats[0][1] or 0
+
+        if stats["total_dialogs"] > 0:
+            today_ratio = stats["today_dialogs"] / stats["total_dialogs"]
+            stats["today_input_tokens"] = int(stats["total_input_tokens"] * today_ratio)
+            stats["today_output_tokens"] = int(stats["total_output_tokens"] * today_ratio)
+            stats["today_total_tokens"] = (
+                stats["today_input_tokens"] + stats["today_output_tokens"]
+            )
+        else:
+            stats["today_input_tokens"] = 0
+            stats["today_output_tokens"] = 0
+            stats["today_total_tokens"] = 0
+
+        active_users = db.query_db(
+            f"""
+            SELECT u.uid, u.user_name, u.first_name, u.last_name, COUNT(d.id) as message_count
+            FROM users u
+            JOIN conversations c ON u.uid = c.user_id
+            JOIN dialogs d ON c.conv_id = d.conv_id
+            WHERE date(d.created_at) = ? AND u.uid NOT IN ({admin_ids_str})
+            GROUP BY u.uid, u.user_name, u.first_name, u.last_name
+            ORDER BY message_count DESC
+            LIMIT 5
+        """,
+            (today,),
+        )
+        stats["active_users"] = active_users or []
+        stats["active_groups"] = [] # viewer模式不显示活跃群组
+        return render_template("index.html", stats=stats, user_role=user_role)
+
+    # 管理员视图
     time_range = request.args.get("time_range", "7d")
     stats = get_dashboard_stats(time_range)
-    return render_template("index.html", stats=stats)
+    return render_template("index.html", stats=stats, user_role=user_role)
 
 
 @admin_bp.route("/users")
-@admin_required
+@viewer_or_admin_required
 def users():
     """用户管理页面"""
+    user_role = session.get("user_role")
     page = request.args.get("page", 1, type=int)
     per_page = 20
     offset = (page - 1) * per_page
     search_term = request.args.get("search", "")
     sort_by = request.args.get("sort_by", "create_at")
     sort_order = request.args.get("sort_order", "desc")
-    query = "SELECT * FROM users"
+
+    base_query = "FROM users"
+    where_clauses = []
     params = []
+
+    if user_role == "viewer":
+        admin_ids = get_admin_ids()
+        if admin_ids:
+            admin_ids_str = ",".join(map(str, admin_ids))
+            where_clauses.append(f"uid NOT IN ({admin_ids_str})")
+
     if search_term:
-        query += " WHERE uid LIKE ? OR user_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?"
+        where_clauses.append(
+            "(uid LIKE ? OR user_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?)"
+        )
         search_param = f"%{search_term}%"
         params.extend([search_param, search_param, search_param, search_param])
+
+    query = "SELECT * " + base_query
+    count_query = "SELECT COUNT(*) " + base_query
+
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+        count_query += " WHERE " + " AND ".join(where_clauses)
+
+    count_params = params[:]
+
     if sort_by and sort_order:
         query += f" ORDER BY {sort_by} {sort_order}"
+
     query += " LIMIT ? OFFSET ?"
     params.extend([per_page, offset])
+
     users_data = db.query_db(query, tuple(params))
-    count_query = "SELECT COUNT(*) FROM users"
-    count_params = []
-    if search_term:
-        count_query += " WHERE uid LIKE ? OR user_name LIKE ? OR first_name LIKE ? OR last_name LIKE ?"
-        count_params.extend([search_param, search_param, search_param, search_param])
     total_result = db.query_db(count_query, tuple(count_params))
     total_users = total_result[0][0] if total_result else 0
     total_pages = (total_users + per_page - 1) // per_page
@@ -100,9 +208,10 @@ def users():
 
 
 @admin_bp.route("/conversations")
-@admin_required
+@viewer_or_admin_required
 def conversations():
     """对话管理页面"""
+    user_role = session.get("user_role")
     page = request.args.get("page", 1, type=int)
     search = request.args.get("search", "", type=str).strip()
     sort_by = request.args.get("sort_by", "update_at")
@@ -121,35 +230,49 @@ def conversations():
     if sort_by not in allowed_sort_fields:
         sort_by = "update_at"
     order = "ASC" if sort_order.lower() == "asc" else "DESC"
-    query = """
-        SELECT c.id, c.conv_id, c.user_id, c.character, c.preset, c.summary,
-               c.create_at, c.update_at, c.delete_mark, c.turns,
-               u.first_name, u.last_name, u.user_name
+
+    base_query = """
         FROM conversations c
         LEFT JOIN users u ON c.user_id = u.uid
     """
+    select_query = """
+        SELECT c.id, c.conv_id, c.user_id, c.character, c.preset, c.summary,
+               c.create_at, c.update_at, c.delete_mark, c.turns,
+               u.first_name, u.last_name, u.user_name
+    """
+
+    where_clauses = []
     params = []
+
+    if user_role == "viewer":
+        admin_ids = get_admin_ids()
+        if admin_ids:
+            admin_ids_str = ",".join(map(str, admin_ids))
+            where_clauses.append(f"c.user_id NOT IN ({admin_ids_str})")
+
     if search:
-        query += """ WHERE (u.user_name LIKE ? OR
-                           u.first_name LIKE ? OR
-                           u.last_name LIKE ? OR
-                           CAST(c.user_id AS TEXT) LIKE ?)"""
-        search_param = f"%{search}%"
-        params.extend([search_param, search_param, search_param, search_param])
-    query += f" ORDER BY c.{sort_by} {order} LIMIT ? OFFSET ?"
-    params.extend([per_page, offset])
-    conversations_data = db.query_db(query, tuple(params))
-    count_query = (
-        "SELECT COUNT(*) FROM conversations c LEFT JOIN users u ON c.user_id = u.uid"
-    )
-    count_params = []
-    if search:
-        count_query += """ WHERE (u.user_name LIKE ? OR
+        where_clauses.append(
+            """(u.user_name LIKE ? OR
                                  u.first_name LIKE ? OR
                                  u.last_name LIKE ? OR
                                  CAST(c.user_id AS TEXT) LIKE ?)"""
+        )
         search_param = f"%{search}%"
-        count_params.extend([search_param, search_param, search_param, search_param])
+        params.extend([search_param, search_param, search_param, search_param])
+
+    query = select_query + base_query
+    count_query = "SELECT COUNT(*) " + base_query
+
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+        count_query += " WHERE " + " AND ".join(where_clauses)
+
+    count_params = params[:]
+
+    query += f" ORDER BY c.{sort_by} {order} LIMIT ? OFFSET ?"
+    params.extend([per_page, offset])
+
+    conversations_data = db.query_db(query, tuple(params))
     total_result = db.query_db(count_query, tuple(count_params))
     total_conversations = total_result[0][0] if total_result else 0
     total_pages = (total_conversations + per_page - 1) // per_page
@@ -195,14 +318,38 @@ def conversations():
 
 
 @admin_bp.route("/dialogs/<string:conv_id>")
-@admin_required
+@viewer_or_admin_required
 def dialogs(conv_id):
     """查看对话详情"""
+    user_role = session.get("user_role")
+
+    # 验证权限
+    if user_role == "viewer":
+        admin_ids = get_admin_ids()
+        if admin_ids:
+            admin_ids_str = ",".join(map(str, admin_ids))
+            conv_check = db.query_db(
+                f"SELECT user_id FROM conversations WHERE conv_id = ? AND user_id NOT IN ({admin_ids_str})",
+                (conv_id,),
+            )
+            if not conv_check:
+                flash("对话不存在或您没有权限查看", "error")
+                return redirect(url_for("admin.conversations"))
+
+    # 获取对话信息
     conversation_data = db.query_db(
-        "SELECT * FROM conversations WHERE conv_id = ?", (conv_id,)
+        """
+        SELECT c.*, u.first_name, u.last_name, u.user_name
+        FROM conversations c
+        LEFT JOIN users u ON c.user_id = u.uid
+        WHERE c.conv_id = ?
+        """,
+        (conv_id,),
     )
     if not conversation_data:
-        return "对话不存在", 404
+        flash("对话不存在", "error")
+        return redirect(url_for("admin.conversations"))
+
     conv_columns = [
         "id",
         "conv_id",
@@ -214,26 +361,43 @@ def dialogs(conv_id):
         "update_at",
         "delete_mark",
         "turns",
+        "first_name",
+        "last_name",
+        "user_name",
     ]
     conversation = {
         conv_columns[i]: conversation_data[0][i] for i in range(len(conv_columns))
     }
-    search_keyword = request.args.get("search", "").strip()
-    if search_keyword:
-        dialogs_data = db.query_db(
-            """SELECT * FROM dialogs
-               WHERE conv_id = ? AND (
-                   raw_content LIKE ? OR
-                   processed_content LIKE ?
-               )
-               ORDER BY turn_order ASC""",
-            (conv_id, f"%{search_keyword}%", f"%{search_keyword}%"),
-        )
-    else:
-        dialogs_data = db.query_db(
-            "SELECT * FROM dialogs WHERE conv_id = ? ORDER BY turn_order ASC",
-            (conv_id,),
-        )
+
+    # 分页和搜索
+    page = request.args.get("page", 1, type=int)
+    search = request.args.get("search", "", type=str).strip()
+    per_page = 50
+    offset = (page - 1) * per_page
+
+    # 构建查询
+    params = [conv_id]
+    count_params = [conv_id]
+
+    search_clause = " AND (raw_content LIKE ? OR processed_content LIKE ?)"
+    if search:
+        search_param = f"%{search}%"
+        params.extend([search_param, search_param])
+        count_params.extend([search_param, search_param])
+
+    query = f"SELECT * FROM dialogs WHERE conv_id = ?{search_clause if search else ''} ORDER BY turn_order ASC LIMIT ? OFFSET ?"
+    params.extend([per_page, offset])
+
+    count_query = (
+        f"SELECT COUNT(*) FROM dialogs WHERE conv_id = ?{search_clause if search else ''}"
+    )
+
+    dialogs_data = db.query_db(query, tuple(params))
+    total_result = db.query_db(count_query, tuple(count_params))
+    total_dialogs = total_result[0][0] if total_result else 0
+    total_pages = (total_dialogs + per_page - 1) // per_page
+
+    # 处理结果
     dialogs_list = []
     if dialogs_data:
         dialog_columns = [
@@ -251,19 +415,25 @@ def dialogs(conv_id):
                 dialog_columns[i]: row[i] for i in range(len(dialog_columns))
             }
             dialogs_list.append(dialog_dict)
+
     return render_template(
         "dialogs.html",
         conversation=conversation,
         dialogs=dialogs_list,
+        page=page,
+        total_pages=total_pages,
+        search=search,
+        conv_id=conv_id,
         format_datetime=format_datetime,
-        search_keyword=search_keyword,
     )
 
 
 @admin_bp.route("/groups")
-@admin_required
+@viewer_or_admin_required
 def groups():
     """群组管理页面"""
+    if session.get("user_role") == "viewer":
+        abort(403)
     page = request.args.get("page", 1, type=int)
     per_page = 20
     offset = (page - 1) * per_page
@@ -365,8 +535,10 @@ def groups():
 
 
 @admin_bp.route("/group_dialogs/<group_id>")
-@admin_required
+@viewer_or_admin_required
 def group_dialogs(group_id):
+    if session.get("user_role") == "viewer":
+        abort(403)
     try:
         group_id = int(group_id)
     except ValueError:
@@ -466,9 +638,11 @@ def group_dialogs(group_id):
 
 
 @admin_bp.route("/search")
-@admin_required
+@viewer_or_admin_required
 def search():
     """全局搜索页面"""
+    if session.get("user_role") == "viewer":
+        abort(403)
     query = request.args.get("q", "")
     if not query:
         return render_template(
@@ -619,7 +793,7 @@ def search():
 
 
 @admin_bp.route("/config")
-@admin_required
+@viewer_or_admin_required
 def config_management():
     """配置文件管理页面"""
     return render_template("config.html")
