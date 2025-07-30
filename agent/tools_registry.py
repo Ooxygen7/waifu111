@@ -5,23 +5,22 @@ This module provides a registry for private tools, including their descriptions 
 output formats, and a parser to handle tool invocation requests from an LLM.
 """
 
-from typing import Dict, Any, Optional, Callable
-from telegram import Update
-from telegram.ext import ContextTypes
 import logging
 from utils.logging_utils import setup_logging
-import json
 import re
 import asyncio
+from agent.tools import MARKETTOOLS
+from agent.tools import DATABASE_TOOLS
+from agent.tools import DATABASE_SUPER_TOOLS
+import json
+from typing import Dict, Any, Callable, Optional
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
 # 导入之前定义的工具
 
-from LLM_tools.tools import MARKETTOOLS
-from LLM_tools.tools import DATABASE_TOOLS
-from LLM_tools.tools import DATABASE_SUPER_TOOLS
+
 
 
 class DatabaseToolRegistry:
@@ -520,8 +519,6 @@ class DatabaseSuperToolRegistry:
         return "\n".join(prompt_lines)
 
 
-import json
-from typing import Dict, Any, Callable, Optional
 
 
 class MarketToolRegistry:

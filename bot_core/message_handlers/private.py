@@ -23,6 +23,10 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         此函数已使用 @check_message_and_user 装饰器进行用户和消息有效性检查。
         如果消息无效或用户未注册，装饰器会自动处理并返回。
     """
+    if not update.message:
+        return
+    if not update.message.from_user:
+        return
     user_id = update.message.from_user.id
     try:
         # 检查是否在新建角色状态

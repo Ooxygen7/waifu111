@@ -6,11 +6,9 @@ import os
 import sys
 from bot_core.public_functions.messages import LLMToolHandler
 import bot_core.public_functions.messages
-from LLM_tools.tools_registry import DatabaseSuperToolRegistry, parse_and_invoke_tool
-from bot_core.public_functions.messages import send_split_message, send_error_message
+from agent.tools_registry import DatabaseSuperToolRegistry
 from utils import db_utils as db
 from utils.db_utils import manual_wal_checkpoint
-from utils import LLM_utils as llm
 from .base import BaseCommand, CommandMeta
 from utils.logging_utils import setup_logging
 

@@ -17,7 +17,7 @@ from bot_core.public_functions.conversation import PrivateConv
 from utils import db_utils as db, LLM_utils as llm
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
-from LLM_tools.tools_registry import MarketToolRegistry
+from agent.tools_registry import MarketToolRegistry
 
 setup_logging()
 logger = logging.getLogger(__name__)

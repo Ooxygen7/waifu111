@@ -13,7 +13,7 @@ from bot_core.callback_handlers.inline import Inline
 from utils import db_utils as db, LLM_utils as llm, file_utils as file
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
-from LLM_tools.tools_registry import MarketToolRegistry
+from agent.tools_registry import MarketToolRegistry
 from bot_core.public_functions.messages import LLMToolHandler
 from utils.config_utils import get_config
 

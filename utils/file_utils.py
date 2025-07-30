@@ -3,7 +3,13 @@ import os
 from typing import Dict, Optional
 
 from utils.config_utils import ADMIN_LIST, BOT_TOKEN, get_config, get_path
+import time
+from PIL import Image
+from telegram import Update
+from telegram.ext import ContextTypes
+import logging
 
+logger = logging.getLogger(__name__)
 # 获取项目根目录的绝对路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -156,3 +162,106 @@ def load_character_from_file(filename: str) -> str:
         return f"Error: File '{file_path}' is not a valid JSON file."
     except Exception as e:
         return f"Error: An unexpected error occurred: {str(e)}"
+
+
+def load_single_prompt(prompt_name: str, prompt_file: Optional[str] = None) -> Optional[str]:
+    """
+    从指定的JSON文件中加载单个prompt。
+
+    Args:
+        prompt_name (str): 要加载的prompt的键名。
+        prompt_file (Optional[str]): prompt文件路径。如果为None，则使用默认路径。
+
+    Returns:
+        Optional[str]: 返回prompt的文本内容，如果找不到则返回None。
+    """
+    if prompt_file is None:
+        # We'll hardcode this for now, but it should come from config
+        prompt_file = "prompts/features_prompts.json"
+
+    try:
+        with open(prompt_file, "r", encoding="utf-8") as f:
+            prompts = json.load(f)
+        
+        prompt_data = prompts.get(prompt_name)
+        if not prompt_data:
+            print(f"错误: 在 '{prompt_file}' 中未找到名为 '{prompt_name}' 的prompt。")
+            return None
+            
+        system_prompt = prompt_data.get("system_prompt")
+        if not system_prompt:
+            print(f"错误: 在 '{prompt_name}' prompt中未找到 'system_prompt' 键。")
+            return None
+            
+        return system_prompt
+    except FileNotFoundError:
+        print(f"错误: Prompt文件 '{prompt_file}' 不存在。")
+        return None
+    except json.JSONDecodeError:
+        print(f"错误: Prompt文件 '{prompt_file}' 不是有效的JSON。")
+        return None
+    except Exception as e:
+        print(f"加载prompt时发生未知错误: {e}")
+        return None
+
+
+
+async def download_and_convert_image(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int
+) -> str:
+    """从消息中下载、转换并保存图像。
+
+    处理照片、贴纸和动画，并将其转换为JPEG格式。
+
+    Args:
+        update: Telegram更新对象。
+        context: 上下文对象。
+        user_id: 用户的ID。
+
+    Returns:
+        保存的JPEG图像的文件路径。
+
+    Raises:
+        ValueError: 如果在消息中未找到有效的媒体。
+    """
+    file_id = None
+    if update.message and update.message.photo:
+        file_id = update.message.photo[-1].file_id
+    elif update.message and update.message.sticker:
+        file_id = (
+            update.message.sticker.thumbnail.file_id
+            if update.message.sticker.thumbnail
+            else update.message.sticker.file_id
+        )
+    elif update.message and update.message.animation:
+        file_id = (
+            update.message.animation.thumbnail.file_id
+            if update.message.animation.thumbnail
+            else update.message.animation.file_id
+        )
+
+    if not file_id:
+        raise ValueError("未能识别到图片、贴纸或GIF。")
+
+    pics_dir = "data/pics"
+    os.makedirs(pics_dir, exist_ok=True)
+    timestamp = int(time.time())
+    filepath = os.path.join(pics_dir, f"{user_id}_{timestamp}.jpg")
+    download_path = os.path.join(pics_dir, f"{user_id}_{timestamp}_temp")
+
+    new_file = await context.bot.get_file(file_id)
+    await new_file.download_to_drive(download_path)
+
+    try:
+        with Image.open(download_path) as img:
+            if getattr(img, "is_animated", False):
+                img.seek(0)
+            img.convert("RGB").save(filepath, "jpeg")
+        os.remove(download_path)
+    except Exception as e:
+        logger.warning(
+            f"Could not convert with Pillow: {e}. Renaming and using as is."
+        )
+        os.rename(download_path, filepath)
+
+    return filepath

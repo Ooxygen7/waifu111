@@ -5,7 +5,7 @@ import telegram
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
-from LLM_tools.tools_registry import parse_and_invoke_tool
+from agent.tools_registry import parse_and_invoke_tool
 from utils.LLM_utils import LLM
 from utils.logging_utils import setup_logging
 
