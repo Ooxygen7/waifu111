@@ -8,6 +8,8 @@ from telegram.ext import ContextTypes
 from agent.tools_registry import parse_and_invoke_tool
 from utils.LLM_utils import LLM
 from utils.logging_utils import setup_logging
+from typing import AsyncGenerator, Dict, Any
+from telegram import Update
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -263,189 +265,88 @@ async def send_error_message(update, error_message: str, placeholder_message=Non
                 await update.message.reply_text(fallback_msg)
 
 
-class LLMToolHandler:
+
+
+
+
+async def handle_agent_session(
+    update: Update,
+    agent_session: AsyncGenerator[Dict[str, Any], None],
+    character_name: str = "cyberwaifu"
+) -> None:
     """
-    通用的LLM工具调用处理类，抽象了LLM调用、工具解析、消息发送等共同逻辑。
+    处理 Agent 会话的异步生成器，并向用户发送格式化的消息。
+    采用“发送新占位符 -> 编辑为结果”的模式。
+
+    Args:
+        update: Telegram Update 对象。
+        agent_session: 从 run_agent_session 返回的异步生成器。
+        character_name: 用于在消息中显示的角色名称。
     """
-    
-    def __init__(self, llm_api: str = 'gemini-2.5', max_iterations: int = 7):
-        """
-        初始化LLM工具处理器。
-        Args:
-            llm_api: LLM API类型，默认为'gemini-2.5'
-            max_iterations: 最大迭代次数，默认为7
-        """
-        self.llm_api = llm_api
-        self.max_iterations = max_iterations
-        self.client = None
-        
-    async def initialize_client(self):
-        """初始化LLM客户端"""
-        self.client = LLM(api=self.llm_api)
-        logger.debug("LLM 客户端初始化完成")
-        
-    def build_system_prompt(self, prompt_text: str, character_prompt: str = "", bias_prompt: str = "") -> str:
-        """
-        构建系统提示。
-        Args:
-            prompt_text: 工具注册表的提示文本
-            character_prompt: 角色设定提示
-            bias_prompt: 偏向性提示
-        Returns:
-            完整的系统提示
-        """
-        return f"{prompt_text}\n\n{character_prompt}{bias_prompt}"
-        
-    def build_initial_messages(self, system_prompt: str, user_input: str) -> list:
-        """
-        构建初始消息列表。
-        Args:
-            system_prompt: 系统提示
-            user_input: 用户输入
-        Returns:
-            消息列表
-        """
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"用户输入: {user_input}"}
-        ]
-        
-    async def process_llm_iteration(self, current_messages: list, iteration: int, update, character_name: str = "脆脆鲨"):
-        """
-        处理单次LLM迭代。
-        Args:
-            current_messages: 当前消息历史
-            iteration: 当前迭代次数
-            update: Telegram Update对象
-            character_name: 角色名称，默认为"脆脆鲨"
-        Returns:
-            tuple: (llm_text_part, tool_results_for_llm_feedback, had_tool_calls, placeholder_message, ai_response)
-        """
-        # 发送占位消息
-        placeholder_message = await update.message.reply_text(
-            f"🔄 第 {iteration} 轮分析中...",
-            parse_mode="HTML"
-        )
-        
-        # 设置消息并获取LLM响应
-        self.client.set_messages(current_messages)
-        logger.debug(f"已设置 messages (当前会话): {current_messages}")
-        ai_response = await self.client.final_response()
-        logger.info(f"LLM 原始响应: {ai_response}")
-        
-        # 解析工具调用
-        
-        llm_text_part, tool_results_for_llm_feedback, had_tool_calls = \
-            await parse_and_invoke_tool(ai_response)
+    if not update.message:
+        return
+
+    current_placeholder = None
+
+    try:
+        async for state in agent_session:
+            status = state.get("status")
             
-        # 构建迭代消息
-        iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
-        
-        # 添加LLM文本部分
-        if llm_text_part:
-            if "<" in llm_text_part and ">" in llm_text_part:
-                iteration_message_text += f"{llm_text_part.strip()}\n\n"
-            else:
-                iteration_message_text += f"<b>{character_name}:</b> {llm_text_part.strip()}\n\n"
-            logger.debug(f"{character_name}文本部分: {llm_text_part.strip()}")
-            
-        # 添加工具调用结果
-        if had_tool_calls:
-            logger.info(f"工具调用结果（供LLM反馈）: {tool_results_for_llm_feedback}")
-            
-            # 处理工具结果，使用HTML格式
-            tool_results_html = []
-            for res in tool_results_for_llm_feedback:
-                tool_name = res.get('tool_name', '未知工具')
-                tool_result = str(res.get('result', ''))
-                if len(tool_result) > 2000:  # 截断限制2000字符
-                    trimmed_result = tool_result[:2000] + "..."
-                else:
-                    trimmed_result = tool_result
-                    
-                # 使用可展开引用块创建折叠的工具结果
-                tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
-                tool_results_html.append(tool_html)
+            if status == "initializing":
+                logger.debug(state.get("message"))
+                # 初始化时不发送消息，等待第一个 thinking 状态
+
+            elif status == "thinking":
+                iteration = state.get("iteration", "?")
+                # 为新一轮分析发送一个新的占位符
+                current_placeholder = await update.message.reply_text(f"🔄 第 {iteration} 轮分析中...")
+
+            elif status == "tool_call":
+                iteration = state.get("iteration", "?")
+                llm_text = state.get("llm_text", "")
+                tool_results = state.get("tool_results", [])
                 
-            if tool_results_html:
-                iteration_message_text += "\n".join(tool_results_html)
-                logger.debug("已添加工具结果到当前轮次消息")
+                if not llm_text and not tool_results:
+                    continue
+
+                iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
+                if llm_text:
+                    iteration_message_text += f"<b>{character_name}:</b> {llm_text.strip()}\n\n"
                 
-        # 发送分段消息
-        await send_split_message(update, iteration_message_text, placeholder_message, iteration)
-        
-        return llm_text_part, tool_results_for_llm_feedback, had_tool_calls, placeholder_message, ai_response
-        
-    def update_message_history(self, current_messages: list, ai_response: str, tool_results_for_llm_feedback: list):
-        """
-        更新消息历史。
-        Args:
-            current_messages: 当前消息列表
-            ai_response: AI响应
-            tool_results_for_llm_feedback: 工具调用结果
-        """
-        current_messages.append({
-            "role": "assistant",
-            "content": ai_response
-        })
-        feedback_content_to_llm = "工具调用结果:\n" + "\n".join(
-            [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in
-             tool_results_for_llm_feedback]
-        )
-        current_messages.append({
-            "role": "user",
-            "content": feedback_content_to_llm
-        })
-        logger.debug("已将原始LLM响应和完整工具调用结果反馈给 LLM")
-        
-    async def process_tool_request(self, update, user_input: str, prompt_text: str, 
-                                 character_prompt: str = "", bias_prompt: str = "", 
-                                 character_name: str = "脆脆鲨") -> None:
-        """
-        处理工具请求的主要方法。
-        Args:
-            update: Telegram Update对象
-            user_input: 用户输入
-            prompt_text: 工具注册表的提示文本
-            character_prompt: 角色设定提示
-            bias_prompt: 偏向性提示
-            character_name: 角色名称
-        """
-        try:
-            # 初始化客户端
-            await self.initialize_client()
-            
-            # 构建系统提示和初始消息
-            system_prompt = self.build_system_prompt(prompt_text, character_prompt, bias_prompt)
-            current_messages = self.build_initial_messages(system_prompt, user_input)
-            
-            iteration = 0
-            
-            while iteration < self.max_iterations:
-                iteration += 1
-                
-                # 处理单次迭代
-                llm_text_part, tool_results_for_llm_feedback, had_tool_calls, placeholder_message, ai_response = \
-                    await self.process_llm_iteration(current_messages, iteration, update, character_name)
-                    
-                if had_tool_calls:
-                    # 更新消息历史
-                    self.update_message_history(current_messages, ai_response, tool_results_for_llm_feedback)
-                else:
-                    # 没有工具调用，这是最终回复，结束循环
-                    logger.info(f"第{iteration}轮未调用工具，{character_name}给出最终回复: {llm_text_part}")
-                    break
-                    
-            # 如果循环结束但仍有工具调用，说明达到最大迭代次数
-            if iteration >= self.max_iterations:
-                max_iteration_msg = f"<b>⚠️ {character_name}提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！"
-                await send_split_message(update, max_iteration_msg)
-                
-        except Exception as e:
-            logger.error(f"处理工具请求时发生错误: {str(e)}", exc_info=True)
-            error_message = str(e)
-            if len(error_message) > 200:
-                error_message = error_message[:200] + "..."
-            error_message = f"处理请求时发生错误: <code>{error_message}</code>"
-            await send_error_message(update, error_message)
-            logger.debug("已发送错误消息")
+                if tool_results:
+                    tool_results_html = []
+                    for res in tool_results:
+                        tool_name = res.get('tool_name', '未知工具')
+                        tool_result = str(res.get('result', ''))
+                        trimmed_result = (tool_result[:2000] + "...") if len(tool_result) > 2000 else tool_result
+                        tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{trimmed_result}</blockquote>"
+                        tool_results_html.append(tool_html)
+                    iteration_message_text += "\n".join(tool_results_html)
+
+                # 编辑当前轮次的占位符，显示结果
+                await send_split_message(update, iteration_message_text, placeholder_message=current_placeholder, iteration=iteration)
+                current_placeholder = None # 重置占位符，以便下一轮创建新的
+
+            elif status == "final_response":
+                final_content = state.get("content", "处理完成，但未生成最终回复。")
+                final_message = f"<b>🤖 {character_name} 最终回复:</b>\n\n{final_content}"
+                # 如果有占位符，编辑它；否则发送新消息
+                await send_split_message(update, final_message, placeholder_message=current_placeholder)
+                current_placeholder = None
+                logger.info(f"最终回复: {final_content}")
+
+            elif status == "max_iterations_reached":
+                max_iter_msg = f"<b>⚠️ {character_name}提醒</b>\n\n老师，分析轮次已达上限，如需继续分析请重新发起请求哦！"
+                await send_split_message(update, max_iter_msg, placeholder_message=current_placeholder)
+                current_placeholder = None
+
+            elif status == "error":
+                error_message = state.get("message", "未知错误")
+                await send_error_message(update, f"处理请求时发生错误: <code>{error_message}</code>", placeholder_message=current_placeholder)
+                current_placeholder = None
+
+    except Exception as e:
+        logger.error(f"处理 Agent 会话消息时发生意外错误: {e}", exc_info=True)
+        error_message = f"处理请求时发生意外错误: <code>{str(e)}</code>"
+        # 尝试用最后的占位符显示错误，否则发送新消息
+        await send_error_message(update, error_message, placeholder_message=current_placeholder)

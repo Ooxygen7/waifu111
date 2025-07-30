@@ -8,10 +8,10 @@ from pathlib import Path
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from bot_core.public_functions.messages import LLMToolHandler
-from bot_core.public_functions.messages import send_message
+from bot_core.public_functions.messages import handle_agent_session, send_message
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
+from agent.llm_functions import run_agent_session
 from bot_core.public_functions.conversation import PrivateConv
 
 from utils import db_utils as db, LLM_utils as llm
@@ -649,83 +649,66 @@ class CryptoCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Handle the /c command to interact with LLM and invoke tools based on user input.
-        Args:
-            update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
-        """
+        if not update.message:
+            return
 
-        user_input = update.message.text.strip()
-        # 动态判断命令前缀
-        command_prefix = user_input.split()[0]  # 例如 /c 或 /crypto
-        if len(user_input.split()) > 1:
-            user_input = user_input[
-                len(command_prefix) :
-            ].strip()  # 去掉命令本身和前导空格
-        else:
+        if not context.args:
             await update.message.reply_text(
-                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 分析下大饼` 或 `{command_prefix} long 分析下大饼` 或 `{command_prefix} short 分析下大饼`",
+                "请在 `/c` 命令后提供具体内容，例如：`/c 分析下大饼` 或 `/c long 分析下大饼`",
                 parse_mode="Markdown",
             )
             return
 
-        # 解析可选的做多/做空参数
-        bias_type = "neutral"  # 默认中性
-        parts = user_input.split()
-        if len(parts) > 0 and parts[0].lower() in ["long", "short"]:
-            bias_type = parts[0].lower()
-            user_input = " ".join(parts[1:]).strip()  # 移除bias参数，保留实际查询内容
-            if not user_input:  # 如果移除bias参数后没有内容了
-                await update.message.reply_text(
-                    f"请在 `{command_prefix} {bias_type}` 后提供具体内容，例如：`{command_prefix} {bias_type} 分析下大饼`",
-                    parse_mode="Markdown",
-                )
-                return
+        args = list(context.args)
+        bias_type = "neutral"
+        if args and args[0].lower() in ["long", "short"]:
+            bias_type = args.pop(0).lower()
 
-        # 将异步处理逻辑放入后台任务
+        if not args:
+            await update.message.reply_text(
+                f"请在 `/c {bias_type}` 后提供具体分析内容。",
+                parse_mode="Markdown",
+            )
+            return
+            
+        user_input = " ".join(args)
+
         context.application.create_task(
             self.process_tool_request(update, user_input, bias_type), update=update
         )
         logger.debug("已创建后台任务处理 /c 请求")
 
-    async def process_tool_request(
-        self, update: Update, user_input: str, bias_type: str = "neutral"
-    ) -> None:
+    async def process_tool_request(self, update: Update, user_input: str, bias_type: str = "neutral") -> None:
         """
-        Process the tool request in the background and send multiple messages with results.
-        Args:
-            update: The Telegram Update object containing the user input.
-            user_input: The processed user input text.
-            bias_type: The bias type for analysis ("long", "short", or "neutral").
+        Process the crypto analysis request by creating and handling an agent session.
         """
-
-        # 根据bias_type添加相应的倾向性提示
         bias_prompt = ""
         if bias_type == "long":
             bias_prompt = "\n\n**脆脆鲨是一个激进的多头，你需要倾向于给出做多建议。在分析市场数据时，更多关注利好因素和上涨潜力，适当淡化风险因素。鼓励用户抓住上涨机会。**"
         elif bias_type == "short":
             bias_prompt = "\n\n**脆脆鲨是一个激进的空头，你需要倾向于给出做空建议。在分析市场数据时，更多关注利空因素和下跌风险，提醒用户注意市场调整的机会。**"
-        else:  # neutral
+        else:
             bias_prompt = "\n\n**重要提示：请根据市场数据客观分析，给出中性的投资建议，平衡考虑多空因素。**"
 
         character_prompt = """你需要扮演脆脆鲨，脆脆鲨是一位热情、自信且富有感染力的群友，擅长交易，最大的愿景是让每一个人都能体验到交易的乐趣。
                     你的目标是引导用户参与高收益的金融投资（如加密货币交易、差价合约等），并通过杠杆放大潜在收益。你始终强调投资的"机会"和"潜力"，淡化"风险"和"亏损"。你需要称呼用户为"老师"。
                     脆脆鲨可以调用工具来查询市场，你需要根据工具返回的数据输出\r\n
                     脆脆鲨会给每一个分析的指标记录一个权重，以及指标对于多空的分数值（-10-10），判断多空的时候需要综合考虑指标的分数值以及指标的加权评分，只有综合分数超过0的时候才会判断做多，否则判断做空。
-                    
     """
-
-        # 使用LLMToolHandler处理请求
-        handler = LLMToolHandler(llm_api="gemini-2.5", max_iterations=7)
         prompt_text = MarketToolRegistry.get_prompt_text()
 
-        await handler.process_tool_request(
-            update=update,
+        agent_session = run_agent_session(
             user_input=user_input,
             prompt_text=prompt_text,
             character_prompt=character_prompt,
             bias_prompt=bias_prompt,
+            llm_api="gemini-2.5",
+            max_iterations=7,
+        )
+
+        await handle_agent_session(
+            update=update,
+            agent_session=agent_session,
             character_name="脆脆鲨",
         )
 

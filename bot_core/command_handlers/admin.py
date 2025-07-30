@@ -4,8 +4,8 @@ from telegram.ext import ContextTypes
 import logging
 import os
 import sys
-from bot_core.public_functions.messages import LLMToolHandler
-import bot_core.public_functions.messages
+from agent.llm_functions import run_agent_session
+import bot_core.public_functions.messages as messages
 from agent.tools_registry import DatabaseSuperToolRegistry
 from utils import db_utils as db
 from utils.db_utils import manual_wal_checkpoint
@@ -28,7 +28,9 @@ class AddFrequencyCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        args = context.args if hasattr(context, 'args') else []
+        args = context.args or []
+        if not update.message:
+            return
         if len(args) < 2:
             await update.message.reply_text("请以 /addf target_user_id value 的格式输入参数。")
             return
@@ -48,7 +50,7 @@ class AddFrequencyCommand(BaseCommand):
         else:
             if db.user_info_update(target_user, 'remain_frequency', value, True):
                 if not target_user.startswith('@'):
-                    user_info = db.user_info_get(target_user)
+                    user_info = db.user_info_get(int(target_user))
                     if user_info:
                         await update.message.reply_text(
                             f"已为{str(user_info['user_name'])}添加{value}条额度")
@@ -73,7 +75,9 @@ class SetTierCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        args = context.args if hasattr(context, 'args') else []
+        args = context.args or []
+        if not update.message:
+            return
         if len(args) < 2:
             await update.message.reply_text("请以 /sett target_user_id value 的格式输入参数。")
             return
@@ -100,20 +104,17 @@ class DatabaseCommand(BaseCommand):
         """
         Handle the /q command to interact with LLM and invoke database analysis tools based on user input.
         """
-        user_input = update.message.text.strip()
-        if user_input.startswith('/database'):
-            command_prefix = '/database'
-        elif user_input.startswith('/q'):
-            command_prefix = '/q'
-        else:
-            command_prefix = user_input.split()[0]
-        if len(user_input.split()) > 1:
-            user_input = user_input[len(command_prefix):].strip()
-        else:
+        if not update.message:
+            return
+
+        # The 'q' command is defined in the meta, so we only need to handle the arguments.
+        if not context.args:
             await update.message.reply_text(
-                f"请在 `{command_prefix}` 命令后提供具体内容，例如：`{command_prefix} 查看用户123的详情`",
+                "请在 `/q` 命令后提供具体内容，例如：`/q 查看用户123的详情`",
                 parse_mode="Markdown")
             return
+        
+        user_input = " ".join(context.args)
 
         # 将异步处理逻辑放入后台任务
         context.application.create_task(
@@ -122,34 +123,31 @@ class DatabaseCommand(BaseCommand):
         )
         logger.debug("已创建后台任务处理 /database 请求")
 
-    async def process_database_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str
-                                       ) -> None:
+    async def process_database_request(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_input: str) -> None:
         """
-        Process the database request in the background and send multiple messages with results.
-        Args:
-            update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
-            user_input: The processed user input text.
+        Process the database request in the background by creating and handling an agent session.
         """
-        
         character_prompt = """你是一个专业的数据库管理助手，可以帮助用户查询和管理数据库。
-                你可以使用提供的工具来执行数据库操作，包括查询用户信息、会话记录、消息历史等。
-                请根据用户的需求，选择合适的工具来完成任务。
-                """
-        
-        # 使用LLMToolHandler处理请求
-        handler = LLMToolHandler(llm_api='gemini-2.5', max_iterations=15)
+                        你可以使用提供的工具来执行数据库操作，包括查询用户信息、会话记录、消息历史等。
+                        请根据用户的需求，选择合适的工具来完成任务。
+                        """
         prompt_text = DatabaseSuperToolRegistry.get_prompt_text()
-        
-        await handler.process_tool_request(
-            update=update,
+
+        # 1. 创建 Agent 会话生成器
+        agent_session = run_agent_session(
             user_input=user_input,
             prompt_text=prompt_text,
             character_prompt=character_prompt,
-            bias_prompt="",  # 数据库助手不需要bias_prompt
-            character_name="cyberwaifu"
+            llm_api='gemini-2.5',
+            max_iterations=15
         )
 
+        # 2. 将会话处理委托给消息函数
+        await messages.handle_agent_session(
+            update=update,
+            agent_session=agent_session,
+            character_name="cyberwaifu"
+        )
 
 class ForwardCommand(BaseCommand):
     meta = CommandMeta(
@@ -172,6 +170,8 @@ class ForwardCommand(BaseCommand):
         # context.args 将是 ['-1001234567890', '123']
         args = context.args
         # 1. 参数校验
+        if not update.message:
+            return
         if not args or len(args) != 2:
             await update.message.reply_text(
                 "❌ 用法错误！请提供源聊天ID和消息ID。\n"
@@ -193,6 +193,8 @@ class ForwardCommand(BaseCommand):
             )
             return
         # 2. 获取目标聊天ID (通常是用户发起命令的聊天)
+        if not update.effective_chat:
+            return
         target_chat_id = update.effective_chat.id
         # 3. 执行消息转发操作
         try:
@@ -228,7 +230,8 @@ class MessageCommand(BaseCommand):
         命令格式: /msg <用户ID> <消息内容>
         """
         args = context.args
-
+        if not update.message:
+            return
         # 1. 参数校验
         if not args or len(args) < 2:
             await update.message.reply_text(
@@ -264,7 +267,7 @@ class MessageCommand(BaseCommand):
 
         # 3. 执行消息发送操作
         try:
-            await bot_core.public_functions.messages.send_message(context, target_user_id, message_content)
+            await messages.send_message(context, target_user_id, message_content)
 
             # 发送成功确认消息
             await update.message.reply_text(
@@ -272,9 +275,9 @@ class MessageCommand(BaseCommand):
                 f"📝 发送内容：{message_content}",
                 parse_mode='Markdown'
             )
-
+            if update.effective_user:
             # 记录日志
-            logger.info(f"管理员 {update.effective_user.id} 向用户 {target_user_id} 发送消息: {message_content}")
+                logger.info(f"管理员 {update.effective_user.id} 向用户 {target_user_id} 发送消息: {message_content}")
 
         except TelegramError as e:
             # 处理 Telegram API 相关错误
@@ -319,6 +322,8 @@ class CheckpointCommand(BaseCommand):
         """
         处理 /checkpoint 命令，手动触发数据库 WAL 检查点。
         """
+        if not update.message or  not update.effective_user:
+            return
         await update.message.reply_text("正在尝试手动触发数据库 WAL 检查点...")
         
         try:
@@ -349,6 +354,8 @@ class RestartCommand(BaseCommand):
         """
         处理 /restart 命令，安全地重启整个机器人应用。
         """
+        if not update.message or not update.effective_user:
+            return
         await update.message.reply_text("正在准备重启机器人...")
         logger.info(f"管理员 {update.effective_user.id} 触发了机器人重启。")
 
