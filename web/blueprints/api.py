@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from flask import Blueprint, jsonify, request
 from utils import db_utils as db
-from utils import LLM_utils as llm
+from agent.llm_functions import generate_summary
 from web.factory import admin_required, viewer_required, get_admin_ids, app_logger
 from web.factory import viewer_or_admin_required
 
@@ -446,7 +446,7 @@ def api_generate_summary():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
-            summary = loop.run_until_complete(llm.LLM.generate_summary(conversation_id))
+            summary = loop.run_until_complete(generate_summary(conversation_id))
         finally:
             loop.close()
         if summary:

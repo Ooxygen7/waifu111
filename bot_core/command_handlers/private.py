@@ -5,16 +5,15 @@ import logging
 import os
 import re
 from pathlib import Path
-
+from agent.llm_functions import generate_summary
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from bot_core.public_functions.messages import handle_agent_session, send_message
 import bot_core.public_functions.update_parse as public
 from bot_core.callback_handlers.inline import Inline
-from agent.llm_functions import run_agent_session
+from agent.llm_functions import run_agent_session,generate_char
 from bot_core.public_functions.conversation import PrivateConv
-
-from utils import db_utils as db, LLM_utils as llm
+from utils import db_utils as db
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta
 from agent.tools_registry import MarketToolRegistry
@@ -208,7 +207,7 @@ class SaveCommand(BaseCommand):
             placeholder_message = await update.message.reply_text("保存中...")
 
             async def create_summary(conv_id, placeholder):
-                summary = await llm.LLM.generate_summary(conv_id)
+                summary = await generate_summary(conv_id)
                 if db.conversation_private_summary_add(conv_id, summary):
                     logger.info(
                         f"保存对话并生成总结, conv_id: {conv_id}, summary: {summary}"
@@ -376,7 +375,7 @@ class DoneCommand(BaseCommand):
             ):
                 generated_content = None
                 try:
-                    generated_content = await llm.LLM.generate_char(char_description)
+                    generated_content = await generate_char(char_description)
                     json_pattern = (
                         r"```json\s*([\s\S]*?)\s*```|```([\s\S]*?)\s*```|\{[\s\S]*\}"
                     )

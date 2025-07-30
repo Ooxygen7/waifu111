@@ -1,14 +1,15 @@
 """处理主要输入是str，经由LLM处理的函数。"""
 import logging
 from typing import AsyncGenerator, Dict, Any, Tuple, List
+
+from utils.config_utils import get_config, DEFAULT_API
+from agent.tools_handler import parse_and_invoke_tool
+from utils.LLM_utils import LLM, llm_client_manager
+from utils.logging_utils import setup_logging
 from utils import file_utils, LLM_utils
+import utils.db_utils as db
 import json
 import re
-from utils.config_utils import get_config
-from agent.tools_handler import parse_and_invoke_tool
-from utils.LLM_utils import LLM
-from utils.logging_utils import setup_logging
-
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -115,9 +116,7 @@ async def analyze_image_for_rating(
     Raises:
         ValueError: 如果缺少必要的 prompt 或数据。
     """
-    from utils import file_utils, LLM_utils
-    import json
-    import re
+
 
     prompt_name = "fuck_or_not_group" if parse_mode == "html" else "fuck_or_not"
     system_prompt = file_utils.load_single_prompt(prompt_name)
@@ -182,3 +181,81 @@ async def analyze_image_for_rating(
     except (json.JSONDecodeError, AttributeError) as e:
         logger.warning(f"解析LLM JSON响应失败: {e}。将使用原始响应。")
         return response, llm_messages
+
+
+async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0,usernick= None,char = None) -> str:
+        """
+        生成对话总结
+
+        Args:
+            conversation_id: 对话ID
+            summary_type: 总结类型，save:保存总结，zip:压缩总结
+            start: 开始位置
+            end: 结束位置
+
+        Returns:
+            str: 生成的总结文本
+
+        Raises:
+            ValueError: 总结生成失败时抛出
+        """
+        async with llm_client_manager.semaphore:
+            try:
+                # 构建对话历史
+                client = LLM("gemini-2", "private")
+
+                if summary_type == 'save':
+                    turns = db.dialog_turn_get(conversation_id, 'private')
+                    start = turns - 70 if turns > 70 else 0
+                    client.build_conv_messages_for_summary(conversation_id, start, turns)
+                    user_prompt = file_utils.load_single_prompt("summary_save_user_prompt")
+                    if not user_prompt:
+                        raise ValueError("无法加载 'summary_save_user_prompt' prompt。")
+                    client.messages.append({"role": "user", "content": user_prompt})
+                elif summary_type == 'zip':
+                    client.build_conv_messages_for_summary(conversation_id, start, end)
+                    logger.debug(f"总结文本内容：\r\n{client.messages}")
+                    user_prompt = file_utils.load_single_prompt("summary_zip_user_prompt")
+                    if not user_prompt:
+                        raise ValueError("无法加载 'summary_zip_user_prompt' prompt。")
+                    client.messages.append({"role": "user", "content": user_prompt})
+                return await client.final_response()
+
+            except Exception as e:
+                raise ValueError(f"生成总结失败: {str(e)}")
+
+
+async def generate_char(character_description: str) -> str:
+        """
+        根据用户输入生成角色描述文档
+
+        Args:
+            character_description: 用户提供的角色描述文本
+
+        Returns:
+            str: 生成的JSON格式角色描述文档
+
+        Raises:
+            ValueError: 角色生成失败时抛出
+        """
+        async with llm_client_manager.semaphore:
+            try:
+                # 构建系统提示词
+                system_prompt = file_utils.load_single_prompt("generate_char_prompt")
+                if not system_prompt:
+                    raise ValueError("无法加载 'generate_char_prompt' prompt。")
+
+                # 构建对话历史
+                history = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": character_description},
+                ]
+                client = LLM(DEFAULT_API, "private")
+                client.set_messages(history)
+                client.set_default_client()
+                result = await client.final_response()
+                logger.debug(f"LLM输出角色\r\n{result}\r\n")
+                return result
+
+            except Exception as e:
+                raise ValueError(f"生成角色失败: {str(e)}")

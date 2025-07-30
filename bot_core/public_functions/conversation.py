@@ -5,7 +5,7 @@ import random
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
-
+from agent.llm_functions import generate_summary
 from bot_core.public_functions.error import BotError
 from bot_core.public_functions.messages import (
     finalize_message,
@@ -638,7 +638,7 @@ class PrivateConv:
         max_retry = 4
         for attempt in range(1, max_retry + 1):
             try:
-                summary_text = await LLM.generate_summary(self.id, summary_type='zip', start=start, end=end)
+                summary_text = await generate_summary(self.id, summary_type='zip', start=start, end=end)
                 # 检查summary_text长度
                 if not summary_text or len(summary_text) < 200:
                     logger.warning(f"第{attempt}次尝试：区域 {area_str} 生成的总结过短（<200字符），将重试。")

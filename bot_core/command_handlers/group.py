@@ -20,7 +20,6 @@ from utils.config_utils import get_config
 
 fuck_api = get_config("fuck_or_not_api", "gemini-2.5")
 setup_logging()
-setup_logging()
 logger = logging.getLogger(__name__)
 
 
