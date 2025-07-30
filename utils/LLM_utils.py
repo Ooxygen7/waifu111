@@ -119,33 +119,6 @@ class LLM:
         self.conv_id = 0
         self.prompts = None
 
-    def build_conv_messages_for_summary(self, conv_id: int = 0, start: int = 0, end: int = 0):
-        """
-        为消息摘要构建符合OpenAI API要求的消息列表。
-
-        Args:
-            conv_id (int): 对话ID。
-            start (int): 对话历史的起始索引。
-            end (int): 对话历史的结束索引。
-
-        Returns:
-            list: 格式化后的消息列表，包含role和content字段。
-        """
-        dialog_history = db.dialog_content_load(conv_id, self.chat_type)
-        if not dialog_history:
-            return None
-        if start == 0 and end == 0:
-            end = len(dialog_history)
-        dialog_history = dialog_history[start:end]
-        messages = []
-        for role, turn_order, content in dialog_history:
-            formatted_role = role.lower()
-            if formatted_role in ["user", "assistant"] and content:
-                messages.append({"role": formatted_role, "content": content})
-        self.messages = messages
-        return None
-
-
     async def embedd_image(self, images: list, context, text_content: str = ""):
         """
         将图片嵌入到最新的消息中
@@ -208,14 +181,14 @@ class LLM:
         )
         async with llm_client_manager.semaphore:
             try:
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=self.messages,
-                    max_tokens=get_config("api.max_tokens", 8000),
-                    stream=stream,
-                )
                 if stream:
-                    async for chunk in response:
+                    response_stream = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=self.messages,
+                        max_tokens=get_config("api.max_tokens", 8000),
+                        stream=True,
+                    )
+                    async for chunk in response_stream:
                         if (
                             chunk.choices
                             and chunk.choices[0].delta
@@ -223,7 +196,14 @@ class LLM:
                         ):
                             yield chunk.choices[0].delta.content
                 else:
-                    yield response.choices[0].message.content
+                    response_completion = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=self.messages,
+                        max_tokens=get_config("api.max_tokens", 8000),
+                        stream=False,
+                    )
+                    if response_completion.choices and response_completion.choices[0].message:
+                        yield response_completion.choices[0].message.content
             except Exception as e:
                 raise RuntimeError(f"API调用失败 (stream): {str(e)}")
 
@@ -360,9 +340,10 @@ class PromptsBuilder:
     该类负责从提示词配置文件中加载并组合提示词片段，生成完整的提示词内容。
     """
 
-    def __init__(self, prompts_set:Optional[str], input_txt:Optional[str], 
+    def __init__(self, prompts_set:Optional[str], input_txt:Optional[str],
                  character:Optional[str],
-                 user_nick:Optional[str]):
+                 user_nick:Optional[str],
+                 chat_type:str="private"):
         """初始化PromptsBuilder实例。
 
         Args:
@@ -372,11 +353,13 @@ class PromptsBuilder:
             dialog: 对话历史列表。
             user_nick: 用户昵称。
             summary: 对话总结。
+            chat_type: 聊天类型
         """
         self.user_nick = user_nick or ""
         self.prompts_name = prompts_set
         self.input = input_txt or ""
         self.character = character or ""
+        self.chat_type = chat_type
         self.dialog = []
         self.list = []
         self.messages = []
@@ -437,6 +420,7 @@ class PromptsBuilder:
         Returns:
             list: 格式化后的消息列表，包含role和content字段
         """
+        dialog_history = []
         if chat_type == "group":  # 如果 type 是 'group'，限制对话历史
             dialog_history = db.dialog_content_load(conv_id, chat_type)
             if not dialog_history:
@@ -510,6 +494,33 @@ class PromptsBuilder:
             if formatted_role in ["user", "assistant"] and content:
                 messages.append({"role": formatted_role, "content": content})
         self.dialog= messages
+        return messages
+
+    @staticmethod
+    def build_conv_messages_for_summary(conv_id: int, chat_type: str, start: int = 0, end: int = 0):
+        """
+        为消息摘要构建符合OpenAI API要求的消息列表。
+
+        Args:
+            conv_id (int): 对话ID。
+            chat_type (str): 对话类型。
+            start (int): 对话历史的起始索引。
+            end (int): 对话历史的结束索引。
+
+        Returns:
+            list: 格式化后的消息列表，包含role和content字段。
+        """
+        dialog_history = db.dialog_content_load(conv_id, chat_type)
+        if not dialog_history:
+            return []
+        if start == 0 and end == 0:
+            end = len(dialog_history)
+        dialog_history = dialog_history[start:end]
+        messages = []
+        for role, turn_order, content in dialog_history:
+            formatted_role = role.lower()
+            if formatted_role in ["user", "assistant"] and content:
+                messages.append({"role": formatted_role, "content": content})
         return messages
     
     def insert_summary(self,summaries:str):

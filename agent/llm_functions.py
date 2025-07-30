@@ -4,7 +4,7 @@ from typing import AsyncGenerator, Dict, Any, Tuple, List
 
 from utils.config_utils import get_config, DEFAULT_API
 from agent.tools_handler import parse_and_invoke_tool
-from utils.LLM_utils import LLM, llm_client_manager
+from utils.LLM_utils import LLM, llm_client_manager, PromptsBuilder
 from utils.logging_utils import setup_logging
 from utils import file_utils, LLM_utils
 import utils.db_utils as db
@@ -183,7 +183,7 @@ async def analyze_image_for_rating(
         return response, llm_messages
 
 
-async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0,usernick= None,char = None) -> str:
+async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0) -> str:
         """
         生成对话总结
 
@@ -207,18 +207,20 @@ async def generate_summary(conversation_id: int,summary_type:str = 'save',start:
                 if summary_type == 'save':
                     turns = db.dialog_turn_get(conversation_id, 'private')
                     start = turns - 70 if turns > 70 else 0
-                    client.build_conv_messages_for_summary(conversation_id, start, turns)
+                    messages = PromptsBuilder.build_conv_messages_for_summary(conversation_id, "private", start, turns)
                     user_prompt = file_utils.load_single_prompt("summary_save_user_prompt")
                     if not user_prompt:
                         raise ValueError("无法加载 'summary_save_user_prompt' prompt。")
-                    client.messages.append({"role": "user", "content": user_prompt})
+                    messages.append({"role": "user", "content": user_prompt})
+                    client.set_messages(messages)
                 elif summary_type == 'zip':
-                    client.build_conv_messages_for_summary(conversation_id, start, end)
-                    logger.debug(f"总结文本内容：\r\n{client.messages}")
+                    messages = PromptsBuilder.build_conv_messages_for_summary(conversation_id, "private", start, end)
+                    logger.debug(f"总结文本内容：\r\n{messages}")
                     user_prompt = file_utils.load_single_prompt("summary_zip_user_prompt")
                     if not user_prompt:
                         raise ValueError("无法加载 'summary_zip_user_prompt' prompt。")
-                    client.messages.append({"role": "user", "content": user_prompt})
+                    messages.append({"role": "user", "content": user_prompt})
+                    client.set_messages(messages)
                 return await client.final_response()
 
             except Exception as e:
