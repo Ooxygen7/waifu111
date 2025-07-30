@@ -2,7 +2,7 @@
 import logging
 from typing import AsyncGenerator, Dict, Any
 
-from agent.tools_registry import parse_and_invoke_tool
+from agent.tools_handler import parse_and_invoke_tool
 from utils.LLM_utils import LLM
 from utils.logging_utils import setup_logging
 
