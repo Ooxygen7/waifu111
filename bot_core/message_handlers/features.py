@@ -14,6 +14,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 # Local application imports
+from agent.llm_functions import analyze_image_for_rating
 import bot_core.public_functions.frequency_manager as fm
 from bot_core.public_functions import messages
 from utils import LLM_utils
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # Load configuration
 fuck_api = get_config(
-    "fuck_or_not_api", "gemini-2"
+    "fuck_or_not_api", "gemini-2.5"
 )  # 从配置文件读取API，默认使用gemini-2
 
 
@@ -137,11 +138,7 @@ async def group_keyword_add(update: "Update", context: "ContextTypes.DEFAULT_TYP
         original_message_id=context.user_data.get("original_message_id"),
     )
 
-    await messages.send_message(
-        context,
-        update.message.chat.id,
-        f"已成功添加关键词：{', '.join(new_keywords)}",
-    )
+    await update.message.reply_text(f"已成功添加关键词：{', '.join(new_keywords)}")
     context.user_data.clear()
 
 
@@ -162,47 +159,6 @@ class ImageAnalyzer:
         self.user_id = update.message.from_user.id
         self.chat_id = update.message.chat.id
         self.placeholder_msg = None
-
-    async def _build_llm_payload(self, file_id: str) -> list[dict]:
-        """构建LLM API调用的有效负载。"""
-        system_prompt = file_utils.load_single_prompt("fuck_or_not")
-        if not system_prompt:
-            raise ValueError("无法加载 'fuck_or_not' prompt。")
-            
-        image_data = await text_utils.convert_file_id_to_base64(file_id, self.context)
-        if not image_data:
-            raise ValueError("无法将file_id转换为Base64")
-            
-        mime_type = image_data["mime_type"]
-        base64_data = image_data["data"]
-
-        return [
-            {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "兄弟看看这个，你想不想操？"},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:{mime_type};base64,{base64_data}"},
-                    },
-                ],
-            },
-        ]
-
-    def _parse_llm_response(self, response: str) -> str:
-        """解析来自LLM的JSON响应并进行格式化。"""
-        try:
-            match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
-            json_str = match.group(1) if match else response
-            data = json.loads(json_str)
-            score = data.get("score", "N/A")
-            reason = data.get("reason", "N/A")
-            fantasy = data.get("fantasy", "N/A")
-            return f"```\n分数：{score}\n```\n\n理由：{reason}\n\n评价：{fantasy}"
-        except (json.JSONDecodeError, AttributeError) as e:
-            logger.warning(f"解析LLM JSON响应失败: {e}。将使用原始响应。")
-            return response
 
     async def analyze(self):
         """执行完整的图像分析工作流程。"""
@@ -227,15 +183,21 @@ class ImageAnalyzer:
             if not file_id:
                 raise ValueError("未能识别到图片、贴纸或GIF。")
 
-            llm_messages = await self._build_llm_payload(file_id)
+            image_data = await text_utils.convert_file_id_to_base64(file_id, self.context)
+            if not image_data:
+                raise ValueError("无法将file_id转换为Base64")
 
-            llm = LLM_utils.LLM(api=fuck_api)
-            llm.set_messages(llm_messages)
-            response = await llm.final_response()
+            formatted_response, llm_messages = await analyze_image_for_rating(
+                base64_data=image_data["data"],
+                mime_type=image_data["mime_type"],
+                hard_mode=False,
+                parse_mode="markdown",
+            )
 
-            fm.update_user_usage(self.chat_id, str(llm_messages), response, "private_photo")
+            if not formatted_response:
+                raise ValueError("从 analyze_image_for_rating 函数收到了空的响应。")
 
-            formatted_response = self._parse_llm_response(response)
+            fm.update_user_usage(self.chat_id, str(llm_messages), formatted_response, "private_photo")
 
             txt_filename = f"{os.path.basename(filepath).split('.')[0]}.txt"
             txt_filepath = os.path.join("data/pics", txt_filename)

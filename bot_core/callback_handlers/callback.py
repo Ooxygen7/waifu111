@@ -493,9 +493,9 @@ class GroupKeywordSelectCallback(BaseCallback):
         """
         query = update.callback_query
         await query.answer()
-        parts = query.data.split('_')
+        parts = data.rsplit('_', 1)
         keyword = parts[0]
-        group_id = int(parts[-1])
+        group_id = int(parts[1])
         if 'to_delete' not in context.user_data:
             context.user_data['to_delete'] = []
         if keyword not in context.user_data['to_delete']:

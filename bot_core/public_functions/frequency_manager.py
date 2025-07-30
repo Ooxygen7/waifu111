@@ -21,7 +21,7 @@ def circulate_token(text: str):
         print(f"错误: 计算token时发生错误 - {e}. 输出为字符串长度。")
         return len(str(text))
 
-def update_user_usage(user: object or int, input: str, output: str, trigger_type: str):
+def update_user_usage(user: object | int, input: str, output: str, trigger_type: str):
     """更新用户的token使用量和频率信息。
 
     Args:
@@ -32,7 +32,7 @@ def update_user_usage(user: object or int, input: str, output: str, trigger_type
     """
     input_tokens = circulate_token(input)
     output_tokens = circulate_token(output)
-    if trigger_type == 'private_chat':
+    if trigger_type == 'private_chat'and type(user) is not int:
         db.user_info_update(user.id, 'input_tokens', input_tokens, True)
         db.user_info_update(user.id, 'output_tokens', output_tokens, True)
         conv_id = db.user_conv_id_get(user.id)
