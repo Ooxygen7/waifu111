@@ -316,17 +316,18 @@ async def generate_user_profile(group_id: int) -> str:
         logger.info(f"正在为群组 {group_id} 生成用户画像...")
         response_data_str = await client.final_response()
         instruction_to_agent = (
-                "已成功生成用户画像。请处理这些信息，将它们更新到 user_profiles 表中。"
-                "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，"
-                "请结合旧内容和新内容作为参考，然后进行更新；如果不存在，请直接插入新画像。"
-                "对于'recent_activities'字段，需要把日期加进去，保留5天的结果。如果超过5天，则去掉最早的结果"
-                " `profile_json` 参数需要正确地转义为**字符串**，而不是字典！并作为 `params` 数组的一个元素"
-                f"现在的时间是{str(datetime.datetime.now())}，请确保使用当前时间戳更新 last_updated 字段。"
-            )
+            "已成功生成用户画像的文本摘要。请解析下面的 `raw_response` 文本，提取每位用户的信息，"
+            "并将这些信息更新到 `user_profiles` 数据库表中。"
+            "对于每个用户，请先查询数据库确认是否存在旧画像。如果存在，"
+            "请结合旧内容和新内容作为参考进行更新；如果不存在，请直接插入新画像。"
+            "对于'recent_activities'字段，需要把日期加进去，保留5天的结果。如果超过5天，则去掉最早的结果。"
+            "在调用数据库工具时，每个用户的完整画像信息（包含所有字段）需要作为**字符串**传递给 `profile_json` 参数。可以不使用Json格式，直接传递字符串。"
+            f"现在的时间是 {str(datetime.datetime.now())}，请确保使用当前时间戳更新 `last_updated` 字段。"
+        )
         return json.dumps({
-                "raw_response": response_data_str,
-                "instruction": instruction_to_agent
-            }, ensure_ascii=False, indent=2)
+            "raw_response": response_data_str,
+            "instruction": instruction_to_agent
+        }, ensure_ascii=False, indent=2)
 
     except Exception as e:
         logger.error(f"为群组 {group_id} 生成用户画像时发生错误: {e}", exc_info=True)
