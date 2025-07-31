@@ -321,7 +321,7 @@ async def generate_user_profile(group_id: int) -> str:
             "对于每个用户，请先查询数据库确认是否存在旧画像。如果存在，"
             "请结合旧内容和新内容作为参考进行更新；如果不存在，请直接插入新画像。"
             "对于'recent_activities'字段，需要把日期加进去，保留5天的结果。如果超过5天，则去掉最早的结果。"
-            "在调用数据库工具时，每个用户的完整画像信息（包含所有字段）需要作为**字符串**传递给 `profile_json` 参数。可以不使用Json格式，直接传递字符串。"
+            "在调用数据库工具时，每个用户的完整画像信息（包含所有字段）需要作为**字符串**传递给 `profile_json` 参数。允许不使用Json格式，直接传递字符串。"
             f"现在的时间是 {str(datetime.datetime.now())}，请确保使用当前时间戳更新 `last_updated` 字段。"
         )
         return json.dumps({
