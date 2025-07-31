@@ -222,7 +222,7 @@ class DatabaseSuperToolRegistry:
             "表: user_profiles (由AI生成的用户画像数据)",
             "- user_id: INTEGER NOT NULL (用户ID, 复合主键的一部分)",
             "- group_id: INTEGER NOT NULL (群组ID, 复合主键的一部分)",
-            "- profile_json: TEXT (包含用户画像的JSON字符串)",
+            "- profile_json: TEXT (包含用户画像的json字符串)",
             "- last_updated: TEXT (最后更新时间戳)",
             "",
             "=== 可用的超级工具 ===",
