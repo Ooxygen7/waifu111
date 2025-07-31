@@ -3,7 +3,7 @@ import json
 import os
 import time
 from datetime import datetime
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 from utils import db_utils as db
 from agent.llm_functions import generate_summary
 from web.factory import admin_required, viewer_required, get_admin_ids, app_logger
@@ -122,7 +122,7 @@ from flask import session
 
 @api_bp.route("/user/<int:user_id>", methods=["GET", "PUT"])
 @viewer_or_admin_required
-def api_user_detail(user_id):
+def api_user_detail(user_id) -> Response:
     """获取或更新用户详细信息API"""
     user_role = session.get("user_role")
 
@@ -499,3 +499,54 @@ def edit_message():
     except Exception as e:
         app_logger.error(f"编辑消息失败: {str(e)}")
         return jsonify({"error": f"编辑消息失败: {str(e)}"}), 500
+
+
+@api_bp.route("/groups/<group_id>", methods=["GET", "PUT"])
+@admin_required
+def api_group_detail(group_id):
+    """获取或更新群组详细信息API"""
+    try:
+        group_id = int(group_id)
+    except ValueError:
+        return jsonify({"error": "Invalid group ID"}), 400
+
+    if request.method == "GET":
+        group_data = db.query_db("SELECT * FROM groups WHERE group_id = ?", (group_id,))
+        if not group_data:
+            return jsonify({"error": "群组不存在"}), 404
+        
+        group_columns = [
+            "group_id", "members_list", "call_count", "keywords", "active",
+            "api", "char", "preset", "input_token", "group_name",
+            "update_time", "rate", "output_token", "disabled_topics"
+        ]
+        group_dict = {group_columns[i]: group_data[0][i] for i in range(len(group_columns))}
+        return jsonify(group_dict)
+
+    elif request.method == "PUT":
+        try:
+            data = request.get_json()
+            
+            # 更新 groups 表
+            updates = {}
+            allowed_fields = [
+                "group_name", "active", "rate", "char", "api", "preset",
+                "keywords", "disabled_topics"
+            ]
+            
+            for field in allowed_fields:
+                if field in data:
+                    updates[field] = data[field]
+
+            if updates:
+                updates["update_time"] = datetime.now()
+                set_clause = ", ".join([f"{key} = ?" for key in updates.keys()])
+                params = list(updates.values()) + [group_id]
+                sql = f"UPDATE groups SET {set_clause} WHERE group_id = ?"
+                db.revise_db(sql, tuple(params))
+
+            return jsonify({"success": True, "message": "群组信息更新成功"})
+        except Exception as e:
+            app_logger.error(f"更新群组 {group_id} 信息失败: {e}")
+            return jsonify({"success": False, "message": str(e)}), 500
+

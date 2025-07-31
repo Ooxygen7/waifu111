@@ -180,6 +180,10 @@ def load_single_prompt(prompt_name: str, prompt_file: Optional[str] = None) -> O
         prompt_file = "prompts/features_prompts.json"
 
     try:
+        # 修正路径问题：如果 prompt_file 不是绝对路径，则基于项目根目录构建
+        if not os.path.isabs(prompt_file):
+            prompt_file = os.path.join(project_root, prompt_file)
+
         with open(prompt_file, "r", encoding="utf-8") as f:
             prompts = json.load(f)
         
