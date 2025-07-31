@@ -105,7 +105,7 @@ class SessionManager:
         # 检查会话是否超时
         if current_time - last_activity > timeout:
             SessionManager.destroy_session()
-            logger.info("会话超时，已清除")
+            logger.warning("会话超时，已清除")
             return False
         
         # 更新最后活动时间
@@ -117,7 +117,7 @@ class SessionManager:
         """销毁用户会话"""
         session_id = session.get('session_id', 'unknown')
         session.clear()
-        logger.info(f"用户会话已销毁: session_id={session_id}")
+        logger.warning(f"用户会话已销毁: session_id={session_id}")
     
     @staticmethod
     def get_user_permission() -> Optional[str]:

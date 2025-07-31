@@ -59,7 +59,7 @@ async def run_agent_session(
             logger.debug(f"已设置 messages (当前会话): {current_messages}")
 
             ai_response = await client.final_response()
-            logger.info(f"LLM 原始响应: {ai_response}")
+            logger.debug(f"LLM 原始响应: {ai_response}")
 
             llm_text_part, display_results, llm_feedback, had_tool_calls = await parse_and_invoke_tool(ai_response)
 
@@ -83,7 +83,7 @@ async def run_agent_session(
                 logger.debug("已将原始LLM响应和完整工具调用结果反馈给 LLM")
             else:
                 # 如果没有工具调用，这被视为最终回复
-                logger.info(f"第{iteration}轮未调用工具，给出最终回复: {llm_text_part}")
+                logger.debug(f"第{iteration}轮未调用工具，给出最终回复: {llm_text_part}")
                 yield {"status": "final_response", "content": llm_text_part}
                 return
 
@@ -315,7 +315,6 @@ async def generate_user_profile(group_id: int) -> str:
         
         logger.info(f"正在为群组 {group_id} 生成用户画像...")
         response_data_str = await client.final_response()
-        logger.info(f"成功为群组 {group_id} 生成用户画像。")
         instruction_to_agent = (
                 "已成功生成用户画像。请处理这些信息，将它们更新到 user_profiles 表中。"
                 "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，"

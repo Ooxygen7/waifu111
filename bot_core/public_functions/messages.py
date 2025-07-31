@@ -78,7 +78,7 @@ async def finalize_message(sent_message, text: str, parse: str = "html", summary
             # 超长时分两段发送，先发前半段，再发后半段
             await sent_message.edit_text(text[:max_len], parse_mode="html")
             await sent_message.reply_text(text[max_len:], parse_mode="html")
-        logger.info(f"输出：\r\n{text}")
+        logger.debug(f"输出：\r\n{text}")
     except BadRequest as e:
         logger.warning(f"HTML解析错误: {str(e)}, 禁用HTML重试")
         try:
@@ -89,7 +89,7 @@ async def finalize_message(sent_message, text: str, parse: str = "html", summary
             else:
                 await sent_message.edit_text(plain_text[:max_len], parse_mode=None)
                 await sent_message.reply_text(plain_text[max_len:], parse_mode=None)
-            logger.info(f"输出：\r\n{plain_text}")
+            logger.debug(f"输出：\r\n{plain_text}")
         except Exception as e2:
             logger.error(f"再次尝试发送消息失败: {e2}")
             await sent_message.edit_text(f"Failed: {e2}")
@@ -130,7 +130,7 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message
                 # 超长时分两段发送
                 await context.bot.send_message(chat_id=chat_id, text=message_content[:max_len], parse_mode=parse)
                 await context.bot.send_message(chat_id=chat_id, text=message_content[max_len:], parse_mode=parse)
-        logger.info(f"发送消息到 {chat_id}：\r\n{message_content}")
+        logger.debug(f"发送消息到 {chat_id}：\r\n{message_content}")
     except BadRequest as e:
         logger.warning(f"{parse} 解析错误: {str(e)}, 禁用 {parse} 重试")
         try:
@@ -146,7 +146,7 @@ async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message
                 else:
                     await context.bot.send_message(chat_id=chat_id, text=message_content[:max_len], parse_mode=None)
                     await context.bot.send_message(chat_id=chat_id, text=message_content[max_len:], parse_mode=None)
-            logger.info(f"发送消息到 {chat_id}：\r\n{message_content}")
+            logger.debug(f"发送消息到 {chat_id}：\r\n{message_content}")
         except Exception as e2:
             logger.error(f"再次尝试发送消息失败: {e2}")
     except TelegramError as e:

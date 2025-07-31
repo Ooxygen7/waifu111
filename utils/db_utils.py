@@ -72,7 +72,7 @@ def init_database_if_not_exists():
                 table_name = table_part.split('(')[0].strip()
                 
                 if table_name not in existing_tables:
-                    logger.info(f"检测到缺失表 {table_name}，正在创建...")
+                    logger.warning(f"检测到缺失表 {table_name}，正在创建...")
                     try:
                         cursor.execute(stmt)
                         conn.commit()

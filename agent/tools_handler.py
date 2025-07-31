@@ -117,7 +117,7 @@ class ToolHandler:
         best_json, source_text = max(candidates, key=lambda item: len(item[0]))
         
         remaining_text = self.ai_response.replace(source_text, "").strip()
-        logger.info(f"最终选择的JSON内容 (长度 {len(best_json)}), 剩余文本: '{remaining_text}'")
+        logger.debug(f"最终选择的JSON内容 (长度 {len(best_json)}), 剩余文本: '{remaining_text}'")
         
         return best_json, remaining_text
 

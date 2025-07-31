@@ -200,7 +200,7 @@ class SaveCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        config = public.update_info_get(update)
+        config = public.update_info_get(update) or {}
         if db.conversation_private_update(
             config["conv_id"], config["char"], config["preset"]
         ) and db.conversation_private_save(config["conv_id"]):
