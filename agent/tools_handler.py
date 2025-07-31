@@ -129,22 +129,26 @@ class ToolHandler:
             tool_call (dict): 包含'tool_name'和'parameters'的字典。
 
         Returns:
-            dict: 包含工具名称、参数和执行结果的字典。
+            dict: 包含工具名称、参数以及包含 'display' 和 'llm_feedback' 的结果字典。
         """
         tool_name = tool_call.get("tool_name")
         parameters = tool_call.get("parameters", {})
         logger.info(f"准备执行工具: {tool_name}，参数: {parameters}")
 
+        result_payload = {"display": f"工具 '{tool_name}' 未能执行。", "llm_feedback": f"Tool '{tool_name}' failed."}
+
         if not isinstance(tool_name, str):
             error_msg = f"工具名称无效或缺失: {tool_name}"
             logger.error(error_msg)
-            return {"tool_name": "unknown", "parameters": parameters, "result": error_msg}
+            result_payload = {"display": error_msg, "llm_feedback": error_msg}
+            return {"tool_name": "unknown", "parameters": parameters, "result": result_payload}
 
         tool_func = ALL_TOOLS.get(tool_name)
         if not tool_func:
             error_msg = f"未找到工具: {tool_name}"
             logger.warning(error_msg)
-            return {"tool_name": tool_name, "parameters": parameters, "result": error_msg}
+            result_payload = {"display": error_msg, "llm_feedback": error_msg}
+            return {"tool_name": tool_name, "parameters": parameters, "result": result_payload}
 
         try:
             import inspect
@@ -156,56 +160,86 @@ class ToolHandler:
             else:
                 result = tool_func(**filtered_params)
             
-            logger.debug(f"工具 {tool_name} 执行成功: {result}")
-            return {"tool_name": tool_name, "parameters": parameters, "result": result}
+            # 确保返回的是我们期望的字典格式
+            if isinstance(result, dict) and "display" in result and "llm_feedback" in result:
+                result_payload = result
+            else:
+                # 如果工具没有按新格式返回，进行兼容处理
+                logger.warning(f"工具 {tool_name} 返回了旧格式的结果。将进行兼容转换。")
+                result_payload = {"display": str(result), "llm_feedback": str(result)}
+
+            logger.debug(f"工具 {tool_name} 执行成功: {result_payload['llm_feedback']}")
+            return {"tool_name": tool_name, "parameters": parameters, "result": result_payload}
         except Exception as e:
             error_msg = f"工具 {tool_name} 执行失败: {str(e)}"
             logger.error(error_msg, exc_info=True)
-            return {"tool_name": tool_name, "parameters": parameters, "result": error_msg}
+            result_payload = {"display": error_msg, "llm_feedback": error_msg}
+            return {"tool_name": tool_name, "parameters": parameters, "result": result_payload}
 
-    async def handle_response(self) -> tuple[str, list, bool]:
+    async def handle_response(self) -> tuple[str, list, list, bool]:
         """
         解析并处理LLM的响应，执行任何工具调用。
 
         这是该类的主要入口点。它协调JSON提取、工具调用和结果聚合。
 
         Returns:
-            tuple[str, list, bool]:
+            tuple[str, list, list, bool]:
                 - llm_text_output (str): LLM响应的文本部分。
-                - tool_results_for_llm (list): 工具调用的详细结果列表，用于反馈给LLM。
+                - display_results (list): 包含每个工具调用详细结果的字典列表，用于用户展示。
+                - llm_feedback (list): 工具调用的简洁结果列表，用于反馈给LLM。
                 - had_tool_calls (bool): 如果成功解析并调用了任何工具，则为True。
         """
         json_content, self.llm_text_output = self._extract_json()
 
         if not json_content:
-            return self.llm_text_output, [], False
+            return self.llm_text_output, [], [], False
 
         try:
             response_data = json.loads(json_content)
         except json.JSONDecodeError as jde:
             logger.warning(f"无法解析提取的 JSON: '{json_content}'. 错误: {jde}. 将其视为文本。")
             self.llm_text_output = (self.llm_text_output + "\n" + json_content).strip()
-            return self.llm_text_output, [], False
+            return self.llm_text_output, [], [], False
 
         tool_calls = response_data.get("tool_calls", [])
         if not isinstance(tool_calls, list):
             tool_calls = []
 
-        # 兼容单工具调用格式
         if not tool_calls and "tool_name" in response_data:
             tool_calls = [{"tool_name": response_data["tool_name"], "parameters": response_data.get("parameters", {})}]
 
         if not tool_calls:
-            return self.llm_text_output, [], False
+            return self.llm_text_output, [], [], False
 
         self.had_tool_calls = True
         tasks = [self._invoke_tool(call) for call in tool_calls]
-        self.tool_results_for_llm = await asyncio.gather(*tasks)
+        execution_results = await asyncio.gather(*tasks)
 
-        return self.llm_text_output, self.tool_results_for_llm, self.had_tool_calls
+        display_results = []
+        llm_feedback = []
+
+        for res in execution_results:
+            tool_name = res.get("tool_name", "unknown")
+            parameters = res.get("parameters", {})
+            result_payload = res.get("result", {"display": "No result", "llm_feedback": "No result"})
+            
+            # 构建用于用户展示的详细结果字典
+            display_results.append({
+                "tool_name": tool_name,
+                "parameters": parameters,
+                "result": result_payload.get('display', 'N/A')
+            })
+
+            # 构建用于LLM反馈的简洁结果字典
+            llm_feedback.append({
+                "tool_name": tool_name,
+                "result": result_payload.get('llm_feedback', 'N/A')
+            })
+        
+        return self.llm_text_output, display_results, llm_feedback, self.had_tool_calls
 
 
-async def parse_and_invoke_tool(ai_response: str) -> tuple[str, list, bool]:
+async def parse_and_invoke_tool(ai_response: str) -> tuple[str, list, list, bool]:
     """
     解析AI响应并根据需要调用工具。
 
@@ -216,9 +250,10 @@ async def parse_and_invoke_tool(ai_response: str) -> tuple[str, list, bool]:
         ai_response (str): 来自LLM的原始响应。
 
     Returns:
-        tuple[str, list, bool]:
+        tuple[str, list, list, bool]:
             - llm_text_output (str): LLM响应的文本部分。
-            - tool_results_for_llm_feedback (list): 工具调用的详细结果列表，用于反馈给LLM。
+            - display_results (list): 包含每个工具调用详细结果的字典列表，用于用户展示。
+            - llm_feedback (list): 工具调用的简洁结果列表，用于反馈给LLM。
             - had_tool_calls (bool): 如果成功解析并调用了任何工具，则为True。
     """
     handler = ToolHandler(ai_response)

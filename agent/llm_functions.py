@@ -1,7 +1,7 @@
 """处理主要输入是str，经由LLM处理的函数。"""
 import logging
 from typing import AsyncGenerator, Dict, Any, Tuple, List
-
+import datetime 
 from utils.config_utils import get_config, DEFAULT_API
 from agent.tools_handler import parse_and_invoke_tool
 from utils.LLM_utils import LLM, llm_client_manager, PromptsBuilder
@@ -61,7 +61,7 @@ async def run_agent_session(
             ai_response = await client.final_response()
             logger.info(f"LLM 原始响应: {ai_response}")
 
-            llm_text_part, tool_results, had_tool_calls = await parse_and_invoke_tool(ai_response)
+            llm_text_part, display_results, llm_feedback, had_tool_calls = await parse_and_invoke_tool(ai_response)
 
             if had_tool_calls:
                 # 如果有工具调用，则 yield tool_call 状态并准备下一次迭代
@@ -69,7 +69,7 @@ async def run_agent_session(
                     "status": "tool_call",
                     "iteration": iteration,
                     "llm_text": llm_text_part,
-                    "tool_results": tool_results,
+                    "tool_results": display_results,
                     "had_tool_calls": True,
                     "raw_ai_response": ai_response
                 }
@@ -77,7 +77,7 @@ async def run_agent_session(
                 # 为下一次迭代更新消息历史
                 current_messages.append({"role": "assistant", "content": ai_response})
                 feedback_content_to_llm = "工具调用结果:\n" + "\n".join(
-                    [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in tool_results]
+                    [f"{res.get('tool_name', '未知工具')} 执行结果: {res.get('result', '')}" for res in llm_feedback]
                 )
                 current_messages.append({"role": "user", "content": feedback_content_to_llm})
                 logger.debug("已将原始LLM响应和完整工具调用结果反馈给 LLM")
@@ -318,7 +318,9 @@ async def generate_user_profile(group_id: int) -> str:
         logger.info(f"成功为群组 {group_id} 生成用户画像。")
         instruction_to_agent = (
                 "已成功生成用户画像。请处理这些信息，将它们更新到 user_profiles 表中。"
-                "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，请结合旧内容和新内容作为参考，然后进行更新；如果不存在，请直接插入新画像。"
+                "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，"
+                "请结合旧内容和新内容作为参考，然后进行更新；如果不存在，请直接插入新画像。"
+                f"现在的时间是{str(datetime.datetime.now())}，请确保使用当前时间戳更新 last_updated 字段。"
             )
         return json.dumps({
                 "raw_response": response_data_str,
