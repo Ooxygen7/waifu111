@@ -261,3 +261,88 @@ async def generate_char(character_description: str) -> str:
 
             except Exception as e:
                 raise ValueError(f"生成角色失败: {str(e)}")
+
+async def generate_user_profile(group_id: int) -> str:
+    """
+    分析群组聊天记录，为最活跃的用户生成JSON格式的画像。
+
+    Args:
+        group_id: 目标群组的ID。
+
+    Returns:
+        str: 一个包含用户画像分析结果的JSON字符串。
+             如果找不到聊天记录或发生错误，则返回错误信息的字符串。
+    """
+    try:
+        # 1. 获取最近400条群聊数据
+        command = """
+            SELECT msg_text, msg_user_name, processed_response, create_at, msg_user
+            FROM (SELECT msg_text, msg_user_name, processed_response, create_at, msg_user, msg_id 
+                  FROM group_dialogs 
+                  WHERE group_id = ? AND msg_user IS NOT NULL
+                  ORDER BY msg_id DESC 
+                  LIMIT 400) sub
+            ORDER BY msg_id ASC
+        """
+        dialogs_with_user_id = db.query_db(command, (group_id,))
+
+        if not dialogs_with_user_id:
+             return json.dumps({"error": f"无法找到群组 {group_id} 的聊天记录，或记录为空。"}, ensure_ascii=False)
+
+        formatted_dialogs = "\n".join(
+            [
+                f"用户ID {row[4]} (昵称: {row[1]}) 在 {row[3]} 说: {row[0]}" + (f" -> Bot回应: {row[2]}" if row[2] else "")
+                for row in dialogs_with_user_id
+            ]
+        )
+
+        # 3. 构建 Prompt
+        system_prompt = file_utils.load_single_prompt("generate_user_profile_system", "prompts/features_prompts.json")
+        user_prompt_template = file_utils.load_single_prompt("generate_user_profile_user", "prompts/features_prompts.json")
+
+        if not system_prompt or not user_prompt_template:
+            raise ValueError("无法从 features_prompts.json 加载用户画像生成所需的Prompt。")
+            
+        final_user_prompt = user_prompt_template.format(dialog_content=formatted_dialogs)
+
+        # 4. 调用 LLM
+        client = LLM(api=get_config("analysis.default_api", "gemini-2.5"))
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": final_user_prompt},
+        ]
+        client.set_messages(messages)
+        
+        logger.info(f"正在为群组 {group_id} 生成用户画像...")
+        response_data_str = await client.final_response()
+        logger.info(f"成功为群组 {group_id} 生成用户画像。")
+        instruction_to_agent = (
+                "已成功生成用户画像。请处理这些信息，将它们更新到 user_profiles 表中。"
+                "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，请结合新旧内容进行增量更新；如果不存在，请直接插入新画像。"
+            )
+        
+        # 5. 验证并封装最终返回结果
+        try:
+            # 尝试解析以验证格式
+            json.loads(response_data_str)
+            
+            # 构建给主代理的指令
+            
+            # 封装最终结果
+            final_result = {
+                "data": json.loads(response_data_str), # 返回解析后的对象，让上层处理更方便
+                "instruction": instruction_to_agent
+            }
+            
+            return json.dumps(final_result, ensure_ascii=False, indent=2)
+
+        except json.JSONDecodeError:
+            logger.debug(f"LLM为群组 {group_id} 生成的画像不是有效的JSON格式。返回原始响应。")
+            return json.dumps({
+                "raw_response": response_data_str,
+                "instruction": instruction_to_agent
+            }, ensure_ascii=False, indent=2)
+
+    except Exception as e:
+        logger.error(f"为群组 {group_id} 生成用户画像时发生错误: {e}", exc_info=True)
+        return json.dumps({"error": f"生成用户画像时发生内部错误: {e}"}, ensure_ascii=False, indent=2)

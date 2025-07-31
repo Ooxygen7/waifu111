@@ -131,3 +131,33 @@ create table dialog_summary
 );
 
 
+create table user_profiles
+(
+    user_id        integer not null,
+    group_id       integer not null,
+    profile_json   TEXT,
+    last_updated   TEXT,
+    source_msg_ids TEXT,
+    primary key (user_id, group_id)
+);
+
+
+create table user_profiles
+(
+    user_id                   integer
+        primary key,
+    user_name                 TEXT,
+    profile_data              TEXT,
+    last_updated_from_group   integer,
+    updated_at                TEXT
+);
+
+create table user_profiles
+(
+    user_id          integer not null,
+    group_id         integer not null,
+    profile_json     TEXT,
+    last_updated     ANY,
+    source_msg_count integer,
+    primary key (user_id, group_id)
+);

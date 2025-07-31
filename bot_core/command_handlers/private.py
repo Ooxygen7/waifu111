@@ -309,7 +309,7 @@ class NewcharCommand(BaseCommand):
             "desc_chunks": [],
         }
         await update.message.reply_text(
-            "请上传角色描述文件（json/txt）或直接发送文本描述，完成后发送 /done 结束输入。\n如描述较长可分多条消息发送。"
+            "请直接发送文本描述，完成后发送 /done 结束输入。\n如描述较长可分多条消息发送。"
         )
 
 

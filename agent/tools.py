@@ -651,9 +651,33 @@ class DatabaseSuperTools:
             logger.error(f"Error executing database update: {str(e)}")
             return f"Database update failed: {str(e)}"
 
+    @staticmethod
+    async def analyze_group_user_profiles(group_id: int) -> str:
+        """
+        分析指定群组的聊天记录，为最活跃的用户生成用户画像。
+        此工具会调用LLM进行深度分析，可能需要一些时间。
+        分析结果将以JSON字符串的形式返回，其中包含一个用户画像对象的列表。
+
+        Args:
+            group_id (int): 需要分析的目标群组的ID。
+
+        Returns:
+            str: 一个JSON格式的字符串，包含了识别出的活跃用户的画像列表。
+                 如果操作失败，将返回一个包含错误信息的JSON字符串。
+        """
+        if not isinstance(group_id, int):
+            return json.dumps({"error": "参数 group_id 必须是一个有效的整数。"})
+            
+        # 调用在 llm_functions.py 中定义的核心函数
+        from agent.llm_functions import generate_user_profile as gup
+        result_json_str = await gup(group_id)
+        
+        return result_json_str
+
 
 # Tool mapping for LLM invocation
 DATABASE_SUPER_TOOLS = {
     "query_db": DatabaseSuperTools.query_db,
     "revise_db": DatabaseSuperTools.revise_db,
+    "analyze_group_user_profiles": DatabaseSuperTools.analyze_group_user_profiles,
 }

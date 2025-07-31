@@ -188,12 +188,16 @@ def load_single_prompt(prompt_name: str, prompt_file: Optional[str] = None) -> O
             print(f"错误: 在 '{prompt_file}' 中未找到名为 '{prompt_name}' 的prompt。")
             return None
             
-        system_prompt = prompt_data.get("system_prompt")
-        if not system_prompt:
-            print(f"错误: 在 '{prompt_name}' prompt中未找到 'system_prompt' 键。")
+        prompt_content = prompt_data.get("prompt")
+        if not prompt_content:
+            # Fallback to system_prompt for backward compatibility
+            prompt_content = prompt_data.get("system_prompt")
+
+        if not prompt_content:
+            print(f"错误: 在 '{prompt_name}' prompt中未找到 'prompt' 或 'system_prompt' 键。")
             return None
             
-        return system_prompt
+        return prompt_content
     except FileNotFoundError:
         print(f"错误: Prompt文件 '{prompt_file}' 不存在。")
         return None
