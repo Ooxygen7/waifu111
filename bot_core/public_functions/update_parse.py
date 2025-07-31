@@ -1,7 +1,7 @@
 import logging
+from typing import Dict, Any, Optional
 
-from telegram import Update
-
+from telegram import Update, User, Message, Chat
 from bot_core.public_functions.error import BotError, DatabaseError
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
@@ -10,149 +10,147 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def update_info_get(update: Update) -> dict | None:
-    """从Telegram的Update对象中提取并整合有用的信息。
+class UpdateParser:
+    """
+    一个用于解析Telegram Update对象的类，封装了信息提取和数据加载的逻辑。
+    """
+
+    def __init__(self, update: Update):
+        self.update = update
+        self.user: Optional[User] = None
+        self.message: Optional[Message] = None
+        self.chat: Optional[Chat] = None
+        self.info: Dict[str, Any] = {}
+
+        self._extract_base_objects()
+
+    def _extract_base_objects(self):
+        """从Update对象中提取核心对象（user, message, chat）。"""
+        if self.update.message:
+            self.message = self.update.message
+            self.user = self.message.from_user
+            self.chat = self.message.chat
+        elif self.update.callback_query:
+            callback = self.update.callback_query
+            self.message = callback.message
+            self.user = callback.from_user
+            if self.message:
+                self.chat = self.message.chat
+        # 可以根据需要扩展以支持其他类型的更新，如 inline_query
+
+    def parse(self) -> Optional[Dict[str, Any]]:
+        """
+        解析Update对象，提取所有信息并从数据库加载相关数据。
+        """
+        if not self.user or not self.chat:
+            logger.debug("Update对象不包含足够的信息进行解析。")
+            return None
+
+        try:
+            self._extract_initial_info()
+
+            if self.chat.type == 'private':
+                self._load_private_chat_data()
+            elif self.chat.type in ['group', 'supergroup']:
+                self._load_group_chat_data()
+            
+            return self.info
+
+        except Exception as e:
+            logger.error(f"解析update信息时出错: {e}", exc_info=True)
+            raise BotError(f"解析update信息错误: {e}")
+
+    def _extract_initial_info(self):
+        """提取用户、消息和聊天的基本信息。"""
+        self.info.update(self._extract_user_info())
+        if self.message:
+            self.info.update(self._extract_message_info())
+        self.info.update(self._extract_chat_info())
+
+    def _load_private_chat_data(self):
+        """加载私聊相关的数据（用户配置和详情）。"""
+        user_id = self.user.id
+        config = self._get_or_create_user_config(user_id)
+        user_detail = db.user_info_get(user_id) or {}
+        self.info.update(config)
+        self.info.update(user_detail)
+
+    def _load_group_chat_data(self):
+        """加载群聊相关的数据（群组配置和会话ID）。"""
+        group_id = self.chat.id
+        user_id = self.user.id
+        
+        config = db.group_config_get(group_id)
+        if config:
+            self.info['api'] = config[0]
+            self.info['char'] = config[1]
+            self.info['preset'] = config[2]
+            self.info['conv_id'] = db.conversation_group_get(group_id, user_id)
+            self.info['need_update'] = db.group_check_update(group_id)
+        else:
+            self.info['need_update'] = True
+
+    def _get_or_create_user_config(self, user_id: int) -> dict:
+        """获取用户配置，如果不存在则创建。"""
+        try:
+            result = db.user_config_get(user_id)
+            if not result:
+                logger.info(f"为新用户 {user_id} 创建默认配置。")
+                db.user_config_create(user_id)
+                # 使用 self.info 中的 user_name
+                if 'user_name' in self.info:
+                    db.user_config_arg_update(user_id, 'nick', self.info['user_name'])
+                result = db.user_config_get(user_id)
+            return result or {}
+        except Exception as e:
+            logger.error(f"获取或创建用户配置失败, user_id: {user_id}, 错误: {e}")
+            raise DatabaseError(f"获取用户配置失败: {e}")
+
+    def _extract_user_info(self) -> Dict[str, Any]:
+        """从User对象提取信息。"""
+        if not self.user: return {}
+        return {
+            'user_id': self.user.id,
+            'first_name': self.user.first_name or '',
+            'last_name': self.user.last_name or '',
+            'username': self.user.username or '',
+            'user_name': (f"{self.user.first_name or ''} {self.user.last_name or ''}").strip()
+        }
+
+    def _extract_message_info(self) -> Dict[str, Any]:
+        """从Message对象提取信息。"""
+        if not self.message: return {}
+        return {
+            'message_id': self.message.message_id,
+            'message_text': self.message.text or ''
+        }
+
+    def _extract_chat_info(self) -> Dict[str, Any]:
+        """从Chat对象提取信息。"""
+        if not self.chat: return {}
+        info = {
+            'chat_id': self.chat.id,
+            'chat_type': self.chat.type
+        }
+        if self.chat.type in ['group', 'supergroup']:
+            info['group_id'] = self.chat.id
+            info['group_name'] = self.chat.title or ''
+        return info
+
+
+def update_info_get(update: Update) -> Optional[Dict[str, Any]]:
+    """
+    从Telegram的Update对象中提取并整合有用的信息。
+    这是对 UpdateParser 的一个向后兼容的封装。
+
     Args:
         update (Update): Telegram的Update对象。
+
     Returns:
         dict: 包含用户、消息、群组等信息的字典。
+
     Raises:
         BotError: 解析Update信息时发生错误。
     """
-    try:
-        if update.message:
-            return _process_message(update.message)
-        elif update.callback_query:
-            return _process_callback_query(update.callback_query)
-        return None
-    except Exception as e:
-        logger.error(f"解析update信息错误: {str(e)}")
-        raise BotError(f"解析update信息错误: {str(e)}")
-
-
-def _process_message(message) -> dict:
-    """处理Telegram消息对象，提取并整合信息。
-    Args:
-        message (Message): Telegram的消息对象。
-    Returns:
-        dict: 包含用户、消息、群组等信息的字典。
-    """
-    user_info = _extract_user_info(message.from_user)
-    msg_info = _extract_message_info(message)
-    group_info = _extract_group_info(message.chat)
-    info = {**user_info, **msg_info, **group_info}
-
-    if message.chat.type == 'private':
-        config = _user_config_get(user_info['user_id'], info) or {}
-        user_detail = db.user_info_get(user_info['user_id']) or {}
-        return {**config, **user_detail, **info}
-    else:  # group or supergroup
-        config = db.group_config_get(group_info['group_id'])
-        if config:
-            config_dict = {'api': config[0], 'char': config[1], 'preset': config[2]}
-            conv_id = {'conv_id': db.conversation_group_get(group_info['group_id'], user_info['user_id'])}
-            if db.group_check_update(group_info['group_id']):
-                return {'need_update': True, **user_info, **conv_id, **config_dict, **info}
-            else:
-                return {'need_update': False, **user_info, **conv_id, **config_dict, **info}
-        else:
-            return {'need_update': True, **info}
-
-
-def _process_callback_query(callback_query) -> dict:
-    """处理Telegram回调查询对象，提取并整合信息。
-    Args:
-        callback_query (CallbackQuery): Telegram的回调查询对象。
-    Returns:
-        dict: 包含用户、消息、群组等信息的字典。
-    """
-
-    user_info = _extract_user_info(callback_query.from_user)
-    message = callback_query.message if callback_query.message else None
-    msg_info = _extract_message_info(message) if message else {}
-
-    if message and message.chat.type == 'private':
-        info = {**user_info, **msg_info, 'user_name': f"{user_info['first_name']}{user_info['last_name']}"}
-        config = _user_config_get(user_info['user_id']) or {}
-        user_detail = db.user_info_get(user_info['user_id']) or {}
-        return {**config, **user_detail, **info, **{'chat_type': callback_query.message.chat.type}}
-    elif message and message.chat.type in ['group', 'supergroup']:
-        group_info = _extract_group_info(message.chat)
-        info = {**user_info, **msg_info, **group_info}
-        config = db.group_config_get(group_info['group_id'])
-        if config:
-            config_dict = {'api': config[0], 'char': config[1], 'preset': config[2]}
-            conv_id = {'conv_id': db.conversation_group_get(group_info['group_id'], user_info['user_id'])}
-            return {**conv_id, **config_dict, **info, **{'chat_type': callback_query.message.chat.type}}
-        else:
-            return {'need_update': True, **info}
-    else:
-        # 无消息或其他聊天类型
-        config = _user_config_get(user_info['user_id']) or {}
-        user_detail = db.user_info_get(user_info['user_id']) or {}
-        return {**user_detail, **config, **{'chat_type': callback_query.message.chat.type}}  # 可以根据需要添加 user_info
-
-
-def _user_config_get(user_id: int, info=None) -> dict:
-    if info is None:
-        info = {}
-    try:
-        result = db.user_config_get(user_id)
-        if not result:
-            db.user_config_create(user_id)
-            db.user_config_arg_update(user_id, 'nick', info['user_name'])
-            result = db.user_config_get(user_id)
-            logger.info(f"为新用户{user_id}创建默认配置")
-        return result
-    except Exception as e:
-        logger.error(f"获取用户配置失败, user_id: {user_id}, 错误: {str(e)}")
-        raise DatabaseError(f"获取用户配置失败: {str(e)}")
-
-
-def _extract_user_info(user) -> dict:
-    """从Telegram User对象中提取用户信息。
-
-    Args:
-        user: Telegram User对象。
-
-    Returns:
-        dict: 包含用户ID、名字、姓氏、用户名和完整用户名的字典。
-    """
-    return {
-        'user_id': user.id,
-        'first_name': user.first_name or '',
-        'last_name': user.last_name or '',
-        'username': user.username or '',
-        'user_name': (str(user.first_name or '') + str(user.last_name or '')).strip()
-    }
-
-
-def _extract_message_info(message) -> dict:
-    """从Telegram Message对象中提取消息信息。
-
-    Args:
-        message: Telegram Message对象。
-
-    Returns:
-        dict: 包含消息ID和消息文本的字典。
-    """
-    return {
-        'message_id': message.message_id or '',
-        'message_text': message.text or ''
-    }
-
-
-def _extract_group_info(chat) -> dict:
-    """从Telegram Chat对象中提取群组或私聊信息。
-
-    Args:
-        chat: Telegram Chat对象。
-
-    Returns:
-        dict: 包含聊天ID（群组ID或用户ID）、群组名称和聊天类型的字典。
-    """
-    return {
-        'user_id' if chat.type == 'private' else 'group_id': chat.id or '',
-        'group_name': chat.title or '',
-        'chat_type': chat.type or ''
-    }
+    parser = UpdateParser(update)
+    return parser.parse() or {}
