@@ -318,7 +318,7 @@ async def generate_user_profile(group_id: int) -> str:
         logger.info(f"成功为群组 {group_id} 生成用户画像。")
         instruction_to_agent = (
                 "已成功生成用户画像。请处理这些信息，将它们更新到 user_profiles 表中。"
-                "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，请结合新旧内容进行增量更新；如果不存在，请直接插入新画像。"
+                "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，请结合旧内容和新内容作为参考，然后进行更新；如果不存在，请直接插入新画像。"
             )
         return json.dumps({
                 "raw_response": response_data_str,
