@@ -224,7 +224,6 @@ class DatabaseSuperToolRegistry:
             "- group_id: INTEGER NOT NULL (群组ID, 复合主键的一部分)",
             "- profile_json: TEXT (包含用户画像的JSON字符串)",
             "- last_updated: TEXT (最后更新时间戳)",
-            "- source_msg_count: INTEGER (为最新更新分析的消息数)",
             "",
             "=== 可用的超级工具 ===",
         ]
