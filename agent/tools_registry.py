@@ -22,48 +22,48 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseSuperToolRegistry:
-    """A registry for database super tools with direct SQL access, descriptions, and comprehensive database schema information for LLM interaction."""
+    """一个为数据库超级工具提供的注册表，包含直接SQL访问、工具描述和全面的数据库模式信息，专为LLM交互设计。"""
 
     TOOLS: Dict[str, Dict[str, Any]] = {
         "query_db": {
-            "description": "Execute a direct SQL SELECT query on the database and return formatted results.",
+            "description": "直接在数据库上执行SQL SELECT查询，并返回格式化的结果。",
             "type": "query",
             "parameters": {
                 "command": {
                     "type": "string",
-                    "description": "The SQL SELECT query to execute. Use proper SQL syntax.",
+                    "description": "要执行的SQL SELECT查询。请使用正确的SQL语法。",
                 },
                 "params": {
                     "type": "string",
-                    "description": "JSON string of parameters for the query (optional). Example: '[123, \"value\"]' for parameterized queries.",
+                    "description": "用于查询的参数的JSON字符串（可选）。示例：'[123, \"value\"]' 用于参数化查询。",
                 }
             },
-            "output_format": "A string containing the query results with row-by-row data or error message.",
+            "output_format": "一个包含逐行数据或错误信息的查询结果字符串。",
             "example": {
                 "tool_name": "query_db",
                 "parameters": {"command": "SELECT uid, user_name, account_tier FROM users LIMIT 5", "params": ""}
             },
-            "return_value": "Query results summary with formatted rows or error message.",
+            "return_value": "包含格式化行或错误信息的查询结果摘要。",
         },
         "revise_db": {
-            "description": "Execute a direct SQL INSERT, UPDATE, or DELETE operation on the database.",
+            "description": "直接在数据库上执行SQL INSERT、UPDATE或DELETE操作。",
             "type": "update",
             "parameters": {
                 "command": {
                     "type": "string",
-                    "description": "The SQL command to execute (INSERT, UPDATE, DELETE). Use proper SQL syntax with ? placeholders for parameters.",
+                    "description": "要执行的SQL命令（INSERT、UPDATE、DELETE）。请使用带有 ? 占位符的正确SQL语法。",
                 },
                 "params": {
                     "type": "string",
-                    "description": "JSON string of parameters for the command (optional). Example: '[100.0, 123]' for parameterized queries.",
+                    "description": "用于命令的参数的JSON字符串（可选）。示例：'[100.0, 123]' 用于参数化查询。",
                 }
             },
-            "output_format": "A string indicating the number of affected rows or error message.",
+            "output_format": "一个指示受影响行数或错误信息的字符串。",
             "example": {
                 "tool_name": "revise_db",
                 "parameters": {"command": "UPDATE users SET balance = ? WHERE uid = ?", "params": "[100.0, 123]"}
             },
-            "return_value": "Operation result with affected row count or error message.",
+            "return_value": "包含受影响行数或错误信息的操作结果。",
         },
         "analyze_group_user_profiles": {
             "description": "分析指定群组的聊天记录，为最活跃的用户生成用户画像。此工具会调用LLM进行深度分析，可能需要一些时间。分析结果将以JSON字符串的形式返回，其中包含一个用户画像对象的列表。",
@@ -79,24 +79,24 @@ class DatabaseSuperToolRegistry:
                 "tool_name": "analyze_group_user_profiles",
                 "parameters": {"group_id": -100123456789}
             },
-            "return_value": "A JSON string containing a list of user profile objects or an error message.",
+            "return_value": "一个包含用户画像对象列表或错误信息的JSON字符串。",
         },
     }
 
     @staticmethod
     def get_tool(tool_name: str) -> Optional[Callable]:
-        """Get the tool function by name from DATABASE_SUPER_TOOLS."""
+        """通过名称从DATABASE_SUPER_TOOLS获取工具函数。"""
         return DATABASE_SUPER_TOOLS.get(tool_name)
 
     @staticmethod
     def get_prompt_text() -> str:
-        """Generate a formatted text of tool descriptions and comprehensive database schema for embedding in LLM prompts."""
+        """为嵌入LLM提示生成工具描述和全面数据库模式的格式化文本。"""
         prompt_lines = [
-            "You are an assistant integrated with the CyberWaifu bot system with DIRECT DATABASE ACCESS. You can execute raw SQL queries and updates on the database. Below is the complete database schema and available super tools.",
+            "你是一个与 CyberWaifu 机器人系统集成的助手，拥有直接数据库访问权限。你可以对数据库执行原始的 SQL 查询和更新。以下是完整的数据库模式和可用的超级工具。",
             "",
-            "=== DATABASE SCHEMA ===",
+            "=== 数据库模式 ===",
             "",
-            "Table: conversations (Private conversations)",
+            "表: conversations (私人对话)",
             "- id: INTEGER PRIMARY KEY (auto-increment)",
             "- conv_id: TEXT NOT NULL (conversation ID)",
             "- user_id: INTEGER NOT NULL (user ID)",
@@ -108,12 +108,12 @@ class DatabaseSuperToolRegistry:
             "- delete_mark: INTEGER (deletion flag)",
             "- turns: INTEGER (number of conversation turns)",
             "",
-            "Table: dialog_summary (Summary of private conversations)",
-            "- conv_id: TEXT NOT NULL (conversation ID)",
-            "- summary_area: TEXT NOT NULL (summaried turns of conversation)",
-            "- content: TEXT NOT NULL (text of the summary)",
+            "表: dialog_summary (私人对话摘要)",
+            "- conv_id: TEXT NOT NULL (对话ID)",
+            "- summary_area: TEXT NOT NULL (已摘要的对话轮数)",
+            "- content: TEXT NOT NULL (摘要文本)",
             "",
-            "Table: dialogs (Private conversation messages)",
+            "表: dialogs (私人对话消息)",
             "- id: INTEGER PRIMARY KEY (auto-increment)",
             "- conv_id: TEXT NOT NULL (conversation ID)",
             "- role: TEXT NOT NULL (role: 'assistant' or 'user')",
@@ -123,20 +123,20 @@ class DatabaseSuperToolRegistry:
             "- processed_content: TEXT (processed content)",
             "- msg_id: INTEGER (Telegram message ID)",
             "",
-            "Table: group_dialogs (Group conversation messages)",
-            "- group_id: INTEGER (group ID)",
-            "- msg_user: INTEGER (message sender user ID)",
-            "- trigger_type: TEXT (trigger type)",
-            "- msg_text: TEXT (message text content)",
-            "- msg_user_name: TEXT (message sender username)",
-            "- msg_id: INTEGER (Telegram message ID)",
-            "- raw_response: TEXT (original AI response)",
-            "- processed_response: TEXT (processed AI response)",
-            "- delete_mark: TEXT (deletion flag)",
-            "- group_name: TEXT (group name)",
-            "- create_at: TEXT (creation time)",
+            "表: group_dialogs (群组对话消息)",
+            "- group_id: INTEGER (群组ID)",
+            "- msg_user: INTEGER (消息发送者用户ID)",
+            "- trigger_type: TEXT (触发类型)",
+            "- msg_text: TEXT (消息文本内容)",
+            "- msg_user_name: TEXT (消息发送者用户名)",
+            "- msg_id: INTEGER (Telegram消息ID)",
+            "- raw_response: TEXT (原始AI响应)",
+            "- processed_response: TEXT (处理后的AI响应)",
+            "- delete_mark: TEXT (删除标记)",
+            "- group_name: TEXT (群组名称)",
+            "- create_at: TEXT (创建时间)",
             "",
-            "Table: group_user_conversations (Group user conversation tracking)",
+            "表: group_user_conversations (群组用户对话跟踪)",
             "- user_id: INTEGER (user ID)",
             "- group_id: INTEGER (group ID)",
             "- user_name: TEXT (username)",
@@ -147,16 +147,16 @@ class DatabaseSuperToolRegistry:
             "- turns: INTEGER (conversation turns)",
             "- group_name: TEXT (group name)",
             "",
-            "Table: group_user_dialogs (Group user conversation messages)",
-            "- id: INTEGER PRIMARY KEY (auto-increment)",
-            "- conv_id: TEXT (conversation ID)",
-            "- role: TEXT (role: 'assistant' or 'user')",
-            "- raw_content: TEXT (original message content)",
-            "- turn_order: INTEGER (turn number)",
-            "- created_at: TEXT (creation time)",
-            "- processed_content: TEXT (processed content)",
+            "表: group_user_dialogs (群组用户对话消息)",
+            "- id: INTEGER PRIMARY KEY (自增)",
+            "- conv_id: TEXT (对话ID)",
+            "- role: TEXT (角色: 'assistant' 或 'user')",
+            "- raw_content: TEXT (原始消息内容)",
+            "- turn_order: INTEGER (轮次)",
+            "- created_at: TEXT (创建时间)",
+            "- processed_content: TEXT (处理后内容)",
             "",
-            "Table: groups (Group configurations)",
+            "表: groups (群组配置)",
             "- group_id: INTEGER (group ID)",
             "- members_list: TEXT (admin list in JSON format)",
             "- call_count: INTEGER (LLM call count)",
@@ -173,80 +173,79 @@ class DatabaseSuperToolRegistry:
             "- disabled_topics: TEXT (disabled topics in JSON format)",
             "- allowed_topics: TEXT (allowed topics in JSON format)",
             "",
-            "Table: user_config (User configurations)",
-            "- uid: INTEGER (user ID)",
-            "- char: TEXT (character configuration)",
-            "- api: TEXT (API configuration)",
-            "- preset: TEXT (preset configuration)",
-            "- conv_id: TEXT (conversation ID)",
-            "- stream: TEXT (streaming mode: 'yes'/'no')",
-            "- nick: TEXT (nickname)",
+            "表: user_config (用户配置)",
+            "- uid: INTEGER (用户ID)",
+            "- char: TEXT (角色配置)",
+            "- api: TEXT (API配置)",
+            "- preset: TEXT (预设配置)",
+            "- conv_id: TEXT (对话ID)",
+            "- stream: TEXT (流式模式: 'yes'/'no')",
+            "- nick: TEXT (昵称)",
             "",
-            "Table: user_sign (User sign-in tracking)",
+            "表: user_sign (用户签到跟踪)",
             "- user_id: INTEGER (user ID)",
             "- last_sign: TEXT (last sign-in time)",
             "- sign_count: INTEGER (total sign-in count)",
             "- frequency: INTEGER (temporary quota)",
             "",
-            "Table: users (User information)",
-            "- uid: INTEGER (user ID)",
-            "- first_name: TEXT (first name)",
-            "- last_name: TEXT (last name)",
-            "- user_name: TEXT (username)",
-            "- create_at: TEXT (creation time)",
-            "- conversations: INTEGER (total conversations)",
-            "- dialog_turns: INTEGER (total dialog turns)",
-            "- update_at: TEXT (last update time)",
-            "- input_tokens: INTEGER (input token count)",
-            "- output_tokens: INTEGER (output token count)",
-            "- account_tier: INTEGER (account tier level)",
-            "- remain_frequency: INTEGER (remaining quota)",
-            "- balance: REAL (account balance)",
+            "表: users (用户信息)",
+            "- uid: INTEGER (用户ID)",
+            "- first_name: TEXT (名字)",
+            "- last_name: TEXT (姓氏)",
+            "- user_name: TEXT (用户名)",
+            "- create_at: TEXT (创建时间)",
+            "- conversations: INTEGER (总对话数)",
+            "- dialog_turns: INTEGER (总对话轮数)",
+            "- update_at: TEXT (最后更新时间)",
+            "- input_tokens: INTEGER (输入令牌数)",
+            "- output_tokens: INTEGER (输出令牌数)",
+            "- account_tier: INTEGER (账户等级)",
+            "- remain_frequency: INTEGER (剩余配额)",
+            "- balance: REAL (账户余额)",
             "",
-            "Table: user_profiles (User profile data generated by AI)",
-            "- user_id: INTEGER NOT NULL (user ID, part of composite primary key)",
-            "- group_id: INTEGER NOT NULL (group ID, part of composite primary key)",
-            "- profile_json: TEXT (JSON string containing the user's profile)",
-            "- last_updated: TEXT (last update timestamp)",
-            "- source_msg_count: INTEGER (number of messages analyzed for the latest update)",
+            "表: user_profiles (由AI生成的用户画像数据)",
+            "- user_id: INTEGER NOT NULL (用户ID, 复合主键的一部分)",
+            "- group_id: INTEGER NOT NULL (群组ID, 复合主键的一部分)",
+            "- profile_json: TEXT (包含用户画像的JSON字符串)",
+            "- last_updated: TEXT (最后更新时间戳)",
+            "- source_msg_count: INTEGER (为最新更新分析的消息数)",
             "",
-            "=== AVAILABLE SUPER TOOLS ===",
+            "=== 可用的超级工具 ===",
         ]
         
         for tool_name, tool_info in DatabaseSuperToolRegistry.TOOLS.items():
-            params_str = "None"
+            params_str = "无"
             if tool_info["parameters"]:
-                params_str = "\n    Parameters:"
+                params_str = "\n    参数:"
                 for param_name, param_info in tool_info["parameters"].items():
                     params_str += f"\n      - {param_name}: {param_info['type']} - {param_info['description']}"
             prompt_lines.append(f"- {tool_name}:")
-            prompt_lines.append(f"  Description: {tool_info['description']}")
+            prompt_lines.append(f"  描述: {tool_info['description']}")
             prompt_lines.append(
-                f"  Type: {tool_info['type'].capitalize()} (indicates if the tool queries data or performs updates)"
+                f"  类型: {tool_info['type'].capitalize()} (指示工具是查询数据还是执行更新)"
             )
             prompt_lines.append(f"  {params_str}")
-            prompt_lines.append(f"  Output Format: {tool_info['output_format']}")
-            prompt_lines.append(f"  Return Value: {tool_info['return_value']}")
+            prompt_lines.append(f"  输出格式: {tool_info['output_format']}")
+            prompt_lines.append(f"  返回值: {tool_info['return_value']}")
             prompt_lines.append(
-                f"  Example Invocation: {json.dumps(tool_info['example'], ensure_ascii=False)}"
+                f"  调用示例: {json.dumps(tool_info['example'], ensure_ascii=False)}"
             )
         
         prompt_lines.extend([
             "",
-            "=== IMPORTANT USAGE GUIDELINES ===",
-            "1. Use parameterized queries with ? placeholders to prevent SQL injection",
-            "2. For params field, provide a JSON array string like '[123, \"value\"]'",
-            "3. Always use LIMIT clauses for large result sets to avoid overwhelming output",
-            "4. Be careful with UPDATE/DELETE operations - they directly modify the database",
-            "5. Time fields are stored as TEXT in various formats, use string comparisons",
-            "6. JSON fields (like keywords, members_list) need to be parsed if you want to filter by content",
-            "7. The 'role' field in dialogs: 'user' = human messages, 'assistant' = AI responses",
-            "8. delete_mark fields: check for 'no' or 0 to get non-deleted records",
-            "9. 工具使用注意事项：关于对话记录的content详情，一次可以限制查询20条左右，如果有必要可以多次调用，防止一次性处理内容过多",
-            "10. 关于用户、群组信息、对话记录的关键字查询，尽量使用模糊匹配（如 LIKE '%keyword%'）",
-            "12. 如果输入中提到了具体的用户，请先在users表单中搜索到用户的具体信息，再执行下一步。优先尝试把所有用户的用户first_name和last_name的拼接起来组合成全名，然后在所有用户的全名中模糊搜索内容，如果失败再尝试搜索用户id(应为纯数字，若输入不是纯数字则无需搜索)和用户名。",
+            "=== 重要使用指南 ===",
+            "1. 使用带 ? 占位符的参数化查询以防止SQL注入。",
+            "2. 对于 params 字段，请提供一个JSON数​​组字符串，例如 '[123, \"value\"]'。",
+            "3. 对于大的结果集，请始终使用LIMIT子句以避免输出过载。",
+            "4. 小心使用UPDATE/DELETE操作 - 它们会直接修改数据库。",
+            "5. 时间字段以各种格式的TEXT形式存储，请使用字符串比较。",
+            "6. 如果要按内容筛选，需要解析JSON字段（如keywords, members_list）。",
+            "7. dialogs中的'role'字段：'user' = 人类消息, 'assistant' = AI响应。",
+            "8. 工具使用注意事项：关于对话记录的content详情，一次可以限制查询20条左右，如果有必要可以多次调用，防止一次性处理内容过多。",
+            "9. 关于用户、群组信息、对话记录的关键字查询，尽量使用模糊匹配（如 LIKE '%keyword%'）。",
+            "10. 如果输入中提到了具体的用户或群组，请先在users表单中搜索到用户的具体信息，再执行下一步。优先尝试把所有用户的用户first_name和last_name的拼接起来组合成全名，然后在所有用户的全名中模糊搜索内容，如果失败再尝试搜索用户id(应为纯数字，若输入不是纯数字则无需搜索)和用户名。",
             "",
-            "Instruction: If the user's request involves multiple steps or dependencies, return a JSON-formatted list of tool calls to be executed in sequence. Use the following format:",
+            "指令：如果用户的请求涉及多个步骤或依赖项，请返回一个JSON格式的工具调用列表，以便按顺序执行。使用以下格式：",
             "```json",
             "{",
             '  "tool_calls": [',
@@ -262,7 +261,7 @@ class DatabaseSuperToolRegistry:
             "}",
             "```",
             "",
-            "Tool invocation results will be fed back to you for analysis or further actions. If no tool is required, respond with plain text."
+            "工具调用结果将反馈给您进行分析或采取进一步行动。如果不需要任何工具，请以纯文本形式回应。"
         ])
         
         return "\n".join(prompt_lines)

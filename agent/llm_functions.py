@@ -320,25 +320,7 @@ async def generate_user_profile(group_id: int) -> str:
                 "已成功生成用户画像。请处理这些信息，将它们更新到 user_profiles 表中。"
                 "对于每个用户，请先查询数据库user_profiles确认是否存在旧画像。如果存在，请结合新旧内容进行增量更新；如果不存在，请直接插入新画像。"
             )
-        
-        # 5. 验证并封装最终返回结果
-        try:
-            # 尝试解析以验证格式
-            json.loads(response_data_str)
-            
-            # 构建给主代理的指令
-            
-            # 封装最终结果
-            final_result = {
-                "data": json.loads(response_data_str), # 返回解析后的对象，让上层处理更方便
-                "instruction": instruction_to_agent
-            }
-            
-            return json.dumps(final_result, ensure_ascii=False, indent=2)
-
-        except json.JSONDecodeError:
-            logger.debug(f"LLM为群组 {group_id} 生成的画像不是有效的JSON格式。返回原始响应。")
-            return json.dumps({
+        return json.dumps({
                 "raw_response": response_data_str,
                 "instruction": instruction_to_agent
             }, ensure_ascii=False, indent=2)
