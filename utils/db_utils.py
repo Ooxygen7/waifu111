@@ -5,7 +5,7 @@ import os
 import sqlite3
 import threading
 from sqlite3 import Error
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple,Union
 
 from utils.config_utils import get_config, project_root
 from utils.logging_utils import setup_logging
@@ -316,6 +316,61 @@ def execute_db_operation(operation_type: str, command: str, params: Tuple = ()):
             if conn:  # 确保临时连接存在才关闭
                 conn.close()
 
+
+def execute_raw_sql(command: str) -> Union[List[Any], int, str]:
+    """
+    直接执行原始SQL命令，不进行参数化。
+    [高风险] 此函数直接执行SQL，可能容易受到SQL注入攻击。只能用于内部、受信任的SQL。
+
+    Args:
+        command: 要执行的原始SQL命令。
+
+    Returns:
+        Union[List[Any], int, str]: 查询返回结果列表，更新返回受影响行数，错误则返回错误信息字符串。
+    """
+    conn, conn_index = db_pool.get_connection()
+    if not conn:
+        error_msg = f"数据库错误: 无法获取连接以执行原始SQL: {command}"
+        print(error_msg)
+        return error_msg
+
+    try:
+        cursor = conn.cursor()
+        # 对于可能返回结果的非SELECT语句（如PRAGMA），使用executescript可能更健壮
+        # 但executescript不支持fetchall，所以我们坚持使用execute
+        cursor.execute(command)
+
+        # 检查是否是查询操作
+        is_query = command.strip().upper().startswith("SELECT")
+        
+        if not is_query:
+            # 对于非查询操作（INSERT, UPDATE, DELETE, etc.）
+            conn.commit()
+            result = cursor.rowcount
+        else:
+            # 对于查询操作
+            result = cursor.fetchall()
+            # 如果是查询但没有返回列（例如，PRAGMA命令），fetchall会返回空列表，
+            # 但我们可能需要一个成功的指示。
+            if not result and cursor.description is None:
+                return "Command executed successfully with no data returned."
+
+        return result
+    except sqlite3.Error as e:
+        error_msg = f"数据库原始SQL操作失败: {command} 错误: {e}"
+        print(error_msg)
+        # 对于失败的事务，尝试回滚
+        try:
+            conn.rollback()
+        except sqlite3.Error as rb_e:
+            print(f"回滚失败: {rb_e}")
+        return error_msg
+    finally:
+        if conn_index >= 0:  # 如果是连接池中的连接，释放它
+            db_pool.release_connection(conn_index)
+        else:  # 如果是临时连接，关闭它
+            if conn:
+                conn.close()
 
 def revise_db(command: str, params: Tuple = ()) -> int:
     """

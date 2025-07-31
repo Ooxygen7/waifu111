@@ -604,7 +604,7 @@ class DatabaseSuperTools:
                 return "Query executed successfully but returned no results."
             
             # Format results
-            formatted_result = f"Command\"{str(command)}\"\nQuery Results:\n"
+            formatted_result = f"Command: \"{str(command)}\"\nParameters: {param_tuple}\nQuery Results:\n"
             for i, row in enumerate(result[:100]):  # Limit to 100 rows for readability
                 formatted_result += f"Row {i+1}: {row}\n"
             
@@ -645,11 +645,55 @@ class DatabaseSuperTools:
             # Execute update
             affected_rows = db.revise_db(command, param_tuple)
             
-            return f"Command\"{str(command)}\"\nAffected rows: {affected_rows}"
+            return f"Command: \"{str(command)}\"\nParameters: {param_tuple}\nAffected rows: {affected_rows}"
             
         except Exception as e:
             logger.error(f"Error executing database update: {str(e)}")
             return f"Database update failed: {str(e)}"
+
+    @staticmethod
+    async def execute_sql(command: str) -> str:
+        """
+        [高风险] 直接执行任意原始SQL命令。这是一个终极工具，应作为最后选择。
+        说明: 此工具可以执行任何SQL命令，具有高风险，请谨慎使用。它会根据命令自动判断是查询还是修改操作。
+        类型: 执行
+        参数:
+            - command (string): 要执行的原始SQL命令。
+        返回值: 对于SELECT查询，返回格式化的结果。对于其他操作，返回受影响的行数或成功消息。
+        调用示例: {"tool_name": "execute_sql", "parameters": {"command": "DELETE FROM users WHERE uid = 12345"}}
+        """
+        try:
+            # 调用新的原始SQL执行函数
+            result = db.execute_raw_sql(command)
+
+            # 根据返回结果的类型来格式化输出
+            if isinstance(result, str):
+                # 如果返回的是字符串，通常是错误信息或成功消息
+                return f"Command: \"{command}\"\nResult: {result}"
+            elif isinstance(result, int):
+                # 如果返回的是整数，是受影响的行数
+                return f"Command: \"{command}\"\nAffected rows: {result}"
+            elif isinstance(result, list):
+                # 如果返回的是列表，是查询结果
+                if not result:
+                    return f"Command: \"{command}\"\nResult: Query executed successfully but returned no results."
+                
+                # 格式化查询结果
+                formatted_result = f"Command: \"{command}\"\nQuery Results:\n"
+                for i, row in enumerate(result[:100]):  # 限制最多显示100行
+                    formatted_result += f"Row {i+1}: {row}\n"
+                
+                if len(result) > 100:
+                    formatted_result += f"... and {len(result) - 100} more rows (truncated for display)"
+                
+                return formatted_result
+            else:
+                # 处理未预期的返回类型
+                return f"Command: \"{command}\"\nUnexpected result type: {type(result).__name__}, value: {result}"
+
+        except Exception as e:
+            logger.error(f"执行原始SQL命令时出错: {str(e)}")
+            return f"原始SQL命令执行失败: {str(e)}"
 
     @staticmethod
     async def analyze_group_user_profiles(group_id: int) -> str:
@@ -680,4 +724,5 @@ DATABASE_SUPER_TOOLS = {
     "query_db": DatabaseSuperTools.query_db,
     "revise_db": DatabaseSuperTools.revise_db,
     "analyze_group_user_profiles": DatabaseSuperTools.analyze_group_user_profiles,
+    "execute_sql": DatabaseSuperTools.execute_sql,
 }

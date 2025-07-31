@@ -26,16 +26,16 @@ class DatabaseSuperToolRegistry:
 
     TOOLS: Dict[str, Dict[str, Any]] = {
         "query_db": {
-            "description": "直接在数据库上执行SQL SELECT查询，并返回格式化的结果。",
+            "description": "在数据库上安全地执行只读的SQL SELECT查询。重要使用须知：1. 这是一个只读工具，不会修改任何数据。2. 为了防止返回过多数据，请始终在查询中使用 'LIMIT' 子句。3. 建议使用带 '?' 的参数化查询以提高安全性。",
             "type": "query",
             "parameters": {
                 "command": {
                     "type": "string",
-                    "description": "要执行的SQL SELECT查询。请使用正确的SQL语法。",
+                    "description": "要执行的SQL SELECT查询，强烈建议包含 'LIMIT' 子句。",
                 },
                 "params": {
                     "type": "string",
-                    "description": "用于查询的参数的JSON字符串（可选）。示例：'[123, \"value\"]' 用于参数化查询。",
+                    "description": "一个JSON格式的数组字符串，其元素将按顺序替换命令中的 '?' 占位符 (可选)。",
                 }
             },
             "output_format": "一个包含逐行数据或错误信息的查询结果字符串。",
@@ -46,16 +46,16 @@ class DatabaseSuperToolRegistry:
             "return_value": "包含格式化行或错误信息的查询结果摘要。",
         },
         "revise_db": {
-            "description": "直接在数据库上执行SQL INSERT、UPDATE或DELETE操作。",
+            "description": "在数据库上安全地执行SQL INSERT、UPDATE或DELETE操作。重要安全须知：1. 必须使用带 '?' 的参数化查询来防止SQL注入。2. 'params' JSON数组中的元素数量和顺序必须与 'command' 中的 '?' 完全匹配。3. 执行UPDATE或DELETE时，强烈建议使用WHERE子句以避免对整个表进行意外操作。4. 在执行修改前，建议先使用 'query_db' 确认目标数据。",
             "type": "update",
             "parameters": {
                 "command": {
                     "type": "string",
-                    "description": "要执行的SQL命令（INSERT、UPDATE、DELETE）。请使用带有 ? 占位符的正确SQL语法。",
+                    "description": "要执行的SQL命令（INSERT、UPDATE、DELETE），必须使用 '?' 作为参数占位符。",
                 },
                 "params": {
                     "type": "string",
-                    "description": "用于命令的参数的JSON字符串（可选）。示例：'[100.0, 123]' 用于参数化查询。",
+                    "description": "数组字符串，其元素将按顺序替换命令中的 '?' 占位符。例如：'[100.0, 123]'。",
                 }
             },
             "output_format": "一个指示受影响行数或错误信息的字符串。",
@@ -74,13 +74,29 @@ class DatabaseSuperToolRegistry:
                     "description": "需要分析的目标群组的ID。",
                 }
             },
-            "output_format": "一个JSON格式的字符串，包含了识别出的活跃用户的画像列表。如果操作失败，将返回一个包含错误信息的JSON字符串。",
+            "output_format": "字符串，包含了识别出的活跃用户的画像列表。",
             "example": {
                 "tool_name": "analyze_group_user_profiles",
                 "parameters": {"group_id": -100123456789}
             },
-            "return_value": "一个包含用户画像对象列表或错误信息的JSON字符串。",
+            "return_value": "一个包含用户画像对象列表或错误信息的字符串。",
         },
+        "execute_sql": {
+            "description": "[高风险] 直接执行任意原始SQL命令，不使用参数化查询。这是一个终极工具，应作为最后选择。除非 'query_db' 和 'revise_db' 无法满足需求，否则不要使用此工具。滥用可能导致数据损坏或丢失。请谨慎编写SQL，确保包含WHERE和LIMIT子句以避免意外操作。",
+            "type": "execution",
+            "parameters": {
+                "command": {
+                    "type": "string",
+                    "description": "要执行的完整、原始的SQL命令。请务必三思而后行。",
+                }
+            },
+            "output_format": "对于SELECT查询，返回格式化的结果。对于其他操作，返回受影响的行数或成功/错误消息。",
+            "example": {
+                "tool_name": "execute_sql",
+                "parameters": {"command": "DELETE FROM users WHERE uid = 12345"}
+            },
+            "return_value": "包含SQL执行结果的字符串。",
+        }
     }
 
     @staticmethod
