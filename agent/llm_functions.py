@@ -315,21 +315,40 @@ async def generate_user_profile(group_id: int) -> str:
         
         logger.info(f"正在为群组 {group_id} 生成用户画像...")
         response_data_str = await client.final_response()
+
+        # 尝试从LLM的响应中提取纯JSON部分
+        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response_data_str)
+        if match:
+            profile_json_str = match.group(1).strip()
+        else:
+            profile_json_str = response_data_str.strip()
+
+        # 验证提取的部分是否为有效JSON
+        try:
+            json.loads(profile_json_str)
+        except json.JSONDecodeError:
+            logger.warning(f"LLM为用户画像返回的不是有效的JSON: {profile_json_str}")
+            # 如果不是有效的JSON，返回一个包含原始响应的错误结构，以便调试
+            return json.dumps({
+                "error": "LLM did not return a valid JSON for user profile.",
+                "raw_response": profile_json_str
+            }, ensure_ascii=False, indent=2)
+
         instruction_to_agent = (
-            "已成功生成用户画像的文本摘要。请解析下面的 `raw_response` 文本，提取每位用户的信息，"
-            "并将这些信息更新到 `user_profiles` 数据库表中。"
+            "已成功生成用户画像的JSON。请解析下面的 `raw_response` 字段（它是一个JSON字符串），"
+            "提取每位用户的信息，并将这些信息更新到 `user_profiles` 数据库表中。"
             "对于每个用户，请先查询数据库确认是否存在旧画像。如果存在，"
             "请结合旧内容和新内容作为参考进行更新；如果不存在，请直接插入新画像。"
-            "更新的内容和从工具中得到的返回一致，不可进行简化。为了防止添加失败，一次调用工具添加2人，不要5人一起添加。"
-            "对于'recent_activities'字段，需要把日期加进去，保留5天的结果。如果超过5天，则去掉最早的结果。"
-            "在调用数据库工具时，每个用户的完整画像信息（包含所有字段）需要作为**字符串**传递给 `profile_json` 参数。允许不使用Json格式，直接传递字符串。"
+            "为了防止单次操作过大，一次调用工具最多处理2-3人的信息。"
+            "对于每个用户的'recent_activities'字段，需要把日期加进去，保留5天的结果。如果超过5天，则去掉最早的结果。"
             f"现在的时间是 {str(datetime.datetime.now())}，请确保使用当前时间戳更新 `last_updated` 字段。"
         )
+        
         return json.dumps({
-            "raw_response": response_data_str,
+            "raw_response": profile_json_str,
             "instruction": instruction_to_agent
         }, ensure_ascii=False, indent=2)
 
     except Exception as e:
         logger.error(f"为群组 {group_id} 生成用户画像时发生错误: {e}", exc_info=True)
-        return json.dumps({"error": f"生成用户画像时发生内部错误: {e}"}, ensure_ascii=False, indent=2)
+        return json.dumps({"error": "An internal error occurred while generating user profiles."}, ensure_ascii=False, indent=2)

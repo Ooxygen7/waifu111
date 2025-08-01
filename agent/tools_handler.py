@@ -209,6 +209,11 @@ class ToolHandler:
             tool_calls = [{"tool_name": response_data["tool_name"], "parameters": response_data.get("parameters", {})}]
 
         if not tool_calls:
+            # 如果在提取JSON后，解析出的数据中没有工具调用，
+            # 那么我们将提取出的JSON内容视为普通文本，并将其附加到剩余文本中。
+            # 这可以处理LLM返回不符合工具调用格式的JSON的情况。
+            if json_content:
+                self.llm_text_output = (self.llm_text_output + "\n" + json_content).strip()
             return self.llm_text_output, [], [], False
 
         self.had_tool_calls = True

@@ -130,6 +130,7 @@ class DatabaseCommand(BaseCommand):
         character_prompt = """你是一个专业的数据库管理助手，可以帮助用户查询和管理数据库。
                         你可以使用提供的工具来执行数据库操作，包括查询用户信息、会话记录、消息历史等。
                         请根据用户的需求，选择合适的工具来完成任务。
+                        关于用户、群组信息、对话记录的关键字查询，尽量使用模糊匹配（如 LIKE '%keyword%'）
                         """
         prompt_text = DatabaseSuperToolRegistry.get_prompt_text()
 
