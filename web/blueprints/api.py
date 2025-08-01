@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime
 from flask import Blueprint, jsonify, request, Response
+from typing import Union
 from utils import db_utils as db
 from agent.llm_functions import generate_summary
 from web.factory import admin_required, viewer_required, get_admin_ids, app_logger
@@ -122,7 +123,7 @@ from flask import session
 
 @api_bp.route("/user/<int:user_id>", methods=["GET", "PUT"])
 @viewer_or_admin_required
-def api_user_detail(user_id) -> Response:
+def api_user_detail(user_id) -> Union[Response, tuple[Response, int]]:
     """获取或更新用户详细信息API"""
     user_role = session.get("user_role")
 
@@ -157,10 +158,12 @@ def api_user_detail(user_id) -> Response:
                 config_columns[i]: user_config_data[0][i]
                 for i in range(len(config_columns))
             }
+        user_profiles = db.user_profile_get(user_id)
         return jsonify({
             "user": user_dict,
             "config": user_config_dict,
             "conversations_count": conversations_count,
+            "profiles": user_profiles,
         })
 
     elif request.method == "PUT":
@@ -503,7 +506,7 @@ def edit_message():
 
 @api_bp.route("/groups/<group_id>", methods=["GET", "PUT"])
 @admin_required
-def api_group_detail(group_id):
+def api_group_detail(group_id) -> Union[Response, tuple[Response, int]]:
     """获取或更新群组详细信息API"""
     try:
         group_id = int(group_id)
@@ -549,4 +552,5 @@ def api_group_detail(group_id):
         except Exception as e:
             app_logger.error(f"更新群组 {group_id} 信息失败: {e}")
             return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"error": "未处理的请求方法"}), 405
 

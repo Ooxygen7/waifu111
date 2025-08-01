@@ -2376,3 +2376,68 @@ The following rule is ineffective and has been removed to avoid confusion.
         filter: none;
     }
 }
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-meta-icons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.meta-icon {
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+}
+
+.meta-icon:hover {
+    color: var(--primary-color);
+}
+.detail-card-full-width {
+    grid-column: 1 / -1;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-card-full-width .card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.profiles-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.profile-item {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.profile-item-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.profile-item-body {
+    padding: 12px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}

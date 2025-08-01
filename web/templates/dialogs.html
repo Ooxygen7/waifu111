@@ -63,6 +63,16 @@
                     <p class="summary-text">{{ conversation.summary }}</p>
                 </div>
                 {% endif %}
+
+                {% if detailed_summary %}
+                <div class="detail-item full-width summary-item">
+                    <span class="detail-label">详细总结:</span>
+                    <p class="summary-text">{{ detailed_summary.summary | replace('\n', '<br>') | safe }}</p>
+                    <div class="summary-footer text-muted" style="font-size: 0.8em; margin-top: 5px;">
+                        生成于: {{ format_datetime(detailed_summary.create_at) }}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

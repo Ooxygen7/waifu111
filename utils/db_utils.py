@@ -152,6 +152,11 @@ class DatabaseConnectionPool:
         """
         根据 max_connections 初始化连接池中的数据库连接。
         """
+        if self.max_connections is None:
+            # 如果 max_connections 未设置，则提供一个默认值或记录错误
+            logger.warning("max_connections 未在连接池初始化前设置，默认为 5")
+            self.max_connections = 5
+
         for _ in range(self.max_connections):
             try:
                 # 添加并发优化参数
@@ -383,7 +388,8 @@ def revise_db(command: str, params: Tuple = ()) -> int:
     Returns:
         int: 受影响的行数
     """
-    return execute_db_operation("update", command, params)
+    from typing import cast
+    return cast(int, execute_db_operation("update", command, params))
 
 
 def query_db(command: str, params: Tuple = ()) -> List[Any]:
@@ -397,7 +403,8 @@ def query_db(command: str, params: Tuple = ()) -> List[Any]:
     Returns:
         List[Any]: 查询结果列表
     """
-    return execute_db_operation("query", command, params)
+    from typing import cast
+    return cast(List[Any], execute_db_operation("query", command, params))
 
 def user_profile_get(userid: int) -> Optional[list]:
     """
@@ -423,6 +430,12 @@ def user_profile_get(userid: int) -> Optional[list]:
     else:
         return None
 
+
+def user_has_profile(user_id: int) -> bool:
+    """检查用户是否存在用户画像。"""
+    command = "SELECT 1 FROM user_profiles WHERE user_id = ? LIMIT 1"
+    result = query_db(command, (user_id,))
+    return bool(result)
 
 
 

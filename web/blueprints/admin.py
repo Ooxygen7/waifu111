@@ -154,7 +154,7 @@ def users():
         query += " WHERE " + " AND ".join(where_clauses)
         count_query += " WHERE " + " AND ".join(where_clauses)
 
-    count_params = params[:]
+    count_params = params[:] if search_term else []
 
     if sort_by and sort_order:
         query += f" ORDER BY {sort_by} {sort_order}"
@@ -185,6 +185,8 @@ def users():
         ]
         for row in users_data:
             user_dict = {columns[i]: row[i] for i in range(len(columns))}
+            # 添加用户画像和总结标记
+            user_dict["has_profile"] = db.user_has_profile(user_dict["uid"])
             users_list.append(user_dict)
 
     def next_sort_order(column):
@@ -295,6 +297,9 @@ def conversations():
         ]
         for row in conversations_data:
             conv_dict = {columns[i]: row[i] for i in range(len(columns))}
+            # 检查是否存在详细总结
+            detailed_summary = db.dialog_summary_get(conv_dict["conv_id"])
+            conv_dict["has_detailed_summary"] = bool(detailed_summary)
             conversations_list.append(conv_dict)
 
     def next_sort_order(column):
@@ -369,6 +374,20 @@ def dialogs(conv_id):
         conv_columns[i]: conversation_data[0][i] for i in range(len(conv_columns))
     }
 
+    # 获取详细总结
+    detailed_summary_data = db.dialog_summary_get(conv_id)
+    detailed_summary_content = ""
+    if detailed_summary_data:
+        # 将所有总结片段拼接起来
+        for summary_part in detailed_summary_data:
+            detailed_summary_content += summary_part.get('content', '') + "\n\n"
+    
+    # 传递给模板的可以是一个简单的字符串，或者一个包含更多信息的字典
+    detailed_summary = {
+        "summary": detailed_summary_content.strip(),
+        "create_at": None  # 暂时设为None，因为表中没有此字段
+    } if detailed_summary_content else None
+
     # 分页和搜索
     page = request.args.get("page", 1, type=int)
     search = request.args.get("search", "", type=str).strip()
@@ -420,6 +439,7 @@ def dialogs(conv_id):
         "dialogs.html",
         conversation=conversation,
         dialogs=dialogs_list,
+        detailed_summary=detailed_summary,
         page=page,
         total_pages=total_pages,
         search=search,
