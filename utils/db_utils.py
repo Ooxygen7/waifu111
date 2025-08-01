@@ -399,6 +399,32 @@ def query_db(command: str, params: Tuple = ()) -> List[Any]:
     """
     return execute_db_operation("query", command, params)
 
+def user_profile_get(userid: int) -> Optional[list]:
+    """
+    获取用户的完整个人资料信息。
+
+    Args:
+        userid: 用户ID
+
+    Returns:
+        Optional[dict]: 包含用户画像的字典，如果未找到则返回None
+    """
+    command = "SELECT * FROM user_profiles WHERE user_id = ?"
+    result = query_db(command, (userid,))
+    
+    if result:
+        profiles = []
+        for i in result:
+            profiles.append({
+                "group_id": i[1],
+                "user_profile": str(i[2]),
+            })
+        return profiles
+    else:
+        return None
+
+
+
 
 def user_config_get(userid: int) -> dict:
     """

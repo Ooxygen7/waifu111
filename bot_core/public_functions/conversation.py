@@ -298,18 +298,34 @@ class GroupConv:
             self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,self.user.user_name)
             self.prompt_obj.build_conv_messages(self.id,"group")
             group_dialog = self.prompt_obj.load_group_dialog(self.group.id)
+            # 获取用户画像
+            user_profiles = db.user_profile_get(self.user.id)
+            logger.debug(f"用户 {self.user.id} 的画像: {user_profiles}")
+            profile_prompt = ""
+            if user_profiles:
+                # 优先选择当前群组的用户画像
+                current_group_profile = next((p['user_profile'] for p in user_profiles if p['group_id'] == self.group.id), None)
+                if current_group_profile:
+                    profile_prompt = f"<用户信息>\r\n这是根据用户在群聊中的发言，为他总结的用户画像，请在回复时参考：\r\n{current_group_profile}\r\n</用户信息>\r\n"
+                else:
+                    # 如果没有当前群组的画像，但有其他群组的，随机选一个
+                    random_profile = random.choice(user_profiles)
+                    profile_prompt = f"<用户信息>\r\n这是根据用户在其他群聊中的发言，为他总结的用户画像，请在回复时参考：\r\n{random_profile['user_profile']}\r\n</用户信息>\r\n"
 
-            if self.images:               
+
+            if self.images:
                 image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
                 self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
                 self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
                                                                                                     f"{group_dialog}\r\n</群聊模式>"})
+                self.prompt_obj.insert_any({"location":"input_mark_end","mode":"after","content":profile_prompt})
                 self.prompt_obj.build_openai_messages()
                 self.client.set_messages(self.prompt_obj.messages)
                 await self.client.embedd_image(self.images,self.context)
             else:
                 self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
                                                                                                     f"{group_dialog}\r\n</群聊模式>"})
+                self.prompt_obj.insert_any({"location":"input_mark_end","mode":"after","content":profile_prompt})
                 self.prompt_obj.build_openai_messages()
                 self.client.set_messages(self.prompt_obj.messages)
 
