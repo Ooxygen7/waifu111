@@ -274,14 +274,14 @@ async def generate_user_profile(group_id: int) -> str:
              如果找不到聊天记录或发生错误，则返回错误信息的字符串。
     """
     try:
-        # 1. 获取最近400条群聊数据
+        # 1. 获取最近800条群聊数据
         command = """
             SELECT msg_text, msg_user_name, processed_response, create_at, msg_user
-            FROM (SELECT msg_text, msg_user_name, processed_response, create_at, msg_user, msg_id 
-                  FROM group_dialogs 
+            FROM (SELECT msg_text, msg_user_name, processed_response, create_at, msg_user, msg_id
+                  FROM group_dialogs
                   WHERE group_id = ? AND msg_user IS NOT NULL
-                  ORDER BY msg_id DESC 
-                  LIMIT 400) sub
+                  ORDER BY msg_id DESC
+                  LIMIT 800) sub
             ORDER BY msg_id ASC
         """
         dialogs_with_user_id = db.query_db(command, (group_id,))
@@ -316,24 +316,6 @@ async def generate_user_profile(group_id: int) -> str:
         logger.info(f"正在为群组 {group_id} 生成用户画像...")
         response_data_str = await client.final_response()
 
-        # 尝试从LLM的响应中提取纯JSON部分
-        match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response_data_str)
-        if match:
-            profile_json_str = match.group(1).strip()
-        else:
-            profile_json_str = response_data_str.strip()
-
-        # 验证提取的部分是否为有效JSON
-        try:
-            json.loads(profile_json_str)
-        except json.JSONDecodeError:
-            logger.warning(f"LLM为用户画像返回的不是有效的JSON: {profile_json_str}")
-            # 如果不是有效的JSON，返回一个包含原始响应的错误结构，以便调试
-            return json.dumps({
-                "error": "LLM did not return a valid JSON for user profile.",
-                "raw_response": profile_json_str
-            }, ensure_ascii=False, indent=2)
-
         instruction_to_agent = (
             "已成功生成用户画像的JSON。请解析下面的 `raw_response` 字段（它是一个JSON字符串），"
             "提取每位用户的信息，并将这些信息更新到 `user_profiles` 数据库表中。"
@@ -345,7 +327,7 @@ async def generate_user_profile(group_id: int) -> str:
         )
         
         return json.dumps({
-            "raw_response": profile_json_str,
+            "raw_response": response_data_str,
             "instruction": instruction_to_agent
         }, ensure_ascii=False, indent=2)
 
