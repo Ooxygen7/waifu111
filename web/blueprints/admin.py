@@ -30,6 +30,13 @@ def on_load(state):
     """在蓝图注册时，将自定义过滤器添加到Jinja2环境中。"""
     state.app.jinja_env.filters['format_tokens_m'] = format_tokens_m
 
+    def highlight_search_keyword(text, keyword):
+        if not keyword:
+            return text
+        return text.replace(keyword, f'<span class="highlight">{keyword}</span>')
+
+    state.app.jinja_env.filters['highlight_search_keyword'] = highlight_search_keyword
+
 @admin_bp.route("/")
 @viewer_or_admin_required
 def index():
@@ -376,17 +383,9 @@ def dialogs(conv_id):
 
     # 获取详细总结
     detailed_summary_data = db.dialog_summary_get(conv_id)
-    detailed_summary_content = ""
-    if detailed_summary_data:
-        # 将所有总结片段拼接起来
-        for summary_part in detailed_summary_data:
-            detailed_summary_content += summary_part.get('content', '') + "\n\n"
     
-    # 传递给模板的可以是一个简单的字符串，或者一个包含更多信息的字典
-    detailed_summary = {
-        "summary": detailed_summary_content.strip(),
-        "create_at": None  # 暂时设为None，因为表中没有此字段
-    } if detailed_summary_content else None
+    # 直接将从数据库获取的总结列表（如果存在）传递给模板
+    detailed_summary = detailed_summary_data if detailed_summary_data else None
 
     # 分页和搜索
     page = request.args.get("page", 1, type=int)
@@ -442,7 +441,7 @@ def dialogs(conv_id):
         detailed_summary=detailed_summary,
         page=page,
         total_pages=total_pages,
-        search=search,
+        search_keyword=search,
         conv_id=conv_id,
         format_datetime=format_datetime,
     )
@@ -499,6 +498,7 @@ def groups():
     count_params = []
     if search_term:
         count_query += " WHERE group_id LIKE ? OR group_name LIKE ? OR members_list LIKE ? OR api LIKE ? OR char LIKE ? OR preset LIKE ?"
+        search_param = f"%{search_term}%"
         count_params.extend(
             [
                 search_param,

@@ -58,18 +58,36 @@
                 <div class="detail-item full-width"><span class="detail-label">更新时间:</span> <span class="text-muted">{{
                         format_datetime(conversation.update_at) }}</span></div>
                 {% if conversation.summary %}
-                <div class="detail-item full-width summary-item">
-                    <span class="detail-label">对话摘要:</span>
-                    <p class="summary-text">{{ conversation.summary }}</p>
+                <div class="detail-item full-width summary-item collapsible-summary">
+                    <div class="summary-header">
+                        <span class="detail-label">对话摘要</span>
+                        <button class="btn btn-glass btn-sm btn-icon toggle-summary-btn" title="折叠/展开">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="summary-content">
+                        <p class="summary-text">{{ conversation.summary }}</p>
+                    </div>
                 </div>
                 {% endif %}
 
                 {% if detailed_summary %}
-                <div class="detail-item full-width summary-item">
-                    <span class="detail-label">详细总结:</span>
-                    <p class="summary-text">{{ detailed_summary.summary | replace('\n', '<br>') | safe }}</p>
-                    <div class="summary-footer text-muted" style="font-size: 0.8em; margin-top: 5px;">
-                        生成于: {{ format_datetime(detailed_summary.create_at) }}
+                <div class="detail-item full-width summary-item collapsible-summary">
+                    <div class="summary-header">
+                        <span class="detail-label">详细总结</span>
+                        <button class="btn btn-glass btn-sm btn-icon toggle-summary-btn" title="折叠/展开">
+                            <i class="fas fa-chevron-up"></i>
+                        </button>
+                    </div>
+                    <div class="summary-content">
+                        {% for summary_part in detailed_summary %}
+                        <div class="summary-block">
+                            <div class="summary-meta">
+                                <span class="badge info">总结轮次: {{ summary_part.summary_area }}</span>
+                            </div>
+                            <p class="summary-text">{{ summary_part.content | replace('\n', '<br>') | safe }}</p>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endif %}
@@ -179,6 +197,29 @@
             {% endif %}
         </div>
     </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination-wrapper">
+        <div class="pagination-info">
+            第 {{ page }} 页 / 共 {{ total_pages }} 页
+        </div>
+        <div class="pagination-controls">
+            {% if page > 1 %}
+            <a href="{{ url_for('admin.dialogs', conv_id=conversation.conv_id, page=1, search=search_keyword) }}" class="btn btn-glass pagination-btn" title="第一页"><i class="fas fa-angle-double-left"></i></a>
+            <a href="{{ url_for('admin.dialogs', conv_id=conversation.conv_id, page=page-1, search=search_keyword) }}" class="btn btn-glass pagination-btn" title="上一页"><i class="fas fa-angle-left"></i></a>
+            {% endif %}
+
+            {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+            <a href="{{ url_for('admin.dialogs', conv_id=conversation.conv_id, page=p, search=search_keyword) }}" class="btn btn-glass pagination-number {{ 'active' if p == page else '' }}">{{ p }}</a>
+            {% endfor %}
+
+            {% if page < total_pages %}
+            <a href="{{ url_for('admin.dialogs', conv_id=conversation.conv_id, page=page+1, search=search_keyword) }}" class="btn btn-glass pagination-btn" title="下一页"><i class="fas fa-angle-right"></i></a>
+            <a href="{{ url_for('admin.dialogs', conv_id=conversation.conv_id, page=total_pages, search=search_keyword) }}" class="btn btn-glass pagination-btn" title="最后一页"><i class="fas fa-angle-double-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 </div>
 

@@ -318,3 +318,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 });
+    // --- 对话详情页摘要折叠功能 ---
+    const summaryToggleButtons = document.querySelectorAll('.toggle-summary-btn');
+    summaryToggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const summaryContainer = this.closest('.collapsible-summary');
+            if (summaryContainer) {
+                summaryContainer.classList.toggle('collapsed');
+            }
+        });
+    });
