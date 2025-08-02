@@ -131,3 +131,22 @@ def extract_special_control(input_text: str):
     cleaned_input = re.sub(pattern, '', input_text, count=1)  # count=1 表示只替换第一个匹配
     #print(f"extract_special_control: input_text={input_text}, special_str={special_str}, cleaned_input={cleaned_input}") #添加
     return [cleaned_input, special_str]
+
+def contains_nsfw(text: str) -> bool:
+    """
+    检查文本中是否包含NSFW关键词。
+    Args:
+        text: 要检查的文本。
+    Returns:
+        bool: 如果包含NSFW关键词则返回 True，否则返回 False。
+    """
+    nsfw_keywords = [
+        "做爱", "自慰", "口交", "肛交","肛塞","震动棒","小穴","爱液",
+        "肉穴", "肉棒", "乳房", "射精", "强奸", "乱伦", "兽交","阴道","淫荡","抽插","侵犯","后穴","肉壁"
+        "乳房", "淫乳",
+    ]
+    text_lower = text.lower()
+    for keyword in nsfw_keywords:
+        if keyword in text_lower:
+            return True
+    return False

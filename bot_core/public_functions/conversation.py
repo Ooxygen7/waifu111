@@ -17,6 +17,7 @@ from utils import text_utils as txt
 from utils.config_utils import get_api_multiple
 from utils.db_utils import dialog_summary_add
 from utils.LLM_utils import LLM, PromptsBuilder
+from utils.text_utils import contains_nsfw
 from utils.logging_utils import setup_logging
 import bot_core.public_functions.frequency_manager as fm
 setup_logging()
@@ -570,6 +571,8 @@ class PrivateConv:
                 await asyncio.sleep(0.01)
             self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
             await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary)
+            if contains_nsfw(self.output.text_processed) and self.config.preset == 'Default_meeting':
+                await send_message(self.context, self.user.id, "检测到您正在使用默认配置，使用 `/preset` 切换nsfw配置可获得更好的nsfw内容质量")
             if save:
                 await self._save()
         except Exception as e:
