@@ -43,22 +43,40 @@ class SetCharCallback(BaseCallback):
         try:
             character = data
             info = public.update_info_get(update)
-            
+            if not info:
+                return
+            query = update.callback_query
+            if not query or not query.message:
+                return
+
             if db.user_config_arg_update(info['user_id'], 'char', character):
-                conversation = PrivateConv(update, context)
-                conversation.new()
-                await update.callback_query.message.edit_text(
-                    f"角色切换成功！会话已重开！当前角色: {character.split('_')[0]}。")
-                # 加载角色文件并发送问候语
-                from utils import file_utils  # 确保导入
-                # 构建角色文件名，通常角色参数可能包含 user_id 后缀，需要正确处理
-                # 假设 character 参数的格式是 'charname_userid' 或 'charname'
+                import random
+                while True:
+                    new_conv_id = random.randint(10000000, 99999999)
+                    if db.conversation_private_check(new_conv_id):
+                        break
+                
+                preset = info.get('preset')
+                user_id = info.get('user_id')
+
+                if not preset or not user_id:
+                    await query.message.edit_text("无法获取用户配置，创建新对话失败。")
+                    return
+
+                if db.conversation_private_create(new_conv_id, user_id, character, preset):
+                    db.user_config_arg_update(user_id, "conv_id", new_conv_id)
+                    await query.message.edit_text(
+                        f"角色切换成功！会话已重开！当前角色: {character.split('_')[0]}。")
+                else:
+                    await query.message.edit_text("创建新对话失败，请联系管理员。")
+                    return
+                
+                from utils import file_utils
                 char_file_name_parts = character.split('_')
-                actual_char_name = char_file_name_parts[0]  # 取角色基本名
-                # 尝试几种常见的文件名格式
+                actual_char_name = char_file_name_parts[0]
                 possible_filenames = [
-                    f"{character}.json",  # 完整名.json (e.g., charname_123.json)
-                    f"{actual_char_name}.json"  # 基本名.json (e.g., charname.json)
+                    f"{character}.json",
+                    f"{actual_char_name}.json"
                 ]
                 char_data = None
                 for fname in possible_filenames:
@@ -68,11 +86,12 @@ class SetCharCallback(BaseCallback):
 
                 if char_data and 'meeting' in char_data:
                     meeting_message = char_data['meeting']
-                    # 使用 query.message.reply_text 发送新消息，而不是 edit_text 修改回调按钮下的消息
-                    await update.callback_query.message.reply_text(meeting_message)
-                    info = public.update_info_get(update)
-                    db.dialog_content_add(info['conv_id'], 'assistant', 1, meeting_message,
-                                          meeting_message, 0, 'private')
+                    await query.message.reply_text(meeting_message)
+                    # 重新获取info以确保conv_id是新的
+                    updated_info = public.update_info_get(update)
+                    if updated_info and updated_info.get('conv_id'):
+                        db.dialog_content_add(updated_info['conv_id'], 'assistant', 1, meeting_message,
+                                              meeting_message, query.message.message_id, 'private')
                 elif char_data is None:
                     logger.warning(f"未能加载角色 {character} 的数据文件。")
         except Exception as e:
@@ -94,9 +113,16 @@ class DelCharCallback(BaseCallback):
         import random
         character = data
         info = public.update_info_get(update)
+        if not info:
+            return
+        query = update.callback_query
+        if not query or not query.message:
+            return
+
         db.user_config_arg_update(info['user_id'], 'char', default_char)
-        db.conversation_private_arg_update(info['conv_id'], 'character', default_char)
-        # 处理角色文件重命名逻辑
+        if info.get('conv_id'):
+            db.conversation_private_arg_update(info['conv_id'], 'character', default_char)
+        
         char_dir = './characters/'
         json_path = os.path.join(char_dir, f'{character}.json')
         txt_path = os.path.join(char_dir, f'{character}.txt')
@@ -107,7 +133,7 @@ class DelCharCallback(BaseCallback):
         elif os.path.exists(txt_path):
             del_path = os.path.join(char_dir, f'{character}_{delmark}_del.txt')
             os.rename(txt_path, del_path)
-        await update.callback_query.message.edit_text(
+        await query.message.edit_text(
             f"角色`{character.split('_')[0]}`删除成功！已为您切换默认角色`cuicuishark` 。")
 
 
@@ -124,11 +150,22 @@ class SetApiCallback(BaseCallback):
         处理API设置回调。
         """
         try:
+            query = update.callback_query
+            if not query or not query.message:
+                return
             info = public.update_info_get(update)
+            if not info or not info.get('user_id'):
+                await query.message.edit_text("无法获取用户信息。")
+                return
+
             if db.user_config_arg_update(info['user_id'], 'api', data):
-                await update.callback_query.message.edit_text(f"api切换成功！当前api: {data}。")
+                await query.message.edit_text(f"api切换成功！当前api: {data}。")
+            else:
+                await query.message.edit_text("API切换失败。")
         except Exception as e:
             logger.error(f"设置api失败, 错误: {str(e)}")
+            if update.callback_query and update.callback_query.message:
+                await update.callback_query.message.edit_text("设置API时发生错误。")
 
 
 class SetGroupApiCallback(BaseCallback):
@@ -144,27 +181,32 @@ class SetGroupApiCallback(BaseCallback):
         处理群组API设置回调。
         """
         try:
+            query = update.callback_query
+            if not query or not query.message:
+                return
+
             # 解析回调数据：set_group_api_{api_name}_{group_id}
             parts = data.split('_')
             if len(parts) < 2:
-                await update.callback_query.message.edit_text("回调数据格式错误。")
+                await query.message.edit_text("回调数据格式错误。")
                 return
             
             api_name = parts[0]
             group_id = parts[1] if len(parts) > 1 else None
             
             if not group_id:
-                await update.callback_query.message.edit_text("群组ID缺失。")
+                await query.message.edit_text("群组ID缺失。")
                 return
             
             # 更新群组配置
             if db.group_config_arg_update(int(group_id), 'api', api_name):
-                await update.callback_query.message.edit_text(f"群组API切换成功！当前API: {api_name}。")
+                await query.message.edit_text(f"群组API切换成功！当前API: {api_name}。")
             else:
-                await update.callback_query.message.edit_text("API切换失败，请稍后重试。")
+                await query.message.edit_text("API切换失败，请稍后重试。")
         except Exception as e:
             logger.error(f"设置群组API失败, 错误: {str(e)}")
-            await update.callback_query.message.edit_text("设置失败，请稍后重试。")
+            if update.callback_query and update.callback_query.message:
+                await update.callback_query.message.edit_text("设置失败，请稍后重试。")
 
 
 class SetPresetCallback(BaseCallback):
@@ -180,11 +222,27 @@ class SetPresetCallback(BaseCallback):
         处理预设设置回调。
         """
         try:
+            query = update.callback_query
+            if not query or not query.message:
+                return
             info = public.update_info_get(update)
-            if db.user_config_arg_update(info['user_id'], 'preset', data) and db.conversation_private_arg_update(info.get('conv_id'),'preset',data):
-                await update.callback_query.message.edit_text(f"预设切换成功！当前预设: {data}。")
+            if not info or not info.get('user_id'):
+                await query.message.edit_text("无法获取用户信息。")
+                return
+            
+            conv_id = info.get('conv_id')
+            if not conv_id:
+                await query.message.edit_text("无法找到当前会话。")
+                return
+
+            if db.user_config_arg_update(info['user_id'], 'preset', data) and db.conversation_private_arg_update(conv_id, 'preset', data):
+                await query.message.edit_text(f"预设切换成功！当前预设: {data}。")
+            else:
+                await query.message.edit_text("预设切换失败。")
         except Exception as e:
             logger.error(f"设置预设失败, 错误: {str(e)}")
+            if update.callback_query and update.callback_query.message:
+                await update.callback_query.message.edit_text("设置预设时发生错误。")
 
 
 class SetConversationCallback(BaseCallback):
@@ -200,14 +258,33 @@ class SetConversationCallback(BaseCallback):
         处理对话加载回调。
         """
         try:
+            query = update.callback_query
+            if not query or not query.message:
+                return
             info = public.update_info_get(update)
-            if db.user_config_arg_update(info['user_id'], 'conv_id', data):
-                char, preset = db.conversation_private_get(int(data))
-                if db.user_config_arg_update(info['user_id'], 'preset', preset) and db.user_config_arg_update(
-                        info['user_id'], 'char', char):
-                    await update.callback_query.message.edit_text(f"加载对话成功！当前对话: {data}。")
+            if not info or not info.get('user_id'):
+                await query.message.edit_text("无法获取用户信息。")
+                return
+            
+            user_id = info['user_id']
+            conv_id = int(data)
+
+            if db.user_config_arg_update(user_id, 'conv_id', conv_id):
+                conv_data = db.conversation_private_get(conv_id)
+                if conv_data:
+                    char, preset = conv_data
+                    if db.user_config_arg_update(user_id, 'preset', preset) and db.user_config_arg_update(user_id, 'char', char):
+                        await query.message.edit_text(f"加载对话成功！当前对话ID: {conv_id}。")
+                    else:
+                        await query.message.edit_text("更新用户配置失败。")
+                else:
+                    await query.message.edit_text("找不到对应的对话记录。")
+            else:
+                await query.message.edit_text("设置当前对话失败。")
         except Exception as e:
             logger.error(f"设置对话失败, 错误: {str(e)}")
+            if update.callback_query and update.callback_query.message:
+                await update.callback_query.message.edit_text("加载对话时发生错误。")
 
 
 class DelConversationCallback(BaseCallback):
@@ -222,8 +299,22 @@ class DelConversationCallback(BaseCallback):
         """
         处理对话删除回调。
         """
-        db.conversation_private_delete(int(data))
-        await update.callback_query.message.edit_text(f"删除对话成功！删除了对话: {data}。")
+        query = update.callback_query
+        if not query or not query.message:
+            return
+
+        try:
+            conv_id = int(data)
+            if db.conversation_private_delete(conv_id):
+                await query.message.edit_text(f"删除对话成功！已删除对话: {conv_id}。")
+            else:
+                await query.message.edit_text("删除对话失败，可能对话不存在。")
+        except (ValueError, TypeError) as e:
+            logger.error(f"删除对话失败，无效数据: {data}, 错误: {str(e)}")
+            await query.message.edit_text("删除对话失败，数据格式错误。")
+        except Exception as e:
+            logger.error(f"删除对话时发生未知错误, 错误: {str(e)}")
+            await query.message.edit_text("删除对话时发生未知错误。")
 
 
 class DialogShowCallback(BaseCallback):
@@ -238,23 +329,25 @@ class DialogShowCallback(BaseCallback):
         """
         处理对话详情显示回调，显示summary并提供加载和删除按钮。
         """
+        query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+        assert query.from_user is not None
+
         try:
             conv_id = int(data)
-            # 获取对话详情
             conv_info = db.conversation_private_get(conv_id)
             if not conv_info:
-                await update.callback_query.message.edit_text("对话不存在或已被删除。")
+                await query.message.edit_text("对话不存在或已被删除。")
                 return
             
-            # 获取对话的summary
-            conv_list = db.user_conversations_get_for_dialog(update.callback_query.from_user.id)
+            conv_list = db.user_conversations_get_for_dialog(query.from_user.id)
             summary = "暂无摘要"
             for conv in conv_list or []:
                 if conv[0] == conv_id:
                     summary = conv[4] if conv[4] else "暂无摘要"
                     break
             
-            # 创建加载和删除按钮
             keyboard = [
                 [InlineKeyboardButton("加载对话", callback_data=f"dialog_load_{conv_id}")],
                 [InlineKeyboardButton("删除对话", callback_data=f"dialog_delete_{conv_id}")],
@@ -262,14 +355,13 @@ class DialogShowCallback(BaseCallback):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            # 编辑消息显示summary
-            await update.callback_query.message.edit_text(
+            await query.message.edit_text(
                 f"对话摘要：\n{summary}",
                 reply_markup=reply_markup
             )
         except Exception as e:
             logger.error(f"显示对话详情失败, 错误: {str(e)}")
-            await update.callback_query.message.edit_text("获取对话详情失败，请稍后重试。")
+            await query.message.edit_text("获取对话详情失败，请稍后重试。")
 
 
 class DialogLoadCallback(BaseCallback):
@@ -284,29 +376,33 @@ class DialogLoadCallback(BaseCallback):
         """
         处理对话加载回调。
         """
+        query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+        
         try:
             conv_id = int(data)
             info = public.update_info_get(update)
-            
-            # 获取对话信息
+            assert info is not None
+
             conv_info = db.conversation_private_get(conv_id)
             if not conv_info:
-                await update.callback_query.message.edit_text("对话不存在或已被删除。")
+                await query.message.edit_text("对话不存在或已被删除。")
                 return
             
             character, preset = conv_info
+            user_id = info['user_id']
             
-            # 更新用户配置
-            db.user_config_arg_update(info['user_id'], 'conv_id', conv_id)
-            db.user_config_arg_update(info['user_id'], 'char', character)
-            db.user_config_arg_update(info['user_id'], 'preset', preset)
+            db.user_config_arg_update(user_id, 'conv_id', conv_id)
+            db.user_config_arg_update(user_id, 'char', character)
+            db.user_config_arg_update(user_id, 'preset', preset)
             
-            await update.callback_query.message.edit_text(
+            await query.message.edit_text(
                 f"对话加载成功！\n角色: {character.split('_')[0]}\n预设: {preset}"
             )
         except Exception as e:
             logger.error(f"加载对话失败, 错误: {str(e)}")
-            await update.callback_query.message.edit_text("加载对话失败，请稍后重试。")
+            await query.message.edit_text("加载对话失败，请稍后重试。")
 
 
 class DialogDeleteCallback(BaseCallback):
@@ -321,15 +417,19 @@ class DialogDeleteCallback(BaseCallback):
         """
         处理对话删除回调。
         """
+        query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         try:
             conv_id = int(data)
             if db.conversation_private_delete(conv_id):
-                await update.callback_query.message.edit_text("对话删除成功！")
+                await query.message.edit_text("对话删除成功！")
             else:
-                await update.callback_query.message.edit_text("对话删除失败，请稍后重试。")
+                await query.message.edit_text("对话删除失败，请稍后重试。")
         except Exception as e:
             logger.error(f"删除对话失败, 错误: {str(e)}")
-            await update.callback_query.message.edit_text("删除对话失败，请稍后重试。")
+            await query.message.edit_text("删除对话失败，请稍后重试。")
 
 
 class DialogBackCallback(BaseCallback):
@@ -340,25 +440,30 @@ class DialogBackCallback(BaseCallback):
         enabled=True
     )
 
-    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = None) -> None:
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = "") -> None:
         """
         处理返回对话列表回调。
         """
+        query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         try:
             from .inline import Inline
             info = public.update_info_get(update)
+            assert info is not None
             markup = Inline.print_dialog_conversations(info['user_id'])
             
             if markup == "没有可用的对话。":
-                await update.callback_query.message.edit_text(markup)
+                await query.message.edit_text(markup)
             else:
-                await update.callback_query.message.edit_text(
+                await query.message.edit_text(
                     "请选择一个对话：",
                     reply_markup=markup
                 )
         except Exception as e:
             logger.error(f"返回对话列表失败, 错误: {str(e)}")
-            await update.callback_query.message.edit_text("返回列表失败，请稍后重试。")
+            await query.message.edit_text("返回列表失败，请稍后重试。")
 
 
 class GroupCharCallback(BaseCallback):
@@ -374,14 +479,19 @@ class GroupCharCallback(BaseCallback):
         """
         处理群组角色设置回调。
         """
+        query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         try:
             parts = data.split('_')
             char = f"{parts[0]}_{parts[1]}"
             group_id = int(parts[2])
             db.group_info_update(group_id, 'char', char)
-            await update.callback_query.message.edit_text(f"切换角色成功！当前角色: {char.split('_')[0]}。")
+            await query.message.edit_text(f"切换角色成功！当前角色: {char.split('_')[0]}。")
         except Exception as e:
             logger.error(f"设置群组角色失败, 错误: {str(e)}")
+            await query.message.edit_text("设置群组角色失败。")
 
 
 class GroupKeywordCancelCallback(BaseCallback):
@@ -393,13 +503,15 @@ class GroupKeywordCancelCallback(BaseCallback):
         group_admin_required=True
     )
 
-    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data=None) -> None:
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = "") -> None:
         """
         处理关键词取消回调
         """
         query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+        
         await query.answer()
-        # group_id = int(query.data.split('_')[-1])
         original_message_id = context.user_data.get('original_message_id')
         if original_message_id:
             try:
@@ -409,7 +521,7 @@ class GroupKeywordCancelCallback(BaseCallback):
                     reply_markup=None
                 )
             except Exception as e:
-                print(f"清除按钮失败: {e}")
+                logger.warning(f"清除按钮失败: {e}")
         context.user_data.clear()
         await query.message.edit_text("操作已取消，关键词列表未修改。")
 
@@ -428,6 +540,9 @@ class GroupKeywordAddCallback(BaseCallback):
         处理关键词添加回调
         """
         query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         await query.answer()
         group_id = int(data)
         keyboard = [[InlineKeyboardButton("取消", callback_data=f"group_kw_cancel_{group_id}")]]
@@ -452,6 +567,9 @@ class GroupKeywordDeleteCallback(BaseCallback):
         处理关键词删除回调
         """
         query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         await query.answer()
         group_id = int(data)
         keywords = db.group_keyword_get(group_id)
@@ -492,6 +610,9 @@ class GroupKeywordSelectCallback(BaseCallback):
         处理关键词选择回调
         """
         query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         await query.answer()
         parts = data.rsplit('_', 1)
         keyword = parts[0]
@@ -523,8 +644,7 @@ class GroupKeywordSelectCallback(BaseCallback):
                 InlineKeyboardButton("取消", callback_data=f"group_kw_cancel_{group_id}")
             ])
         reply_markup = InlineKeyboardMarkup(keyboard)
-        selected_text = ", ".join([f"`{kw}`" for kw in context.user_data['to_delete']]) if context.user_data[
-            'to_delete'] else "无"
+        selected_text = ", ".join([f"`{kw}`" for kw in context.user_data['to_delete']]) if context.user_data.get('to_delete') else "无"
         await query.message.edit_text(f"已选择删除的关键词：{selected_text}\r\n请选择更多要删除的关键词：",
                                       reply_markup=reply_markup, parse_mode='Markdown')
 
@@ -543,13 +663,17 @@ class GroupKeywordSubmitDeleteCallback(BaseCallback):
         处理关键词提交删除回调
         """
         query = update.callback_query
+        assert query is not None
+        assert query.message is not None
+
         await query.answer()
         group_id = int(data)
-        if 'to_delete' in context.user_data and context.user_data.get('keyword_action') == 'delete':
+        to_delete_list = context.user_data.get('to_delete', [])
+        if to_delete_list and context.user_data.get('keyword_action') == 'delete':
             keywords = db.group_keyword_get(group_id)
-            new_keywords = [kw for kw in keywords if kw not in context.user_data['to_delete']]
+            new_keywords = [kw for kw in keywords if kw not in to_delete_list]
             db.group_keyword_set(group_id, new_keywords)
-            await query.message.edit_text(f"已成功删除关键词：{', '.join(context.user_data['to_delete'])}")
+            await query.message.edit_text(f"已成功删除关键词：{', '.join(to_delete_list)}")
         else:
             await query.message.edit_text("删除操作未完成或已取消。")
         context.user_data.clear()
@@ -563,134 +687,133 @@ class SettingsCallback(BaseCallback):
         enabled=True
     )
 
-    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = None) -> None:
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str = "") -> None:
         """
         处理设置菜单回调。
         """
         query = update.callback_query
+        assert query is not None
+        assert query.message is not None
 
         await query.answer()
-        if data is None or data == 'main':
-            # 主菜单
-            keyboard = [
-                [InlineKeyboardButton("对话管理", callback_data="settings_dialogue_main")],
-                [InlineKeyboardButton("角色管理", callback_data="settings_character_main")],
-                [InlineKeyboardButton("预设设置", callback_data="settings_preset_main")],
-                [InlineKeyboardButton("状态查询", callback_data="settings_status_main")],
-                [InlineKeyboardButton("我的信息", callback_data="settings_myinfo_main")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("请选择要管理的选项：", reply_markup=reply_markup)
-        elif data == 'dialogue_main':
-            # 对话管理子菜单
-            keyboard = [
-                [InlineKeyboardButton("创建新对话", callback_data="settings_dialogue_new")],
-                [InlineKeyboardButton("加载对话", callback_data="settings_dialogue_load")],
-                [InlineKeyboardButton("删除对话", callback_data="settings_dialogue_delete")],
-                [InlineKeyboardButton("返回主菜单", callback_data="settings_main")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("请选择对话管理操作：", reply_markup=reply_markup)
+        
+        # 确保data不为None
+        data = data or 'main'
 
-        elif data == 'character_main':
-            # 角色管理子菜单
-            keyboard = [
-                [InlineKeyboardButton("选择角色", callback_data="settings_character_select")],
-                [InlineKeyboardButton("创建角色", callback_data="settings_character_new")],
-                [InlineKeyboardButton("删除角色", callback_data="settings_character_delete")],
-                [InlineKeyboardButton("返回主菜单", callback_data="settings_main")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("请选择角色管理操作：", reply_markup=reply_markup)
-        elif data == 'preset_main':
-            # 预设设置子菜单
-            keyboard = [
-                [InlineKeyboardButton("选择预设", callback_data="settings_preset_select")],
-                [InlineKeyboardButton("返回主菜单", callback_data="settings_main")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("请选择预设设置操作：", reply_markup=reply_markup)
-        elif data == 'status_main':
-            # 状态查询
-            info = public.update_info_get(update)
-            result = f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
-            keyboard = [[InlineKeyboardButton("返回主菜单", callback_data="settings_main")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(f"当前状态：\n{result}", reply_markup=reply_markup, parse_mode='Markdown')
-        elif data == 'myinfo_main':
-            # 我的信息
-            info = public.update_info_get(update)
-            result = (
-                f"您好，{info['first_name']} {info['last_name']}！\r\n"
-                f"您的帐户等级是：`{info['tier']}`；\r\n"
-                f"您剩余额度还有`{info['remain']}`条；\r\n"
-                f"您的余额是`{info['balance']}`。\r\n"
-                f"您的聊天昵称是`{info['user_nick']}`。"
-            )
-            keyboard = [[InlineKeyboardButton("返回主菜单", callback_data="settings_main")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(f"您的信息：\n{result}", reply_markup=reply_markup, parse_mode='Markdown')
-        elif data == 'dialogue_new':
-            info = public.update_info_get(update)
-            conversation = PrivateConv(update, context)
-            conversation.new()
-            preset_markup = Inline.print_preset_list()
-            char_markup = Inline.print_char_list('load', 'private', info['user_id'])
+        info = public.update_info_get(update)
+        # 某些操作不需要info，所以只在使用前检查
+        
+        try:
+            if data == 'main':
+                keyboard = [
+                    [InlineKeyboardButton("对话管理", callback_data="settings_dialogue_main")],
+                    [InlineKeyboardButton("角色管理", callback_data="settings_character_main")],
+                    [InlineKeyboardButton("预设设置", callback_data="settings_preset_main")],
+                    [InlineKeyboardButton("状态查询", callback_data="settings_status_main")],
+                    [InlineKeyboardButton("我的信息", callback_data="settings_myinfo_main")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text("请选择要管理的选项：", reply_markup=reply_markup)
+            
+            elif data == 'dialogue_main':
+                keyboard = [
+                    [InlineKeyboardButton("创建新对话", callback_data="settings_dialogue_new")],
+                    [InlineKeyboardButton("加载对话", callback_data="settings_dialogue_load")],
+                    [InlineKeyboardButton("删除对话", callback_data="settings_dialogue_delete")],
+                    [InlineKeyboardButton("返回主菜单", callback_data="settings_main")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text("请选择对话管理操作：", reply_markup=reply_markup)
 
-            if preset_markup == "没有可用的预设。":
-                await query.edit_message_text(preset_markup)
+            elif data == 'character_main':
+                keyboard = [
+                    [InlineKeyboardButton("选择角色", callback_data="settings_character_select")],
+                    [InlineKeyboardButton("创建角色", callback_data="settings_character_new")],
+                    [InlineKeyboardButton("删除角色", callback_data="settings_character_delete")],
+                    [InlineKeyboardButton("返回主菜单", callback_data="settings_main")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text("请选择角色管理操作：", reply_markup=reply_markup)
+
+            elif data == 'preset_main':
+                keyboard = [
+                    [InlineKeyboardButton("选择预设", callback_data="settings_preset_select")],
+                    [InlineKeyboardButton("返回主菜单", callback_data="settings_main")]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text("请选择预设设置操作：", reply_markup=reply_markup)
+
+            elif data in ['status_main', 'myinfo_main', 'dialogue_new', 'dialogue_load', 'dialogue_delete', 'character_select', 'character_new', 'character_delete']:
+                assert info is not None, "此操作需要用户信息。"
+                user_id = info['user_id']
+
+                if data == 'status_main':
+                    result = f"当前角色：`{info.get('char', 'N/A')}`\r\n当前接口：`{info.get('api', 'N/A')}`\r\n当前预设：`{info.get('preset', 'N/A')}`\r\n流式传输：`{info.get('stream', 'N/A')}`\r\n"
+                    keyboard = [[InlineKeyboardButton("返回主菜单", callback_data="settings_main")]]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await query.edit_message_text(f"当前状态：\n{result}", reply_markup=reply_markup, parse_mode='Markdown')
+                
+                elif data == 'myinfo_main':
+                    result = (
+                        f"您好，{info.get('first_name', '')} {info.get('last_name', '')}！\r\n"
+                        f"您的帐户等级是：`{info.get('tier', 'N/A')}`；\r\n"
+                        f"您剩余额度还有`{info.get('remain', 'N/A')}`条；\r\n"
+                        f"您的余额是`{info.get('balance', 'N/A')}`。\r\n"
+                        f"您的聊天昵称是`{info.get('user_nick', 'N/A')}`。"
+                    )
+                    keyboard = [[InlineKeyboardButton("返回主菜单", callback_data="settings_main")]]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await query.edit_message_text(f"您的信息：\n{result}", reply_markup=reply_markup, parse_mode='Markdown')
+
+                elif data == 'dialogue_new':
+                    import random
+                    while True:
+                        new_conv_id = random.randint(10000000, 99999999)
+                        if db.conversation_private_check(new_conv_id):
+                            break
+                    
+                    character = info.get('char')
+                    preset = info.get('preset')
+
+                    if not character or not preset:
+                        await query.edit_message_text("无法获取角色或预设，创建新对话失败。")
+                        return
+
+                    if db.conversation_private_create(new_conv_id, user_id, character, preset):
+                        db.user_config_arg_update(user_id, "conv_id", new_conv_id)
+                        await query.edit_message_text("创建成功！")
+                    else:
+                        await query.edit_message_text("创建新对话失败，请联系管理员。")
+                
+                elif data == 'dialogue_load':
+                    markup = Inline.print_conversations(user_id)
+                    await query.edit_message_text("请选择一个对话：", reply_markup=markup) if not isinstance(markup, str) else await query.edit_message_text(markup)
+
+                elif data == 'dialogue_delete':
+                    markup = Inline.print_conversations(user_id, 'delete')
+                    await query.edit_message_text("请选择一个要删除的对话：", reply_markup=markup) if not isinstance(markup, str) else await query.edit_message_text(markup)
+
+                elif data == 'character_select':
+                    markup = Inline.print_char_list('load', 'private', user_id)
+                    await query.edit_message_text("请选择一个角色：", reply_markup=markup) if not isinstance(markup, str) else await query.edit_message_text(markup)
+
+                elif data == 'character_new':
+                    await bot_core.public_functions.messages.send_message(context, user_id, "请使用 /newchar char_name 的格式创建角色")
+
+                elif data == 'character_delete':
+                    markup = Inline.print_char_list('del', 'private', user_id)
+                    await query.edit_message_text("请选择一个要删除的角色：", reply_markup=markup) if not isinstance(markup, str) else await query.edit_message_text(markup)
+
+            elif data == 'preset_select':
+                markup = Inline.print_preset_list()
+                await query.edit_message_text("请选择一个预设：", reply_markup=markup) if not isinstance(markup, str) else await query.edit_message_text(markup)
+
             else:
-                await query.edit_message_text("请为新对话选择一个预设：", reply_markup=preset_markup)
-
-            if char_markup == "没有可操作的角色。":
-                await query.message.reply_text(char_markup)
-            else:
-                await query.message.reply_text("请为新对话选择一个角色：", reply_markup=char_markup)
-
-        elif data == 'dialogue_load':
-            info = public.update_info_get(update)
-            markup = Inline.print_conversations(info['user_id'])
-            if markup == "没有可用的对话。":
-                await query.edit_message_text(markup)
-            else:
-                await query.edit_message_text("请选择一个对话：", reply_markup=markup)
-
-        elif data == 'dialogue_delete':
-            info = public.update_info_get(update)
-            markup = Inline.print_conversations(info['user_id'], 'delete')
-            if markup == "没有可用的对话。":
-                await query.edit_message_text(markup)
-            else:
-                await query.edit_message_text("请选择一个要删除的对话：", reply_markup=markup)
-
-        elif data == 'character_select':
-            info = public.update_info_get(update)
-            markup = Inline.print_char_list('load', 'private', info['user_id'])
-            if markup == "没有可操作的角色。":
-                await query.edit_message_text(markup)
-            else:
-                await query.edit_message_text("请选择一个角色：", reply_markup=markup)
-
-        elif data == 'character_new':
-            info = public.update_info_get(update)
-            await bot_core.public_functions.messages.send_message(context, info['user_id'], "请使用 /newchar char_name 的格式创建角色")
-
-        elif data == 'character_delete':
-            info = public.update_info_get(update)
-            markup = Inline.print_char_list('del', 'private', info['user_id'])
-            if markup == "没有可操作的角色。":
-                await query.edit_message_text(markup)
-            else:
-                await query.edit_message_text("请选择一个要删除的角色：", reply_markup=markup)
-        elif data == 'preset_select':
-            markup = Inline.print_preset_list()
-            if markup == "没有可用的预设。":
-                await query.edit_message_text(markup)
-            else:
-                await query.edit_message_text("请选择一个预设：", reply_markup=markup)
-        else:
-            logger.warning(f"未知的设置回调数据: {data}")
-            await query.edit_message_text("未知的设置操作。")
+                logger.warning(f"未知的设置回调数据: {data}")
+                await query.edit_message_text("未知的设置操作。")
+        except Exception as e:
+            logger.error(f"处理设置回调失败, data: {data}, 错误: {str(e)}")
+            await query.message.edit_text("处理设置时发生错误。")
 
 
 class DirectorCallback(BaseCallback):

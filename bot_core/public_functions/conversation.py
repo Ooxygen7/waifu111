@@ -1,17 +1,21 @@
 import asyncio
 import logging
 import random
+from typing import Optional
 
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 from agent.llm_functions import generate_summary
+from bot_core.models import User as UserModel, Conversation as ConversationModel, Group, GroupConfig
 from bot_core.public_functions.error import BotError
 from bot_core.public_functions.messages import (
     finalize_message,
     send_message,
     update_message,
 )
+from bot_core.repository import UserRepository, ConversationRepository
+from bot_core.services import PromptService, ConversationService, SummaryService
 from utils import db_utils as db
 from utils import text_utils as txt
 from utils.config_utils import get_api_multiple
@@ -31,59 +35,6 @@ ASSISTANT = 'assistant'
 REPLY = 'reply'
 KEYWORD = 'keyword'
 RANDOM = 'random'
-
-
-class User:
-    """
-    表示一个用户的类。
-
-    该类用于存储用户的基本信息，如ID和昵称。
-    """
-
-    def __init__(self, user_id):
-        """
-        初始化用户对象。
-
-        参数:
-        user_id (int or str): 用户的唯一标识符。
-
-        属性:
-        id (int or str): 用户ID。
-        nick (str): 用户昵称，从数据库中获取。
-        """
-        self.id = user_id
-        self.nick = db.user_config_get(user_id).get('user_nick')  # 从数据库获取用户昵称
-        self.frequency = db.user_info_get(user_id).get('remain')
-        self.tmp_frequency = db.user_sign_info_get(user_id).get('frequency')
-        self.config = Config(self.id)
-
-
-class GroupUser:
-    """
-    表示群组中用户的类。
-
-    该类从Telegram更新对象中提取用户信息。
-    """
-
-    def __init__(self, update: Update):
-        """
-        初始化群组用户对象。
-
-        参数:
-        update (Update): Telegram更新对象，包含用户信息。
-
-        属性:
-        id (int): 用户ID。
-        first_name (str): 用户名（如果存在，否则为空字符串）。
-        last_name (str): 用户姓氏（如果存在，否则为空字符串）。
-        username (str): 用户Telegram用户名（如果存在，否则为空字符串）。
-        user_name (str): 组合后的全名（first_name + last_name）。
-        """
-        self.id = update.message.from_user.id
-        self.first_name = update.message.from_user.first_name or ""
-        self.last_name = update.message.from_user.last_name or ""
-        self.username = update.message.from_user.username or ""
-        self.user_name = self.first_name + ' ' + self.last_name  # 组合全名
 
 
 class Message:
@@ -120,76 +71,6 @@ class Message:
             self.text_processed = text  # 默认情况下，使用原始文本
 
 
-class Config:
-    """
-    表示用户配置的类。
-
-    该类从数据库中加载用户的API、字符设置、预设和流设置。
-    """
-
-    def __init__(self, user_id):
-        """
-        初始化配置对象。
-
-        参数:
-        user_id (int or str): 用户的唯一标识符。
-
-        属性:
-        api (str): 用户的API配置，从数据库获取。
-        char (str): 用户的字符设置。
-        preset (str): 用户的预设配置。
-        stream (bool): 用户的流式处理设置。
-        multiple (int or bool): API的多路复用设置，从文件中获取。
-        """
-        self.api = db.user_api_get(user_id)
-        info = db.user_config_get(user_id)
-        self.char, self.preset = info.get('char'), info.get('preset')
-        self.stream = db.user_stream_get(user_id)
-        self.multiple = get_api_multiple(self.api)  # 从文件中获取API倍率信息
-
-
-class Group:
-    """
-    表示群组的类。
-
-    该类存储群组的基本信息，如ID和名称。
-    """
-
-    def __init__(self, group_id):
-        """
-        初始化群组对象。
-
-        参数:
-        group_id (int): 群组的唯一标识符。
-
-        属性:
-        id (int): 群组ID。
-        name (str): 群组名称，从数据库获取。
-        """
-        self.id = group_id
-        self.name = db.group_name_get(group_id)  # 从数据库获取群组名称
-
-
-class GroupConfig:
-    """
-    表示群组配置的类。
-
-    该类从数据库中加载群组的API、字符设置和预设。
-    """
-
-    def __init__(self, group_id):
-        """
-        初始化群组配置对象。
-
-        参数:
-        group_id (int): 群组的唯一标识符。
-
-        属性:
-        api (str): 群组的API配置。
-        char (str): 群组的字符设置。
-        preset (str): 群组的预设配置。
-        """
-        self.api, self.char, self.preset = db.group_config_get(group_id)  # 从数据库获取配置
 
 
 class GroupConv:
@@ -197,6 +78,7 @@ class GroupConv:
     表示群组对话的类。
     该类管理群组中的对话逻辑，包括消息处理、提示构建和响应生成。
     """
+    user: UserModel
 
     def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -209,21 +91,43 @@ class GroupConv:
         """
         self.update = update
         self.context = context
-        self.group = Group(update.message.chat.id)  # 创建关联的群组对象
+        
+        if not update.message or not update.message.chat or not update.message.from_user:
+            raise BotError("GroupConv 初始化失败：缺少必要的 message, chat 或 from_user 对象。")
 
-        # 检查文本内容，优先检查 text，如果没有则检查 caption
+        group_id = update.message.chat.id
+        group_name = db.group_name_get(group_id)
+        self.group = Group(id=group_id, name=group_name or "")
+
         message_text = update.message.text or update.message.caption or ""
-        self.input = Message(self.update.message.id, message_text, 'input')  # 创建输入消息对象
+        self.input = Message(update.message.id, message_text, 'input')
 
         self.output = None
         self.prompt_obj = None
         self.placeholder = None
-        self.config = GroupConfig(update.message.chat.id)  # 创建群组配置对象
+        
+        group_config_data = db.group_config_get(group_id)
+        if group_config_data:
+            api, char, preset = group_config_data
+            self.config = GroupConfig(api=api, char=char, preset=preset)
+        else:
+            self.config = GroupConfig()
         self.trigger = None
-        self.user = GroupUser(update)  # 创建用户对象
-        self.id = db.conversation_group_get(self.group.id, self.user.id) or None  # 从数据库获取会话ID
-        if not self.id:
-            self._new()
+        
+        # --- 重构：使用 UserRepository 获取用户 ---
+        user_repo = UserRepository()
+        user = user_repo.get_or_create_user(
+            user_id=update.message.from_user.id,
+            first_name=update.message.from_user.first_name or '',
+            last_name=update.message.from_user.last_name or '',
+            user_name=update.message.from_user.username or ''
+        )
+        if not user:
+            raise BotError(f"无法在 GroupConv 中加载或创建用户 {update.message.from_user.id}")
+        self.user = user
+
+        self.id = db.conversation_group_get(self.group.id, self.user.id) or None
+        
         self.images = self._extract_images()
         try:
             self.client = LLM(self.config.api, 'group')
@@ -235,6 +139,10 @@ class GroupConv:
                 raise BotError(f"API配置 '{self.config.api}' 不存在") from e
             else:
                 raise e
+        
+        self.conv_service = ConversationService(self.client, self.user, self.context)
+        if not self.id:
+            self.id = self.conv_service.create_group_conversation(self.group)
 
     def _extract_images(self) -> list:
         """
@@ -243,12 +151,12 @@ class GroupConv:
         list: 图片 file_id 列表，如果没有图片则返回空列表。
         """
         images = []
-        if self.update.message.photo:
+        if self.update.message and self.update.message.photo:
             # 获取图片，photo 是一个列表，按分辨率排序，取最高分辨率的图片
             photo = self.update.message.photo[-1] if self.update.message.photo else None
             if photo:
                 images.append(photo.file_id)
-        elif self.update.message.document:
+        elif self.update.message and self.update.message.document:
             # 检查是否为图片类型的文档
             doc = self.update.message.document
             if doc.mime_type and doc.mime_type.startswith('image/'):
@@ -277,7 +185,8 @@ class GroupConv:
         # 检查机器人是否有发送消息的权限
         
         try:
-            self.placeholder = await self.update.message.reply_text("思考中")  # 发送占位消息
+            if self.update.message:
+                self.placeholder = await self.update.message.reply_text("思考中")
         except (BadRequest, TelegramError) as e:
             logger.warning(f"发送占位消息失败: {e}，跳过回复")
             return
@@ -286,7 +195,7 @@ class GroupConv:
             self.id = None  # 创建一次性响应任务
         else:
             if not self.id:
-                self._new()  # 如果会话ID不存在，创建新会话
+                self.id = self.conv_service.create_group_conversation(self.group) # 如果会话ID不存在，创建新会话
         _task = asyncio.create_task(self._response_to_user())  # 创建对话响应任务
 
     async def _response_to_user(self):
@@ -297,89 +206,58 @@ class GroupConv:
         更新 self.output 和数据库记录。
         """
         try:
-            self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,self.user.user_name)
-            self.prompt_obj.build_conv_messages(self.id,"group")
-            group_dialog = self.prompt_obj.load_group_dialog(self.group.id)
-            # 获取用户画像
-            user_profiles = db.user_profile_get(self.user.id)
-            logger.debug(f"用户 {self.user.id} 的画像: {user_profiles}")
-            profile_prompt = ""
-            if user_profiles:
-                # 优先选择当前群组的用户画像
-                current_group_profile = next((p['user_profile'] for p in user_profiles if p['group_id'] == self.group.id), None)
-                if current_group_profile:
-                    profile_prompt = f"<用户信息>\r\n这是根据用户在群聊中的发言，为他总结的用户画像，请在回复时参考：\r\n{current_group_profile}\r\n</用户信息>\r\n"
-                else:
-                    # 如果没有当前群组的画像，但有其他群组的，随机选一个
-                    random_profile = random.choice(user_profiles)
-                    profile_prompt = f"<用户信息>\r\n这是根据用户在其他群聊中的发言，为他总结的用户画像，请在回复时参考：\r\n{random_profile['user_profile']}\r\n</用户信息>\r\n"
+            if not self.config.preset or not self.config.char:
+                logger.warning(f"群组 {self.group.id} 未配置 preset 或 char，跳过响应。")
+                if self.placeholder:
+                    await self.placeholder.edit_text("群组未配置机器人，无法回复。")
+                return
 
+            # --- 重构：使用 PromptService 构建提示 ---
+            # 注意：GroupConv 还没有迁移到使用 Conversation 模型，因此我们暂时传入 self.id
+            # 这将在后续步骤中被重构。
+            import datetime
+            temp_conv_for_service = ConversationModel(
+                conv_id=self.id or 0,
+                user_id=self.user.id,
+                character="",
+                preset="",
+                created_at=datetime.datetime.now(),
+                updated_at=datetime.datetime.now()
+            )
 
+            prompt_service = PromptService(
+                user=self.user,
+                input_text=self.input.text_raw,
+                conversation=temp_conv_for_service,
+                group=self.group,
+                group_config=self.config
+            )
+            messages = prompt_service.build_group_chat_prompts(images=self.images)
+            # --- 重构：使用 ConversationService 获取响应 ---
+            conv_service = ConversationService(self.client, self.user, self.context, temp_conv_for_service)
+            
             if self.images:
-                image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
-                self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
-                self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
-                                                                                                    f"{group_dialog}\r\n</群聊模式>"})
-                self.prompt_obj.insert_any({"location":"input_mark_end","mode":"after","content":profile_prompt})
-                self.prompt_obj.build_openai_messages()
-                self.client.set_messages(self.prompt_obj.messages)
-                await self.client.embedd_image(self.images,self.context)
-            else:
-                self.prompt_obj.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n"
-                                                                                                    f"{group_dialog}\r\n</群聊模式>"})
-                self.prompt_obj.insert_any({"location":"input_mark_end","mode":"after","content":profile_prompt})
-                self.prompt_obj.build_openai_messages()
-                self.client.set_messages(self.prompt_obj.messages)
+                await self.client.embedd_image(self.images, self.context)
 
-            response = await self.client.final_response()
-            self.output = Message(self.placeholder.message_id, response, 'output')  # 创建输出消息对象
-            await finalize_message(self.placeholder, self.output.text_processed)  # 完成消息处理
-            self._update_usage_info()  # 更新使用信息
+            response_chunks = []
+            async for chunk in conv_service.get_llm_response(messages):
+                response_chunks.append(chunk)
+            
+            response = "".join(response_chunks)
+
+            if self.placeholder:
+                self.output = Message(self.placeholder.message_id, response, 'output')
+                await finalize_message(self.placeholder, self.output.text_processed)
+            
+            if self.id:
+                self.conv_service.save_group_turn(self.group, self.id, self.input, self.output, self.trigger)
         except Exception as e:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
-            # 反馈错误到TG
             error_text = f"❌ 出错了：{str(e)}"
-            await finalize_message(self.placeholder, error_text)
-
-    def _new(self):
-        """
-        创建一个新的会话ID。
-        该方法尝试多次创建唯一ID，如果失败则抛出异常。
-        返回值:
-        无，直接更新 self.id。
-        异常:
-        ValueError: 如果创建失败。
-        """
-        max_attempts = 5  # 限制尝试次数
-        for _ in range(max_attempts):
-            new_conv_id = random.randint(10000000, 99999999)  # 生成随机ID
-            if db.conversation_group_create(new_conv_id, self.user.id, self.user.user_name, self.group.id,
-                                            self.group.name):
-                self.id = new_conv_id
-                logger.debug(f"New conversation ID: {new_conv_id}")
-                return
-        raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")  # 抛出异常
-
-    def _update_usage_info(self):
-        """
-        更新使用信息，包括令牌计数和数据库记录。
-        副作用:
-        更新数据库中的群组信息、对话内容和令牌统计。
-        """
-        print("正在保存群聊记录")  # 打印日志
+            if self.placeholder:
+                await finalize_message(self.placeholder, error_text)
 
 
-
-        turn = db.dialog_turn_get(self.id, 'group')  # 获取当前回合
-        db.dialog_content_add(self.id, USER, turn + 1, self.input.text_raw, self.input.text_processed,
-                              self.input.id, GROUP)  # 添加用户对话
-        db.dialog_content_add(self.id, ASSISTANT, turn + 2, self.output.text_raw, self.output.text_processed,
-                              self.output.id, GROUP)  # 添加助手对话
-        db.group_dialog_update(self.input.id, 'trigger_type', self.trigger, self.group.id)  # 更新触发类型
-        db.group_dialog_update(self.input.id, 'raw_response', self.output.text_raw, self.group.id)  # 更新原始响应
-        db.group_dialog_update(self.input.id, 'processed_response', self.output.text_processed,
-                               self.group.id)  # 更新处理后响应
-        fm.update_user_usage(self,str(self.client.messages),self.output.text_raw,"group_chat")
 
 
 class ConvManager:
@@ -397,12 +275,13 @@ class PrivateConv:
         update (Update): Telegram API 传递的更新对象, 包含了用户发送的消息或回调查询.
         context (ContextTypes.DEFAULT_TYPE): Telegram Bot 的上下文对象, 用于与 Telegram API 交互.
         placeholder: 用于存储占位消息的对象, 在等待 LLM 回复时显示.
-        user (User): 用户对象, 包含用户的 ID 等信息.
+        user (UserModel): 用户模型对象.
+        conversation (ConversationModel): 会话模型对象.
         input (Message): 用户输入的消息对象.
         output (Message): LLM 生成的回复消息对象.
-        config (Config): 配置对象, 包含与用户相关的配置信息, 如角色,预设等.
-        id (int): 会话 ID, 用于在数据库中标识会话.
     """
+    user: UserModel
+    conversation: ConversationModel
 
     def __init__(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -414,35 +293,65 @@ class PrivateConv:
             update (Update): Telegram API 传递的更新对象.
             context (ContextTypes.DEFAULT_TYPE): Telegram Bot 的上下文对象.
         """
-        self.placeholder = None  # 用于存储占位消息
+        self.placeholder = None
         self.context = context
         self.update = update
         self.input = None
         self.output = None
-        # 根据 update 类型初始化用户和输入消息
+
+        # --- 重构：从 context 获取 User 模型 ---
+        if context.user_data and 'model' in context.user_data:
+            user: Optional[UserModel] = context.user_data.get('model')
+        else:
+            # 如果在 context 中找不到，作为后备方案，从数据库加载
+            if not update.effective_user:
+                raise BotError("在 PrivateConv 中无法确定有效用户。")
+            user_id = update.effective_user.id
+            user_repo = UserRepository()
+            user = user_repo.get_user_by_id(user_id)
+
+        if not user:
+            user_identifier = update.effective_user.id if update.effective_user else "未知"
+            raise BotError(f"在 PrivateConv 中无法加载用户 {user_identifier} 的信息。")
+        self.user = user
+
+        # --- 重构：使用 ConversationRepository 加载或创建会话 ---
+        conv_repo = ConversationRepository()
+        if self.user.active_conversation_id:
+            conversation = conv_repo.get_conversation_by_id(self.user.active_conversation_id)
+        else:
+            conversation = None
+
+        if not conversation:
+            conversation = conv_repo.create_private_conversation(self.user)
+            if not conversation:
+                raise BotError(f"无法为用户 {self.user.id} 创建新的会话。")
+            # 更新 user model 的 active_conversation_id
+            self.user.active_conversation_id = conversation.id
+        
+        self.conversation = conversation
+
         if update.message:
-            self.user = User(update.message.chat.id)
-            self.input = Message(update.message.message_id, update.message.text, 'input') or None  # 消息内容
+            self.input = Message(update.message.message_id, update.message.text or "", 'input')
         elif update.callback_query:
-            self.user = User(update.callback_query.from_user.id)
-        # 获取或创建会话 ID
-        self.id = db.user_conv_id_get(self.user.id)
-        self.summary = db.dialog_summary_get(self.id) or []
-        self.turn = db.dialog_turn_get(self.id, 'private')
-        self.config = self.user.config
+            # 回调查询没有 self.input，但需要 user 和 conversation 对象
+            pass
+        
         try:
-            self.client = LLM(self.config.api, 'private')
+            self.client = LLM(self.user.api, 'private')
         except ValueError as e:
             if "未找到名为" in str(e) and "的API配置" in str(e):
                 # API配置不存在，向用户发送友好提示
-                error_msg = f"❌ API配置错误\n\n当前配置的API '{self.config.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
+                error_msg = f"❌ API配置错误\n\n当前配置的API '{self.user.api}' 不存在。\n\n请使用 /api 指令查看并切换到可用的API配置。"
                 asyncio.create_task(send_message(self.context, self.user.id, error_msg))
-                raise BotError(f"API配置 '{self.config.api}' 不存在") from e
+                raise BotError(f"API配置 '{self.user.api}' 不存在") from e
             else:
                 raise e
-        if not self.id:
-            self.new()
-        asyncio.create_task(self._check_summary())
+        
+        # --- 重构：使用 Service 处理业务逻辑 ---
+        summary_service = SummaryService(self.conversation)
+        summary_service.check_and_generate_summaries_async()
+        self.conv_service = ConversationService(self.client, self.user, self.context, self.conversation)
 
     async def response(self, save=True):
         """
@@ -455,14 +364,15 @@ class PrivateConv:
         if self.update.message and self.update.message.text and self.update.message.text.startswith('/'):
             logger.warning(f"检测到命令 {self.update.message.text} 进入消息处理器，已跳过")
             return
-        if self.user.frequency > 0 or self.user.tmp_frequency > 0:
+        if self.user.remain_frequency > 0 or self.user.temporary_frequency > 0:
             # 检查是否是从回调查询触发的
             if self.update.message:
                 self.placeholder = await self.update.message.reply_text("思考中")
             else:
                 # 如果是从回调查询触发的，直接发送新消息
                 self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="思考中")
-            logger.info(f"输入：{self.input.text_raw}")
+            if self.input:
+                logger.info(f"输入：{self.input.text_raw}")
             _task = asyncio.create_task(self._response_to_user(save))
         else:
             await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
@@ -470,83 +380,42 @@ class PrivateConv:
     async def regen(self):
         """
         重新生成 LLM 的回复.
-        该方法首先获取最后一条消息的 ID,然后从数据库中删除该消息及其回复,
-        并重新构建 prompt,最后调用 response 方法生成新的回复.
+        该方法将重生成操作委托给 ConversationService 处理。
         """
-        last_msg_id_list = db.conversation_latest_message_id_get(self.id)
-        last_input = db.dialog_last_input_get(self.id)
-        db.conversation_delete_messages(self.id, last_msg_id_list[0])
-        db.conversation_delete_messages(self.id, last_msg_id_list[1])
-        
-        # 关键修复：删除旧记录后，重新获取当前的 turn 数
-        self.turn = db.dialog_turn_get(self.id, 'private')
-        logger.debug(f"Regen后，最新的turn数为: {self.turn}")
-
-        self.input = Message(last_msg_id_list[1], last_input, 'input')
-        await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
-        
-        # 直接调用核心响应逻辑，绕过 response() 的命令检查
-        if self.user.frequency > 0 or self.user.tmp_frequency > 0:
-            self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
-            logger.info(f"重新生成输入：{self.input.text_raw}")
-            _task = asyncio.create_task(self._response_to_user(save=True))
-        else:
+        if not (self.user.remain_frequency > 0 or self.user.temporary_frequency > 0):
             await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
+            return
+
+        self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
+        
+        # 调用服务层来处理重生成逻辑
+        full_response, last_input_text = await self.conv_service.regenerate_response()
+
+        if full_response is None or last_input_text is None:
+            await finalize_message(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
+            return
+
+        # 服务层返回了响应，现在由控制器负责后续处理
+        # 1. 更新 input 对象以用于保存
+        self.input = Message(0, last_input_text, 'input') # msg_id 设为 0，因为它已被删除
+        
+        # 2. 创建 output 对象
+        self.output = Message(self.placeholder.message_id, full_response, 'output')
+        
+        # 3. 更新并最终化占位消息
+        await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
+        
+        # 4. 保存新的对话记录
+        self.conv_service.save_turn(self.input, self.output)
 
     async def undo(self):
         """
-        撤销最后一次对话.
-        该方法首先获取最后两条消息的 ID,然后从 Telegram 中删除这些消息,
-        并从数据库中删除相应的对话记录. 如果删除消息失败,会尝试逐个删除.
+        撤销最后一次对话。
+        该方法将撤销操作委托给 ConversationService 处理。
         """
-        msg_list = db.conversation_latest_message_id_get(self.id)
-        msg_list = [msg_id for msg_id in msg_list if msg_id is not None]  # 过滤掉 None 值
-        try:
-            await self.context.bot.delete_messages(self.user.id, msg_list)
-        except Exception as e:
-            logger.warning(f"批量删除消息失败: {str(e)}, 尝试逐个删除")
-            # 尝试逐个删除消息
-            for msg_id in msg_list:
-                if msg_id:  # 检查 msg_id 是否为空
-                    try:
-                        await self.context.bot.delete_message(self.user.id, msg_id)
-                    except Exception as e2:
-                        logger.error(f"删除消息 {msg_id} 失败: {str(e2)}")
-                else:
-                    logger.warning("尝试删除空消息 ID，已跳过")
-        # 删除数据库记录
-        if len(msg_list) >= 2:  # 确保 msg_list 至少有两个元素
-            db.conversation_delete_messages(self.id, msg_list[0])
-            db.conversation_delete_messages(self.id, msg_list[1])
-        else:
-            logger.warning(f"msg_list 长度不足 (len={len(msg_list)})，无法删除数据库记录")
+        await self.conv_service.undo_last_turn()
 
-    def new(self):
-        """
-        创建一个新的会话.
-        该方法生成一个随机的会话 ID,并在数据库中创建新的会话记录.
-        如果创建失败,会尝试多次,直到成功或达到最大尝试次数.
-        """
-        max_attempts = 5  # 限制尝试次数，避免无限循环
-        for _ in range(max_attempts):
-            new_conv_id = random.randint(10000000, 99999999)
-            if (db.conversation_private_create(new_conv_id, self.user.id, self.config.char,
-                                               self.config.preset) and
-                    db.user_config_arg_update(self.user.id, 'conv_id', new_conv_id)):
-                db.user_info_update(self.user.id, 'conversations', 1, True)
-                self.id = new_conv_id
-                return
-        raise ValueError(f"无法创建会话ID，经过{max_attempts}次尝试")
 
-    async def _save(self):
-        """
-        保存对话记录到数据库.
-        该方法首先检查 LLM 的回复是否出错,如果没有出错,则将对话内容保存到数据库,
-        并更新用户的使用信息.
-        """
-        if not self.output.text_raw.startswith('API调用失败'):
-            self._save_turn_content_to_db()
-            fm.update_user_usage(self.user,str(self.client.messages),self.output.text_raw,"private_chat")
 
     def set_callback_data(self, data):
         """
@@ -567,126 +436,41 @@ class PrivateConv:
         response_chunks = []
 
         try:
-            self.prompt_obj = PromptsBuilder(self.config.preset,self.input.text_raw,self.config.char,self.user.nick)
-            self.prompt_obj.build_conv_messages(self.id,"private")
-            if self.summary :
-                logger.debug(f"该对话有{len(self.summary)}个大总结")
-                logger.debug(f"{(len(self.summary)-1)*30}轮之前的消息已作为总结添加")
-                self.prompt_obj.insert_summary(str(self.summary[:-1]))
-            self.prompt_obj.build_openai_messages()
-            self.client.set_messages(self.prompt_obj.messages)
-            async for chunk in self.client.response(self.config.stream):
+            if not self.input:
+                logger.warning("无法响应，因为没有输入消息。")
+                return
+
+            # --- 重构：使用 PromptService 构建提示 ---
+            prompt_service = PromptService(user=self.user, conversation=self.conversation, input_text=self.input.text_raw)
+            messages = prompt_service.build_private_chat_prompts()
+            # --- 重构：使用 ConversationService 获取响应 ---
+            async for chunk in self.conv_service.get_llm_response(messages):
                 response_chunks.append(chunk)
                 response = "".join(response_chunks)
                 current_time = asyncio.get_event_loop().time()
                 # 每 4 秒或内容显著变化时更新消息
                 if current_time - last_update_time >= 4.0 and response != last_updated_content:
-                    await update_message(response, self.placeholder)
+                    if self.placeholder:
+                        await update_message(response, self.placeholder)
                     last_updated_content = response
                     last_update_time = current_time
                 await asyncio.sleep(0.01)
-            self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
-            await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
-            if contains_nsfw(self.output.text_processed) and self.config.preset == 'Default_meeting':
+            if self.placeholder:
+                self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
+                await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
+            else:
+                self.output = Message(0, "".join(response_chunks), 'output') # Placeholder for message ID
+            if contains_nsfw(self.output.text_processed) and self.user.preset == 'Default_meeting':
                 await send_message(self.context, self.user.id, "检测到您正在使用默认配置，使用 `/preset` 切换nsfw配置可获得更好的nsfw内容质量")
             if save:
-                await self._save()
+                self.conv_service.save_turn(self.input, self.output)
         except Exception as e:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
             error_text = f"❌ 出错了：{str(e)}"
-            await finalize_message(self.placeholder, error_text)
-
-    def _save_turn_content_to_db(self):
-        """
-        将一次对话的内容保存到数据库.
-        该方法首先获取当前对话的轮次,然后将用户输入和 LLM 的回复
-        分别保存到数据库中.
-        """
-        db.dialog_content_add(self.id, USER, self.turn + 1, self.input.text_raw, self.input.text_processed, self.input.id,
-                              PRIVATE)
-        db.dialog_content_add(self.id, ASSISTANT, self.turn + 2, self.output.text_raw, self.output.text_processed,
-                              self.output.id,
-                              PRIVATE)
+            if self.placeholder:
+                await finalize_message(self.placeholder, error_text)
 
 
 
 
 
-    async def _check_summary(self):
-        """
-        检查当前会话是否需要总结。如果缺少总结则自动补全所有缺失区域的总结（后台任务，按序执行）。
-        """
-        logger.debug(f"开始检查对话{self.id}是否存在摘要")
-        logger.debug(f"该对话轮次为{self.turn}轮")
-        if self.turn <= 60:
-            logger.debug("轮次不足，跳过检查")
-            return False  # 轮次未超过60，无需检查
-
-        # 计算需要检查的总结区域数量
-        area_count = (self.turn - 1) // 30  # 61-90=>2, 91-120=>3, 121-150=>4
-        summaries = self.summary
-
-        # 构建已存在的总结区域集合
-        exist_areas = set()
-        for s in summaries:
-            area = s.get('summary_area')
-            if area:
-                exist_areas.add(area)
-
-        # 需要补全的区域列表
-        missing_areas = []
-        for i in range(1, area_count):
-            start = (i - 1) * 30 + 1
-            end = i * 30
-            area_str = f"{start}-{end}"
-            if area_str not in exist_areas:
-                missing_areas.append((start, end, area_str))
-
-        if not missing_areas:
-            return True  # 所有区域都有总结
-
-        logger.info(f"发现缺失总结的区域: {[a[2] for a in missing_areas]}，将依次补全（后台任务）。")
-
-        async def generate_all_summaries():
-            for start, end, area_str in missing_areas:
-                result = await self._generate_summary(start, end)
-                if not result:
-                    logger.warning(f"区域 {area_str} 总结生成失败，后续区域不再尝试。")
-                    break
-
-        # 启动后台任务
-        asyncio.create_task(generate_all_summaries())
-        return False  # 返回False，表示总结还未全部补全
-
-    async def _generate_summary(self, start: int, end: int):
-        """
-        为指定区域的内容生成并添加summary。
-
-        Args:
-            start (int): 区域起始轮次
-            end (int): 区域结束轮次
-
-        Returns:
-            bool: 添加总结是否成功
-        """
-        area_str = f"{start}-{end}"
-        max_retry = 4
-        for attempt in range(1, max_retry + 1):
-            try:
-                summary_text = await generate_summary(self.id, summary_type='zip', start=start, end=end)
-                # 检查summary_text长度
-                if not summary_text or len(summary_text) < 200:
-                    logger.warning(f"第{attempt}次尝试：区域 {area_str} 生成的总结过短（<200字符），将重试。")
-                    continue
-                result = dialog_summary_add(self.id, area_str, summary_text)
-                if result:
-                    logger.info(f"成功为区域 {area_str} 添加总结")
-                    return True
-                else:
-                    logger.warning(f"为区域 {area_str} 添加总结失败")
-                    # 这里也重试
-            except Exception as e:
-                logger.error(f"第{attempt}次尝试：生成或添加总结时出错: {e}")
-                continue
-        logger.error(f"区域 {area_str} 总结生成失败，已达最大重试次数。")
-        return False
