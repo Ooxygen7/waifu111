@@ -149,11 +149,19 @@ class MessageFactory:
         """发送一条新消息。"""
         return await self._send_or_edit_internal(text=text, chat_id=chat_id, parse_mode=parse_mode, photo=photo)
 
-    async def edit(self, placeholder: Message, text: str, parse_mode: str = "HTML", summary: Optional[str] = None) -> Optional[Message]:
+    async def edit(self, placeholder: Message, text: str, parse_mode: str = "HTML", summary: Optional[str] = None, comment: Optional[str] = None) -> Optional[Message]:
         """编辑一条已存在的消息。"""
+        extra_content = ""
         if summary:
-            # 使用 blockquote 标签创建引用块
-            text = f"{text}\n\n<blockquote>{html.escape(summary)}</blockquote>"
+            extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
+        if summary and comment:
+            extra_content += "\n\n" # Add a separator
+        if comment:
+            extra_content += f"<b>评论:</b>\n{html.escape(comment)}"
+
+        if extra_content:
+            # 使用 expandable 属性来创建可折叠的引用块
+            text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
         
         return await self._send_or_edit_internal(text=text, placeholder=placeholder, parse_mode=parse_mode)
 
@@ -177,13 +185,22 @@ async def update_message(text: str, placeholder: Message):
             logger.error(f"更新消息时发生 Telegram 错误: {e}", exc_info=True)
 
 
-async def finalize_message(sent_message: Message, text: str, parse: str = "html", summary: Optional[str] = None) -> None:
+async def finalize_message(sent_message: Message, text: str, parse: str = "html", summary: Optional[str] = None, comment: Optional[str] = None) -> None:
     """
     兼容旧版：最终确定一条消息。
     """
+    extra_content = ""
     if summary:
-        text = f"{text}\n\n<blockquote>{html.escape(summary)}</blockquote>"
-    
+        extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
+    if summary and comment:
+        extra_content += "\n\n" # Add a separator
+    if comment:
+        extra_content += f"<b>评论:</b>\n{html.escape(comment)}"
+
+    if extra_content:
+        # 使用 expandable 属性来创建可折叠的引用块
+        text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
+
     try:
         await sent_message.edit_text(text, parse_mode=parse)
     except BadRequest:

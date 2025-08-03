@@ -115,6 +115,7 @@ class Message:
         elif mark == 'output':
             self.text_processed = txt.extract_tag_content(text, 'content')  # 对于输出消息，提取标签内容
             self.text_summary = txt.extract_tag_content(text, 'summary')
+            self.text_comment = txt.extract_tag_content(text, 'comment')
         else:
             self.text_processed = text  # 默认情况下，使用原始文本
 
@@ -476,9 +477,21 @@ class PrivateConv:
         last_input = db.dialog_last_input_get(self.id)
         db.conversation_delete_messages(self.id, last_msg_id_list[0])
         db.conversation_delete_messages(self.id, last_msg_id_list[1])
+        
+        # 关键修复：删除旧记录后，重新获取当前的 turn 数
+        self.turn = db.dialog_turn_get(self.id, 'private')
+        logger.debug(f"Regen后，最新的turn数为: {self.turn}")
+
         self.input = Message(last_msg_id_list[1], last_input, 'input')
         await self.context.bot.delete_message(self.user.id, last_msg_id_list[0])
-        await self.response()
+        
+        # 直接调用核心响应逻辑，绕过 response() 的命令检查
+        if self.user.frequency > 0 or self.user.tmp_frequency > 0:
+            self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
+            logger.info(f"重新生成输入：{self.input.text_raw}")
+            _task = asyncio.create_task(self._response_to_user(save=True))
+        else:
+            await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
 
     async def undo(self):
         """
@@ -573,7 +586,7 @@ class PrivateConv:
                     last_update_time = current_time
                 await asyncio.sleep(0.01)
             self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
-            await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary)
+            await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
             if contains_nsfw(self.output.text_processed) and self.config.preset == 'Default_meeting':
                 await send_message(self.context, self.user.id, "检测到您正在使用默认配置，使用 `/preset` 切换nsfw配置可获得更好的nsfw内容质量")
             if save:
