@@ -33,9 +33,13 @@ class StartCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         await update.message.reply_text(
-            f"您好，{info['first_name']} {info['last_name']}！这是由 @Xi_cuicui 开发的`CyberWaifu`项目。\r\n使用`/char`可以切换角色\r\n"
+            f"您好，{info.get('first_name', '')} {info.get('last_name', '')}！这是由 @Xi_cuicui 开发的`CyberWaifu`项目。\r\n使用`/char`可以切换角色\r\n"
             f"使用`/setting`可以管理您的对话与角色设置\r\n"
             f"使用`/c` 可获取加密货币行情分析\r\n"
             f"使用`/sign` 可签到\r\n"
@@ -57,6 +61,8 @@ class HelpCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         help_text = (
             "🤖 **CyberWaifu Bot 使用指南**\n\n"
             "📝 **角色管理**\n"
@@ -113,9 +119,12 @@ class UndoCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         conversation = PrivateConv(update, context)
         await conversation.undo()
-        await context.bot.delete_message(conversation.user.id, conversation.input.id)
+        if conversation.input and conversation.input.id:
+            await context.bot.delete_message(conversation.user.id, conversation.input.id)
 
 
 class StreamCommand(BaseCommand):
@@ -129,7 +138,11 @@ class StreamCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         if db.user_stream_switch(info["user_id"]):
             await update.message.reply_text("切换成功！")
 
@@ -145,15 +158,19 @@ class MeCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         result = (
-            f"您好，{info['user_name']}！\r\n"
-            f"您的帐户等级是`{info['tier']}`；\r\n"
-            f"您的额度还有`{info['remain']}`条；\r\n"
-            f"您的临时额度还有`{db.user_sign_info_get(info['user_id']).get('frequency')}`条(上限100)；\r\n"
-            f"您的余额是`{info['balance']}`；\r\n"
-            f"您的对话昵称是`{info['user_nick']}`。\r\n"
-            f"当前角色：`{info['char']}`\r\n当前接口：`{info['api']}`\r\n当前预设：`{info['preset']}`\r\n流式传输：`{info['stream']}`\r\n"
+            f"您好，{info.get('user_name', '未知')}！\r\n"
+            f"您的帐户等级是`{info.get('tier', '未知')}`；\r\n"
+            f"您的额度还有`{info.get('remain', 0)}`条；\r\n"
+            f"您的临时额度还有`{db.user_sign_info_get(info.get('user_id', 0)).get('frequency', 0)}`条(上限100)；\r\n"
+            f"您的余额是`{info.get('balance', 0)}`；\r\n"
+            f"您的对话昵称是`{info.get('user_nick', '未设置')}`。\r\n"
+            f"当前角色：`{info.get('char', '未设置')}`\r\n当前接口：`{info.get('api', '未设置')}`\r\n当前预设：`{info.get('preset', '未设置')}`\r\n流式传输：`{info.get('stream', '未知')}`\r\n"
         )
         await update.message.reply_text(f"{result}", parse_mode="MarkDown")
 
@@ -169,19 +186,48 @@ class NewCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
-        conversation = PrivateConv(update, context)
-        conversation.new()
-        await update.message.reply_text("创建成功！", parse_mode="MarkDown")
+        if not info:
+            return
+
+        import random
+        # 1. 生成新的会话ID
+        while True:
+            new_conv_id = random.randint(10000000, 99999999)
+            if db.conversation_private_check(new_conv_id):
+                break
+        
+        # 2. 从info中获取角色和预设
+        character = info.get('char')
+        preset = info.get('preset')
+        user_id = info.get('user_id')
+
+        if not character or not preset or not user_id:
+            await update.message.reply_text("无法获取用户配置，创建新对话失败。")
+            return
+
+        # 3. 创建新对话
+        if db.conversation_private_create(new_conv_id, user_id, character, preset):
+            # 4. 更新用户当前会话ID
+            db.user_config_arg_update(user_id, "conv_id", new_conv_id)
+            await update.message.reply_text("创建成功！", parse_mode="MarkDown")
+        else:
+            await update.message.reply_text("创建新对话失败，请联系管理员。")
+            return
+        
+        # 5. 显示预设和角色选择
         preset_markup = Inline.print_preset_list()
-        if preset_markup == "没有可用的预设。":
+        if isinstance(preset_markup, str):
             await update.message.reply_text(preset_markup)
         else:
             await update.message.reply_text(
                 "请为新对话选择一个预设：", reply_markup=preset_markup
             )
-        char_markup = Inline.print_char_list("load", "private", info["user_id"])
-        if char_markup == "没有可操作的角色。":
+        
+        char_markup = Inline.print_char_list("load", "private", user_id)
+        if isinstance(char_markup, str):
             await update.message.reply_text(char_markup)
         else:
             await update.message.reply_text(
@@ -200,17 +246,26 @@ class SaveCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        config = public.update_info_get(update) or {}
-        if db.conversation_private_update(
-            config["conv_id"], config["char"], config["preset"]
-        ) and db.conversation_private_save(config["conv_id"]):
+        if not update.message:
+            return
+        config = public.update_info_get(update)
+        if not config:
+            return
+        
+        conv_id = config.get("conv_id")
+        char = config.get("char")
+        preset = config.get("preset")
+
+        if conv_id and char and preset and db.conversation_private_update(
+            conv_id, char, preset
+        ) and db.conversation_private_save(conv_id):
             placeholder_message = await update.message.reply_text("保存中...")
 
-            async def create_summary(conv_id, placeholder):
-                summary = await generate_summary(conv_id)
-                if db.conversation_private_summary_add(conv_id, summary):
+            async def create_summary(current_conv_id, placeholder):
+                summary = await generate_summary(current_conv_id)
+                if summary and db.conversation_private_summary_add(current_conv_id, summary):
                     logger.info(
-                        f"保存对话并生成总结, conv_id: {conv_id}, summary: {summary}"
+                        f"保存对话并生成总结, conv_id: {current_conv_id}, summary: {summary}"
                     )
                     try:
                         await placeholder.edit_text(
@@ -223,7 +278,7 @@ class SaveCommand(BaseCommand):
                     await placeholder.edit_text("保存失败")
 
             _task = asyncio.create_task(
-                create_summary(config["conv_id"], placeholder_message)
+                create_summary(conv_id, placeholder_message)
             )
             return
 
@@ -239,6 +294,8 @@ class RegenCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         conversation = PrivateConv(update, context)
         await conversation.regen()
         await update.message.delete()
@@ -255,9 +312,13 @@ class CharCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         conversation = PrivateConv(update, context)
+        if not conversation.user:
+            return
         markup = Inline.print_char_list("load", "private", conversation.user.id)
-        if markup == "没有可操作的角色。":
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个角色：", reply_markup=markup)
@@ -275,9 +336,13 @@ class DelcharCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         markup = Inline.print_char_list("del", "private", info["user_id"])
-        if markup == "没有可操作的角色。":
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个角色：", reply_markup=markup)
@@ -294,7 +359,11 @@ class NewcharCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         args = context.args if hasattr(context, "args") else []
         if not args or len(args[0].strip()) == 0:
             await update.message.reply_text(
@@ -324,7 +393,11 @@ class NickCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         args = context.args if hasattr(context, "args") else []
         if not args or len(args[0].strip()) == 0:
             await update.message.reply_text(
@@ -349,7 +422,12 @@ class DoneCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        user_id = public.update_info_get(update)["user_id"]
+        if not update.message:
+            return
+        info = public.update_info_get(update)
+        if not info:
+            return
+        user_id = info["user_id"]
         state = context.bot_data.get("newchar_state", {}).get(user_id)
         if not state:
             await update.message.reply_text(
@@ -376,6 +454,10 @@ class DoneCommand(BaseCommand):
                 generated_content = None
                 try:
                     generated_content = await generate_char(char_description)
+                    if not generated_content:
+                        await placeholder.edit_text(f"角色 {name_char} 生成失败，LLM未返回任何内容。")
+                        return
+
                     json_pattern = (
                         r"```json\s*([\s\S]*?)\s*```|```([\s\S]*?)\s*```|\{[\s\S]*\}"
                     )
@@ -383,25 +465,25 @@ class DoneCommand(BaseCommand):
                     if match:
                         json_str = next(group for group in match.groups() if group)
                         char_data = json.loads(json_str)
-                        save_to = os.path.join(save_to, f"{name_char}_{uid}.json")
-                        with open(save_to, "w", encoding="utf-8") as f:
+                        save_path = os.path.join(save_to, f"{name_char}_{uid}.json")
+                        with open(save_path, "w", encoding="utf-8") as f:
                             json.dump(char_data, f, ensure_ascii=False, indent=2)
                         await placeholder.edit_text(
-                            f"角色 {name_char} 已保存到 {save_to}"
+                            f"角色 {name_char} 已保存到 {save_path}"
                         )
                     else:
-                        save_to = os.path.join(save_to, f"{name_char}_{uid}.txt")
-                        with open(save_to, "w", encoding="utf-8") as f:
+                        save_path = os.path.join(save_to, f"{name_char}_{uid}.txt")
+                        with open(save_path, "w", encoding="utf-8") as f:
                             f.write(generated_content)
                         await placeholder.edit_text(
-                            "警告：未能从生成内容中提取 JSON 数据，保存原始内容到 {save_path}。"
+                            f"警告：未能从生成内容中提取 JSON 数据，保存原始内容到 {save_path}。"
                         )
                 except json.JSONDecodeError as error:
-                    save_to = os.path.join(save_to, f"{name_char}_{uid}.txt")
-                    with open(save_to, "w", encoding="utf-8") as f:
-                        f.write(generated_content)
+                    save_path = os.path.join(save_to, f"{name_char}_{uid}.txt")
+                    with open(save_path, "w", encoding="utf-8") as f:
+                        f.write(generated_content or "")
                     await placeholder.edit_text(
-                        f"错误：无法解析生成的 JSON 内容，保存为原始文本到 {save_to}。错误信息：{str(error)}"
+                        f"错误：无法解析生成的 JSON 内容，保存为原始文本到 {save_path}。错误信息：{str(error)}"
                     )
                 except Exception as error:
                     await placeholder.edit_text(
@@ -436,9 +518,13 @@ class ApiCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
-        markup = Inline.print_api_list(info["tier"])
-        if markup == "没有可用的api。" or markup == "没有符合您账户等级的可用api。":
+        if not info:
+            return
+        markup = Inline.print_api_list(info.get("tier", 0))
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个api：", reply_markup=markup)
@@ -456,8 +542,10 @@ class PresetCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         markup = Inline.print_preset_list()
-        if markup == "没有可用的预设。":
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个预设：", reply_markup=markup)
@@ -475,9 +563,13 @@ class LoadCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         markup = Inline.print_conversations(info["user_id"])
-        if markup == "没有可用的对话。":
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个对话：", reply_markup=markup)
@@ -495,9 +587,13 @@ class DeleteCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         markup = Inline.print_conversations(info["user_id"], "delete")
-        if markup == "没有可用的对话。":
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个对话：", reply_markup=markup)
@@ -515,9 +611,13 @@ class DialogCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         info = public.update_info_get(update)
+        if not info:
+            return
         markup = Inline.print_dialog_conversations(info["user_id"])
-        if markup == "没有可用的对话。":
+        if isinstance(markup, str):
             await update.message.reply_text(markup)
         else:
             await update.message.reply_text("请选择一个对话：", reply_markup=markup)
@@ -535,6 +635,8 @@ class SettingCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         """
         处理设置命令，显示设置菜单。
         """
@@ -562,6 +664,8 @@ class DirectorCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         """
         处理导演模式命令，显示导演模式菜单。
         """
@@ -594,6 +698,8 @@ class SignCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message or not update.message.from_user:
+            return
         user_id = update.message.from_user.id
         sign_info = db.user_sign_info_get(user_id)
         if sign_info.get("last_sign") == 0:
@@ -604,34 +710,35 @@ class SignCommand(BaseCommand):
             )
         else:
             concurrent_time = datetime.datetime.now()
-            # 尝试解析带微秒的时间格式，如果失败则尝试不带微秒的格式
             last_sign_str = sign_info.get("last_sign")
+            if not last_sign_str:
+                await update.message.reply_text("签到时间数据异常，请联系管理员。")
+                return
             try:
                 last_sign_time = datetime.datetime.strptime(
-                    last_sign_str, "%Y-%m-%d %H:%M:%S.%f"
+                    str(last_sign_str), "%Y-%m-%d %H:%M:%S.%f"
                 )
             except ValueError:
                 try:
                     last_sign_time = datetime.datetime.strptime(
-                        last_sign_str, "%Y-%m-%d %H:%M:%S"
+                        str(last_sign_str), "%Y-%m-%d %H:%M:%S"
                     )
                 except ValueError as e:
                     logger.error(f"无法解析签到时间格式: {last_sign_str}, 错误: {e}")
                     await update.message.reply_text("签到时间数据异常，请联系管理员。")
                     return
             time_delta = concurrent_time - last_sign_time
-            total_seconds = time_delta.total_seconds()  # 获取总秒数
-            print(f"time_delta: {time_delta}, total_seconds: {total_seconds}")
+            total_seconds = time_delta.total_seconds()
             if total_seconds < 28800:  # 8小时 = 28800秒
                 remaining_hours = (28800 - total_seconds) // 3600
                 await update.message.reply_text(
-                    f"您8小时内已完成过签到，您可以在{str(remaining_hours)}小时后再次签到。"
+                    f"您8小时内已完成过签到，您可以在{int(remaining_hours)}小时后再次签到。"
                 )
             else:
                 db.user_sign(user_id)
                 sign_info = db.user_sign_info_get(
                     user_id
-                )  # 更新签到信息后再获取最新的frequency
+                )
                 await update.message.reply_text(
                     f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)"
                 )
@@ -723,6 +830,8 @@ class FeedbackCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if not update.message:
+            return
         """
         处理用户反馈命令，将用户的反馈消息发送给所有管理员。
         命令格式: /feedback <反馈内容>
@@ -752,7 +861,10 @@ class FeedbackCommand(BaseCommand):
 
         # 3. 获取用户信息
         info = public.update_info_get(update)
-        user_info = f"用户ID: {info['user_id']}\n用户名: {info.get('user_name', '未知')}\n昵称: {info.get('first_name', '')} {info.get('last_name', '')}"
+        if not info:
+            await update.message.reply_text("无法获取您的用户信息，反馈失败。")
+            return
+        user_info = f"用户ID: {info.get('user_id')}\n用户名: {info.get('user_name', '未知')}\n昵称: {info.get('first_name', '')} {info.get('last_name', '')}"
 
         # 4. 构建发送给管理员的消息
         admin_message = (
@@ -787,7 +899,7 @@ class FeedbackCommand(BaseCommand):
 
             # 记录用户反馈日志
             logger.info(
-                f"用户 {info['user_id']} ({info.get('user_name', '未知')}) 发送反馈: {feedback_content}"
+                f"用户 {info.get('user_id')} ({info.get('user_name', '未知')}) 发送反馈: {feedback_content}"
             )
         else:
             await update.message.reply_text(
@@ -795,4 +907,4 @@ class FeedbackCommand(BaseCommand):
                 "所有管理员都无法接收消息，请稍后重试或联系技术支持。",
                 parse_mode="Markdown",
             )
-            logger.error(f"用户 {info['user_id']} 的反馈发送完全失败")
+            logger.error(f"用户 {info.get('user_id')} 的反馈发送完全失败")
