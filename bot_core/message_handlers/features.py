@@ -17,6 +17,7 @@ from telegram.ext import ContextTypes
 from agent.llm_functions import analyze_image_for_rating
 import bot_core.public_functions.frequency_manager as fm
 from bot_core.public_functions import messages
+from bot_core.repository import UserRepository
 from utils import LLM_utils
 from utils import db_utils as db
 from utils.config_utils import get_config
@@ -157,6 +158,10 @@ class ImageAnalyzer:
         self.update = update
         self.context = context
         self.user_id = update.message.from_user.id
+        user_repo = UserRepository()
+        self.user = user_repo.get_user_by_id(self.user_id)
+        if not self.user:
+            raise ValueError(f"用户 {self.user_id} 不存在。")
         self.chat_id = update.message.chat.id
         self.placeholder_msg = None
 
@@ -164,6 +169,16 @@ class ImageAnalyzer:
         """执行完整的图像分析工作流程。"""
         if not self.update.message:
             logger.warning("ImageAnalyzer.analyze called with no message.")
+            return
+        
+        if not self.user:
+            logger.error(f"ImageAnalyzer.analyze called with no user object for user_id: {self.user_id}")
+            return
+
+        if self.user.remain_frequency <= 0 and self.user.temporary_frequency <= 0:
+            await messages.send_message(
+                self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui"
+            )
             return
 
         self.placeholder_msg = await self.update.message.reply_text(
