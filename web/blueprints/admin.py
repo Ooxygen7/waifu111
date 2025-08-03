@@ -532,6 +532,7 @@ def groups():
         ]
         for row in groups_data:
             group_dict = {columns[i]: row[i] for i in range(len(columns))}
+            group_dict["has_profile"] = db.group_has_profile(group_dict["group_id"])
             groups_list.append(group_dict)
 
     def next_sort_order(column):
@@ -817,3 +818,33 @@ def search():
 def config_management():
     """配置文件管理页面"""
     return render_template("config.html")
+
+@admin_bp.route("/database")
+@viewer_or_admin_required
+def database_viewer():
+    """数据库查看器页面"""
+    table_name = request.args.get("table_name")
+    table_names = db.get_all_table_names()
+    
+    if table_name and table_name not in table_names:
+        flash("指定的表不存在。", "error")
+        return redirect(url_for("admin.database_viewer"))
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 30
+    search_term = request.args.get("search", "")
+
+    table_data = {}
+    if table_name:
+        table_data = db.get_table_data(table_name, page, per_page, search_term)
+
+    return render_template(
+        "database.html",
+        table_names=table_names,
+        active_table=table_name,
+        table_data=table_data,
+        page=page,
+        per_page=per_page,
+        search_term=search_term,
+        format_datetime=format_datetime,
+    )

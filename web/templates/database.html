@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}数据库查看器{% endblock %}
+
+{% block page_title %}数据库查看器{% endblock %}
+
+{% block content %}
+<div class="glass-card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">数据库表</h5>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-pills">
+            {% for table in table_names %}
+            <li class="nav-item">
+                <a class="nav-link {% if table == active_table %}active{% endif %}" href="{{ url_for('admin.database_viewer', table_name=table) }}">
+                    {{ table }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+{% if active_table %}
+<div class="glass-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">表: {{ active_table }}</h5>
+        <form method="get" action="{{ url_for('admin.database_viewer') }}" class="form-inline">
+            <input type="hidden" name="table_name" value="{{ active_table }}">
+            <div class="input-group">
+                <input type="text" class="form-control" name="search" placeholder="搜索..." value="{{ search_term or '' }}">
+                <button class="btn btn-outline-primary" type="submit">
+                    <i data-feather="search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body">
+        {% if table_data.error %}
+            <div class="alert alert-danger">{{ table_data.error }}</div>
+        {% elif table_data.rows %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            {% for header in table_data.headers %}
+                                <th>{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in table_data.rows %}
+                        <tr>
+                            {% for cell in row %}
+                                <td>
+                                    <div class="cell-content">{{ cell }}</div>
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted mt-2">共 {{ table_data.total_rows }} 条记录</p>
+        {% else %}
+            <p>表中没有数据。</p>
+        {% endif %}
+    </div>
+    {% if table_data.total_pages > 1 %}
+    <div class="card-footer">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=1, search=search_term) }}">首页</a>
+                </li>
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=page-1, search=search_term) }}">上一页</a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">{{ page }} / {{ table_data.total_pages }}</span>
+                </li>
+                <li class="page-item {% if page >= table_data.total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=page+1, search=search_term) }}">下一页</a>
+                </li>
+                <li class="page-item {% if page >= table_data.total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=table_data.total_pages, search=search_term) }}">尾页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="glass-card">
+    <div class="card-body text-center">
+        <p class="lead">请从上方选择一个表进行查看。</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .nav-pills .nav-link {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: var(--text-color);
+        margin-right: 5px;
+        margin-bottom: 5px;
+        border: 1px solid transparent;
+    }
+    .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
+        color: #fff;
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+        box-shadow: 0 0 10px var(--glow-color);
+    }
+    .cell-content {
+        max-height: 100px;
+        overflow-y: auto;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}

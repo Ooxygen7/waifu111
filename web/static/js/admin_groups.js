@@ -34,7 +34,9 @@ function openModal(modalId, groupId) {
         loadGroupDetailData(groupId);
     } else if (modalId === 'groupEditModal') {
         loadGroupEditData(groupId);
-    }
+    } else if (modalId === 'groupProfileModal') {
+       loadGroupProfileData(groupId);
+   }
 }
 
 /**
@@ -55,6 +57,7 @@ function bindModalTriggers() {
     document.body.addEventListener('click', function (e) {
         const viewBtn = e.target.closest('.view-group-btn');
         const editBtn = e.target.closest('.edit-group-btn');
+       const profileBtn = e.target.closest('.view-profile-btn');
 
         if (viewBtn) {
             e.preventDefault();
@@ -72,6 +75,14 @@ function bindModalTriggers() {
                 openModal('groupEditModal', groupId);
             }
         }
+
+       if (profileBtn) {
+           e.preventDefault();
+           const groupId = profileBtn.dataset.groupId;
+           if (groupId) {
+               openModal('groupProfileModal', groupId);
+           }
+       }
     });
 }
 
@@ -293,6 +304,119 @@ function saveGroupChanges(groupId) {
             saveButton.disabled = false;
             saveButton.innerHTML = originalButtonHtml;
         });
+}
+
+function loadGroupProfileData(groupId) {
+    const modal = document.getElementById('groupProfileModal');
+    const contentDiv = modal.querySelector('#groupProfileContent');
+
+    if (!contentDiv) {
+        console.error('Error: Could not find the #groupProfileContent element in the modal.');
+        return;
+    }
+
+    // Dynamically create and show the loading state each time.
+    contentDiv.innerHTML = `
+        <div class="loading-state" style="display: flex;">
+            <div class="loading-spinner"></div>
+            <span>加载中...</span>
+        </div>
+    `;
+
+    fetch(`/api/groups/${groupId}/profiles`)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch group profiles.');
+            return response.json();
+        })
+        .then(data => {
+            // Overwrite the loading state with the fetched content.
+            contentDiv.innerHTML = createGroupProfileHtml(data, groupId);
+            bindProfileActions(groupId);
+        })
+        .catch(error => {
+            console.error('Error loading group profiles:', error);
+            contentDiv.innerHTML = `<div class="error-state"><h3>无法加载用户画像</h3><p>${error.message}</p></div>`;
+        });
+}
+
+function createGroupProfileHtml(profiles, groupId) {
+   if (!profiles || profiles.length === 0) {
+       return '<div class="empty-state"><h3 class="empty-state-title">暂无用户画像</h3><p class="empty-state-description">该群组还没有生成任何用户画像。</p></div>';
+   }
+
+   let html = '<div class="profile-list">';
+   profiles.forEach(profile => {
+       const userName = (profile.first_name || '') + ' ' + (profile.last_name || '') || profile.user_name;
+       html += `
+           <div class="profile-card" data-user-id="${profile.user_id}">
+               <div class="profile-header">
+                   <span class="profile-user-name">${userName}</span>
+                   <span class="profile-user-id">ID: ${profile.user_id}</span>
+               </div>
+               <div class="profile-body">
+                   <textarea class="profile-json" readonly>${profile.profile_json}</textarea>
+               </div>
+               <div class="profile-footer">
+                   <button class="btn-glass btn-sm edit-profile-btn">编辑</button>
+                   <button class="btn-glass btn-sm save-profile-btn" style="display:none;">保存</button>
+               </div>
+           </div>
+       `;
+   });
+   html += '</div>';
+   return html;
+}
+
+function bindProfileActions(groupId) {
+   const contentDiv = document.getElementById('groupProfileContent');
+   
+   contentDiv.addEventListener('click', function(e) {
+       const editBtn = e.target.closest('.edit-profile-btn');
+       const saveBtn = e.target.closest('.save-profile-btn');
+
+       if (editBtn) {
+           const card = editBtn.closest('.profile-card');
+           const textarea = card.querySelector('.profile-json');
+           textarea.readOnly = false;
+           textarea.focus();
+           editBtn.style.display = 'none';
+           card.querySelector('.save-profile-btn').style.display = 'inline-block';
+       }
+
+       if (saveBtn) {
+           const card = saveBtn.closest('.profile-card');
+           const userId = card.dataset.userId;
+           const textarea = card.querySelector('.profile-json');
+           const profileJson = textarea.value;
+
+           saveBtn.innerHTML = '<div class="loading-spinner-small"></div>';
+           saveBtn.disabled = true;
+
+           fetch(`/api/groups/${groupId}/profiles`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ user_id: userId, profile_json: profileJson }),
+           })
+           .then(response => response.json())
+           .then(data => {
+               if (data.success) {
+                   textarea.readOnly = true;
+                   saveBtn.style.display = 'none';
+                   card.querySelector('.edit-profile-btn').style.display = 'inline-block';
+               } else {
+                   alert('保存失败: ' + data.message);
+               }
+           })
+           .catch(error => {
+               console.error('Save profile failed:', error);
+               alert('保存失败，请查看控制台。');
+           })
+           .finally(() => {
+               saveBtn.innerHTML = '保存';
+               saveBtn.disabled = false;
+           });
+       }
+   });
 }
 
 /**

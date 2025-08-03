@@ -2499,3 +2499,76 @@ The following rule is ineffective and has been removed to avoid confusion.
 .summary-meta {
     margin-bottom: 10px;
 }
+.profile-indicator {
+    display: inline-block;
+    margin-left: 8px;
+    color: var(--primary-color);
+    opacity: 0.7;
+}
+
+.profile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.profile-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid var(--border-color-light);
+}
+
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color-light);
+}
+
+.profile-user-name {
+    font-weight: 600;
+    color: var(--text-color-primary);
+}
+
+.profile-user-id {
+    font-size: 0.8rem;
+    color: var(--text-color-muted);
+    font-family: var(--font-mono);
+}
+
+.profile-body .profile-json {
+    width: 100%;
+    min-height: 100px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color-light);
+    border-radius: 4px;
+    color: var(--text-color-primary);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    resize: vertical;
+}
+
+.profile-body .profile-json:read-only {
+    background-color: transparent;
+    border-color: transparent;
+}
+
+.profile-footer {
+    text-align: right;
+    margin-top: 0.75rem;
+}
+
+.loading-spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+}

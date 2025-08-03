@@ -83,6 +83,13 @@
                             <i data-feather="settings" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 配置管理</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.database_viewer' else '' }}"
+                            href="{{ url_for('admin.database_viewer') }}"
+                            aria-current="{% if request.endpoint == 'admin.database_viewer' %}page{% endif %}">
+                            <i data-feather="database" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 数据库查看器</span>
+                        </a>
+                    </li>
                     {% endif %}
                 </ul>
             </nav>

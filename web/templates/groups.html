@@ -99,6 +99,11 @@
                                     </div>
                                     <div class="user-details">
                                         <span class="user-name">{{ group.group_name or '未命名群组' }}</span>
+                                        {% if group.has_profile %}
+                                        <span class="profile-indicator" title="存在用户画像">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                        </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </td>
@@ -153,6 +158,10 @@
                                         <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span>
                                     </button>
                                     {% endif %}
+                                    <button type="button" class="btn-glass view-profile-btn" title="查看用户画像"
+                                       data-group-id="{{ group.group_id }}">
+                                        <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                                    </button>
                                     <a href="{{ url_for('admin.group_dialogs', group_id=group.group_id) }}"
                                         class="btn-glass" title="查看对话">
                                         <span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>
@@ -399,6 +408,39 @@
                     <polyline points="7 3 7 8 15 8"></polyline>
                 </svg>
                 <span>保存更改</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 用户画像模态框 -->
+<div class="modal-overlay" id="groupProfileModal">
+    <div class="modal-container modal-large">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <div class="modal-title-text">
+                    <h3 class="modal-title">群组用户画像</h3>
+                    <p class="modal-subtitle">查看和编辑群组内用户的画像</p>
+                </div>
+            </div>
+            <button class="modal-close" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div id="groupProfileContent" class="user-detail-content">
+                <div class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <span>加载中...</span>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-glass" id="analyzeGroupProfilesBtn">
+                <span>分析生成画像</span>
             </button>
         </div>
     </div>

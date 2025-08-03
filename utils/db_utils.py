@@ -438,6 +438,53 @@ def user_has_profile(user_id: int) -> bool:
     return bool(result)
 
 
+def group_has_profile(group_id: int) -> bool:
+    """检查群组是否存在用户画像。"""
+    command = "SELECT 1 FROM user_profiles WHERE group_id = ? LIMIT 1"
+    result = query_db(command, (group_id,))
+    return bool(result)
+
+
+def group_profiles_get(group_id: int) -> List[dict]:
+    """获取指定群组的所有用户画像。"""
+    command = """
+        SELECT up.user_id, up.profile_json, u.user_name, u.first_name, u.last_name
+        FROM user_profiles up
+        JOIN users u ON up.user_id = u.uid
+        WHERE up.group_id = ?
+    """
+    results = query_db(command, (group_id,))
+    profiles = []
+    for row in results:
+        profiles.append({
+            "user_id": row[0],
+            "profile_json": row[1],
+            "user_name": row[2],
+            "first_name": row[3],
+            "last_name": row[4]
+        })
+    return profiles
+
+
+def group_profile_update_or_create(group_id: int, user_id: int, profile_json: str) -> bool:
+    """更新或创建群组中的用户画像。"""
+    now = str(datetime.datetime.now())
+    # 检查记录是否存在
+    check_command = "SELECT 1 FROM user_profiles WHERE group_id = ? AND user_id = ?"
+    exists = query_db(check_command, (group_id, user_id))
+
+    if exists:
+        # 更新
+        command = "UPDATE user_profiles SET profile_json = ?, last_updated = ? WHERE group_id = ? AND user_id = ?"
+        params = (profile_json, now, group_id, user_id)
+    else:
+        # 插入
+        command = "INSERT INTO user_profiles (group_id, user_id, profile_json, last_updated) VALUES (?, ?, ?, ?)"
+        params = (group_id, user_id, profile_json, now)
+    
+    result = revise_db(command, params)
+    return result > 0
+
 
 def user_config_get(userid: int) -> dict:
     """
@@ -1645,6 +1692,105 @@ def user_sign_info_update(user_id: int, field: str, value: Any) -> bool:
     result = revise_db(command, (value, user_id))
     return result > 0
 
+
+def get_all_table_names() -> List[str]:
+    """
+    获取数据库中所有表的名称。
+
+    Returns:
+        List[str]: 表名列表。
+    """
+    command = "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+    result = query_db(command)
+    return [row[0] for row in result] if result else []
+
+def get_table_data(
+    table_name: str, page: int, per_page: int, search_term: Optional[str] = None
+) -> dict:
+    """
+    获取指定表的数据，支持分页和搜索。
+
+    Args:
+        table_name: 表名
+        page: 当前页码
+        per_page: 每页记录数
+        search_term: 搜索关键词
+
+    Returns:
+        dict: 包含 headers, rows, total_rows, total_pages 的字典
+    """
+    conn, conn_index = db_pool.get_connection()
+    if not conn:
+        return {
+            "headers": [],
+            "rows": [],
+            "total_rows": 0,
+            "total_pages": 0,
+            "error": "无法获取数据库连接",
+        }
+
+    try:
+        cursor = conn.cursor()
+
+        # 获取表头
+        cursor.execute(f"PRAGMA table_info({table_name});")
+        headers = [info[1] for info in cursor.fetchall()]
+
+        # 构建查询
+        base_query = f"FROM {table_name}"
+        where_clauses = []
+        params = []
+
+        if search_term and headers:
+            search_clauses = []
+            for header in headers:
+                search_clauses.append(f"CAST({header} AS TEXT) LIKE ?")
+            where_clauses.append("(" + " OR ".join(search_clauses) + ")")
+            params.extend([f"%{search_term}%"] * len(headers))
+
+        # 获取总行数
+        count_query = "SELECT COUNT(*) " + base_query
+        if where_clauses:
+            count_query += " WHERE " + " AND ".join(where_clauses)
+        
+        cursor.execute(count_query, tuple(params))
+        total_rows = cursor.fetchone()[0]
+        total_pages = (total_rows + per_page - 1) // per_page
+
+        # 获取当前页数据
+        offset = (page - 1) * per_page
+        data_query = f"SELECT * {base_query}"
+        if where_clauses:
+            data_query += " WHERE " + " AND ".join(where_clauses)
+        data_query += " LIMIT ? OFFSET ?"
+        params.extend([per_page, offset])
+
+        cursor.execute(data_query, tuple(params))
+        rows = cursor.fetchall()
+
+        return {
+            "headers": headers,
+            "rows": rows,
+            "total_rows": total_rows,
+            "total_pages": total_pages,
+        }
+
+    except sqlite3.Error as e:
+        return {
+            "headers": [],
+            "rows": [],
+            "total_rows": 0,
+            "total_pages": 0,
+            "error": str(e),
+        }
+    finally:
+        if conn_index >= 0:
+            db_pool.release_connection(conn_index)
+        else:
+            if conn:
+                conn.close()
+    result = query_db(command)
+    return [row[0] for row in result] if result else []
 
 # 应用退出时关闭所有数据库连接
 def close_all_connections():

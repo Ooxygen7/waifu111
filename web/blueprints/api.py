@@ -214,6 +214,7 @@ def api_user_detail(user_id) -> Union[Response, tuple[Response, int]]:
         except Exception as e:
             app_logger.error(f"更新用户 {user_id} 信息失败: {e}")
             return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"error": "未处理的请求方法"}), 405
 
 
 
@@ -554,3 +555,39 @@ def api_group_detail(group_id) -> Union[Response, tuple[Response, int]]:
             return jsonify({"success": False, "message": str(e)}), 500
     return jsonify({"error": "未处理的请求方法"}), 405
 
+
+
+@api_bp.route("/groups/<group_id>/profiles", methods=["GET"])
+@admin_required
+def api_group_profiles_get(group_id):
+    """获取群组的用户画像列表"""
+    try:
+        group_id = int(group_id)
+        profiles = db.group_profiles_get(group_id)
+        return jsonify(profiles)
+    except Exception as e:
+        app_logger.error(f"获取群组 {group_id} 用户画像失败: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@api_bp.route("/groups/<group_id>/profiles", methods=["POST"])
+@admin_required
+def api_group_profile_save(group_id):
+    """创建或更新群组中的用户画像"""
+    try:
+        group_id = int(group_id)
+        data = request.get_json()
+        user_id = data.get("user_id")
+        profile_json = data.get("profile_json")
+
+        if not user_id or not profile_json:
+            return jsonify({"success": False, "message": "缺少 user_id 或 profile_json"}), 400
+
+        success = db.group_profile_update_or_create(group_id, user_id, profile_json)
+        
+        if success:
+            return jsonify({"success": True, "message": "用户画像保存成功"})
+        else:
+            return jsonify({"success": False, "message": "保存用户画像失败"}), 500
+    except Exception as e:
+        app_logger.error(f"保存群组 {group_id} 用户画像失败: {e}")
+        return jsonify({"success": False, "message": str(e)}), 500

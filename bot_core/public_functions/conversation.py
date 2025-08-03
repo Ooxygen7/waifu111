@@ -422,7 +422,7 @@ class PrivateConv:
         if update.message:
             self.user = User(update.message.chat.id)
             self.input = Message(update.message.message_id, update.message.text, 'input') or None  # 消息内容
-        else:
+        elif update.callback_query:
             self.user = User(update.callback_query.from_user.id)
         # 获取或创建会话 ID
         self.id = db.user_conv_id_get(self.user.id)
@@ -451,6 +451,9 @@ class PrivateConv:
         Args:
             save (bool, optional): 是否保存对话记录到数据库. 默认为 True.
         """
+        if self.update.message and self.update.message.text and self.update.message.text.startswith('/'):
+            logger.warning(f"检测到命令 {self.update.message.text} 进入消息处理器，已跳过")
+            return
         if self.user.frequency > 0 or self.user.tmp_frequency > 0:
             # 检查是否是从回调查询触发的
             if self.update.message:
