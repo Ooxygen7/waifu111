@@ -41,7 +41,7 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             # 将参数列表附加到 context
             context.args = args
 
-            handler = CommandHandlers.get_command_handler(command)
+            handler = CommandHandlers.get_command_handler(command, "group")
             if handler:
                 logger.info(f"用户 {user_id} 在群组 {update.message.chat.id} 中执行命令: {message_text}")
                 await handler(update, context)

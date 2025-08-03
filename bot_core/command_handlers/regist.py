@@ -14,17 +14,17 @@ class CommandHandlers:
     """
     命令处理器管理类，负责动态加载和管理Telegram Bot的命令处理器。
     """
-    _command_map: dict[str, Callable] | None = None
+    _command_maps: dict[str, dict[str, Callable]] | None = None
 
     @classmethod
     def _initialize(cls):
         """
-        扫描所有命令模块并构建命令映射表。
+        扫描所有命令模块并按聊天类型构建命令映射表。
         """
-        if cls._command_map is not None:
+        if cls._command_maps is not None:
             return
 
-        cls._command_map = {}
+        cls._command_maps = {"private": {}, "group": {}}
         module_names = ["private", "group", "admin"]
         for module_name in module_names:
             try:
@@ -38,27 +38,34 @@ class CommandHandlers:
                     try:
                         instance = obj()
                         if hasattr(instance, "meta") and instance.meta.enabled:
-                            if cls._command_map is not None:
-                                cls._command_map[instance.meta.trigger] = instance.handler
-                                logger.debug(f"已加载命令: /{instance.meta.trigger}")
+                            command_type = instance.meta.command_type
+                            if command_type == "admin":
+                                command_type = "private"  # 管理员命令视为私聊命令
+                            
+                            if command_type in cls._command_maps:
+                                cls._command_maps[command_type][instance.meta.trigger] = instance.handler
+                                logger.debug(f"已加载命令: /{instance.meta.trigger} 到 {command_type} 映射")
                     except Exception as e:
                         logger.error(f"为 {name} 创建命令处理器失败: {e}", exc_info=True)
 
     @classmethod
-    def get_command_handler(cls, command: str) -> Callable | None:
+    def get_command_handler(cls, command: str, chat_type: str) -> Callable | None:
         """
-        根据命令触发词获取对应的处理器。
+        根据命令触发词和聊天类型获取对应的处理器。
 
         Args:
             command (str): 命令触发词 (不带 /).
+            chat_type (str): 聊天类型 ('private' 或 'group').
 
         Returns:
             Callable | None: 对应的命令处理器或 None。
         """
-        if cls._command_map is None:
+        if cls._command_maps is None:
             cls._initialize()
-        if cls._command_map is not None:
-            return cls._command_map.get(command)
+        
+        if cls._command_maps and chat_type in cls._command_maps:
+            return cls._command_maps[chat_type].get(command)
+        
         return None
 
     @staticmethod

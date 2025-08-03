@@ -33,7 +33,7 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             # 将参数列表附加到 context
             context.args = args
 
-            handler = CommandHandlers.get_command_handler(command)
+            handler = CommandHandlers.get_command_handler(command, "private")
             if handler:
                 logger.info(f"用户 {user_id} 执行命令: {message_text}")
                 await handler(update, context)
