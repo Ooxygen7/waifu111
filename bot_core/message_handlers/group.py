@@ -34,8 +34,16 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # 检查是否为命令
     if message_text.startswith('/'):
         command_parts = message_text[1:].split()
-        command = command_parts[0].split('@')[0]
-        
+        command_full = command_parts[0]
+        command_parts_at = command_full.split('@')
+        command = command_parts_at[0]
+
+        # 如果命令中包含@，则检查是否是发给本机器人的
+        if len(command_parts_at) > 1:
+            bot_username = command_parts_at[1]
+            if bot_username != context.bot.username:
+                return  # 不是发给我的命令，忽略
+
         handler = CommandHandlers.get_command_handler(command, "group")
         if handler:
             logger.info(f"群组命令: /{command}, 群组ID: {update.message.chat.id}, 用户ID: {user_id}")
@@ -47,14 +55,20 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         # 检查是否在关键词添加模式
         if context.user_data:
-            keyword_action = context.user_data.get('keyword_action', {})
-            if keyword_action.get(user_id) == 'add':
-                logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
+            keyword_action = context.user_data.get('keyword_action')
+            # 兼容旧的字符串格式和新的字典格式
+            is_adding = False
+            if isinstance(keyword_action, dict):
+                if keyword_action.get(user_id) == 'add':
+                    is_adding = True
+            elif isinstance(keyword_action, str) and keyword_action == 'add':
+                 # 这是不规范的旧格式，但为了兼容而处理
+                is_adding = True
+
+            if is_adding:
+                logger.info(f"用户 {user_id} 正在添加关键词，在群组 {update.message.chat.id}")
                 await features.group_keyword_add(update, context)
                 return
-            logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
-            await features.group_keyword_add(update, context)
-            return
 
         # 处理普通群聊消息
         await group_reply(update, context)
