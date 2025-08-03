@@ -40,36 +40,27 @@ def setup_handlers(app: Application) -> None:
     # 定义所有需要加载的命令模块
 
     # 获取所有命令处理器
-    private_handlers = CommandHandlers.get_command_handlers(
-        ["private"], tg_filters=filters.ChatType.PRIVATE
-    )
-    admin_handlers = CommandHandlers.get_command_handlers(
-        ["admin"], tg_filters=filters.ChatType.PRIVATE
-    )
-    group_handlers = CommandHandlers.get_command_handlers(
-        ["group"], tg_filters=filters.ChatType.GROUP | filters.ChatType.SUPERGROUP
-    )
-    command_handlers = private_handlers + admin_handlers + group_handlers
+    # Command handlers are now managed by the message handlers
+    command_handlers = []
 
     # 消息处理器
     message_handlers = [
         MessageHandler(
             (filters.TEXT | filters.Document.ALL | filters.PHOTO | filters.Sticker.ALL)
-            & ~filters.COMMAND
             & filters.ChatType.PRIVATE,
             private_handler.private_msg_handler,
         ),
         MessageHandler(
             (filters.TEXT | filters.PHOTO | filters.Document.ALL)
-            & ~filters.COMMAND
             & (filters.ChatType.GROUP | filters.ChatType.SUPERGROUP),
             group_handler.group_msg_handler,
         ),
     ]
 
     # 注册所有命令处理器
-    for handler in command_handlers:
-        app.add_handler(handler)
+    # Command handlers are now managed by the message handlers
+    # for handler in command_handlers:
+    #     app.add_handler(handler)
 
     # 创建并添加回调处理器
     callback_handler = create_callback_handler(["bot_core.callback_handlers"])

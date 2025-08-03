@@ -8,66 +8,58 @@ import logging
 setup_logging()
 logger = logging.getLogger(__name__)
 from telegram.ext import CommandHandler
+from typing import Callable
+
 class CommandHandlers:
     """
     命令处理器管理类，负责动态加载和管理Telegram Bot的命令处理器。
-
-    提供静态方法来扫描命令模块、创建命令处理器实例和生成命令菜单定义。
     """
+    _command_map: dict[str, Callable] | None = None
 
-    @staticmethod
-    def get_command_handlers(module_names, tg_filters=None):
+    @classmethod
+    def _initialize(cls):
         """
-        动态扫描指定模块，提取所有BaseCommand的子类，并生成对应的CommandHandler实例。
-
-        Args:
-            module_names (list): 模块名称列表.
-            tg_filters: (telegram.ext.filters, optional): CommandHandler的过滤器。默认为None。
-
-        Returns:
-            list: CommandHandler实例列表。
+        扫描所有命令模块并构建命令映射表。
         """
-        command_handlers = []
+        if cls._command_map is not None:
+            return
+
+        cls._command_map = {}
+        module_names = ["private", "group", "admin"]
         for module_name in module_names:
             try:
-                module = importlib.import_module(
-                    f"bot_core.command_handlers.{module_name}"
-                )  # 动态导入模块
+                module = importlib.import_module(f"bot_core.command_handlers.{module_name}")
             except ImportError as e:
-                logger.error(
-                    f"Error importing module {module_name}: {e}", exc_info=True
-                )  # 打印导入错误，方便调试
+                logger.error(f"导入模块 {module_name} 失败: {e}", exc_info=True)
                 continue
 
-            for name, obj in inspect.getmembers(module):  # 扫描模块中的所有成员
-                if (
-                        inspect.isclass(obj)
-                        and issubclass(obj, BaseCommand)
-                        and obj != BaseCommand
-                ):  # 检查是否是BaseCommand的子类
+            for name, obj in inspect.getmembers(module):
+                if inspect.isclass(obj) and issubclass(obj, BaseCommand) and obj != BaseCommand:
                     try:
-                        instance = obj()  # 创建命令类实例
-                        if hasattr(instance, "meta") and hasattr(
-                                instance.meta, "trigger"
-                        ):  # 确保有meta和trigger属性
-                            if instance.meta.enabled:  # 确保已激活
-                                logger.debug(
-                                    f"{name}命令已加载,启用:{instance.meta.enabled},展示在目录:{instance.meta.show_in_menu}"
-                                )
-                                handler = CommandHandler(
-                                    instance.meta.trigger,
-                                    instance.handler,
-                                    filters=tg_filters,
-                                )  # 使用预处理过的handler
-                                command_handlers.append(handler)
+                        instance = obj()
+                        if hasattr(instance, "meta") and instance.meta.enabled:
+                            if cls._command_map is not None:
+                                cls._command_map[instance.meta.trigger] = instance.handler
+                                logger.debug(f"已加载命令: /{instance.meta.trigger}")
                     except Exception as e:
-                        logger.error(
-                            f"Error creating CommandHandler for {name}: {e}",
-                            exc_info=True,
-                        )  # 打印创建实例或CommandHandler错误，方便调试
-                        continue
+                        logger.error(f"为 {name} 创建命令处理器失败: {e}", exc_info=True)
 
-        return command_handlers
+    @classmethod
+    def get_command_handler(cls, command: str) -> Callable | None:
+        """
+        根据命令触发词获取对应的处理器。
+
+        Args:
+            command (str): 命令触发词 (不带 /).
+
+        Returns:
+            Callable | None: 对应的命令处理器或 None。
+        """
+        if cls._command_map is None:
+            cls._initialize()
+        if cls._command_map is not None:
+            return cls._command_map.get(command)
+        return None
 
     @staticmethod
     def get_command_definitions(

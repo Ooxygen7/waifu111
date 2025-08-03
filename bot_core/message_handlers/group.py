@@ -17,38 +17,53 @@ from utils.config_utils import get_config
 logger = logging.getLogger(__name__)
 
 
+from bot_core.command_handlers.regist import CommandHandlers
+
 @Decorators.ensure_group_info_updated
 @Decorators.check_message_expiration
 async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
-    处理群聊文本消息。
-
-    Args:
-        update (Update): Telegram 更新对象。
-        context (ContextTypes.DEFAULT_TYPE): 上下文对象。
-
-    Note:
-        此函数已使用 @check_message_and_user 装饰器进行用户和消息有效性检查。
-        如果消息过期或用户无效，装饰器会自动处理并返回。
+    处理群聊消息，包括命令和普通对话。
     """
-    if update.message:
-        try:
-            # 检查是否在关键词添加模式
-            keyword_action = context.user_data.get('keyword_action')
-            if keyword_action == 'add':
-                user_id = update.effective_user.id
-                logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
-                await features.group_keyword_add(update, context)
-                return
+    if not update.message or not update.message.from_user:
+        return
 
+    user_id = update.message.from_user.id
+    message_text = update.message.text or ""
 
-            # 处理普通群聊消息
-            await group_reply(update, context)
-        except Exception as e:
-            logger.error(
-                f"处理群聊消息时出错: {str(e)}，用户ID: {update.effective_user.id}，群组ID: {update.message.chat.id}",
-                exc_info=True
-            )
+    try:
+        if message_text.startswith('/'):
+            command_parts = message_text[1:].split()
+            command_with_bot_name = command_parts[0]
+            command = command_with_bot_name.split('@')[0]
+            args = command_parts[1:]
+            
+            # 将参数列表附加到 context
+            context.args = args
+
+            handler = CommandHandlers.get_command_handler(command)
+            if handler:
+                logger.info(f"用户 {user_id} 在群组 {update.message.chat.id} 中执行命令: {message_text}")
+                await handler(update, context)
+            else:
+                # 在群组中，对于未知命令可以选择静默处理或回复
+                logger.debug(f"群组 {update.message.chat.id} 中的未知命令: {message_text}")
+            return
+
+        # 检查是否在关键词添加模式
+        keyword_action = context.user_data.get('keyword_action')
+        if keyword_action == 'add':
+            logger.info(f"用户正在添加关键词，用户ID: {user_id}，群组ID: {update.message.chat.id}")
+            await features.group_keyword_add(update, context)
+            return
+
+        # 处理普通群聊消息
+        await group_reply(update, context)
+    except Exception as e:
+        logger.error(
+            f"处理群聊消息时出错: {str(e)}，用户ID: {user_id}，群组ID: {update.message.chat.id}",
+            exc_info=True
+        )
 
 
 async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
