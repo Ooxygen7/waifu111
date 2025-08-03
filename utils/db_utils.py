@@ -894,17 +894,17 @@ def dialog_content_load(
 
 def dialog_last_input_get(conv_id: int) -> str:
     """
-    获取指定会话的倒数第二条原始内容。
+    获取指定会话中最新的用户输入内容。
 
     Args:
         conv_id: 会话ID
 
     Returns:
-        str: 倒数第二条原始内容，如果不存在则返回空字符串
+        str: 最新的用户输入原始内容，如果不存在则返回空字符串
     """
-    command = "SELECT raw_content FROM dialogs WHERE conv_id = ? ORDER BY turn_order DESC LIMIT 2;"
+    command = "SELECT raw_content FROM dialogs WHERE conv_id = ? AND role = 'user' ORDER BY turn_order DESC LIMIT 1;"
     result = query_db(command, (conv_id,))
-    return result[1][0] if result else ""
+    return result[0][0] if result else ""
 
 def dialog_summary_get(conv_id: int) -> Optional[list]:
     """

@@ -195,25 +195,45 @@ class ConversationService:
     async def regenerate_response(self):
         """
         重新生成最后一轮的回复。
-        - 删除最后一轮的消息。
-        - 重新获取响应。
+        - 获取最后一次用户输入。
+        - 从 Telegram 删除最后一则 AI 回复。
+        - 从数据库删除最后一轮对话（用户输入和 AI 回复）。
+        - 基于之前的用户输入重新生成响应。
         """
         if not self.conversation or not self.conversation.id:
             logger.warning("无法重新生成，因为没有活动的会话ID。")
             return None, None
 
-        # 1. 删除最后一轮对话
-        await self.undo_last_turn()
+        conv_id = self.conversation.id
+        user_id = self.user.id
 
-        # 2. 重新加载对话状态（可选，但推荐）
-        # 在 undo_last_turn 后，相关的对话记录已经被删除
-        # 我们需要获取删除前的最后一条用户输入
-        last_input_text = db.dialog_last_input_get(self.conversation.id)
-        if not last_input_text:
-            logger.warning(f"无法为会话 {self.conversation.id} 重新生成，因为找不到上一次的用户输入。")
+        # 1. 获取最后的用户输入和消息ID
+        last_input_text = db.dialog_last_input_get(conv_id)
+        msg_ids = db.conversation_latest_message_id_get(conv_id)
+        
+        # 清理 None 值
+        msg_ids = [msg_id for msg_id in msg_ids if msg_id is not None]
+
+        if not last_input_text or not msg_ids:
+            logger.warning(f"无法为会话 {conv_id} 重新生成，因为找不到足够的信息（输入或消息ID）。")
             return None, None
 
-        # 3. 使用 PromptService 构建新的提示
+        # 2. 从 Telegram 删除最后一则 AI 回复
+        try:
+            # msg_ids[0] 是最新的消息，即 AI 的回复
+            await self.context.bot.delete_message(user_id, msg_ids[0])
+        except Exception as e:
+            logger.error(f"为重新生成而删除消息 {msg_ids[0]} 失败: {e}")
+            # 即使删除失败，也继续尝试从数据库中清理并重新生成
+
+        # 3. 从数据库删除最后一轮对话（用户和AI）
+        if len(msg_ids) >= 2:
+            self.conv_repo.delete_message_by_id(msg_ids[0]) # AI
+            self.conv_repo.delete_message_by_id(msg_ids[1]) # User
+        elif len(msg_ids) == 1:
+            self.conv_repo.delete_message_by_id(msg_ids[0]) # AI
+
+        # 4. 使用 PromptService 构建新的提示
         prompt_service = PromptService(
             user=self.user,
             conversation=self.conversation,
@@ -221,15 +241,14 @@ class ConversationService:
         )
         messages = prompt_service.build_private_chat_prompts()
 
-        # 4. 使用 get_llm_response 获取新响应
+        # 5. 使用 get_llm_response 获取新响应
         response_chunks = []
         async for chunk in self.get_llm_response(messages):
             response_chunks.append(chunk)
         
         full_response = "".join(response_chunks)
         
-        # 注意：此方法返回响应文本和最后的用户输入，
-        # 控制器层将负责发送消息和保存记录。
+        # 6. 返回响应文本和最后的用户输入
         return full_response, last_input_text
 
     def save_turn(self, input_message, output_message):
