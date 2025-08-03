@@ -121,7 +121,7 @@ class DatabaseSuperToolRegistry:
             "- summary: TEXT (conversation summary)",
             "- create_at: TEXT (creation time)",
             "- update_at: TEXT (last update time)",
-            "- delete_mark: INTEGER (deletion flag)",
+            "- delete_mark: TEXT (deletion flag: 'yes' or 'no')",
             "- turns: INTEGER (number of conversation turns)",
             "",
             "表: dialog_summary (私人对话摘要)",

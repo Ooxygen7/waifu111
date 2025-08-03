@@ -43,11 +43,14 @@ class PromptService:
             preset = self.user.preset
             character = self.user.character
 
+        # 确定用户昵称的备用逻辑
+        user_display_name = self.user.nick or self.user.user_name or self.user.first_name
+
         self.prompt_builder = PromptsBuilder(
             prompts_set=preset,
             input_txt=self.input_text,
             character=character,
-            user_nick=self.user.nick or self.user.user_name
+            user_nick=user_display_name
         )
 
     def build_private_chat_prompts(self) -> List[Dict[str, Any]]:
@@ -183,11 +186,11 @@ class ConversationService:
         # 3. 从数据库删除消息记录
         if len(msg_ids) >= 2:
             # 使用 Repository 删除
-            self.conv_repo.delete_message_by_id(msg_ids[0])
-            self.conv_repo.delete_message_by_id(msg_ids[1])
+            self.conv_repo.delete_message(conv_id, msg_ids[0])
+            self.conv_repo.delete_message(conv_id, msg_ids[1])
             logger.info(f"成功撤销了会话 {conv_id} 中的消息: {msg_ids}")
         elif len(msg_ids) == 1:
-            self.conv_repo.delete_message_by_id(msg_ids[0])
+            self.conv_repo.delete_message(conv_id, msg_ids[0])
             logger.info(f"成功撤销了会话 {conv_id} 中的消息: {msg_ids}")
         else:
             logger.warning(f"消息ID列表长度不足 (len={len(msg_ids)})，无法从数据库中删除记录。")
@@ -228,10 +231,10 @@ class ConversationService:
 
         # 3. 从数据库删除最后一轮对话（用户和AI）
         if len(msg_ids) >= 2:
-            self.conv_repo.delete_message_by_id(msg_ids[0]) # AI
-            self.conv_repo.delete_message_by_id(msg_ids[1]) # User
+            self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
+            self.conv_repo.delete_message(conv_id, msg_ids[1]) # User
         elif len(msg_ids) == 1:
-            self.conv_repo.delete_message_by_id(msg_ids[0]) # AI
+            self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
 
         # 4. 使用 PromptService 构建新的提示
         prompt_service = PromptService(

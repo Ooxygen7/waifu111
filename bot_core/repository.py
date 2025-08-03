@@ -171,16 +171,17 @@ class ConversationRepository:
         """
         db.dialog_content_add(conv_id, role, turn, raw_content, processed_content, message_id, 'private')
 
-    def delete_message_by_id(self, message_id: int) -> bool:
+    def delete_message(self, conv_id: int, message_id: int) -> bool:
         """
-        通过消息ID从数据库中删除一条对话记录。
+        通过会话ID和消息ID从数据库中删除一条对话记录。
 
         Args:
+            conv_id: 消息所在的会话ID。
             message_id: 要删除的消息的ID。
 
         Returns:
             如果删除成功则返回 True，否则返回 False。
         """
-        command = "DELETE FROM dialogs WHERE msg_id = ?"
-        # revise_db 返回受影响的行数，大于0表示成功
-        return db.revise_db(command, (message_id,)) > 0
+        # 删除特定会话中的特定消息，避免误删其他会话中的同ID消息
+        command = "DELETE FROM dialogs WHERE conv_id = ? AND msg_id = ?"
+        return db.revise_db(command, (conv_id, message_id)) > 0

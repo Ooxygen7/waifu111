@@ -494,7 +494,7 @@ def user_config_get(userid: int) -> dict:
         userid: 用户ID
 
     Returns:
-        dict: 包含 char, api, preset, conv_id, stream, user_id, user_nick 的配置字典
+        dict: 包含 char, api, preset, conv_id, stream, nick 的配置字典
     """
     command = (
         "SELECT char, api, preset, conv_id,stream,nick FROM user_config WHERE uid = ?"
@@ -507,8 +507,7 @@ def user_config_get(userid: int) -> dict:
             "preset": result[0][2],
             "conv_id": result[0][3],
             "stream": result[0][4],
-            "user_id": userid,
-            "user_nick": result[0][5],
+            "nick": result[0][5],
         }
         if result
         else {}
@@ -636,17 +635,17 @@ def user_conversations_get_for_dialog(userid: int) -> Optional[List[Tuple]]:
 
 
 def user_info_get(userid: int) -> dict:
-    """获取用户的基本信息。返回 (first_name, last_name, account_tier, remain_frequency, balance, uid)。"""
-    command = "SELECT first_name, last_name, account_tier, remain_frequency, balance,uid FROM users WHERE uid = ?"
+    """获取用户的基本信息。返回 (first_name, last_name, user_name, account_tier, remain_frequency, balance, uid)。"""
+    command = "SELECT first_name, last_name, user_name, account_tier, remain_frequency, balance, uid FROM users WHERE uid = ?"
     result = query_db(command, (userid,))
     if result:
         return {
-            "user_name": f"{(str(result[0][0] or '') + str(result[0][1] or '')).strip()}",
             "first_name": result[0][0],
             "last_name": result[0][1],
-            "tier": result[0][2],
-            "remain": result[0][3],
-            "balance": result[0][4],
+            "user_name": result[0][2],
+            "tier": result[0][3],
+            "remain": result[0][4],
+            "balance": result[0][5],
         }
     else:
         return {}
