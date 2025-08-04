@@ -7,6 +7,7 @@ import logging
 from PIL import Image
 import bot_core.public_functions.frequency_manager as fm
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.helpers import escape_markdown
 from telegram.ext import ContextTypes
 
 from bot_core.callback_handlers.inline import Inline
@@ -102,7 +103,7 @@ class KeywordCommand(BaseCommand):
             keywords_text = "当前群组没有设置关键词。"
         else:
             keywords_text = "当前群组的关键词列表：\r\n" + ", ".join(
-                [f"`{kw}`" for kw in keywords]
+                [f"`{escape_markdown(kw, version=1)}`" for kw in keywords]
             )
         keyboard = [
             [
@@ -422,8 +423,9 @@ class ForwardCommand(BaseCommand):
 
         except Exception as e:
             # 捕获其他非 Telegram API 的意外错误
+            escaped_error = escape_markdown(str(e), version=1)
             await update.message.reply_text(
-                f"❌ 发生错误：`{type(e).__name__}: {e}`", parse_mode="Markdown"
+                f"❌ 发生错误：`{type(e).__name__}: {escaped_error}`", parse_mode="Markdown"
             )
 
 

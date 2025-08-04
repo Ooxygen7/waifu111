@@ -12,6 +12,7 @@ import logging
 import traceback
 from typing import List, Dict, Tuple, Optional
 from telegram import Update, InlineQueryResult, InlineQueryResultArticle, InputTextMessageContent
+from telegram.helpers import escape_markdown
 from telegram.ext import ContextTypes
 
 from .base import BaseInlineQuery, InlineResultData
@@ -67,7 +68,7 @@ class ErrorResultFactory:
                 id=error_id,
                 title=f"❌ {title}",
                 description=f"处理查询时发生错误: {error_msg}",
-                content=f"**❌ 查询失败：{error_msg}**\n\n请稍后重试或联系管理员。",
+                content=f"**❌ 查询失败：{escape_markdown(error_msg, version=1)}**\n\n请稍后重试或联系管理员。",
                 parse_mode="Markdown"
             )
             return [error_data.to_article_result()]

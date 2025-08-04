@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from agent.llm_functions import generate_summary
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.helpers import escape_markdown
 from telegram.ext import ContextTypes
 from bot_core.public_functions.messages import handle_agent_session, send_message
 import bot_core.public_functions.update_parse as public
@@ -163,14 +164,25 @@ class MeCommand(BaseCommand):
         info = public.update_info_get(update)
         if not info:
             return
+        user_name = escape_markdown(info.get('user_name', '未知'), version=1)
+        tier = escape_markdown(str(info.get('tier', '未知')), version=1)
+        remain = escape_markdown(str(info.get('remain', 0)), version=1)
+        frequency = escape_markdown(str(db.user_sign_info_get(info.get('user_id', 0)).get('frequency', 0)), version=1)
+        balance = escape_markdown(str(info.get('balance', 0)), version=1)
+        user_nick = escape_markdown(info.get('user_nick', '未设置'), version=1)
+        char = escape_markdown(info.get('char', '未设置'), version=1)
+        api = escape_markdown(info.get('api', '未设置'), version=1)
+        preset = escape_markdown(info.get('preset', '未设置'), version=1)
+        stream = escape_markdown(str(info.get('stream', '未知')), version=1)
+
         result = (
-            f"您好，{info.get('user_name', '未知')}！\r\n"
-            f"您的帐户等级是`{info.get('tier', '未知')}`；\r\n"
-            f"您的额度还有`{info.get('remain', 0)}`条；\r\n"
-            f"您的临时额度还有`{db.user_sign_info_get(info.get('user_id', 0)).get('frequency', 0)}`条(上限100)；\r\n"
-            f"您的余额是`{info.get('balance', 0)}`；\r\n"
-            f"您的对话昵称是`{info.get('user_nick', '未设置')}`。\r\n"
-            f"当前角色：`{info.get('char', '未设置')}`\r\n当前接口：`{info.get('api', '未设置')}`\r\n当前预设：`{info.get('preset', '未设置')}`\r\n流式传输：`{info.get('stream', '未知')}`\r\n"
+            f"您好，{user_name}！\r\n"
+            f"您的帐户等级是`{tier}`；\r\n"
+            f"您的额度还有`{remain}`条；\r\n"
+            f"您的临时额度还有`{frequency}`条(上限100)；\r\n"
+            f"您的余额是`{balance}`；\r\n"
+            f"您的对话昵称是`{user_nick}`。\r\n"
+            f"当前角色：`{char}`\r\n当前接口：`{api}`\r\n当前预设：`{preset}`\r\n流式传输：`{stream}`\r\n"
         )
         await update.message.reply_text(f"{result}", parse_mode="MarkDown")
 
@@ -267,13 +279,14 @@ class SaveCommand(BaseCommand):
                     logger.info(
                         f"保存对话并生成总结, conv_id: {current_conv_id}, summary: {summary}"
                     )
+                    escaped_summary = escape_markdown(summary, version=1)
                     try:
                         await placeholder.edit_text(
-                            f"保存成功，对话总结:`{summary}`", parse_mode="MarkDown"
+                            f"保存成功，对话总结:`{escaped_summary}`", parse_mode="MarkDown"
                         )
                     except Exception as e:
                         logger.warning(e)
-                        await placeholder.edit_text(f"保存成功，对话总结:`{summary}`")
+                        await placeholder.edit_text(f"保存成功，对话总结:`{escaped_summary}`")
                 else:
                     await placeholder.edit_text("保存失败")
 
