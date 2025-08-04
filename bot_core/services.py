@@ -347,7 +347,7 @@ class ConversationService:
                 group.id,
                 group.name or ''
             ):
-                logger.debug(f"为用户 {self.user.id} 在群组 {group.id} 中创建了新的会话ID: {new_conv_id}")
+                logger.info(f"为用户 {self.user.id} 在群组 {group.id} 中创建了新的会话ID: {new_conv_id}")
                 return new_conv_id
         
         logger.error(f"为用户 {self.user.id} 在群组 {group.id} 中创建会话ID失败，已达最大尝试次数。")
@@ -413,10 +413,10 @@ class SummaryService:
         """
         if not self.conversation.id:
             return
-        logger.debug(f"开始检查对话 {self.conversation.id} 的摘要情况。")
-        logger.debug(f"该对话当前轮次为 {self.conversation.turns} 轮。")
+        logger.info(f"开始检查对话 {self.conversation.id} 的摘要情况。")
+        logger.info(f"该对话当前轮次为 {self.conversation.turns} 轮。")
         if self.conversation.turns <= 60:
-            logger.debug("轮次不足 (<= 60)，跳过摘要检查。")
+            logger.info("轮次不足 (<= 60)，跳过摘要检查。")
             return
 
         # 计算需要检查的总结区域数量
@@ -436,7 +436,7 @@ class SummaryService:
                 missing_areas.append((start, end, area_str))
 
         if not missing_areas:
-            logger.debug(f"对话 {self.conversation.id} 的所有摘要区域均已存在。")
+            logger.info(f"对话 {self.conversation.id} 的所有摘要区域均已存在。")
             return
 
         logger.info(f"对话 {self.conversation.id} 发现缺失的摘要区域: {[a[2] for a in missing_areas]}，将启动后台任务依次补全。")

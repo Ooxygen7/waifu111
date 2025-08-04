@@ -128,7 +128,7 @@ class LLM:
             context: Telegram上下文对象
             text_content (str, optional): 要附加的文本内容。默认为空字符串
         """
-        logger.debug(f"含有图片，尝试嵌入")
+        logger.info(f"含有图片，尝试嵌入")
         content_list = []
         if text_content:
             content_list.append({"type": "text", "text": text_content})
@@ -438,9 +438,9 @@ class PromptsBuilder:
 
             if summary_location:
                 private_limit = turn - summary_location+30
-                logger.debug(f"该对话共{turn}轮,已总结到{summary_location}轮, 读取最新{private_limit}轮对话")
+                logger.info(f"该对话共{turn}轮,已总结到{summary_location}轮, 读取最新{private_limit}轮对话")
                 if private_limit > 120:
-                    logger.debug("对话轮数超过120轮,限制为120轮")
+                    logger.info("对话轮数超过120轮,限制为120轮")
                     private_limit = 120
             
             # 获取原始对话历史
@@ -598,8 +598,6 @@ class PromptsBuilder:
 
         messages.append({"role":"user","content":self._combine_messages_via_dialog_mark(mode="after")})
         self.messages = messages
-        for i in messages:
-            logger.debug(i)
         return messages
         
     @staticmethod
