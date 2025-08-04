@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+import json
 from types import SimpleNamespace
 from agent.llm_functions import generate_summary
 from utils.db_utils import dialog_summary_add
@@ -75,6 +76,7 @@ class PromptService:
 
         # 3. 构建最终消息
         self.prompt_builder.build_openai_messages()
+        logger.debug(f"Final private chat messages for LLM: {json.dumps(self.prompt_builder.messages, indent=2, ensure_ascii=False)}")
         return self.prompt_builder.messages
 
     def build_group_chat_prompts(self, images: Optional[List[str]] = None) -> List[Dict[str, Any]]:
@@ -113,6 +115,7 @@ class PromptService:
 
         # 4. 构建最终消息
         self.prompt_builder.build_openai_messages()
+        logger.debug(f"Final group chat messages for LLM: {json.dumps(self.prompt_builder.messages, indent=2, ensure_ascii=False)}")
         return self.prompt_builder.messages
 
 

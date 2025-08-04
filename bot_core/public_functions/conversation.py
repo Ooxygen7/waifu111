@@ -10,9 +10,8 @@ from agent.llm_functions import generate_summary
 from bot_core.models import User as UserModel, Conversation as ConversationModel, Group, GroupConfig
 from bot_core.public_functions.error import BotError
 from bot_core.public_functions.messages import (
-    finalize_message,
+    MessageFactory,
     send_message,
-    update_message,
 )
 from bot_core.repository import UserRepository, ConversationRepository
 from bot_core.services import PromptService, ConversationService, SummaryService
@@ -245,17 +244,22 @@ class GroupConv:
             
             response = "".join(response_chunks)
 
+            factory = MessageFactory(update=self.update, context=self.context)
             if self.placeholder:
                 self.output = Message(self.placeholder.message_id, response, 'output')
-                await finalize_message(self.placeholder, self.output.text_processed)
+                await factory.edit(self.placeholder, self.output.text_processed)
             
             if self.id:
+                # 确保 self.output 被实例化
+                if not self.output:
+                    self.output = Message(self.placeholder.message_id if self.placeholder else 0, response, 'output')
                 self.conv_service.save_group_turn(self.group, self.id, self.input, self.output, self.trigger, messages)
         except Exception as e:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
             error_text = f"❌ 出错了：{str(e)}"
             if self.placeholder:
-                await finalize_message(self.placeholder, error_text)
+                factory = MessageFactory(update=self.update, context=self.context)
+                await factory.edit(self.placeholder, error_text)
 
 
 
@@ -389,10 +393,11 @@ class PrivateConv:
         self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
         
         # 调用服务层来处理重生成逻辑
+        factory = MessageFactory(update=self.update, context=self.context)
         full_response, last_input_text, messages = await self.conv_service.regenerate_response()
 
         if full_response is None or last_input_text is None or messages is None:
-            await finalize_message(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
+            await factory.edit(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
             return
 
         # 服务层返回了响应，现在由控制器负责后续处理
@@ -403,7 +408,7 @@ class PrivateConv:
         self.output = Message(self.placeholder.message_id, full_response, 'output')
         
         # 3. 更新并最终化占位消息
-        await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
+        await factory.edit(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
         
         # 4. 保存新的对话记录
         self.conv_service.save_turn(self.input, self.output, messages)
@@ -434,6 +439,7 @@ class PrivateConv:
         last_update_time = asyncio.get_event_loop().time()
         last_updated_content = "..."
         response_chunks = []
+        factory = MessageFactory(update=self.update, context=self.context)
 
         try:
             if not self.input:
@@ -451,15 +457,29 @@ class PrivateConv:
                 # 每 4 秒或内容显著变化时更新消息
                 if current_time - last_update_time >= 4.0 and response != last_updated_content:
                     if self.placeholder:
-                        await update_message(response, self.placeholder)
+                        # 使用 MessageFactory.edit，它不处理长消息分割，仅用于临时更新
+                        try:
+                            await self.placeholder.edit_text(response)
+                        except TelegramError as e:
+                            if "Message is not modified" not in str(e):
+                                logger.warning(f"临时更新消息失败: {e}")
                     last_updated_content = response
                     last_update_time = current_time
                 await asyncio.sleep(0.01)
+
+            final_response_text = "".join(response_chunks)
             if self.placeholder:
-                self.output = Message(self.placeholder.message_id, "".join(response_chunks), 'output')
-                await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
+                self.output = Message(self.placeholder.message_id, final_response_text, 'output')
+                # 使用 MessageFactory.edit 进行最终更新，它会处理长消息分割和格式化
+                await factory.edit(
+                    placeholder=self.placeholder,
+                    text=self.output.text_processed,
+                    summary=self.output.text_summary,
+                    comment=self.output.text_comment
+                )
             else:
-                self.output = Message(0, "".join(response_chunks), 'output') # Placeholder for message ID
+                self.output = Message(0, final_response_text, 'output') # Placeholder for message ID
+
             if contains_nsfw(self.output.text_processed) and self.user.preset == 'Default_meeting':
                 await send_message(self.context, self.user.id, "检测到您正在使用默认配置，使用 `/preset` 切换nsfw配置可获得更好的nsfw内容质量")
             if save:
@@ -468,7 +488,7 @@ class PrivateConv:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
             error_text = f"❌ 出错了：{str(e)}"
             if self.placeholder:
-                await finalize_message(self.placeholder, error_text)
+                await factory.edit(self.placeholder, error_text)
 
 
 
