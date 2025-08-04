@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.location.href = url.toString();
             } else {
                 // 填充并打开详情模态框
+                resetMessageDetailModal(); // 清空旧数据
                 document.getElementById('modal-sender').textContent = container.dataset.userName;
                 const role = container.dataset.role;
                 document.getElementById('modal-role').textContent = role === 'user' ? '用户' : 'AI';
@@ -150,6 +151,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
         });
+    }
+
+    // --- 重置模态框 ---
+    function resetMessageDetailModal() {
+        console.log('Resetting group message detail modal content.');
+        document.getElementById('modal-sender').textContent = '';
+        document.getElementById('modal-role').textContent = '';
+        document.getElementById('modal-turn').textContent = '';
+        document.getElementById('modal-time').textContent = '';
+        document.getElementById('modal-msg-id').textContent = '';
+        document.getElementById('modal-raw-content').textContent = '';
+        document.getElementById('modal-processed-content').textContent = '';
     }
 
     // --- 滚动到指定消息 ---

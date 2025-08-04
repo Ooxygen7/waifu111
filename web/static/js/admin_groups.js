@@ -129,16 +129,18 @@ function setupModalEvents() {
  * @param {string} groupId - The group's ID.
  */
 function loadGroupDetailData(groupId) {
-    const modal = document.getElementById('groupDetailModal');
-    const contentDiv = modal.querySelector('#groupDetailContent');
-    const loadingDiv = contentDiv.querySelector('.loading-state');
+    const contentDiv = document.getElementById('groupDetailContent');
     const dialogsBtn = document.getElementById('viewGroupDialogsBtn');
+    if (!contentDiv) return;
 
-    loadingDiv.style.display = 'flex';
-    // Clear previous content but keep the loading state element
-    contentDiv.innerHTML = '';
-    contentDiv.appendChild(loadingDiv);
-    dialogsBtn.href = '#'; // Reset button link
+    // --- 关键修复：在获取数据前，立即用加载状态覆盖旧内容 ---
+    contentDiv.innerHTML = `
+        <div class="loading-state" style="display: flex;">
+            <div class="loading-spinner"></div>
+            <span>加载中...</span>
+        </div>
+    `;
+    if (dialogsBtn) dialogsBtn.href = '#'; // 重置按钮链接
 
     fetch(`/api/groups/${groupId}`)
         .then(response => {
@@ -146,9 +148,8 @@ function loadGroupDetailData(groupId) {
             return response.json();
         })
         .then(data => {
-            loadingDiv.style.display = 'none';
             contentDiv.innerHTML = createGroupDetailHtml(data);
-            dialogsBtn.href = `/admin/group_dialogs/${groupId}`;
+            if (dialogsBtn) dialogsBtn.href = `/admin/group_dialogs/${groupId}`;
         })
         .catch(error => {
             console.error('Error loading group details:', error);
@@ -236,6 +237,21 @@ function createGroupDetailHtml(group) {
  * @param {string} groupId - The group's ID.
  */
 function loadGroupEditData(groupId) {
+    const form = document.getElementById('groupEditForm');
+    if (!form) return;
+
+    // --- 关键修复：在获取数据前，彻底重置表单 ---
+    form.reset();
+    document.getElementById('editGroupId').value = ''; // 清空ID
+
+    // 重置所有自定义下拉框的显示
+    form.querySelectorAll('.original-select').forEach(select => {
+        if (select.options.length > 0) {
+            select.value = select.options[0].value;
+        }
+        updateCustomSelectDisplay(select);
+    });
+
     document.getElementById('editGroupId').value = groupId;
 
     fetch(`/api/groups/${groupId}`)
@@ -309,6 +325,9 @@ function saveGroupChanges(groupId) {
 function loadGroupProfileData(groupId) {
     const modal = document.getElementById('groupProfileModal');
     const contentDiv = modal.querySelector('#groupProfileContent');
+
+    // Always clear previous content first
+    contentDiv.innerHTML = '';
 
     if (!contentDiv) {
         console.error('Error: Could not find the #groupProfileContent element in the modal.');

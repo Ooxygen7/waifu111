@@ -75,6 +75,40 @@ class UserRepository:
             return user
         return self.create_user(user_id, first_name, last_name, user_name)
 
+    def update_user_profile_if_changed(self, user_id: int, first_name: str, last_name: str, username: str) -> bool:
+        """
+        检查用户的个人资料信息（姓名、用户名）是否有变化，如果有，则更新数据库。
+
+        Args:
+            user_id: 用户ID
+            first_name: 最新的 first_name
+            last_name: 最新的 last_name
+            username: 最新的 username (Telegram Handle)
+
+        Returns:
+            如果发生了更新，返回 True，否则返回 False。
+        """
+        current_info = db.user_info_get(user_id)
+        if not current_info:
+            return False # 用户不存在，无法更新
+
+        updates = {}
+        if current_info.get('first_name') != first_name:
+            updates['first_name'] = first_name
+        if current_info.get('last_name') != last_name:
+            updates['last_name'] = last_name
+        # 注意：数据库字段是 user_name，但我们传入的是 username (handle)
+        if current_info.get('user_name') != username:
+            updates['user_name'] = username
+
+        if not updates:
+            return False # 没有信息需要更新
+
+        for field, value in updates.items():
+            db.user_info_update(user_id, field, value)
+        
+        return True
+
     def update_user(self, user: User) -> bool:
         """
         使用 User 模型对象更新数据库中的用户信息。

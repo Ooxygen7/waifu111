@@ -194,6 +194,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log('Message bubble clicked, preparing to open detail modal.');
                 console.log('Data from container:', JSON.parse(JSON.stringify(bubbleContainer.dataset)));
 
+                // 1. 重置/清空模态框内容
+                resetMessageDetailModal();
+
+                // 2. 填充新数据
                 const roleText = bubbleContainer.dataset.role === 'user' ? '用户' : 'AI';
                 const roleClass = bubbleContainer.dataset.role === 'user' ? 'tag secondary' : 'tag info';
 
@@ -212,6 +216,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 openModal('messageDetailModal');
             }
         });
+    }
+
+    /**
+     * 重置消息详情模态框的状态，清除所有旧数据。
+     */
+    function resetMessageDetailModal() {
+        console.log('Resetting message detail modal content.');
+        document.getElementById('modal-role').innerHTML = '';
+        document.getElementById('modal-turn').textContent = '';
+        document.getElementById('modal-time').textContent = '';
+        document.getElementById('modal-msg-id').textContent = '';
+        document.getElementById('modal-raw-content').textContent = '';
+        
+        // 移除旧的点击事件监听器，防止内存泄漏
+        const editBtn = document.getElementById('editMessageDetailBtn');
+        const newEditBtn = editBtn.cloneNode(true);
+        editBtn.parentNode.replaceChild(newEditBtn, editBtn);
     }
 
     // --- 消息编辑逻辑 ---

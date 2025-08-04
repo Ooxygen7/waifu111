@@ -169,10 +169,13 @@ class MeCommand(BaseCommand):
         remain = escape_markdown(str(info.get('remain', 0)), version=1)
         frequency = escape_markdown(str(db.user_sign_info_get(info.get('user_id', 0)).get('frequency', 0)), version=1)
         balance = escape_markdown(str(info.get('balance', 0)), version=1)
-        user_nick = escape_markdown(info.get('user_nick', '未设置'), version=1)
-        char = escape_markdown(info.get('char', '未设置'), version=1)
-        api = escape_markdown(info.get('api', '未设置'), version=1)
-        preset = escape_markdown(info.get('preset', '未设置'), version=1)
+        
+        # --- 关键修复：直接从数据库获取最新的用户配置 ---
+        user_config = db.user_config_get(info.get('user_id', 0))
+        user_nick = escape_markdown(user_config.get('nick', '未设置'), version=1)
+        char = escape_markdown(user_config.get('char', '未设置'), version=1)
+        api = escape_markdown(user_config.get('api', '未设置'), version=1)
+        preset = escape_markdown(user_config.get('preset', '未设置'), version=1)
         stream = escape_markdown(str(info.get('stream', '未知')), version=1)
 
         result = (

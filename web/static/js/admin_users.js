@@ -136,13 +136,16 @@ function setupModalEvents() {
  * @param {string} userId - The user's ID.
  */
 function loadUserDetailData(userId) {
-    const modal = document.getElementById('userDetailModal');
-    const contentDiv = modal.querySelector('#userDetailContent');
-    const loadingDiv = contentDiv.querySelector('.loading-state');
+    const contentDiv = document.getElementById('userDetailContent');
+    if (!contentDiv) return;
 
-    loadingDiv.style.display = 'flex'; // Use flex for centering
-    contentDiv.innerHTML = ''; // Clear previous content
-    contentDiv.appendChild(loadingDiv);
+    // --- 关键修复：在获取数据前，立即用加载状态覆盖旧内容 ---
+    contentDiv.innerHTML = `
+        <div class="loading-state" style="display: flex;">
+            <div class="loading-spinner"></div>
+            <span>加载中...</span>
+        </div>
+    `;
 
     fetch(`/api/user/${userId}`)
         .then(response => {
@@ -150,7 +153,6 @@ function loadUserDetailData(userId) {
             return response.json();
         })
         .then(data => {
-            loadingDiv.style.display = 'none';
             contentDiv.innerHTML = createUserDetailHtml(data);
         })
         .catch(error => {
@@ -307,7 +309,24 @@ function createUserDetailHtml(data) {
  * @param {string} userId - The user's ID.
  */
 function loadUserEditData(userId) {
-    // Set the hidden user ID field first
+    const form = document.getElementById('userEditForm');
+    if (!form) return;
+
+    // --- 关键修复：在获取数据前，彻底重置表单 ---
+    form.reset();
+    document.getElementById('editUserId').value = ''; // 清空ID
+
+    // 重置所有自定义下拉框的显示
+    form.querySelectorAll('.original-select').forEach(select => {
+        if (select.options.length > 0) {
+            select.value = select.options[0].value;
+        }
+        updateCustomSelectDisplay(select);
+    });
+    
+    // 可以选择性地显示一个加载指示
+    // (当前设计是直接填充，速度快时可忽略)
+
     document.getElementById('editUserId').value = userId;
 
     fetch(`/api/user/${userId}`)

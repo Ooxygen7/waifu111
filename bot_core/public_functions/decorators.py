@@ -178,20 +178,43 @@ class Decorators:
             if update.message and update.message.chat.type == 'private':
                 info = update_info_get(update)
                 
-                # --- 关键修复：添加对 info 对象的健壮性检查 ---
                 if not info or 'user_id' not in info:
                     logger.warning("无法从 update 中解析出有效的用户信息，跳过用户更新。")
                     return await func(update, context, *args, **kwargs)
 
+                user_id = info['user_id']
                 user_repo = UserRepository()
 
-                # 使用新的 Repository 方法获取或创建用户
+                # --- 核心修复：实时从 Telegram 获取最新的用户信息 ---
+                try:
+                    chat = await context.bot.get_chat(user_id)
+                    latest_first_name = chat.first_name or ''
+                    latest_last_name = chat.last_name or ''
+                    latest_username = chat.username or ''
+                except Exception as e:
+                    logger.error(f"无法通过 get_chat 获取用户 {user_id} 的最新信息: {e}", exc_info=True)
+                    # 如果获取失败，回退到使用 update 对象中的信息，确保流程继续
+                    latest_first_name = info.get('first_name', '')
+                    latest_last_name = info.get('last_name', '')
+                    latest_username = info.get('username', '')
+
+                # 使用最新的信息获取或创建用户
                 user = user_repo.get_or_create_user(
-                    user_id=info['user_id'],
-                    first_name=info.get('first_name', ''),
-                    last_name=info.get('last_name', ''),
-                    user_name=info.get('username', '')
+                    user_id=user_id,
+                    first_name=latest_first_name,
+                    last_name=latest_last_name,
+                    user_name=latest_username
                 )
+
+                # 使用最新的信息检查并更新变化的个人资料
+                if user:
+                    user_repo.update_user_profile_if_changed(
+                        user_id=user_id,
+                        first_name=latest_first_name,
+                        last_name=latest_last_name,
+                        username=latest_username
+                    )
+                # ----------------------------------------------------
 
                 if not user:
                     logger.error(f"无法获取或创建用户: {info.get('user_id')}")
