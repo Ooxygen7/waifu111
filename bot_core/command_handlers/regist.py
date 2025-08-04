@@ -17,13 +17,16 @@ class CommandHandlers:
     _command_maps: dict[str, dict[str, Callable]] | None = None
 
     @classmethod
-    def _initialize(cls):
+    def initialize(cls):
         """
         扫描所有命令模块并按聊天类型构建命令映射表。
+        这个方法应该在机器人启动时被明确调用一次。
         """
         if cls._command_maps is not None:
+            logger.info("命令映射表已初始化，跳过。")
             return
 
+        logger.info("正在初始化命令映射表...")
         cls._command_maps = {"private": {}, "group": {}}
         module_names = ["private", "group", "admin"]
         for module_name in module_names:
@@ -52,6 +55,7 @@ class CommandHandlers:
     def get_command_handler(cls, command: str, chat_type: str) -> Callable | None:
         """
         根据命令触发词和聊天类型获取对应的处理器。
+        假定 initialize() 已经在启动时被调用。
 
         Args:
             command (str): 命令触发词 (不带 /).
@@ -61,9 +65,10 @@ class CommandHandlers:
             Callable | None: 对应的命令处理器或 None。
         """
         if cls._command_maps is None:
-            cls._initialize()
+            logger.error("命令映射表尚未初始化！请在机器人启动时调用 CommandHandlers.initialize()")
+            return None
         
-        if cls._command_maps and chat_type in cls._command_maps:
+        if chat_type in cls._command_maps:
             return cls._command_maps[chat_type].get(command)
         
         return None

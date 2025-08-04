@@ -1,4 +1,5 @@
 import random
+import datetime
 from typing import Optional, List
 import utils.db_utils as db
 from bot_core.models import User, Conversation, DialogMessage
@@ -103,6 +104,9 @@ class UserRepository:
 
         if not updates:
             return False # 没有信息需要更新
+
+        # --- 关键修复：如果发生任何更新，则自动添加 update_at 时间戳 ---
+        updates['update_at'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         for field, value in updates.items():
             db.user_info_update(user_id, field, value)

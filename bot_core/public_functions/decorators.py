@@ -175,6 +175,10 @@ class Decorators:
         @Decorators.check_message_expiration  # 先应用 check_message_expiration 装饰器
         @functools.wraps(func)
         async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+            # --- 关键修复：确保此更新逻辑在单次请求中只执行一次 ---
+            if getattr(context, '_user_info_updated', False):
+                return await func(update, context, *args, **kwargs)
+
             if update.message and update.message.chat.type == 'private':
                 info = update_info_get(update)
                 
@@ -235,6 +239,9 @@ class Decorators:
                 if update.message.text and update.message.text.startswith('/'):
                     command_name = update.message.text.split()[0]
                 logger.info(f"处理 {command_name} ，用户名称: {user.user_name or user.id}")
+                
+                # --- 关键修复：设置标志，防止重复执行 ---
+                setattr(context, '_user_info_updated', True)
 
             # 继续调用原始函数
             return await func(update, context, *args, **kwargs)

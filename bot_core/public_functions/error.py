@@ -20,12 +20,12 @@ class DatabaseError(Exception):
     """自定义Bot运行异常基类"""
     pass
 
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     全局错误处理器，捕获并处理所有未捕获的异常。
 
     Args:
-        update (Update): Telegram 更新对象。
+        update (object): Telegram 更新对象，类型为 object 以兼容所有可能的更新类型。
         context (ContextTypes.DEFAULT_TYPE): 上下文对象。
 
     Note:
@@ -36,8 +36,16 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         4. 其他未捕获的异常
     """
     error = context.error
-    chat_id = update.effective_chat.id if update and update.effective_chat else "未知"
-    user_id = update.effective_user.id if update and update.effective_user else "未知"
+    
+    # --- 关键修复：安全地从 'update' 对象提取信息 ---
+    chat_id = "未知"
+    user_id = "未知"
+    effective_message = None
+
+    if isinstance(update, Update):
+        chat_id = update.effective_chat.id if update.effective_chat else "未知"
+        user_id = update.effective_user.id if update.effective_user else "未知"
+        effective_message = update.message or (update.callback_query and update.callback_query.message)
 
     try:
         if isinstance(error, telegram.error.BadRequest):
@@ -66,15 +74,16 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             error_message = f"发生未知错误，请稍后重试。\n\n<details><summary>详细错误信息</summary>\n\n{str(error)[:3000]}\n</details>"
         # 仅在有效的消息上下文中发送错误提示
         if (
-            update
-            and update.message
+            isinstance(update, Update)
+            and effective_message
+            and isinstance(effective_message, telegram.Message) # --- 关键修复：确保消息是可访问的 Message 类型 ---
             and context.user_data
             and not context.user_data.get("error_notified")
         ):
             try:
-                await update.message.reply_text(error_message, parse_mode="HTML")
+                await effective_message.reply_text(error_message, parse_mode="HTML")
             except telegram.error.BadRequest:
-                await update.message.reply_text(error_message, parse_mode=None)
+                await effective_message.reply_text(error_message, parse_mode=None)
             context.user_data["error_notified"] = True  # 标记已发送错误消息
         # elif update and update.inline_query and not context.user_data.get("error_notified"):
         #     # 处理内联查询错误

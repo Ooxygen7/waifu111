@@ -119,6 +119,10 @@ def main() -> None:
         # 创建 Application 实例
         app = Application.builder().token(BOT_TOKEN).build()
 
+        # --- 关键优化：在启动时预加载所有命令处理器 ---
+        CommandHandlers.initialize()
+        logger.info("所有命令处理器已预加载。")
+
         async def setup_command_menu(app_instance: Application) -> None:
             """
             设置Bot的命令菜单。
