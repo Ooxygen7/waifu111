@@ -383,35 +383,49 @@ class PrivateConv:
 
     async def regen(self):
         """
-        重新生成 LLM 的回复.
-        该方法将重生成操作委托给 ConversationService 处理。
+        异步启动一个任务来重新生成 LLM 的回复。
         """
         if not (self.user.remain_frequency > 0 or self.user.temporary_frequency > 0):
             await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
             return
 
         self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
-        
-        # 调用服务层来处理重生成逻辑
+        asyncio.create_task(self._regenerate_to_user())
+
+    async def _regenerate_to_user(self):
+        """
+        实际执行重新生成回复的后台逻辑。
+        """
         factory = MessageFactory(update=self.update, context=self.context)
-        full_response, last_input_text, messages = await self.conv_service.regenerate_response()
+        try:
+            full_response, last_input_text, messages = await self.conv_service.regenerate_response()
 
-        if full_response is None or last_input_text is None or messages is None:
-            await factory.edit(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
-            return
+            if full_response is None or last_input_text is None or messages is None:
+                if self.placeholder:
+                    await factory.edit(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
+                return
 
-        # 服务层返回了响应，现在由控制器负责后续处理
-        # 1. 更新 input 对象以用于保存
-        self.input = Message(0, last_input_text, 'input') # msg_id 设为 0，因为它已被删除
-        
-        # 2. 创建 output 对象
-        self.output = Message(self.placeholder.message_id, full_response, 'output')
-        
-        # 3. 更新并最终化占位消息
-        await factory.edit(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
-        
-        # 4. 保存新的对话记录
-        self.conv_service.save_turn(self.input, self.output, messages)
+            # 服务层返回了响应，现在由控制器负责后续处理
+            # 1. 更新 input 对象以用于保存
+            self.input = Message(0, last_input_text, 'input') # msg_id 设为 0，因为它已被删除
+            
+            # 2. 创建 output 对象
+            if self.placeholder:
+                self.output = Message(self.placeholder.message_id, full_response, 'output')
+            else:
+                self.output = Message(0, full_response, 'output')
+            
+            # 3. 更新并最终化占位消息
+            if self.placeholder:
+                await factory.edit(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
+            
+            # 4. 保存新的对话记录
+            self.conv_service.save_turn(self.input, self.output, messages)
+        except Exception as e:
+            logger.error(f"重新生成响应时发生异常: {e}", exc_info=True)
+            error_text = f"❌ 重新生成时出错了：{str(e)}"
+            if self.placeholder:
+                await factory.edit(self.placeholder, error_text)
 
     async def undo(self):
         """
@@ -457,9 +471,12 @@ class PrivateConv:
                 # 每 4 秒或内容显著变化时更新消息
                 if current_time - last_update_time >= 4.0 and response != last_updated_content:
                     if self.placeholder:
-                        # 使用 MessageFactory.edit，它不处理长消息分割，仅用于临时更新
+                        display_text = response
+                        if len(display_text) > 4000:
+                            display_text = display_text[:4000] + "..."
+                        
                         try:
-                            await self.placeholder.edit_text(response)
+                            await self.placeholder.edit_text(display_text)
                         except TelegramError as e:
                             if "Message is not modified" not in str(e):
                                 logger.warning(f"临时更新消息失败: {e}")
