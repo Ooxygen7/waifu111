@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import logging
+from types import SimpleNamespace
 from agent.llm_functions import generate_summary
 from utils.db_utils import dialog_summary_add
 from bot_core.public_functions import frequency_manager
@@ -378,7 +379,9 @@ class ConversationService:
         self.group_repo.update_group_stats(group.id, call_count_increase=1)
 
         # 4. 更新用户的统计数据和时间戳
-        frequency_manager.update_user_usage(self.user, messages, output_message.text_raw, 'group_chat')
+        # 创建一个符合 frequency_manager 期望的复合对象
+        group_context = SimpleNamespace(user=self.user, group=group)
+        frequency_manager.update_user_usage(group_context, messages, output_message.text_raw, 'group_chat')
 
         # 5. 更新 group_dialogs 表中已存在的记录，补充AI回复和触发类型
         db.group_dialog_update(input_message.id, 'trigger_type', trigger, group.id)
