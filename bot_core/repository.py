@@ -133,6 +133,31 @@ class UserRepository:
         
         return True
 
+    def update_user_usage_stats(self, user_id: int, turns_increase: int = 0, input_tokens: int = 0, output_tokens: int = 0) -> bool:
+        """
+        更新用户的使用统计信息（对话轮次、Token消耗）并同步更新时间。
+        """
+        updates = {
+            'dialog_turns': turns_increase,
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens
+        }
+        
+        success = True
+        # 只要有任何统计更新，就更新时间戳
+        if turns_increase > 0 or input_tokens > 0 or output_tokens > 0:
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if not db.user_info_update(user_id, 'update_at', now):
+                success = False
+        
+        for field, value in updates.items():
+            if value > 0:
+                # 使用正确的 'increment' 参数
+                if not db.user_info_update(user_id, field, value, increment=True):
+                    success = False
+                    
+        return success
+
 
 class ConversationRepository:
     """
@@ -226,7 +251,7 @@ class ConversationRepository:
 
     def update_conversation_turns(self, conv_id: int, turns: int) -> bool:
         """
-        更新指定会话的轮次计数。
+        更新指定会话的轮次计数和更新时间。
 
         Args:
             conv_id: 会话ID。
@@ -236,5 +261,42 @@ class ConversationRepository:
             如果更新成功则返回 True，否则返回 False。
         """
         # 假设 'conversations' 表中有一个 'turns' 字段来存储轮次计数
-        command = "UPDATE conversations SET turns = ?, update_at = CURRENT_TIMESTAMP WHERE conv_id = ?"
-        return db.revise_db(command, (turns, conv_id)) > 0
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        command = "UPDATE conversations SET turns = ?, update_at = ? WHERE conv_id = ?"
+        return db.revise_db(command, (turns, now, conv_id)) > 0
+
+
+class GroupRepository:
+    """
+    负责所有与群组相关的数据库操作。
+    """
+    def update_group_conversation_turn(self, conv_id: int, turns_increase: int = 0) -> bool:
+        """
+        更新群组会话的轮次和更新时间。
+        """
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        command = "UPDATE group_user_conversations SET turns = COALESCE(turns, 0) + ?, update_at = ? WHERE conv_id = ?"
+        return db.revise_db(command, (turns_increase, now, conv_id)) > 0
+
+    def update_group_stats(self, group_id: int, call_count_increase: int = 0, input_tokens: int = 0, output_tokens: int = 0) -> bool:
+        """
+        更新群组的统计信息（调用次数、Token消耗）并同步更新时间。
+        """
+        success = True
+        # 只要有任何统计更新，就更新时间戳
+        if call_count_increase > 0 or input_tokens > 0 or output_tokens > 0:
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if not db.group_info_update(group_id, 'update_time', now):
+                success = False
+
+        if call_count_increase > 0:
+            if not db.group_info_update(group_id, 'call_count', call_count_increase, increase=True):
+                success = False
+        if input_tokens > 0:
+            if not db.group_info_update(group_id, 'input_token', input_tokens, increase=True):
+                success = False
+        if output_tokens > 0:
+            if not db.group_info_update(group_id, 'output_token', output_tokens, increase=True):
+                success = False
+        
+        return success

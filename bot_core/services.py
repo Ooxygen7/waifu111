@@ -3,13 +3,14 @@ import datetime
 import logging
 from agent.llm_functions import generate_summary
 from utils.db_utils import dialog_summary_add
+from bot_core.public_functions import frequency_manager
 
 logger = logging.getLogger(__name__)
 import random
 from typing import List, Dict, Any, Optional
 from telegram.ext import ContextTypes
 from bot_core.models import User, Conversation, Group
-from bot_core.repository import ConversationRepository
+from bot_core.repository import ConversationRepository, UserRepository, GroupRepository
 from utils.LLM_utils import PromptsBuilder
 import utils.db_utils as db
 
@@ -134,6 +135,8 @@ class ConversationService:
         self.context = context
         self.conversation = conversation
         self.conv_repo = ConversationRepository()
+        self.user_repo = UserRepository()
+        self.group_repo = GroupRepository()
 
     async def get_llm_response(self, messages: List[Dict[str, Any]]):
         """
@@ -189,9 +192,15 @@ class ConversationService:
             self.conv_repo.delete_message(conv_id, msg_ids[0])
             self.conv_repo.delete_message(conv_id, msg_ids[1])
             logger.info(f"成功撤销了会话 {conv_id} 中的消息: {msg_ids}")
+            # 更新轮次计数
+            self.conversation.turns -= 2
+            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
         elif len(msg_ids) == 1:
             self.conv_repo.delete_message(conv_id, msg_ids[0])
             logger.info(f"成功撤销了会话 {conv_id} 中的消息: {msg_ids}")
+            # 更新轮次计数
+            self.conversation.turns -= 1
+            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
         else:
             logger.warning(f"消息ID列表长度不足 (len={len(msg_ids)})，无法从数据库中删除记录。")
 
@@ -205,7 +214,7 @@ class ConversationService:
         """
         if not self.conversation or not self.conversation.id:
             logger.warning("无法重新生成，因为没有活动的会话ID。")
-            return None, None
+            return None, None, None
 
         conv_id = self.conversation.id
         user_id = self.user.id
@@ -219,7 +228,7 @@ class ConversationService:
 
         if not last_input_text or not msg_ids:
             logger.warning(f"无法为会话 {conv_id} 重新生成，因为找不到足够的信息（输入或消息ID）。")
-            return None, None
+            return None, None, None
 
         # 2. 从 Telegram 删除最后一则 AI 回复
         try:
@@ -233,8 +242,14 @@ class ConversationService:
         if len(msg_ids) >= 2:
             self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
             self.conv_repo.delete_message(conv_id, msg_ids[1]) # User
+            # 更新轮次计数
+            self.conversation.turns -= 2
+            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
         elif len(msg_ids) == 1:
             self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
+            # 更新轮次计数
+            self.conversation.turns -= 1
+            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
 
         # 4. 使用 PromptService 构建新的提示
         prompt_service = PromptService(
@@ -252,15 +267,16 @@ class ConversationService:
         full_response = "".join(response_chunks)
         
         # 6. 返回响应文本和最后的用户输入
-        return full_response, last_input_text
+        return full_response, last_input_text, messages
 
-    def save_turn(self, input_message, output_message):
+    def save_turn(self, input_message, output_message, messages: List[Dict[str, Any]]):
         """
         保存一轮完整的对话（用户输入和AI回复）到数据库。
 
         Args:
             input_message: 代表用户输入的 Message 对象。
             output_message: 代表AI输出的 Message 对象。
+            messages: 发送给LLM的完整消息列表。
         """
         if not self.conversation or not self.conversation.id:
             logger.warning("无法保存对话回合：缺少会话或会话ID。")
@@ -302,8 +318,10 @@ class ConversationService:
         # 将更新后的轮次计数持久化到数据库
         self.conv_repo.update_conversation_turns(self.conversation.id, self.conversation.turns)
         
+        # 更新用户的使用统计信息
+        frequency_manager.update_user_usage(self.user, messages, output_message.text_raw, 'private_chat')
+        
         logger.info(f"成功保存了会话 {self.conversation.id} 的第 {current_turn + 1} 和 {current_turn + 2} 轮。")
-        # TODO: 在这里处理使用频率和余额的更新逻辑
 
     def create_group_conversation(self, group: Group) -> Optional[int]:
         """
@@ -331,7 +349,7 @@ class ConversationService:
         logger.error(f"为用户 {self.user.id} 在群组 {group.id} 中创建会话ID失败，已达最大尝试次数。")
         return None
 
-    def save_group_turn(self, group: Group, conv_id: int, input_message, output_message, trigger: Optional[str]):
+    def save_group_turn(self, group: Group, conv_id: int, input_message, output_message, trigger: Optional[str], messages: List[Dict[str, Any]]):
         """
         保存一轮完整的群组对话到数据库。
 
@@ -341,24 +359,34 @@ class ConversationService:
             input_message: 代表用户输入的 Message 对象。
             output_message: 代表AI输出的 Message 对象。
             trigger: 触发类型。
+            messages: 发送给LLM的完整消息列表。
         """
         if not conv_id or not output_message:
             logger.warning("无法保存群聊记录：缺少 conv_id 或 output。")
             return
 
+        # 1. 保存对话内容
         turn = db.dialog_turn_get(conv_id, 'group')
-        db.dialog_content_add(conv_id, 'user', turn + 1, input_message.text_raw, input_message.text_processed,
-                              input_message.id, 'group')
-        db.dialog_content_add(conv_id, 'assistant', turn + 2, output_message.text_raw, output_message.text_processed,
-                              output_message.id, 'group')
-        
-        # 更新 group_dialogs 表
+        # 直接调用底层的 db_utils 函数，因为它支持 chat_type
+        db.dialog_content_add(conv_id, 'user', turn + 1, input_message.text_raw, input_message.text_processed, input_message.id, 'group')
+        db.dialog_content_add(conv_id, 'assistant', turn + 2, output_message.text_raw, output_message.text_processed, output_message.id, 'group')
+
+        # 2. 更新群组会话的轮次和时间戳
+        self.group_repo.update_group_conversation_turn(conv_id, turns_increase=2)
+
+        # 3. 更新群组本身的统计数据和时间戳
+        # TODO: 准确计算 token 消耗
+        self.group_repo.update_group_stats(group.id, call_count_increase=1)
+
+        # 4. 更新用户的统计数据和时间戳
+        frequency_manager.update_user_usage(self.user, messages, output_message.text_raw, 'group_chat')
+
+        # 5. 更新 group_dialogs 表的元数据
         db.group_dialog_update(input_message.id, 'trigger_type', trigger, group.id)
         db.group_dialog_update(input_message.id, 'raw_response', output_message.text_raw, group.id)
         db.group_dialog_update(input_message.id, 'processed_response', output_message.text_processed, group.id)
-        
-        logger.info(f"成功保存了群组 {group.id} 会话 {conv_id} 的一轮对话。")
-        # TODO: 重构 update_user_usage
+
+        logger.info(f"成功保存了群组 {group.id} 会话 {conv_id} 的一轮对话，并更新了相关统计数据。")
 
 class SummaryService:
     """

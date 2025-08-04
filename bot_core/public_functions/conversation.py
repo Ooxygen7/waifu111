@@ -250,7 +250,7 @@ class GroupConv:
                 await finalize_message(self.placeholder, self.output.text_processed)
             
             if self.id:
-                self.conv_service.save_group_turn(self.group, self.id, self.input, self.output, self.trigger)
+                self.conv_service.save_group_turn(self.group, self.id, self.input, self.output, self.trigger, messages)
         except Exception as e:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
             error_text = f"❌ 出错了：{str(e)}"
@@ -389,9 +389,9 @@ class PrivateConv:
         self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
         
         # 调用服务层来处理重生成逻辑
-        full_response, last_input_text = await self.conv_service.regenerate_response()
+        full_response, last_input_text, messages = await self.conv_service.regenerate_response()
 
-        if full_response is None or last_input_text is None:
+        if full_response is None or last_input_text is None or messages is None:
             await finalize_message(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
             return
 
@@ -406,7 +406,7 @@ class PrivateConv:
         await finalize_message(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
         
         # 4. 保存新的对话记录
-        self.conv_service.save_turn(self.input, self.output)
+        self.conv_service.save_turn(self.input, self.output, messages)
 
     async def undo(self):
         """
@@ -463,7 +463,7 @@ class PrivateConv:
             if contains_nsfw(self.output.text_processed) and self.user.preset == 'Default_meeting':
                 await send_message(self.context, self.user.id, "检测到您正在使用默认配置，使用 `/preset` 切换nsfw配置可获得更好的nsfw内容质量")
             if save:
-                self.conv_service.save_turn(self.input, self.output)
+                self.conv_service.save_turn(self.input, self.output, messages)
         except Exception as e:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
             error_text = f"❌ 出错了：{str(e)}"

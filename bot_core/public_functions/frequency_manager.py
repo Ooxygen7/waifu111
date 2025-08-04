@@ -2,6 +2,10 @@ import utils.db_utils as db
 import tiktoken
 import logging
 from utils.logging_utils import setup_logging
+from bot_core.models import User
+from utils.config_utils import get_api_multiple
+from typing import List, Dict, Any
+
 setup_logging()
 logger = logging.getLogger(__name__)
 from datetime import datetime
@@ -21,49 +25,70 @@ def circulate_token(text: str):
         print(f"错误: 计算token时发生错误 - {e}. 输出为字符串长度。")
         return len(str(text))
 
-def update_user_usage(user: object | int, input: str, output: str, trigger_type: str):
+def update_user_usage(user: object, messages: List[Dict[str, Any]], output: str, trigger_type: str):
     """更新用户的token使用量和频率信息。
 
     Args:
-        user (object or int): 用户对象或用户ID。
-        input (str): 用户输入文本。
+        user (object): 用户对象或群组相关对象。
+        messages (List[Dict[str, Any]]): 发送给LLM的完整消息列表。
         output (str): 模型输出文本。
         trigger_type (str): 触发类型，例如 'private_chat', 'private_photo', 'group_chat', 'group_photo'。
     """
-    input_tokens = circulate_token(input)
+    input_tokens = circulate_token(str(messages))
     output_tokens = circulate_token(output)
-    if trigger_type == 'private_chat'and type(user) is not int:
-        db.user_info_update(user.id, 'input_tokens', input_tokens, True)
-        db.user_info_update(user.id, 'output_tokens', output_tokens, True)
-        conv_id = db.user_conv_id_get(user.id)
-        conv_turn = db.dialog_turn_get(conv_id, 'private')
-        if user.tmp_frequency > 0:
-            db.user_sign_info_update(user.id, 'frequency', user.config.multiple * -1)
+
+    # --- Private Chat & Photo Handling ---
+    if trigger_type in ['private_chat', 'private_photo']:
+        if not isinstance(user, User):
+            logger.error(f"在 {trigger_type} 中, 'user' 参数必须是 User 对象。")
+            return
+
+        user_id = user.id
+        db.user_info_update(user_id, 'input_tokens', input_tokens, True)
+        db.user_info_update(user_id, 'output_tokens', output_tokens, True)
+
+        cost = 2 if trigger_type == 'private_photo' else get_api_multiple(user.api)
+        tmp_frequency = user.temporary_frequency
+        
+        if tmp_frequency >= cost:
+            db.user_sign_info_update(user_id, 'frequency', -cost)
+            logger.debug(f"用户 {user_id} 消耗 {cost}, 扣除临时额度. 剩余: {tmp_frequency - cost}")
         else:
-            db.user_info_update(user.id, 'remain_frequency', user.config.multiple * -1, True)
-        db.conversation_private_arg_update(conv_id , 'turns', conv_turn)  # 增加对话轮次计数
-        db.user_info_update(user.id, 'dialog_turns', 1, True)
-        logger.debug(f"已为{user.id}更新私聊使用记录\r\n输入:{input_tokens}输出:{output_tokens}")
-    elif trigger_type == 'private_photo':
-        db.user_info_update(user, 'input_tokens', input_tokens, True)
-        db.user_info_update(user, 'output_tokens', output_tokens, True)
-        tmp_frequency = db.user_sign_info_get(user).get('frequency')
-        if tmp_frequency > 0:
-            db.user_sign_info_update(user, 'frequency', -2)
-        else:
-            db.user_info_update(user, 'remain_frequency', -2, True)
-        logger.debug(f"已为{user}更新私聊图片使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
+            remaining_cost = cost - tmp_frequency
+            if tmp_frequency > 0:
+                db.user_sign_info_update(user_id, 'frequency', -tmp_frequency)
+            db.user_info_update(user_id, 'remain_frequency', -remaining_cost, True)
+            logger.debug(f"用户 {user_id} 消耗 {cost}. 扣光临时额度 {tmp_frequency}, 再扣除常规额度 {remaining_cost}.")
+
+        conv_id = user.active_conversation_id
+        if conv_id:
+            conv_turn = db.dialog_turn_get(conv_id, 'private')
+            db.conversation_private_arg_update(conv_id , 'turns', conv_turn)
+        db.user_info_update(user_id, 'dialog_turns', 1, True)
+        logger.debug(f"已为{user_id}更新私聊使用记录\r\n输入:{input_tokens}输出:{output_tokens}")
+
+    # --- Group Chat & Photo Handling ---
     elif trigger_type == 'group_chat':
-        db.group_info_update(user.group.id, 'call_count', 1, True)  # 更新调用计数
-        db.conversation_group_update(user.group.id, user.user.id, 'turns', 1)
-        db.group_info_update(user.group.id, 'input_token', input_tokens, True)  # 更新输入令牌
-        db.group_info_update(user.group.id, 'output_token', output_tokens, True)  # 更新输出令牌
-        logger.debug(f"已为群组{user.group.id}更新消息使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
+        if not hasattr(user, 'group') or not hasattr(user, 'user'):
+            logger.error(f"在 {trigger_type} 中, 'user' 参数必须是一个包含 group 和 user 属性的对象。")
+            return
+        group_id = user.group.id
+        user_id = user.user.id
+        db.group_info_update(group_id, 'call_count', 1, True)
+        db.conversation_group_update(group_id, user_id, 'turns', 1)
+        db.group_info_update(group_id, 'input_token', input_tokens, True)
+        db.group_info_update(group_id, 'output_token', output_tokens, True)
+        logger.debug(f"已为群组{group_id}更新消息使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
+
     elif trigger_type == 'group_photo':
-        db.group_info_update(user, 'call_count', 1, True)  # 更新调用计数
-        db.group_info_update(user, 'input_token', input_tokens, True)  # 更新输入令牌
-        db.group_info_update(user, 'output_token', output_tokens, True)  # 更新输出令牌
-        logger.debug(f"已为群组{user}更新图片分析使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
+        if not isinstance(user, int):
+            logger.error(f"在 {trigger_type} 中, 'user' 参数必须是群组ID (int)。")
+            return
+        group_id = user
+        db.group_info_update(group_id, 'call_count', 1, True)
+        db.group_info_update(group_id, 'input_token', input_tokens, True)
+        db.group_info_update(group_id, 'output_token', output_tokens, True)
+        logger.debug(f"已为群组{group_id}更新图片分析使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
         return
 
 
