@@ -176,6 +176,32 @@ class ToolHandler:
             result_payload = {"display": error_msg, "llm_feedback": error_msg}
             return {"tool_name": tool_name, "parameters": parameters, "result": result_payload}
 
+    def _handle_parsing_error(self, json_content: str, error: json.JSONDecodeError) -> tuple[str, list, list, bool]:
+        """
+        处理JSON解析失败的情况，根据内容决定是反馈错误给LLM还是当作纯文本。
+        """
+        # 检查是否存在工具调用的强信号
+        if '"tool_calls"' in json_content or '"tool_name"' in json_content:
+            error_message = (
+                "Your tool call was not successful because the JSON format was invalid. "
+                f"I received the following content which I could not parse: '{json_content[:200]}...'. "
+                f"Error details: {error}. "
+                "Please ensure your response contains only a single, valid JSON object with the correct syntax, including all necessary brackets and commas."
+            )
+            logger.warning(f"检测到格式错误的工具调用尝试: {json_content}")
+            # 格式化为LLM反馈的格式
+            llm_feedback = [{"tool_name": "error_handler", "result": error_message}]
+            # 格式化为用户展示的格式
+            display_results = [{"tool_name": "JSON Parser", "parameters": {"content": json_content}, "result": f"Failed to parse tool call: {error}"}]
+            # 将无法解析的内容也放入文本输出，以防万一
+            self.llm_text_output = (self.llm_text_output + "\n" + json_content).strip()
+            return self.llm_text_output, display_results, llm_feedback, True # had_tool_calls is True because an attempt was made
+        else:
+            # 如果没有工具调用的信号，则当作纯文本
+            logger.info(f"无法解析JSON，且未检测到工具调用关键字。将其视为纯文本。内容: '{json_content}'")
+            self.llm_text_output = (self.llm_text_output + "\n" + json_content).strip()
+            return self.llm_text_output, [], [], False
+
     async def handle_response(self) -> tuple[str, list, list, bool]:
         """
         解析并处理LLM的响应，执行任何工具调用。
@@ -196,10 +222,8 @@ class ToolHandler:
 
         try:
             response_data = json.loads(json_content)
-        except json.JSONDecodeError as jde:
-            logger.warning(f"无法解析提取的 JSON: '{json_content}'. 错误: {jde}. 将其视为文本。")
-            self.llm_text_output = (self.llm_text_output + "\n" + json_content).strip()
-            return self.llm_text_output, [], [], False
+        except json.JSONDecodeError as e:
+            return self._handle_parsing_error(json_content, e)
 
         tool_calls = response_data.get("tool_calls", [])
         if not isinstance(tool_calls, list):

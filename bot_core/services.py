@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 from agent.llm_functions import generate_summary
 from utils.db_utils import dialog_summary_add
@@ -9,7 +10,6 @@ from typing import List, Dict, Any, Optional
 from telegram.ext import ContextTypes
 from bot_core.models import User, Conversation, Group
 from bot_core.repository import ConversationRepository
-from bot_core.public_functions.error import BotError
 from utils.LLM_utils import PromptsBuilder
 import utils.db_utils as db
 
@@ -106,7 +106,7 @@ class PromptService:
             image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
             self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
         
-        self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在是群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n{group_dialog}\r\n</群聊模式>"})
+        self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在的时间是{str(datetime.datetime.now())}\r\n我们正处于群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n{group_dialog}\r\n</群聊模式>"})
         self.prompt_builder.insert_any({"location":"input_mark_end","mode":"after","content":profile_prompt})
 
         # 4. 构建最终消息
