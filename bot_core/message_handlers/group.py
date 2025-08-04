@@ -105,24 +105,22 @@ async def group_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 def _group_dialog_add(info) -> bool:
-    message_id = info['message_id']
-    message_text = info['message_text']
-    group_name = info['group_name']
-    user_id = info['user_id']
-    user_name = info['user_name']
-
-    current_time = str(datetime.datetime.now())
+    """
+    将一条用户消息的初始记录添加到 group_dialogs 表中。
+    """
     try:
-        if db.group_dialog_add(message_id, info['group_id']):
-            field_list = ['group_id', 'group_name', 'create_at', 'msg_user', 'msg_user_name', 'msg_text']
-            value_list = [info['group_id'], group_name, current_time, user_id, user_name, message_text]
-            for field, value in zip(field_list, value_list):
-                db.group_dialog_update(message_id, field, value, info['group_id'])
-            return True
-        return False
+        return db.group_dialog_initial_add(
+            group_id=info['group_id'],
+            msg_user_id=info['user_id'],
+            msg_user_name=info['user_name'],
+            msg_text=info['message_text'],
+            msg_id=info['message_id'],
+            group_name=info['group_name']
+        )
     except Exception as e:
-        logger.error(f"添加群聊对话记录失败, group_id: {info['group_id']}, 错误: {str(e)}")
-        raise DatabaseError(f"添加群聊对话记录失败: {str(e)}")
+        logger.error(f"添加群聊初始对话记录失败, group_id: {info.get('group_id')}, msg_id: {info.get('message_id')}, 错误: {str(e)}", exc_info=True)
+        # 在这里不重新抛出异常，因为记录失败不应中断整个消息处理流程
+        return False
 
 
 def _group_msg_need_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Union[str, bool]:

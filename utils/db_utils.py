@@ -643,9 +643,10 @@ def user_info_get(userid: int) -> dict:
             "first_name": result[0][0],
             "last_name": result[0][1],
             "user_name": result[0][2],
-            "tier": result[0][3],
-            "remain": result[0][4],
+            "account_tier": result[0][3],
+            "remain_frequency": result[0][4],
             "balance": result[0][5],
+            "uid": result[0][6]
         }
     else:
         return {}
@@ -1473,20 +1474,40 @@ def group_info_create(group_id: int) -> bool:
     return result > 0
 
 
-def group_dialog_add(msg_id: int, group_id: int) -> bool:
+def group_dialog_initial_add(
+    group_id: int,
+    msg_user_id: int,
+    msg_user_name: str,
+    msg_text: str,
+    msg_id: int,
+    group_name: str,
+) -> bool:
     """
-    在group_dialogs表中添加一条群聊消息记录。
-
-    Args:
-        msg_id: 消息ID
-        group_id: 群组ID
-
-    Returns:
-        bool: 操作是否成功
+    向 group_dialogs 表中插入一条初始的用户消息记录。
+    AI回复相关字段在此阶段留空。
     """
-    command = "INSERT INTO group_dialogs (msg_id, group_id) VALUES (?, ?)"
-    result = revise_db(command, (msg_id, group_id))
-    return result > 0
+    create_at = str(datetime.datetime.now())
+    command = """
+        INSERT INTO group_dialogs
+        (group_id, msg_user, msg_user_name, msg_text, msg_id, group_name, create_at, delete_mark)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'no')
+    """
+    params = (
+        group_id,
+        msg_user_id,
+        msg_user_name,
+        msg_text,
+        msg_id,
+        group_name,
+        create_at,
+    )
+    # 使用 try-except 避免因为重复 msg_id 而崩溃
+    try:
+        result = revise_db(command, params)
+        return result > 0
+    except sqlite3.IntegrityError:
+        logger.warning(f"尝试插入重复的 group_dialogs 记录失败: msg_id={msg_id}, group_id={group_id}")
+        return False
 
 
 def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> bool:

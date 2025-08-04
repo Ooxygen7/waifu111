@@ -365,28 +365,27 @@ class ConversationService:
             logger.warning("无法保存群聊记录：缺少 conv_id 或 output。")
             return
 
-        # 1. 保存对话内容
+        # 1. 保存会话内容到 group_user_dialogs (用于长期对话上下文)
+        # 注意：这与 group_dialogs 表不同，后者用于短期日志和上下文。
         turn = db.dialog_turn_get(conv_id, 'group')
-        # 直接调用底层的 db_utils 函数，因为它支持 chat_type
-        db.dialog_content_add(conv_id, 'user', turn + 1, input_message.text_raw, input_message.text_processed, input_message.id, 'group')
-        db.dialog_content_add(conv_id, 'assistant', turn + 2, output_message.text_raw, output_message.text_processed, output_message.id, 'group')
+        db.dialog_content_add(conv_id, 'user', turn + 1, input_message.text_raw, input_message.text_processed, chat_type='group')
+        db.dialog_content_add(conv_id, 'assistant', turn + 2, output_message.text_raw, output_message.text_processed, chat_type='group')
 
         # 2. 更新群组会话的轮次和时间戳
         self.group_repo.update_group_conversation_turn(conv_id, turns_increase=2)
 
         # 3. 更新群组本身的统计数据和时间戳
-        # TODO: 准确计算 token 消耗
         self.group_repo.update_group_stats(group.id, call_count_increase=1)
 
         # 4. 更新用户的统计数据和时间戳
         frequency_manager.update_user_usage(self.user, messages, output_message.text_raw, 'group_chat')
 
-        # 5. 更新 group_dialogs 表的元数据
+        # 5. 更新 group_dialogs 表中已存在的记录，补充AI回复和触发类型
         db.group_dialog_update(input_message.id, 'trigger_type', trigger, group.id)
         db.group_dialog_update(input_message.id, 'raw_response', output_message.text_raw, group.id)
         db.group_dialog_update(input_message.id, 'processed_response', output_message.text_processed, group.id)
 
-        logger.info(f"成功保存了群组 {group.id} 会话 {conv_id} 的一轮对话，并更新了相关统计数据。")
+        logger.info(f"成功更新了群组 {group.id} 在 group_dialogs 中的记录 (msg_id: {input_message.id})，并保存了会话。")
 
 class SummaryService:
     """
