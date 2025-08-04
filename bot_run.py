@@ -18,7 +18,7 @@ import bot_core.message_handlers.private as private_handler
 from bot_core.callback_handlers.callback import create_callback_handler  # 修改导入路径
 from bot_core.command_handlers.regist import CommandHandlers
 # from bot_core.inline_handlers.inline import InlineQueryHandlers  # 注释掉内联相关
-from bot_core.public_functions.config import BOT_TOKEN
+from utils.config_utils import BOT_TOKEN
 from bot_core.public_functions.error import BotError
 from utils.logging_utils import setup_logging
 from bot_core.public_functions.error import error_handler
