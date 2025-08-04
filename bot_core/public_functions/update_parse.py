@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 
 from telegram import Update, User, Message, Chat
 from bot_core.public_functions.error import BotError, DatabaseError
+from bot_core.repository import UserRepository
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
 
@@ -32,10 +33,10 @@ class UpdateParser:
             self.chat = self.message.chat
         elif self.update.callback_query:
             callback = self.update.callback_query
-            self.message = callback.message
-            self.user = callback.from_user
-            if self.message:
+            if callback.message and isinstance(callback.message, Message):
+                self.message = callback.message
                 self.chat = self.message.chat
+            self.user = callback.from_user
         # 可以根据需要扩展以支持其他类型的更新，如 inline_query
 
     def parse(self) -> Optional[Dict[str, Any]]:
@@ -69,14 +70,32 @@ class UpdateParser:
 
     def _load_private_chat_data(self):
         """加载私聊相关的数据（用户配置和详情）。"""
+        if not self.user:
+            logger.warning("无法加载私聊数据，因为 self.user 未定义。")
+            return
         user_id = self.user.id
         config = self._get_or_create_user_config(user_id)
-        user_detail = db.user_info_get(user_id) or {}
         self.info.update(config)
-        self.info.update(user_detail)
+
+        # --- 重构：使用 UserRepository 获取标准化的用户信息 ---
+        user_repo = UserRepository()
+        user_model = user_repo.get_user_by_id(user_id)
+        if user_model:
+            # 直接使用 UserModel 的属性更新 info 字典，不改变键名
+            self.info.update(user_model.model_dump(by_alias=True))
+            logger.debug(f"成功从 UserRepository 加载用户详情并更新到 info 字典。")
+        else:
+            # 作为后备，或者记录一个警告
+            logger.warning(f"无法通过 UserRepository 加载用户 {user_id} 的详细信息。")
+            # 仍然尝试旧方法以保证兼容性，但这不是长久之计
+            legacy_user_detail = db.user_info_get(user_id) or {}
+            self.info.update(legacy_user_detail)
 
     def _load_group_chat_data(self):
         """加载群聊相关的数据（群组配置和会话ID）。"""
+        if not self.chat or not self.user:
+            logger.warning("无法加载群聊数据，因为 self.chat 或 self.user 未定义。")
+            return
         group_id = self.chat.id
         user_id = self.user.id
         
