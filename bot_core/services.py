@@ -299,6 +299,9 @@ class ConversationService:
         # 更新模型中的轮次计数，以保持同步
         self.conversation.turns += 2
         
+        # 将更新后的轮次计数持久化到数据库
+        self.conv_repo.update_conversation_turns(self.conversation.id, self.conversation.turns)
+        
         logger.info(f"成功保存了会话 {self.conversation.id} 的第 {current_turn + 1} 和 {current_turn + 2} 轮。")
         # TODO: 在这里处理使用频率和余额的更新逻辑
 

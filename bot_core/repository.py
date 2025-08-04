@@ -185,3 +185,18 @@ class ConversationRepository:
         # 删除特定会话中的特定消息，避免误删其他会话中的同ID消息
         command = "DELETE FROM dialogs WHERE conv_id = ? AND msg_id = ?"
         return db.revise_db(command, (conv_id, message_id)) > 0
+
+    def update_conversation_turns(self, conv_id: int, turns: int) -> bool:
+        """
+        更新指定会话的轮次计数。
+
+        Args:
+            conv_id: 会话ID。
+            turns: 新的轮次总数。
+
+        Returns:
+            如果更新成功则返回 True，否则返回 False。
+        """
+        # 假设 'conversations' 表中有一个 'turns' 字段来存储轮次计数
+        command = "UPDATE conversations SET turns = ?, update_at = CURRENT_TIMESTAMP WHERE conv_id = ?"
+        return db.revise_db(command, (turns, conv_id)) > 0
