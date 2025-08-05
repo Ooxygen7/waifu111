@@ -627,12 +627,35 @@ def user_conversations_get(userid: int) -> Optional[List[Tuple]]:
     return result if result else None
 
 
+def user_all_conversations_get(userid: int) -> Optional[List[Tuple]]:
+    """获取用户所有的私聊对话列表，包括已删除的。返回 (conv_id, character, summary) 元组的列表。"""
+    command = "SELECT conv_id, character, summary,update_at,turns FROM conversations WHERE user_id = ?"
+    result = query_db(command, (userid,))
+    return result if result else None
+
 def user_conversations_get_for_dialog(userid: int) -> Optional[List[Tuple]]:
     """获取用户未标记为删除的私聊对话列表，用于dialog命令。返回 (conv_id, character, turns, update_at, summary) 元组的列表。"""
     command = "SELECT conv_id, character, turns, update_at, summary FROM conversations WHERE user_id = ? AND delete_mark = 'no' ORDER BY update_at DESC"
     result = query_db(command, (userid,))
     return result if result else None
 
+
+def user_conversations_count_update(user_id: int) -> bool:
+    """
+    重新计算并更新用户的私聊对话总数。
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        bool: 操作是否成功
+    """
+    # 使用 user_all_conversations_get 获取所有对话列表
+    conversations = user_all_conversations_get(user_id)
+    count = len(conversations) if conversations else 0
+    
+    # 使用 user_info_update 更新 users 表中的 conversations 字段
+    return user_info_update(user_id, 'conversations', count)
 
 def user_info_get(userid: int) -> dict:
     """获取用户的基本信息。返回 (first_name, last_name, user_name, account_tier, remain_frequency, balance, uid)。"""

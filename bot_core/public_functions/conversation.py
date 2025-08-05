@@ -1,12 +1,10 @@
 import asyncio
 import logging
-import random
 from typing import Optional
 
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
-from agent.llm_functions import generate_summary
 from bot_core.models import User as UserModel, Conversation as ConversationModel, Group, GroupConfig
 from bot_core.public_functions.error import BotError
 from bot_core.public_functions.messages import (
@@ -17,12 +15,9 @@ from bot_core.repository import UserRepository, ConversationRepository
 from bot_core.services import PromptService, ConversationService, SummaryService
 from utils import db_utils as db
 from utils import text_utils as txt
-from utils.config_utils import get_api_multiple
-from utils.db_utils import dialog_summary_add
-from utils.LLM_utils import LLM, PromptsBuilder
+from utils.LLM_utils import LLM
 from utils.text_utils import contains_nsfw
 from utils.logging_utils import setup_logging
-import bot_core.public_functions.frequency_manager as fm
 setup_logging()
 logger = logging.getLogger(__name__)
 

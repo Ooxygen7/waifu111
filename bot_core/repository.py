@@ -224,7 +224,7 @@ class ConversationRepository:
             new_conv_id = random.randint(10000000, 99999999)
             if (db.conversation_private_create(new_conv_id, user.id, user.character, user.preset) and
                     db.user_config_arg_update(user.id, 'conv_id', new_conv_id)):
-                db.user_info_update(user.id, 'conversations', 1, True)
+                db.user_conversations_count_update(user.id)  # 更新用户对话计数
                 return self.get_conversation_by_id(new_conv_id)
         return None
 

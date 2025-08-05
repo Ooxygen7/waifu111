@@ -226,6 +226,7 @@ class NewCommand(BaseCommand):
         if db.conversation_private_create(new_conv_id, user_id, character, preset):
             # 4. 更新用户当前会话ID
             db.user_config_arg_update(user_id, "conv_id", new_conv_id)
+            db.user_conversations_count_update(user_id)  # 更新用户对话计数
             await update.message.reply_text("创建成功！", parse_mode="MarkDown")
         else:
             await update.message.reply_text("创建新对话失败，请联系管理员。")
