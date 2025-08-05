@@ -366,7 +366,7 @@
             button.prop('disabled', true).addClass('loading').html('<span class="btn-text">生成中...</span>');
 
             $.ajax({
-                url: '/api/generate_summary',
+                url: '{{ url_for("api.api_generate_summary") }}',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ conversation_id: convId }),

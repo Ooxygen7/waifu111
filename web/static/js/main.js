@@ -14,6 +14,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 初始化统计卡片
     initStatCards();
+
+    // 初始化 Feather 图标
+    if (typeof feather !== 'undefined') {
+        feather.replace();
+    }
 });
 
 /**
