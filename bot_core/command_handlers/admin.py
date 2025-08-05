@@ -139,7 +139,7 @@ class DatabaseCommand(BaseCommand):
             user_input=user_input,
             prompt_text=prompt_text,
             character_prompt=character_prompt,
-            llm_api='gemini-2.5',
+            llm_api='倍率5-gemini-2.5-pro',
             max_iterations=15
         )
 
