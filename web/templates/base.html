@@ -11,6 +11,17 @@
     {% block extra_css %}{% endblock %}
     <meta name="theme-color" content="#00d4ff">
     <meta name="description" content="CyberWaifu Bot 后台管理系统 - 管理用户、对话和系统配置">
+    <script>
+      // 立即执行以防止主题闪烁 (FOUC)
+      (function() {
+        try {
+          const theme = localStorage.getItem('theme') || 'dark'; // 默认暗黑主题
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          console.error("无法应用初始主题:", e);
+        }
+      })();
+    </script>
 </head>
 <body>
     <!-- 跳过导航链接 - 提高键盘可访问性 -->
@@ -119,12 +130,14 @@
         </main>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/zh-cn.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-    <script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/locale/zh-cn.js" defer></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js" defer></script>
+    <script defer>
+        // feather.replace() 依赖于 DOMContentLoaded，但由于所有脚本都是 defer，
+        // 我们可以安全地在这里调用它，因为它会在所有脚本加载后执行。
         document.addEventListener('DOMContentLoaded', function() {
             feather.replace();
         });

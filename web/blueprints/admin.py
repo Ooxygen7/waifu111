@@ -8,6 +8,7 @@ from flask import (
     redirect,
     url_for,
     abort,
+    jsonify,
 )
 from web.factory import viewer_or_admin_required, format_datetime, get_admin_ids
 from bot_core.public_functions.frequency_manager import get_dashboard_stats
@@ -250,7 +251,7 @@ def conversations():
                u.first_name, u.last_name, u.user_name
     """
 
-    where_clauses = []
+    where_clauses = ["c.turns > 0"]
     params = []
 
     if user_role == "viewer":
@@ -403,11 +404,11 @@ def dialogs(conv_id):
         params.extend([search_param, search_param])
         count_params.extend([search_param, search_param])
 
-    query = f"SELECT * FROM dialogs WHERE conv_id = ?{search_clause if search else ''} ORDER BY turn_order ASC LIMIT ? OFFSET ?"
+    query = f"SELECT * FROM dialogs WHERE conv_id = ? AND turn_order != 0{search_clause if search else ''} ORDER BY turn_order ASC LIMIT ? OFFSET ?"
     params.extend([per_page, offset])
 
     count_query = (
-        f"SELECT COUNT(*) FROM dialogs WHERE conv_id = ?{search_clause if search else ''}"
+        f"SELECT COUNT(*) FROM dialogs WHERE conv_id = ? AND turn_order != 0{search_clause if search else ''}"
     )
 
     dialogs_data = db.query_db(query, tuple(params))
@@ -822,29 +823,41 @@ def config_management():
 @admin_bp.route("/database")
 @viewer_or_admin_required
 def database_viewer():
-    """数据库查看器页面"""
-    table_name = request.args.get("table_name")
-    table_names = db.get_all_table_names()
+    """数据库查看器页面 - 服务器端渲染"""
+    all_table_names = db.get_all_table_names()
     
-    if table_name and table_name not in table_names:
+    # 处理左侧表名搜索
+    search_table_term = request.args.get("search_table", "").lower()
+    if search_table_term:
+        table_names = [name for name in all_table_names if search_table_term in name.lower()]
+    else:
+        table_names = all_table_names
+
+    active_table = request.args.get("table_name")
+    
+    if active_table and active_table not in all_table_names:
         flash("指定的表不存在。", "error")
         return redirect(url_for("admin.database_viewer"))
 
     page = request.args.get("page", 1, type=int)
     per_page = 30
-    search_term = request.args.get("search", "")
+    search_data_term = request.args.get("search_data", "")
 
     table_data = {}
-    if table_name:
-        table_data = db.get_table_data(table_name, page, per_page, search_term)
+    if active_table:
+        table_data = db.get_table_data(
+            table_name=active_table,
+            page=page,
+            per_page=per_page,
+            search_term=search_data_term
+        )
 
     return render_template(
         "database.html",
         table_names=table_names,
-        active_table=table_name,
+        active_table=active_table,
         table_data=table_data,
         page=page,
         per_page=per_page,
-        search_term=search_term,
         format_datetime=format_datetime,
     )

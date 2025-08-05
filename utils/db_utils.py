@@ -1748,16 +1748,21 @@ def get_all_table_names() -> List[str]:
     return [row[0] for row in result] if result else []
 
 def get_table_data(
-    table_name: str, page: int, per_page: int, search_term: Optional[str] = None
+    table_name: str,
+    page: int,
+    per_page: int,
+    search_term: Optional[str] = None,
+    sorters: Optional[List[dict]] = None,
 ) -> dict:
     """
-    获取指定表的数据，支持分页和搜索。
+    获取指定表的数据，支持分页、搜索和排序。
 
     Args:
         table_name: 表名
         page: 当前页码
         per_page: 每页记录数
         search_term: 搜索关键词
+        sorters: 排序器列表 (e.g., [{'field': 'name', 'dir': 'asc'}])
 
     Returns:
         dict: 包含 headers, rows, total_rows, total_pages 的字典
@@ -1805,6 +1810,22 @@ def get_table_data(
         data_query = f"SELECT * {base_query}"
         if where_clauses:
             data_query += " WHERE " + " AND ".join(where_clauses)
+
+        # 添加排序逻辑
+        order_by_clause = ""
+        if sorters:
+            order_by_parts = []
+            for sorter in sorters:
+                field = sorter.get("field")
+                direction = sorter.get("dir", "asc").upper()
+                # 安全检查：确保列名和排序方向有效
+                if field in headers and direction in ["ASC", "DESC"]:
+                    # 为列名加上引号以处理特殊字符或关键字
+                    order_by_parts.append(f'"{field}" {direction}')
+            if order_by_parts:
+                order_by_clause = " ORDER BY " + ", ".join(order_by_parts)
+        
+        data_query += order_by_clause
         data_query += " LIMIT ? OFFSET ?"
         params.extend([per_page, offset])
 

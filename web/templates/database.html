@@ -5,120 +5,293 @@
 {% block page_title %}数据库查看器{% endblock %}
 
 {% block content %}
-<div class="glass-card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">数据库表</h5>
-    </div>
-    <div class="card-body">
-        <ul class="nav nav-pills">
-            {% for table in table_names %}
+<div class="db-container">
+    <div id="sidebar" class="glass-card p-2">
+        <ul id="table-list" class="nav nav-pills flex-column">
+            {% for name in table_names %}
             <li class="nav-item">
-                <a class="nav-link {% if table == active_table %}active{% endif %}" href="{{ url_for('admin.database_viewer', table_name=table) }}">
-                    {{ table }}
-                </a>
+                <a class="nav-link {% if name == active_table %}active{% endif %}" href="{{ url_for('admin.database_viewer', table_name=name) }}">{{ name }}</a>
             </li>
             {% endfor %}
         </ul>
     </div>
-</div>
+    <div id="main-content" class="glass-card p-2">
+        {% if active_table %}
+            <div class="main-content-header">
+                <h5 id="active-table-name" class="mb-0">表: {{ active_table }}</h5>
+                <form action="{{ url_for('admin.database_viewer', table_name=active_table) }}" method="get" class="data-search-form">
+                     <input type="hidden" name="table_name" value="{{ active_table }}">
+                    <div class="input-group">
+                        <input type="text" name="search_data" class="form-control form-control-sm" placeholder="搜索当前表数据..." value="{{ request.args.get('search_data', '') }}">
+                        <button class="btn btn-primary btn-sm" type="submit">搜索</button>
+                    </div>
+                </form>
+            </div>
 
-{% if active_table %}
-<div class="glass-card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0">表: {{ active_table }}</h5>
-        <form method="get" action="{{ url_for('admin.database_viewer') }}" class="form-inline">
-            <input type="hidden" name="table_name" value="{{ active_table }}">
-            <div class="input-group">
-                <input type="text" class="form-control" name="search" placeholder="搜索..." value="{{ search_term or '' }}">
-                <button class="btn btn-outline-primary" type="submit">
-                    <i data-feather="search"></i>
-                </button>
-            </div>
-        </form>
-    </div>
-    <div class="card-body">
-        {% if table_data.error %}
-            <div class="alert alert-danger">{{ table_data.error }}</div>
-        {% elif table_data.rows %}
-            <div class="table-responsive">
-                <table class="table table-hover table-sm">
-                    <thead>
-                        <tr>
-                            {% for header in table_data.headers %}
-                                <th>{{ header }}</th>
+            {% if table_data and table_data.rows %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered table-hover excel-style">
+                        <thead class="thead-dark">
+                            <tr>
+                                {% for header in table_data.headers %}
+                                    <th>{{ header }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in table_data.rows %}
+                            <tr>
+                                {% for cell in row %}
+                                    <td class="expandable-cell" title="点击查看完整内容" data-full-text="{{ cell|string }}">
+                                        <div class="cell-content-wrapper">{{ cell|string }}</div>
+                                    </td>
+                                {% endfor %}
+                            </tr>
                             {% endfor %}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in table_data.rows %}
-                        <tr>
-                            {% for cell in row %}
-                                <td>
-                                    <div class="cell-content">{{ cell }}</div>
-                                </td>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if table_data.total_pages > 1 %}
+                <div class="pagination-wrapper mt-2">
+                    <div class="pagination-info">
+                        <span class="pagination-text">第 {{ (page-1)*per_page + 1 }} - {{ page*per_page if page*per_page <= table_data.total_rows else table_data.total_rows }} 条 / 共 {{ table_data.total_rows }} 条</span>
+                    </div>
+                    <div class="pagination-controls">
+                        {% if page > 1 %}
+                            <a href="{{ url_for('admin.database_viewer', page=page-1, table_name=active_table, search_data=request.args.get('search_data', '')) }}"
+                               class="btn-glass pagination-btn pagination-prev" aria-label="上一页">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            </a>
+                        {% else %}
+                            <span class="pagination-btn pagination-prev disabled">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            </span>
+                        {% endif %}
+                        
+                        <div class="pagination-numbers">
+                            {% for p in range(1, table_data.total_pages + 1) %}
+                                {% if p == page %}
+                                    <span class="btn-glass pagination-number active">{{ p }}</span>
+                                {% elif p <= 2 or p > table_data.total_pages - 2 or (p >= page - 1 and p <= page + 1) %}
+                                    <a href="{{ url_for('admin.database_viewer', page=p, table_name=active_table, search_data=request.args.get('search_data', '')) }}" class="btn-glass pagination-number">{{ p }}</a>
+                                {% elif p == 3 or p == table_data.total_pages - 2 %}
+                                    <span class="pagination-ellipsis">…</span>
+                                {% endif %}
                             {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <p class="text-muted mt-2">共 {{ table_data.total_rows }} 条记录</p>
+                        </div>
+                        
+                        {% if page < table_data.total_pages %}
+                            <a href="{{ url_for('admin.database_viewer', page=page+1, table_name=active_table, search_data=request.args.get('search_data', '')) }}"
+                               class="btn-glass pagination-btn pagination-next" aria-label="下一页">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </a>
+                        {% else %}
+                            <span class="pagination-btn pagination-next disabled">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            {% else %}
+                <p>表中没有数据。</p>
+            {% endif %}
         {% else %}
-            <p>表中没有数据。</p>
+            <h5 class="mb-0">请从左侧选择一个表进行查看。</h5>
         {% endif %}
     </div>
-    {% if table_data.total_pages > 1 %}
-    <div class="card-footer">
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center mb-0">
-                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=1, search=search_term) }}">首页</a>
-                </li>
-                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=page-1, search=search_term) }}">上一页</a>
-                </li>
-                <li class="page-item disabled">
-                    <span class="page-link">{{ page }} / {{ table_data.total_pages }}</span>
-                </li>
-                <li class="page-item {% if page >= table_data.total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=page+1, search=search_term) }}">下一页</a>
-                </li>
-                <li class="page-item {% if page >= table_data.total_pages %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('admin.database_viewer', table_name=active_table, page=table_data.total_pages, search=search_term) }}">尾页</a>
-                </li>
-            </ul>
-        </nav>
-    </div>
-    {% endif %}
 </div>
-{% else %}
-<div class="glass-card">
-    <div class="card-body text-center">
-        <p class="lead">请从上方选择一个表进行查看。</p>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
+{% block modals %}
+<!-- Cell Data Modal -->
+<div class="modal-overlay" id="cellDataModal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <h3 class="modal-title" id="cellDataModalTitle">单元格内容</h3>
+            </div>
+            <button class="modal-close" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <pre id="cellDataModalContent" class="modal-pre-content"></pre>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_glass.css') }}">
 <style>
-    .nav-pills .nav-link {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: var(--text-color);
-        margin-right: 5px;
-        margin-bottom: 5px;
-        border: 1px solid transparent;
+    .db-container {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 1rem;
+        height: calc(100vh - 160px);
     }
-    .nav-pills .nav-link.active, .nav-pills .show>.nav-link {
-        color: #fff;
-        background-color: var(--primary-color);
-        border-color: var(--primary-color);
-        box-shadow: 0 0 10px var(--glow-color);
+    #sidebar, #main-content {
+        overflow: auto;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
-    .cell-content {
-        max-height: 100px;
+    #table-list { list-style: none; padding-left: 0; }
+    #table-list .nav-link { padding: 0.35rem 0.75rem; font-size: 0.85rem; margin-bottom: 4px; }
+    .main-content-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .data-search-form { width: 300px; }
+    .table-responsive { flex-grow: 1; overflow: auto; }
+    
+    /* Excel-like Table Style */
+    .table.excel-style { width: 100%; table-layout: fixed; border-collapse: collapse; }
+    .table.excel-style th, .table.excel-style td {
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        padding: 0.4rem;
+        vertical-align: top;
+    }
+    .table.excel-style td.expandable-cell { cursor: pointer; }
+    .cell-content-wrapper { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .table.excel-style tbody tr:nth-child(even) { background-color: rgba(0, 0, 0, 0.1); }
+    .table.excel-style th { background-color: rgba(0,0,0,0.3); }
+
+    /* Pagination - Compact Style */
+    .pagination-wrapper { flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; }
+    .pagination-text { font-size: 0.8rem; }
+    .pagination-controls { display: flex; align-items: center; }
+    .pagination-btn, .pagination-number { padding: 0.2rem 0.5rem; font-size: 0.8rem; min-width: 30px; height: 30px; display: inline-flex; justify-content: center; align-items: center; }
+    .pagination-btn svg { width: 14px; height: 14px; }
+    .pagination-btn span { display: none; }
+    .pagination-ellipsis { font-size: 0.8rem; padding: 0.2rem 0.3rem; }
+
+    /* Modal Styles (Final, Robust Version) */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: transparent; /* 移除遮罩背景色 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1050;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none; /* 默认不捕获事件，防止穿透 */
+        transition: opacity 0.2s ease, visibility 0.2s;
+    }
+    .modal-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto; /* 可见时捕获事件以关闭 */
+    }
+    .modal-container {
+        background: rgba(30, 30, 40, 0.85);
+        backdrop-filter: blur(12px); /* 自身毛玻璃效果 */
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transform: scale(0.95);
+        transition: transform 0.2s ease;
+        pointer-events: auto; /* 确保模态框自身总是可交互的 */
+    }
+    .modal-overlay.visible .modal-container {
+        transform: scale(1);
+    }
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .modal-title { margin: 0; font-size: 1.2rem; }
+    .modal-close { background: none; border: none; color: #fff; cursor: pointer; opacity: 0.7; }
+    .modal-close:hover { opacity: 1; }
+    .modal-body { padding: 1.5rem; }
+    .modal-pre-content {
+        background-color: rgba(0,0,0,0.2);
+        padding: 1rem;
+        border-radius: 6px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 60vh;
         overflow-y: auto;
-        font-size: 0.85rem;
     }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sidebar collapse logic
+    const sidebar = document.querySelector('.sidebar');
+    const body = document.body;
+    if (sidebar && body && window.innerWidth > 992) {
+        sidebar.classList.add('collapsed');
+        body.classList.add('sidebar-collapsed');
+    }
+
+    // Modal logic
+    const modal = document.getElementById('cellDataModal');
+    const modalCloseBtn = modal.querySelector('.modal-close');
+    const modalTitle = document.getElementById('cellDataModalTitle');
+    const modalContent = document.getElementById('cellDataModalContent');
+
+    function showModal(title, content) {
+        modalTitle.textContent = title;
+        modalContent.textContent = content;
+        modal.classList.add('visible');
+    }
+
+    function hideModal() {
+        modal.classList.remove('visible');
+    }
+
+    // Event delegation for opening the modal
+    const table = document.querySelector('.table.excel-style');
+    if (table) {
+        const headers = Array.from(table.querySelectorAll('thead th'));
+        table.addEventListener('click', function(e) {
+            const cell = e.target.closest('.expandable-cell');
+            if (!cell) return;
+
+            const contentWrapper = cell.querySelector('.cell-content-wrapper');
+            if (contentWrapper && contentWrapper.offsetWidth < contentWrapper.scrollWidth) {
+                const cellIndex = cell.cellIndex;
+                const headerText = headers[cellIndex] ? headers[cellIndex].textContent : '单元格内容';
+                const fullText = cell.dataset.fullText;
+                showModal(headerText, fullText);
+            }
+        });
+    }
+
+    // Standard and robust close modal events
+    // 1. Close by clicking the close button
+    modalCloseBtn.addEventListener('click', hideModal);
+
+    // 2. Close by clicking the overlay background
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) { // Only if the click is on the overlay itself
+            hideModal();
+        }
+    });
+
+    // 3. Close by pressing the Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('visible')) {
+            hideModal();
+        }
+    });
+});
+</script>
 {% endblock %}
