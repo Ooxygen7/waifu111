@@ -492,7 +492,7 @@ class PrivateConv:
             else:
                 self.output = Message(0, final_response_text, 'output') # Placeholder for message ID
 
-            if contains_nsfw(self.output.text_processed) and self.user.preset == 'Default_meeting':
+            if contains_nsfw(self.output.text_raw) and self.user.preset == 'Default_meeting':
                 await send_message(self.context, self.user.id, "检测到您正在使用默认配置，使用 `/preset` 切换nsfw配置可获得更好的nsfw内容质量")
             if save:
                 self.conv_service.save_turn(self.input, self.output, messages)

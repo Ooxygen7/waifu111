@@ -105,12 +105,13 @@ class PromptService:
                 random_profile = random.choice(user_profiles)
                 profile_prompt = f"<用户信息>\r\n这是根据用户在其他群聊中的发言，为他总结的用户画像，请在回复时参考：\r\n{random_profile['user_profile']}\r\n</用户信息>\r\n"
 
-        # 3. 根据有无图片插入不同的提示
+
         if images:
             image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
             self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
         
-        self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在的时间是{str(datetime.datetime.now())}\r\n我们正处于群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n{group_dialog}\r\n</群聊模式>"})
+        self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在的时间是{str(datetime.datetime.now())}\r\n"
+                                                                                                f"我们正处于群聊模式，你需要先看看群友在聊什么，再加入他们的对话\r\n{group_dialog}\r\n</群聊模式>"})
         self.prompt_builder.insert_any({"location":"input_mark_end","mode":"after","content":profile_prompt})
 
         # 4. 构建最终消息
