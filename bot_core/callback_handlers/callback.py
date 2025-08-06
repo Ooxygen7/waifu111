@@ -2,6 +2,7 @@
 import importlib
 import inspect
 import logging
+import random
 import os
 import time
 from typing import Dict
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # 设置日志配置
 
-default_char = 'cuicuishark_public'
+
 
 
 class SetCharCallback(BaseCallback):
@@ -110,7 +111,7 @@ class DelCharCallback(BaseCallback):
         """
         处理角色删除回调。
         """
-        import random
+
         character = data
         info = public.update_info_get(update)
         if not info:
@@ -118,11 +119,6 @@ class DelCharCallback(BaseCallback):
         query = update.callback_query
         if not query or not query.message:
             return
-
-        db.user_config_arg_update(info['user_id'], 'char', default_char)
-        if info.get('conv_id'):
-            db.conversation_private_arg_update(info['conv_id'], 'character', default_char)
-        
         char_dir = './characters/'
         json_path = os.path.join(char_dir, f'{character}.json')
         txt_path = os.path.join(char_dir, f'{character}.txt')
@@ -133,8 +129,17 @@ class DelCharCallback(BaseCallback):
         elif os.path.exists(txt_path):
             del_path = os.path.join(char_dir, f'{character}_{delmark}_del.txt')
             os.rename(txt_path, del_path)
-        await query.message.edit_text(
-            f"角色`{character.split('_')[0]}`删除成功！已为您切换默认角色`cuicuishark` 。")
+        if info['char'] == data:
+            db.user_config_arg_update(info['user_id'], 'char', 'cuicuishark_public')
+            db.conversation_private_arg_update(info['conv_id'], 'character', 'cuicuishark_public')
+            await query.message.edit_text(
+                f"角色`{character.split('_')[0]}`删除成功！已为您切换默认角色`cuicuishark` 。")
+        else:
+            await query.message.edit_text(
+                f"角色`{character.split('_')[0]}`删除成功！")
+
+
+
 
 
 class SetApiCallback(BaseCallback):
