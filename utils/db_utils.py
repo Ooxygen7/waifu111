@@ -1533,6 +1533,38 @@ def group_dialog_initial_add(
         return False
 
 
+def group_dialog_response_update(
+    group_id: int,
+    msg_id: int,
+    trigger_type: str,
+    raw_response: str,
+    processed_response: str,
+) -> bool:
+    """
+    在 group_dialogs 表中更新AI的回复内容和触发类型。
+
+    Args:
+        group_id (int): 群组ID。
+        msg_id (int): 原始用户消息的ID，用于定位记录。
+        trigger_type (str): 触发回复的类型 ('reply', '@', 'keyword', 'random')。
+        raw_response (str): LLM返回的原始响应。
+        processed_response (str): 处理后用于显示的响应。
+
+    Returns:
+        bool: 操作是否成功。
+    """
+    command = """
+        UPDATE group_dialogs
+        SET trigger_type = ?, raw_response = ?, processed_response = ?
+        WHERE group_id = ? AND msg_id = ?
+    """
+    params = (trigger_type, raw_response, processed_response, group_id, msg_id)
+    result = revise_db(command, params)
+    if result == 0:
+        logger.warning(f"更新群聊对话回复失败，未找到匹配记录: group_id={group_id}, msg_id={msg_id}")
+    return result > 0
+
+
 def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> bool:
     """
     更新group_dialogs表中指定消息的指定字段。
