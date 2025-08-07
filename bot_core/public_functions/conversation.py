@@ -244,23 +244,25 @@ class GroupConv:
                 self.output = Message(self.placeholder.message_id, response, 'output')
                 await factory.edit(self.placeholder, self.output.text_processed)
             
-            if self.id:
-                # 确保 self.output 被实例化
-                if not self.output:
-                    self.output = Message(self.placeholder.message_id if self.placeholder else 0, response, 'output')
-                self.conv_service.save_group_turn(self.group, self.id, self.input, self.output, self.trigger, messages)
+            # 确保 self.output 被实例化
+            if not self.output:
+                self.output = Message(self.placeholder.message_id if self.placeholder else 0, response, 'output')
 
-                # 更新 group_dialogs 表中的回复信息
-                if self.trigger:
-                    db.group_dialog_response_update(
-                        group_id=self.group.id,
-                        msg_id=self.input.id,
-                        trigger_type=self.trigger,
-                        raw_response=self.output.text_raw,
-                        processed_response=self.output.text_processed
-                    )
-                else:
-                    logger.warning(f"无法更新 group_dialogs，因为 trigger 为 None。Group: {self.group.id}, Msg: {self.input.id}")
+            # 无论是否存在会话ID，都更新 group_dialogs 表
+            if self.trigger:
+                db.group_dialog_response_update(
+                    group_id=self.group.id,
+                    msg_id=self.input.id,
+                    trigger_type=self.trigger,
+                    raw_response=self.output.text_raw,
+                    processed_response=self.output.text_processed
+                )
+            else:
+                logger.warning(f"无法更新 group_dialogs，因为 trigger 为 None。Group: {self.group.id}, Msg: {self.input.id}")
+
+            # 如果存在会话ID，则保存到长期对话历史中
+            if self.id:
+                self.conv_service.save_group_turn(self.group, self.id, self.input, self.output, self.trigger, messages)
         except Exception as e:
             logger.error(f"响应用户时发生异常: {e}", exc_info=True)
             error_text = f"❌ 出错了：{str(e)}"
