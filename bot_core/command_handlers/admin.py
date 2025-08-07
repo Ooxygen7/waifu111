@@ -8,6 +8,7 @@ from agent.llm_functions import run_agent_session
 import bot_core.public_functions.messages as messages
 from agent.tools_registry import DatabaseSuperToolRegistry
 from utils import db_utils as db
+from utils.config_utils import get_config
 from utils.db_utils import manual_wal_checkpoint
 from .base import BaseCommand, CommandMeta
 from utils.logging_utils import setup_logging
@@ -135,11 +136,12 @@ class DatabaseCommand(BaseCommand):
         prompt_text = DatabaseSuperToolRegistry.get_prompt_text()
 
         # 1. 创建 Agent 会话生成器
+        q_command_api = get_config('api.q_command_api', 'default-fallback-api')
         agent_session = run_agent_session(
             user_input=user_input,
             prompt_text=prompt_text,
             character_prompt=character_prompt,
-            llm_api='倍率5-gemini-2.5-pro',
+            llm_api=q_command_api,
             max_iterations=15
         )
 

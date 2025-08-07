@@ -2,7 +2,8 @@
   "api": {
     "default_api": "gemini-2",
     "max_tokens": 8000,
-    "semaphore_limit": 5
+    "semaphore_limit": 5,
+    "q_command_api": "倍率5-gemini-2.5-pro"
   },
   "user": {
     "default_char": "cuicuishark_public",
