@@ -840,7 +840,7 @@ def database_viewer():
         return redirect(url_for("admin.database_viewer"))
 
     page = request.args.get("page", 1, type=int)
-    per_page = 30
+    per_page = 200
     search_data_term = request.args.get("search_data", "")
 
     table_data = {}
