@@ -183,6 +183,92 @@ async def analyze_image_for_rating(
         return response, llm_messages
 
 
+async def analyze_image_for_kao(
+    base64_data: str,
+    mime_type: str,
+    parse_mode: str = "markdown",
+) -> Tuple[str, List[Dict[str, Any]]]:
+    """
+    分析图像的base64数据，并返回颜值分析结果和消息历史。
+
+    Args:
+        base64_data (str): 图像的base64编码数据。
+        mime_type (str): 图像的MIME类型。
+        parse_mode (str): 输出格式，可以是 'markdown' 或 'html'。
+
+    Returns:
+        Tuple[str, List[Dict[str, Any]]]: 包含格式化响应和发送给LLM的消息列表的元组。
+
+    Raises:
+        ValueError: 如果缺少必要的 prompt 或数据。
+    """
+    prompt_name = "kao_group"
+    system_prompt = file_utils.load_single_prompt(prompt_name)
+    if not system_prompt:
+        raise ValueError(f"无法加载 '{prompt_name}' prompt。")
+
+    user_text = "请帮我分析一下这张图片的颜值。"
+
+    llm_messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": user_text},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime_type};base64,{base64_data}"},
+                },
+            ],
+        },
+    ]
+
+    kao_api = get_config("fuck_or_not_api", "gemini-2.5") # We can reuse the same API for now
+    llm = LLM_utils.LLM(api=kao_api)
+    llm.set_messages(llm_messages)
+    response = await llm.final_response()
+
+    try:
+        match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
+        json_str = match.group(1) if match else response
+        data = json.loads(json_str)
+
+        if parse_mode == "html":
+            score = data.get("score", "N/A")
+            age = data.get("age", "N/A")
+            gender = data.get("gender", "N/A")
+            face_shape = data.get("face_shape", "N/A")
+            expression = data.get("expression", "N/A")
+            skin_color = data.get("skin_color", "N/A")
+            evaluation = data.get("evaluation", "N/A")
+            
+            formatted_response = (
+                " <b>颜值分析结果</b> \n\n"
+                f"<b>总分</b>: {score}/10\n"
+                f"<b>年龄</b>: {age}\n"
+                f"<b>性别</b>: {gender}\n"
+                f"<b>脸型</b>: {face_shape}\n"
+                f"<b>表情</b>: {expression}\n"
+                f"<b>肤色</b>: {skin_color}\n\n"
+                f"<b>评价</b>:\n<blockquote expandable>{evaluation}</blockquote>"
+            )
+        else:  # markdown
+            score = data.get("score", "N/A")
+            age = data.get("age", "N/A")
+            gender = data.get("gender", "N/A")
+            face_shape = data.get("face_shape", "N/A")
+            expression = data.get("expression", "N/A")
+            skin_color = data.get("skin_color", "N/A")
+            evaluation = data.get("evaluation", "N/A")
+            formatted_response = f"```\n总分：{score}/10\n年龄：{age}\n性别：{gender}\n脸型：{face_shape}\n表情：{expression}\n肤色：{skin_color}\n```\n\n评价：{evaluation}"
+        
+        return formatted_response, llm_messages
+        
+    except (json.JSONDecodeError, AttributeError) as e:
+        logger.warning(f"解析LLM JSON响应失败: {e}。将使用原始响应。")
+        return response, llm_messages
+
+
 async def generate_summary(conversation_id: int,summary_type:str = 'save',start:int=0,end:int=0) -> str:
         """
         生成对话总结
