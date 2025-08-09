@@ -594,26 +594,26 @@ def user_config_arg_update(user_id: int, field: str, value: Any) -> bool:
     return result > 0
 
 
-def user_config_create(userid: int) -> bool:
+def user_config_create(userid: int, nick: Optional[str] = None) -> bool:
     """
-    为新用户创建默认配置。
+    为新用户创建默认配置。如果用户已存在，则不执行任何操作。
 
     Args:
         userid: 用户ID
+        nick: 用户的昵称 (可选)
 
     Returns:
         bool: 操作是否成功
     """
     command = (
-        "INSERT INTO user_config (char, api, preset, uid,stream) VALUES (?, ?, ?, ?,?)"
+        "INSERT OR IGNORE INTO user_config (char, api, preset, uid, stream, nick) VALUES (?, ?, ?, ?, ?, ?)"
     )
-    result = revise_db(
-        command, (DEFAULT_CHAR, DEFAULT_API, DEFAULT_PRESET, userid, DEFAULT_STREAM)
-    )
-    return result > 0
+    params = (DEFAULT_CHAR, DEFAULT_API, DEFAULT_PRESET, userid, DEFAULT_STREAM, nick)
+    result = revise_db(command, params)
+    return result >= 0  # IGNORE 成功时返回0，所以用 >= 0 判断
 
 
-def user_config_check(userid: int) -> bool:
+def user_info_check(userid: int) -> bool:
     """检查用户是否在 `users` 表中存在（通常用于判断是否是已知用户）。返回True表示存在。"""
     command = "SELECT uid FROM users WHERE uid = ?"
     result = query_db(command, (userid,))

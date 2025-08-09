@@ -112,13 +112,14 @@ class UpdateParser:
     def _get_or_create_user_config(self, user_id: int) -> dict:
         """获取用户配置，如果不存在则创建。"""
         try:
+            # 首先尝试获取现有配置
             result = db.user_config_get(user_id)
             if not result:
+                # 如果不存在，则创建新配置，并直接传入 nick
                 logger.info(f"为新用户 {user_id} 创建默认配置。")
-                db.user_config_create(user_id)
-                # 使用 self.info 中的 user_name
-                if 'user_name' in self.info:
-                    db.user_config_arg_update(user_id, 'nick', self.info['user_name'])
+                nick = self.info.get('user_name')
+                db.user_config_create(user_id, nick=nick)
+                # 重新获取以确保数据一致
                 result = db.user_config_get(user_id)
             return result or {}
         except Exception as e:
