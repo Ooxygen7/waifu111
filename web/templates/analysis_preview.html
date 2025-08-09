@@ -31,17 +31,14 @@
     {% endfor %}
 </div>
 
-<div class="pagination">
-    {% if page > 1 %}
-        <a href="{{ url_for('admin.analysis_preview', page=page-1) }}" class="btn">&laquo; 上一页</a>
-    {% endif %}
-    <span class="page-info">第 {{ page }} / {{ total_pages }} 页</span>
-    {% if page < total_pages %}
-        <a href="{{ url_for('admin.analysis_preview', page=page+1) }}" class="btn">下一页 &raquo;</a>
-    {% endif %}
+<div id="loading-indicator" style="display: none; text-align: center; padding: 20px;">
+    <p>正在加载更多...</p>
 </div>
 
 <!-- Modal Structure -->
+{% endblock %}
+
+{% block modals %}
 <div class="modal-overlay" id="analysis-modal">
     <div class="modal-container">
         <div class="modal-header">

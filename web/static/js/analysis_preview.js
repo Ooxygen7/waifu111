@@ -45,4 +45,60 @@ document.addEventListener('DOMContentLoaded', function () {
             closeModal();
         }
     });
+
+    let page = 1;
+    let isLoading = false;
+    let hasNext = true;
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const grid = document.querySelector('.analysis-grid');
+
+    function loadMoreItems() {
+        if (isLoading || !hasNext) return;
+
+        isLoading = true;
+        loadingIndicator.style.display = 'block';
+        page++;
+
+        fetch(`/api/analysis_previews?page=${page}`)
+            .then(response => response.json())
+            .then(data => {
+                data.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'analysis-card';
+                    card.dataset.imageUrl = item.image_url;
+                    card.dataset.content = item.content;
+                    card.dataset.user = item.user_name;
+                    card.dataset.time = item.date_time;
+
+                    card.innerHTML = `
+                        <div class="analysis-image-wrapper">
+                            <img src="${item.image_url}" alt="分析图片" loading="lazy">
+                        </div>
+                        <div class="analysis-content">
+                            <pre>${item.content}</pre>
+                        </div>
+                        <div class="analysis-footer">
+                            <span>${item.user_name}</span> | <span>${item.date_time}</span>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                    card.addEventListener('click', () => openModal(card));
+                });
+
+                hasNext = data.has_next;
+                isLoading = false;
+                loadingIndicator.style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error loading more items:', error);
+                isLoading = false;
+                loadingIndicator.style.display = 'none';
+            });
+    }
+
+    window.addEventListener('scroll', () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+            loadMoreItems();
+        }
+    });
 });

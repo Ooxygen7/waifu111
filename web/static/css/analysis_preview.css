@@ -101,8 +101,6 @@
     -webkit-backdrop-filter: blur(5px) saturate(120%);
     z-index: 1050;
     display: none; /* Initially hidden */
-    align-items: center;
-    justify-content: center;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.4s ease, visibility 0.4s ease;
@@ -116,6 +114,10 @@
 }
 
 .modal-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
     background-color: rgba(15, 25, 45, 0.5);
     backdrop-filter: blur(10px) saturate(150%);
     -webkit-backdrop-filter: blur(10px) saturate(150%);
@@ -131,12 +133,11 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    transform: scale(0.95) translateY(20px);
     transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .modal-overlay.show .modal-container {
-    transform: scale(1) translateY(0);
+    transform: translate(-50%, -50%) scale(1);
 }
 
 .modal-container {

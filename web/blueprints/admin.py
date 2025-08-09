@@ -924,3 +924,59 @@ def analysis_preview():
         page=page,
         total_pages=total_pages
     )
+
+@admin_bp.route("/api/analysis_previews")
+@viewer_or_admin_required
+def api_analysis_previews():
+    """为无限滚动提供分析结果的 API 端点"""
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+    
+    pics_dir = os.path.join(current_app.root_path, '..', 'data', 'pics')
+    all_files = []
+    if os.path.exists(pics_dir):
+        all_files = [f for f in os.listdir(pics_dir) if f.lower().endswith(('.jpg', '.png', '.jpeg', '.gif'))]
+        all_files.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]), reverse=True)
+
+    total_items = len(all_files)
+    total_pages = (total_items + per_page - 1) // per_page
+    
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_files = all_files[start:end]
+
+    analysis_items = []
+    for filename in paginated_files:
+        name, _ = os.path.splitext(filename)
+        parts = name.split('_')
+        user_id = parts[0]
+        timestamp = int(parts[1]) if len(parts) > 1 else 0
+        
+        user_info = db.query_db("SELECT first_name, last_name FROM users WHERE uid = ?", (user_id,))
+        user_name = f"{user_info[0][0] or ''} {user_info[0][1] or ''}".strip() if user_info else "未知用户"
+
+        from datetime import datetime
+        date_time = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+        txt_filename = f"{name}.txt"
+        txt_filepath = os.path.join(pics_dir, txt_filename)
+        
+        content = ""
+        if os.path.exists(txt_filepath):
+            try:
+                with open(txt_filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except Exception as e:
+                content = f"读取文件出错: {e}"
+
+        analysis_items.append({
+            'image_url': url_for('api.serve_pic', filename=filename),
+            'content': content,
+            'user_name': user_name,
+            'date_time': date_time
+        })
+
+    return jsonify({
+        'items': analysis_items,
+        'has_next': page < total_pages
+    })
