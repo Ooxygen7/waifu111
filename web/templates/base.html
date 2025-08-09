@@ -102,6 +102,13 @@
                         </a>
                     </li>
                     {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'admin.analysis_preview' else '' }}"
+                            href="{{ url_for('admin.analysis_preview') }}"
+                            aria-current="{% if request.endpoint == 'admin.analysis_preview' %}page{% endif %}">
+                            <i data-feather="eye" class="nav-link-icon" aria-hidden="true"></i><span class="nav-link-text"> 分析结果预览</span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
             <div class="logout-link">

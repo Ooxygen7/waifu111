@@ -3,7 +3,7 @@ import json
 import os
 import time
 from datetime import datetime
-from flask import Blueprint, jsonify, request, Response
+from flask import Blueprint, jsonify, request, Response, send_from_directory, current_app
 from typing import Union
 from utils import db_utils as db
 from agent.llm_functions import generate_summary
@@ -591,3 +591,11 @@ def api_group_profile_save(group_id):
     except Exception as e:
         app_logger.error(f"保存群组 {group_id} 用户画像失败: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@api_bp.route("/pics/<filename>")
+@viewer_or_admin_required
+def serve_pic(filename):
+    """提供 data/pics 目录下的图片"""
+    pics_dir = os.path.join(current_app.root_path, '..', 'data', 'pics')
+    return send_from_directory(pics_dir, filename)

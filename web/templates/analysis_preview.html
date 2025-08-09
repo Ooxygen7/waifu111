@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}分析结果预览 - {{ super() }}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analysis_preview.css', v=moment().timestamp() | int) }}">
+{% endblock %}
+
+{% block page_title %}分析结果预览{% endblock %}
+
+{% block content %}
+<div class="analysis-grid">
+    {% for item in items %}
+    <div class="analysis-card"
+         data-image-url="{{ item.image_url }}"
+         data-content="{{ item.content }}"
+         data-user="{{ item.user_name }}"
+         data-time="{{ item.date_time }}">
+        <div class="analysis-image-wrapper">
+            <img src="{{ item.image_url }}" alt="分析图片" loading="lazy">
+        </div>
+        <div class="analysis-content">
+            <pre>{{ item.content }}</pre>
+        </div>
+        <div class="analysis-footer">
+            <span>{{ item.user_name }}</span> | <span>{{ item.date_time }}</span>
+        </div>
+    </div>
+    {% else %}
+    <p>在 <code>data/pics</code> 目录中没有找到分析结果。</p>
+    {% endfor %}
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('admin.analysis_preview', page=page-1) }}" class="btn">&laquo; 上一页</a>
+    {% endif %}
+    <span class="page-info">第 {{ page }} / {{ total_pages }} 页</span>
+    {% if page < total_pages %}
+        <a href="{{ url_for('admin.analysis_preview', page=page+1) }}" class="btn">下一页 &raquo;</a>
+    {% endif %}
+</div>
+
+<!-- Modal Structure -->
+<div class="modal-overlay" id="analysis-modal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div class="modal-title-section">
+                <div class="modal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </div>
+                <div class="modal-title-text">
+                    <h3 class="modal-title">分析结果详情</h3>
+                    <p class="modal-subtitle">查看完整的图片和分析文本</p>
+                </div>
+            </div>
+            <button class="modal-close" aria-label="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-image-wrapper">
+                <img id="modal-image" src="" alt="完整图片">
+            </div>
+            <div class="modal-text-content">
+                <pre id="modal-text"></pre>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <span id="modal-user"></span> | <span id="modal-time"></span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="{{ url_for('static', filename='js/analysis_preview.js', v=moment().timestamp() | int) }}"></script>
+{% endblock %}

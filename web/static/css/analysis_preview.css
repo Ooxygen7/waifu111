@@ -1,0 +1,266 @@
+.analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 20px;
+}
+
+.analysis-card {
+    background-color: var(--card-bg-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.analysis-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.analysis-image-wrapper {
+    width: 100%;
+    padding-top: 100%; /* 1:1 Aspect Ratio */
+    position: relative;
+    overflow: hidden;
+}
+
+.analysis-image-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.analysis-card:hover .analysis-image-wrapper img {
+    transform: scale(1.05);
+}
+
+.analysis-content {
+    padding: 15px;
+    flex-grow: 1;
+    overflow-y: auto;
+    max-height: 200px;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.analysis-content pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.analysis-footer {
+    padding: 10px 15px;
+    background-color: var(--card-footer-bg-color);
+    font-size: 12px;
+    color: var(--text-muted-color);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.pagination .btn {
+    margin: 0 10px;
+}
+
+.pagination .page-info {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* ==========================================================================
+   Modal Styles (Glassmorphism)
+   ========================================================================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px) saturate(120%);
+    -webkit-backdrop-filter: blur(5px) saturate(120%);
+    z-index: 1050;
+    display: none; /* Initially hidden */
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+    pointer-events: none; /* Allow clicks to pass through the overlay */
+}
+
+.modal-overlay.show {
+    display: flex; /* Show when active */
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-container {
+    background-color: rgba(15, 25, 45, 0.5);
+    backdrop-filter: blur(10px) saturate(150%);
+    -webkit-backdrop-filter: blur(10px) saturate(150%);
+    border: 1px solid rgba(128, 128, 255, 0.25);
+    box-shadow:
+        inset 0 0 1px 1px rgba(255, 255, 255, 0.1),
+        0 0 50px rgba(0, 212, 255, 0.2),
+        0 0 100px rgba(0, 0, 0, 0.6);
+    border-radius: 15px;
+    width: 90%;
+    max-width: 1400px;
+    height: 90vh; /* Use height instead of max-height */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.95) translateY(20px);
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.modal-overlay.show .modal-container {
+    transform: scale(1) translateY(0);
+}
+
+.modal-container {
+    pointer-events: auto; /* Re-enable pointer events for the modal itself */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid rgba(128, 128, 255, 0.2);
+    flex-shrink: 0;
+}
+
+.modal-title-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.modal-icon svg {
+    color: var(--primary-color);
+    filter: drop-shadow(0 0 5px var(--glow-color));
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #fff;
+    font-weight: 600;
+}
+
+.modal-subtitle {
+    margin: 5px 0 0;
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: rotate(90deg);
+}
+
+.modal-body {
+    padding: 25px;
+    overflow: hidden; /* Let children handle scroll */
+    display: flex;
+    gap: 25px;
+    flex-grow: 1;
+}
+
+.modal-image-wrapper {
+    flex: 2; /* Give more space to image */
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#modal-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 10px;
+    border: 1px solid rgba(128, 128, 255, 0.1);
+}
+
+.modal-text-content {
+    flex: 1;
+    min-width: 0;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-y: auto;
+    border: 1px solid rgba(128, 128, 255, 0.1);
+}
+
+#modal-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: #f1f1f1;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.modal-footer {
+    padding: 15px 25px;
+    border-top: 1px solid rgba(128, 128, 255, 0.2);
+    background-color: rgba(0, 0, 0, 0.2);
+    text-align: right;
+    color: #ccc;
+    font-family: 'Orbitron', sans-serif;
+    flex-shrink: 0;
+}
+
+/* Custom Scrollbar for Modal Body */
+.modal-text-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-text-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.modal-text-content::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+}
+
+.modal-text-content::-webkit-scrollbar-thumb:hover {
+    background: #00ffff;
+}
