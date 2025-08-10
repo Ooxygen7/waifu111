@@ -312,16 +312,13 @@ class PrivateConv:
         self.input = None
         self.output = None
 
-        # --- 重构：从 context 获取 User 模型 ---
-        if context.user_data and 'model' in context.user_data:
-            user: Optional[UserModel] = context.user_data.get('model')
-        else:
-            # 如果在 context 中找不到，作为后备方案，从数据库加载
-            if not update.effective_user:
-                raise BotError("在 PrivateConv 中无法确定有效用户。")
-            user_id = update.effective_user.id
-            user_repo = UserRepository()
-            user = user_repo.get_user_by_id(user_id)
+        # --- 修复：始终从数据库加载最新的用户数据以确保额度准确 ---
+        if not update.effective_user:
+            raise BotError("在 PrivateConv 中无法确定有效用户。")
+        
+        user_id = update.effective_user.id
+        user_repo = UserRepository()
+        user = user_repo.get_user_by_id(user_id)
 
         if not user:
             user_identifier = update.effective_user.id if update.effective_user else "未知"
@@ -388,14 +385,14 @@ class PrivateConv:
                 logger.info(f"输入：{self.input.text_raw}")
             _task = asyncio.create_task(self._response_to_user(save))
         else:
-            await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
+            await send_message(self.context, self.user.id, f"你的额度已用尽，\r\n当前额度：{self.user.remain_frequency}，临时额度：{self.user.temporary_frequency}\r\n若有疑问联系 @xi_cuicui")
 
     async def regen(self):
         """
         异步启动一个任务来重新生成 LLM 的回复。
         """
         if not (self.user.remain_frequency > 0 or self.user.temporary_frequency > 0):
-            await send_message(self.context, self.user.id, "你的额度已用尽，联系 @xi_cuicui")
+            await send_message(self.context, self.user.id, f"你的额度已用尽，\r\n当前额度：{self.user.remain_frequency}，临时额度：{self.user.temporary_frequency}\r\n若有疑问联系 @xi_cuicui")
             return
 
         self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")

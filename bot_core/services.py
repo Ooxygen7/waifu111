@@ -323,9 +323,14 @@ class ConversationService:
         # 将更新后的轮次计数持久化到数据库
         self.conv_repo.update_conversation_turns(self.conversation.id, self.conversation.turns)
         
-        # 更新用户的使用统计信息
-        frequency_manager.update_user_usage(self.user, messages, output_message.text_raw, 'private_chat')
+        # 更新用户的使用统计信息，并获取返回的新额度
+        updated_frequencies = frequency_manager.update_user_usage(self.user, messages, output_message.text_raw, 'private_chat')
         
+        # --- 修复：如果成功获取新额度，则更新当前 User 模型 ---
+        if updated_frequencies:
+            self.user.remain_frequency, self.user.temporary_frequency = updated_frequencies
+            logger.info(f"用户 {self.user.id} 的额度已在内存中更新: remain={self.user.remain_frequency}, temp={self.user.temporary_frequency}")
+
         logger.info(f"成功保存了会话 {self.conversation.id} 的第 {current_turn + 1} 和 {current_turn + 2} 轮。")
 
     def create_group_conversation(self, group: Group) -> Optional[int]:

@@ -4,7 +4,7 @@ import logging
 from utils.logging_utils import setup_logging
 from bot_core.models import User
 from utils.config_utils import get_api_multiple
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -25,14 +25,17 @@ def circulate_token(text: str):
         print(f"错误: 计算token时发生错误 - {e}. 输出为字符串长度。")
         return len(str(text))
 
-def update_user_usage(user: object, messages: List[Dict[str, Any]], output: str, trigger_type: str):
+def update_user_usage(user: Any, messages: List[Dict[str, Any]], output: str, trigger_type: str) -> Optional[Tuple[int, int]]:
     """更新用户的token使用量和频率信息。
 
     Args:
-        user (object): 用户对象或群组相关对象。
+        user (Any): 用户对象或群组相关对象。
         messages (List[Dict[str, Any]]): 发送给LLM的完整消息列表。
         output (str): 模型输出文本。
         trigger_type (str): 触发类型，例如 'private_chat', 'private_photo', 'group_chat', 'group_photo'。
+    
+    Returns:
+        一个包含更新后的 (remain_frequency, temporary_frequency) 的元组，如果不是私聊场景则返回 None。
     """
     input_tokens = circulate_token(str(messages))
     output_tokens = circulate_token(output)
@@ -41,7 +44,7 @@ def update_user_usage(user: object, messages: List[Dict[str, Any]], output: str,
     if trigger_type in ['private_chat', 'private_photo']:
         if not isinstance(user, User):
             logger.error(f"在 {trigger_type} 中, 'user' 参数必须是 User 对象。")
-            return
+            return None
 
         user_id = user.id
         db.user_info_update(user_id, 'input_tokens', input_tokens, True)
@@ -67,11 +70,22 @@ def update_user_usage(user: object, messages: List[Dict[str, Any]], output: str,
         db.user_info_update(user_id, 'dialog_turns', 1, True)
         logger.debug(f"已为{user_id}更新私聊使用记录\r\n输入:{input_tokens}输出:{output_tokens}")
 
+        # --- 修复：从数据库重新获取更新后的额度信息并返回 ---
+        updated_user_info = db.user_info_get(user_id)
+        updated_sign_info = db.user_sign_info_get(user_id)
+        
+        if updated_user_info and updated_sign_info:
+            return (updated_user_info.get('remain_frequency', 0), updated_sign_info.get('frequency', 0))
+        else:
+            # 如果获取失败，返回一个表示可能出错的值或记录日志
+            logger.error(f"更新额度后无法重新获取用户 {user_id} 的信息。")
+            return None
+
     # --- Group Chat & Photo Handling ---
     elif trigger_type == 'group_chat':
         if not hasattr(user, 'group') or not hasattr(user, 'user'):
             logger.error(f"在 {trigger_type} 中, 'user' 参数必须是一个包含 group 和 user 属性的对象。")
-            return
+            return None
         group_id = user.group.id
         user_id = user.user.id
         db.group_info_update(group_id, 'call_count', 1, True)
@@ -79,17 +93,18 @@ def update_user_usage(user: object, messages: List[Dict[str, Any]], output: str,
         db.group_info_update(group_id, 'input_token', input_tokens, True)
         db.group_info_update(group_id, 'output_token', output_tokens, True)
         logger.debug(f"已为群组{group_id}更新消息使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
+        return None
 
     elif trigger_type == 'group_photo':
         if not isinstance(user, int):
             logger.error(f"在 {trigger_type} 中, 'user' 参数必须是群组ID (int)。")
-            return
+            return None
         group_id = user
         db.group_info_update(group_id, 'call_count', 1, True)
         db.group_info_update(group_id, 'input_token', input_tokens, True)
         db.group_info_update(group_id, 'output_token', output_tokens, True)
         logger.debug(f"已为群组{group_id}更新图片分析使用记录\r\n输入:{input_tokens}\r\n输出:{output_tokens}")
-        return
+        return None
 
 
 
