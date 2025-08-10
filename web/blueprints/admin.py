@@ -868,6 +868,8 @@ def database_viewer():
 @viewer_or_admin_required
 def analysis_preview():
     """分析结果预览页面 - 支持分页"""
+    if session.get("user_role") == "viewer":
+        abort(403)
     page = request.args.get("page", 1, type=int)
     per_page = 20  # 每页显示20个项目
     
@@ -929,6 +931,8 @@ def analysis_preview():
 @viewer_or_admin_required
 def api_analysis_previews():
     """为无限滚动提供分析结果的 API 端点"""
+    if session.get("user_role") == "viewer":
+        abort(403)
     page = request.args.get("page", 1, type=int)
     per_page = 20
     

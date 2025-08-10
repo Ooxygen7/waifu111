@@ -90,7 +90,7 @@ create table groups
 
 create table user_config
 (
-    uid     INT,
+    uid     INT UNIQUE,
     char    TEXT,
     api     TEXT,
     preset  TEXT,

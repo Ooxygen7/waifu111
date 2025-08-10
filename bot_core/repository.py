@@ -20,7 +20,7 @@ class UserRepository:
         Returns:
             一个包含所有用户信息的 User 对象，如果用户不存在则返回 None。
         """
-        if not db.user_config_check(user_id):
+        if not db.user_info_check(user_id):
             return None
 
         # 从不同表中获取数据
@@ -53,13 +53,15 @@ class UserRepository:
         Returns:
             创建成功后返回完整的 User 对象，否则返回 None。
         """
-        if db.user_config_check(user_id):
+        if db.user_info_check(user_id):
             return self.get_user_by_id(user_id)
 
         # 创建基础用户信息和配置
         if not db.user_info_create(user_id, first_name, last_name, user_name):
             return None
-        if not db.user_config_create(user_id):
+        # 在创建配置时直接传入 nick
+        nick = f"{first_name or ''} {last_name or ''}".strip()
+        if not db.user_config_create(user_id, nick=nick):
             return None
         
         # 创建成功后，获取并返回完整的用户对象
