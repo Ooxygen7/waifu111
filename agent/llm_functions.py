@@ -420,3 +420,43 @@ async def generate_user_profile(group_id: int) -> str:
     except Exception as e:
         logger.error(f"为群组 {group_id} 生成用户画像时发生错误: {e}", exc_info=True)
         return json.dumps({"error": "An internal error occurred while generating user profiles."}, ensure_ascii=False, indent=2)
+async def analyze_database(sql: str, prompts: str) -> str:
+    """
+    分析数据库参数，接受sql语句和prompts，将sql语句查询到的数据，拼接prompts内容发送给llm获取返回
+
+    Args:
+        sql (str): The SQL query to execute.
+        prompts (str): The prompts to be sent to the LLM.
+
+    Returns:
+        str: The response from the LLM.
+    """
+    try:
+        # 1. 执行SQL查询
+        query_result = db.query_db(sql)
+
+        # 2. 格式化查询结果
+        if not query_result:
+            formatted_result = "查询未返回任何结果。"
+        else:
+            # 将结果转换为更易读的格式，例如JSON或格式化字符串
+            formatted_result = json.dumps(query_result, ensure_ascii=False, indent=2)
+
+        # 3. 构建发送给LLM的最终提示
+        final_prompt = f"根据以下数据:\n\n{formatted_result}\n\n请回答以下问题:\n{prompts}"
+
+        # 4. 调用LLM
+        client = LLM(api=get_config("analysis.default_api", "gemini-2.5"))
+        messages = [
+            {"role": "user", "content": final_prompt},
+        ]
+        client.set_messages(messages)
+        
+        logger.info(f"正在分析数据库...")
+        response_data_str = await client.final_response()
+
+        return response_data_str
+
+    except Exception as e:
+        logger.error(f"分析数据库时发生错误: {e}", exc_info=True)
+        return json.dumps({"error": "分析数据库时发生内部错误。"}, ensure_ascii=False, indent=2)

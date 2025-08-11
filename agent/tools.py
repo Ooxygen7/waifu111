@@ -619,6 +619,20 @@ class DatabaseSuperTools:
         # For this tool, the result is a JSON string that is useful for both user and LLM.
         return {"display": result_json_str, "llm_feedback": result_json_str}
 
+    @staticmethod
+    async def analyze_database(sql: str, prompts: str) -> dict:
+        """
+        分析数据库参数，接受sql语句和prompts，将sql语句查询到的数据，拼接prompts内容发送给llm获取返回
+        """
+        if not isinstance(sql, str) or not isinstance(prompts, str):
+            error_msg = json.dumps({"error": "参数 sql 和 prompts 必须是有效的字符串。"})
+            return {"display": error_msg, "llm_feedback": error_msg}
+            
+        # 调用在 llm_functions.py 中定义的核心函数
+        from agent.llm_functions import analyze_database as ad
+        result_json_str = await ad(sql, prompts)
+        
+        return {"display": result_json_str, "llm_feedback": result_json_str}
 
 # Tool mapping for LLM invocation
 DATABASE_SUPER_TOOLS = {
@@ -626,4 +640,5 @@ DATABASE_SUPER_TOOLS = {
     "revise_db": DatabaseSuperTools.revise_db,
     "analyze_group_user_profiles": DatabaseSuperTools.analyze_group_user_profiles,
     "execute_sql": DatabaseSuperTools.execute_sql,
+    "analyze_database": DatabaseSuperTools.analyze_database,
 }

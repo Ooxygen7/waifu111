@@ -96,6 +96,26 @@ class DatabaseSuperToolRegistry:
                 "parameters": {"command": "DELETE FROM users WHERE uid = 12345"}
             },
             "return_value": "包含SQL执行结果的字符串。",
+        },
+        "analyze_database": {
+            "description": "分析数据库，接受sql语句和prompts，将sql语句查询到的数据，拼接prompts内容发送给llm获取返回，这个工具可以辅助你进行数据库分析，防止大量数据库内容返回污染上下文对话。请在prompts中提供清晰的分析指导，以及这条查询返回内容的数据定义。",
+            "type": "analysis",
+            "parameters": {
+                "sql": {
+                    "type": "string",
+                    "description": "要执行的SQL SELECT查询。",
+                },
+                "prompts": {
+                    "type": "string",
+                    "description": "要发送给LLM的提示。",
+                }
+            },
+            "output_format": "一个包含LLM分析结果的字符串。",
+            "example": {
+                "tool_name": "analyze_database",
+                "parameters": {"sql": "SELECT * FROM users LIMIT 5", "prompts": "请分析这些用户的特征"}
+            },
+            "return_value": "一个包含LLM分析结果或错误信息的字符串。",
         }
     }
 
