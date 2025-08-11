@@ -5,8 +5,10 @@ import base64
 def extract_tag_content(text, tag):
     """
     从文本中提取指定标签的内容。
-    只提取最外层、完整闭合的标签对。
-    如果找到多个匹配项，则返回最长的一个。
+    根据标签类型应用不同的提取规则：
+    - 'thinking': 从头往后找第一个匹配项。
+    - 'content': 在 'thinking' 标签结束后查找第一个匹配项。
+    - 其他标签: 从后往前找，匹配最近的一对开闭合标签。
     返回前会移除所有HTML标签以提取纯文本。
 
     Args:
@@ -14,23 +16,47 @@ def extract_tag_content(text, tag):
         tag: 要提取的标签名（例如 "content"）。
 
     Returns:
-        匹配的标签内容（纯文本，最长的），如果没有匹配到，则返回原始文本。
+        匹配的标签内容（纯文本），如果没有匹配到，则返回原始文本。
     """
-    # 匹配最外层的、完整闭合的标签
-    pattern = re.compile(rf'<{tag}>(.*?)</{tag}>', re.DOTALL)
-    matches = pattern.findall(text)
+    match_content = None
 
-    if not matches:
+    if tag == 'thinking':
+        # 1. 对于thinking标签，需要从头往后找
+        pattern = re.compile(rf'<{tag}>(.*?)</{tag}>', re.DOTALL)
+        match = pattern.search(text)
+        if match:
+            match_content = match.group(1)
+
+    elif tag == 'content':
+        # 2. 对于content标签，需要从thinking标签结束后再找
+        thinking_pattern = re.compile(r'<thinking>(.*?)</thinking>', re.DOTALL)
+        thinking_match = thinking_pattern.search(text)
+        
+        search_start_pos = 0
+        if thinking_match:
+            search_start_pos = thinking_match.end()
+        
+        content_pattern = re.compile(rf'<{tag}>(.*?)</{tag}>', re.DOTALL)
+        content_match = content_pattern.search(text, search_start_pos)
+        if content_match:
+            match_content = content_match.group(1)
+            
+    else:
+        # 3. 对于其它标签，需要从后往前找，先找结束符，再找最近的一个起始符
+        end_tag = f'</{tag}>'
+        start_tag = f'<{tag}>'
+        
+        end_pos = text.rfind(end_tag)
+        if end_pos != -1:
+            start_pos = text.rfind(start_tag, 0, end_pos)
+            if start_pos != -1:
+                match_content = text[start_pos + len(start_tag):end_pos]
+
+    if match_content is None:
         return text
 
-    # 找到最长的匹配内容
-    longest_match = max(matches, key=len)
-
     # 移除所有HTML标签，只返回纯文本
-    # 移除 <tag>...</tag> 类型的标签
-    plain_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', longest_match, flags=re.DOTALL)
-    # 移除 <tag/> 或 <tag> 类型的标签
-    plain_text = re.sub(r'<[^>]+>', '', plain_text)
+    plain_text = re.sub(r'<.*?>', '', match_content, flags=re.DOTALL)
     
     return plain_text.strip()
 
