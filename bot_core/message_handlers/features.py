@@ -212,7 +212,7 @@ class ImageAnalyzer:
             if not formatted_response:
                 raise ValueError("从 analyze_image_for_rating 函数收到了空的响应。")
 
-            fm.update_user_usage(self.chat_id, str(llm_messages), formatted_response, "private_photo")
+            fm.update_user_usage(self.user, llm_messages, formatted_response, "private_photo")
 
             txt_filename = f"{os.path.basename(filepath).split('.')[0]}.txt"
             txt_filepath = os.path.join("data/pics", txt_filename)
