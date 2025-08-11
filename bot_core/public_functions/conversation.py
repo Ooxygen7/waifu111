@@ -405,6 +405,8 @@ class PrivateConv:
         factory = MessageFactory(update=self.update, context=self.context)
         try:
             full_response, last_input_text, messages = await self.conv_service.regenerate_response()
+            
+            logger.info(f"Regenerate response result: full_response is {'not ' if full_response is None else ''}None, last_input_text is {'not ' if last_input_text is None else ''}None, messages is {'not ' if messages is None else ''}None")
 
             if full_response is None or last_input_text is None or messages is None:
                 if self.placeholder:

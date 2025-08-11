@@ -4,80 +4,35 @@ import base64
 
 def extract_tag_content(text, tag):
     """
-    增强版：从文本中提取指定标签的内容，兼容LLM生成的各种格式错误（如标签未闭合、闭合标签缺失、重复标签等）。
-    1. 支持嵌套和多次出现的标签，提取所有内容，返回最长的一个。
-    2. 如果没有闭合标签，尝试提取最后一个开始标签到文本结尾的内容。
-    3. 如果标签多次出现，提取所有，返回最长的。
-    4. 返回前会移除所有html标签及其内容，确保返回纯文本。
+    从文本中提取指定标签的内容。
+    只提取最外层、完整闭合的标签对。
+    如果找到多个匹配项，则返回最长的一个。
+    返回前会移除所有HTML标签以提取纯文本。
+
     Args:
         text: 要提取内容的文本。
         tag: 要提取的标签名（例如 "content"）。
+
     Returns:
-        匹配的标签内容（最长的一个），如果没有匹配到，则返回原始文本。
+        匹配的标签内容（纯文本，最长的），如果没有匹配到，则返回原始文本。
     """
-    import re
+    # 匹配最外层的、完整闭合的标签
+    pattern = re.compile(rf'<{tag}>(.*?)</{tag}>', re.DOTALL)
+    matches = pattern.findall(text)
 
-    # 1. 正常情况：<tag>内容</tag>，支持多次出现
-    pattern_normal = re.compile(rf'<{tag}>(.*?)</{tag}>', re.DOTALL)
-    matches = pattern_normal.findall(text)
-
-    # 2. 异常情况1：只有开始标签，没有闭合标签，如 <tag>内容
-    pattern_start_only = re.compile(rf'<{tag}>(.*?)(?=<[a-zA-Z0-9]+>|$)', re.DOTALL)
-    # 只考虑没有正常闭合的部分
-    # 先找所有开始标签的位置
-    start_positions = [m.start() for m in re.finditer(rf'<{tag}>', text)]
-    # 找所有正常闭合的区间，避免重复
-    closed_spans = [m.span() for m in pattern_normal.finditer(text)]
-    closed_ranges = []
-    for s, e in closed_spans:
-        closed_ranges.append((s, e))
-    # 检查每个开始标签是否在已闭合区间内
-    for pos in start_positions:
-        in_closed = False
-        for s, e in closed_ranges:
-            if s <= pos < e:
-                in_closed = True
-                break
-        if not in_closed:
-            # 从该开始标签到下一个标签或文本结尾
-            after = text[pos + len(f'<{tag}>'):]
-            # 到下一个标签或结尾
-            next_tag = re.search(r'<[a-zA-Z0-9]+>', after)
-            if next_tag:
-                content = after[:next_tag.start()]
-            else:
-                content = after
-            matches.append(content)
-
-    # 3. 异常情况2：标签嵌套或连续写错，如 <tag><tag>内容
-    # 处理连续开始标签但无闭合的情况
-    # 例如 <tag><tag>内容
-    pattern_nested = re.compile(rf'((?:<{tag}>)+)(.*?)(?=<[a-zA-Z0-9]+>|$)', re.DOTALL)
-    for m in pattern_nested.finditer(text):
-        # 只处理没有正常闭合的部分
-        # 如果该段没有被正常闭合匹配覆盖，则加入
-        span = m.span()
-        in_closed = False
-        for s, e in closed_ranges:
-            if s <= span[0] < e:
-                in_closed = True
-                break
-        if not in_closed:
-            matches.append(m.group(2))
-
-    # 4. 取最长的一个
-    matches = [m.strip() for m in matches if m and m.strip()]
     if not matches:
-        result = text
-    else:
-        result = max(matches, key=len)
+        return text
 
-    # 5. 移除所有html标签及其内容
-    # 先移除所有形如 <xxx>...</xxx> 的标签及其内容（非贪婪匹配，支持嵌套外层）
-    result = re.sub(r'<[^>/]+>.*?</[^>]+>', '', result, flags=re.DOTALL)
-    # 再移除所有单独的标签 <xxx ...> 或 </xxx>
-    result = re.sub(r'<[^>]+>', '', result)
-    return result
+    # 找到最长的匹配内容
+    longest_match = max(matches, key=len)
+
+    # 移除所有HTML标签，只返回纯文本
+    # 移除 <tag>...</tag> 类型的标签
+    plain_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', longest_match, flags=re.DOTALL)
+    # 移除 <tag/> 或 <tag> 类型的标签
+    plain_text = re.sub(r'<[^>]+>', '', plain_text)
+    
+    return plain_text.strip()
 
 
 async def convert_file_id_to_base64(file_id: str, context) -> dict:
