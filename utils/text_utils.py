@@ -40,6 +40,30 @@ def extract_tag_content(text, tag):
         content_match = content_pattern.search(text, search_start_pos)
         if content_match:
             match_content = content_match.group(1)
+        else:
+            # content标签搜索失败时的备用策略
+            # 策略1: 提取content标签起始符到全文最后的内容(应对没有结束符的情况)
+            start_tag_pattern = re.compile(rf'<{tag}>', re.DOTALL)
+            start_match = start_tag_pattern.search(text, search_start_pos)
+            if start_match:
+                match_content = text[start_match.end():]
+            else:
+                # 策略2: 提取content标签结束符到thinking标签结束符的内容(应对没有开始符的情况)
+                end_tag_pattern = re.compile(rf'</{tag}>', re.DOTALL)
+                end_match = end_tag_pattern.search(text, search_start_pos)
+                if end_match and thinking_match:
+                    match_content = text[thinking_match.end():end_match.start()]
+                else:
+                    # 策略3: 返回移除所有正确闭合任意标签后剩下的内容(应对content标签错误的情况)
+                    # 移除所有正确闭合的标签
+                    cleaned_text = re.sub(r'<[^>]+>.*?</[^>]+>', '', text, flags=re.DOTALL)
+                    # 移除剩余的单独标签
+                    cleaned_text = re.sub(r'<[^>]*>', '', cleaned_text)
+                    if cleaned_text.strip():
+                        match_content = cleaned_text
+                    else:
+                        # 策略4: 返回全文内容(兜底)
+                        match_content = text
             
     else:
         # 3. 对于其它标签，需要从后往前找，先找结束符，再找最近的一个起始符
