@@ -156,7 +156,7 @@ class MessageFactory:
             extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
         if summary and comment:
             extra_content += "\n\n" # Add a separator
-        if comment:
+        if comment and comment != "暂无":
             extra_content += f"<b>评论:</b>\n{html.escape(comment)}"
 
         if extra_content:

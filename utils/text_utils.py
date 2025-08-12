@@ -53,7 +53,7 @@ def extract_tag_content(text, tag):
                 match_content = text[start_pos + len(start_tag):end_pos]
 
     if match_content is None:
-        return text
+        return "暂无"
 
     # 移除所有HTML标签，只返回纯文本
     plain_text = re.sub(r'<.*?>', '', match_content, flags=re.DOTALL)
