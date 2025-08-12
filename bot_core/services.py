@@ -157,28 +157,29 @@ class ConversationService:
         async for chunk in self.llm_client.response(self.user.stream):
             yield chunk
 
-    async def undo_last_turn(self):
+    async def undo_last_turn(self) -> Optional[str]:
         """
-        撤销私聊中的最后一轮对话。
-        - 从数据库获取最新消息ID。
+        撤销私聊中的最后一轮对话，并返回上一轮用户的输入文本。
+        - 获取最后一次用户输入和消息ID。
         - 从 Telegram 删除消息。
         - 从数据库删除消息记录。
+        - 返回上一次用户的输入文本，用于重新生成。
         """
         if not self.conversation or not self.conversation.id:
             logger.warning("无法撤销，因为没有活动的会话ID。")
-            return
+            return None
 
         conv_id = self.conversation.id
         user_id = self.user.id
 
-        # 1. 从数据库获取最新消息ID
-        # 注意：旧的 db_utils 调用将被替换
+        # 1. 获取最后的用户输入和消息ID
+        last_input_text = db.dialog_last_input_get(conv_id)
         msg_ids = db.conversation_latest_message_id_get(conv_id)
         msg_ids = [msg_id for msg_id in msg_ids if msg_id is not None]
 
         if not msg_ids:
             logger.warning(f"在会话 {conv_id} 中找不到可供撤销的消息。")
-            return
+            return None # 返回 None 表示没有找到消息
 
         # 2. 从 Telegram 删除消息
         try:
@@ -192,87 +193,24 @@ class ConversationService:
                     logger.error(f"删除消息 {msg_id} 失败: {e2}")
 
         # 3. 从数据库删除消息记录
+        deleted_count = 0
         if len(msg_ids) >= 2:
-            # 使用 Repository 删除
-            self.conv_repo.delete_message(conv_id, msg_ids[0])
-            self.conv_repo.delete_message(conv_id, msg_ids[1])
-            logger.info(f"成功撤销了会话 {conv_id} 中的消息: {msg_ids}")
-            # 更新轮次计数
-            self.conversation.turns -= 2
-            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
+            self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
+            self.conv_repo.delete_message(conv_id, msg_ids[1]) # User
+            deleted_count = 2
         elif len(msg_ids) == 1:
             self.conv_repo.delete_message(conv_id, msg_ids[0])
-            logger.info(f"成功撤销了会话 {conv_id} 中的消息: {msg_ids}")
+            deleted_count = 1
+        
+        if deleted_count > 0:
+            logger.info(f"成功撤销了会话 {conv_id} 中的 {deleted_count} 条消息: {msg_ids}")
             # 更新轮次计数
-            self.conversation.turns -= 1
+            self.conversation.turns -= deleted_count
             self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
         else:
             logger.warning(f"消息ID列表长度不足 (len={len(msg_ids)})，无法从数据库中删除记录。")
 
-    async def regenerate_response(self):
-        """
-        重新生成最后一轮的回复。
-        - 获取最后一次用户输入。
-        - 从 Telegram 删除最后一则 AI 回复。
-        - 从数据库删除最后一轮对话（用户输入和 AI 回复）。
-        - 基于之前的用户输入重新生成响应。
-        """
-        if not self.conversation or not self.conversation.id:
-            logger.warning("无法重新生成，因为没有活动的会话ID。")
-            return None, None, None
-
-        conv_id = self.conversation.id
-        user_id = self.user.id
-
-        # 1. 获取最后的用户输入和消息ID
-        last_input_text = db.dialog_last_input_get(conv_id)
-        msg_ids = db.conversation_latest_message_id_get(conv_id)
-        
-        # 清理 None 值
-        msg_ids = [msg_id for msg_id in msg_ids if msg_id is not None]
-
-        if not last_input_text or not msg_ids:
-            logger.warning(f"无法为会话 {conv_id} 重新生成，因为找不到足够的信息（输入或消息ID）。")
-            return None, None, None
-
-        # 2. 从 Telegram 删除最后一则 AI 回复
-        try:
-            # msg_ids[0] 是最新的消息，即 AI 的回复
-            await self.context.bot.delete_message(user_id, msg_ids[0])
-        except Exception as e:
-            logger.error(f"为重新生成而删除消息 {msg_ids[0]} 失败: {e}")
-            # 即使删除失败，也继续尝试从数据库中清理并重新生成
-
-        # 3. 从数据库删除最后一轮对话（用户和AI）
-        if len(msg_ids) >= 2:
-            self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
-            self.conv_repo.delete_message(conv_id, msg_ids[1]) # User
-            # 更新轮次计数
-            self.conversation.turns -= 2
-            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
-        elif len(msg_ids) == 1:
-            self.conv_repo.delete_message(conv_id, msg_ids[0]) # AI
-            # 更新轮次计数
-            self.conversation.turns -= 1
-            self.conv_repo.update_conversation_turns(conv_id, self.conversation.turns)
-
-        # 4. 使用 PromptService 构建新的提示
-        prompt_service = PromptService(
-            user=self.user,
-            conversation=self.conversation,
-            input_text=last_input_text
-        )
-        messages = prompt_service.build_private_chat_prompts()
-
-        # 5. 使用 get_llm_response 获取新响应
-        response_chunks = []
-        async for chunk in self.get_llm_response(messages):
-            response_chunks.append(chunk)
-        
-        full_response = "".join(response_chunks)
-        
-        # 6. 返回响应文本和最后的用户输入
-        return full_response, last_input_text, messages
+        return last_input_text
 
     def save_turn(self, input_message, output_message, messages: List[Dict[str, Any]]):
         """

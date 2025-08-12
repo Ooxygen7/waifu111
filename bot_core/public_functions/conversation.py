@@ -389,51 +389,37 @@ class PrivateConv:
 
     async def regen(self):
         """
-        异步启动一个任务来重新生成 LLM 的回复。
-        """
-        if not (self.user.remain_frequency > 0 or self.user.temporary_frequency > 0):
-            await send_message(self.context, self.user.id, f"你的额度已用尽，\r\n当前额度：{self.user.remain_frequency}，临时额度：{self.user.temporary_frequency}\r\n若有疑问联系 @xi_cuicui")
-            return
-
-        self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
-        asyncio.create_task(self._regenerate_to_user())
-
-    async def _regenerate_to_user(self):
-        """
-        实际执行重新生成回复的后台逻辑。
+        重新生成最后一次 LLM 的回复。
+        此方法会撤销上一次对话，并使用之前的用户输入重新调用 LLM 生成流式响应。
         """
         factory = MessageFactory(update=self.update, context=self.context)
-        try:
-            full_response, last_input_text, messages = await self.conv_service.regenerate_response()
-            
-            logger.info(f"Regenerate response result: full_response is {'not ' if full_response is None else ''}None, last_input_text is {'not ' if last_input_text is None else ''}None, messages is {'not ' if messages is None else ''}None")
+        if not (self.user.remain_frequency > 0 or self.user.temporary_frequency > 0):
+            await send_message(self.context, self.user.id, f"你的额度已用尽，\n当前额度：{self.user.remain_frequency}，临时额度：{self.user.temporary_frequency}\n若有疑问联系 @xi_cuicui")
+            return
 
-            if full_response is None or last_input_text is None or messages is None:
-                if self.placeholder:
-                    await factory.edit(self.placeholder, "❌ 重新生成失败，找不到足够的信息。")
+        try:
+            # 撤销上一回合，并获取上一回合的用户输入
+            last_input_text = await self.conv_service.undo_last_turn()
+            if last_input_text is None:
+                await send_message(self.context, self.user.id, "❌ 重新生成失败，找不到上一条对话记录。")
                 return
 
-            # 服务层返回了响应，现在由控制器负责后续处理
-            # 1. 更新 input 对象以用于保存
+            # 设置占位消息
+            self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="重新生成中...")
+            
+            # 将上一轮的用户输入设置为当前输入
             self.input = Message(0, last_input_text, 'input') # msg_id 设为 0，因为它已被删除
-            
-            # 2. 创建 output 对象
-            if self.placeholder:
-                self.output = Message(self.placeholder.message_id, full_response, 'output')
-            else:
-                self.output = Message(0, full_response, 'output')
-            
-            # 3. 更新并最终化占位消息
-            if self.placeholder:
-                await factory.edit(self.placeholder, self.output.text_processed, summary=self.output.text_summary, comment=self.output.text_comment)
-            
-            # 4. 保存新的对话记录
-            self.conv_service.save_turn(self.input, self.output, messages)
+
+            # 复用 _response_to_user 进行流式响应
+            asyncio.create_task(self._response_to_user(save=True))
+
         except Exception as e:
             logger.error(f"重新生成响应时发生异常: {e}", exc_info=True)
             error_text = f"❌ 重新生成时出错了：{str(e)}"
             if self.placeholder:
                 await factory.edit(self.placeholder, error_text)
+            else:
+                await send_message(self.context, self.user.id, error_text)
 
     async def undo(self):
         """

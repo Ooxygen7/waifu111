@@ -469,10 +469,6 @@ class PromptsBuilder:
 
                 # 最新的3轮AI对话
                 if current_assistant_index >= assistant_len - 3:
-                    #thinking_content = txt.extract_tag_content(content, 'thinking') or None
-                    #content_content = txt.extract_tag_content(content, 'content') or None
-                    #summary_content = txt.extract_tag_content(content, 'summary') or None
-                    #final_content = f"<thinking>\r\n{thinking_content}\r\n</thinking>\n<content>\r\n{content_content}\r\n</content>\r\n<summary>\r\n{summary_content}\r\n</summary>"
                     processed_history.append((role, turn_order, content))
                 # 4-10轮AI对话
                 elif current_assistant_index >= assistant_len - 10:
