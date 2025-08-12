@@ -47,7 +47,14 @@ class PromptService:
             character = self.user.character
 
         # 确定用户昵称的备用逻辑
-        user_display_name = self.user.nick or self.user.user_name or self.user.first_name
+        if self.group:
+            # 群聊中，优先使用 first_name + last_name
+            user_display_name = f"{self.user.first_name or ''} {self.user.last_name or ''}".strip()
+            if not user_display_name:
+                user_display_name = self.user.user_name or self.user.nick or "未知用户"
+        else:
+            # 私聊中，保持原有逻辑
+            user_display_name = self.user.nick or self.user.user_name or self.user.first_name
 
         self.prompt_builder = PromptsBuilder(
             prompts_set=preset,
