@@ -1,15 +1,10 @@
 # Standard library imports
 import asyncio
-import base64
-import json
 import logging
 import os
-import re
-import time
 from typing import TYPE_CHECKING
 
 # Third-party imports
-from PIL import Image
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -18,7 +13,6 @@ from agent.llm_functions import analyze_image_for_rating
 import bot_core.public_functions.frequency_manager as fm
 from bot_core.public_functions import messages
 from bot_core.repository import UserRepository
-from utils import LLM_utils
 from utils import db_utils as db
 from utils.config_utils import get_config
 from utils.logging_utils import setup_logging

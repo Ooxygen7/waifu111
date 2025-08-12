@@ -152,7 +152,7 @@ class MessageFactory:
     async def edit(self, placeholder: Message, text: str, parse_mode: str = "HTML", summary: Optional[str] = None, comment: Optional[str] = None) -> Optional[Message]:
         """编辑一条已存在的消息。"""
         extra_content = ""
-        if summary:
+        if summary and summary != "暂无":
             extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
         if summary and comment:
             extra_content += "\n\n" # Add a separator
