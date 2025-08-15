@@ -9,11 +9,11 @@ from agent.llm_functions import generate_summary
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.helpers import escape_markdown
 from telegram.ext import ContextTypes
-from bot_core.public_functions.messages import handle_agent_session, send_message
-import bot_core.public_functions.update_parse as public
+from bot_core.services.messages import handle_agent_session, send_message
+import bot_core.services.utils.tg_parse as public
 from bot_core.callback_handlers.inline import Inline
 from agent.llm_functions import run_agent_session,generate_char
-from bot_core.public_functions.conversation import PrivateConv
+from bot_core.services.conversation import PrivateConv
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
 from .base import BaseCommand, CommandMeta

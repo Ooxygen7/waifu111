@@ -8,7 +8,6 @@ from telegram import BotCommandScopeAllGroupChats, BotCommandScopeDefault, Updat
 from telegram.ext import (  # InlineQueryHandler,  # 注释掉内联相关
     Application,
     CallbackQueryHandler,
-    ContextTypes,
     MessageHandler,
     filters,
 )
@@ -19,9 +18,9 @@ from bot_core.callback_handlers.callback import create_callback_handler  # 修�
 from bot_core.command_handlers.regist import CommandHandlers
 # from bot_core.inline_handlers.inline import InlineQueryHandlers  # 注释掉内联相关
 from utils.config_utils import BOT_TOKEN
-from bot_core.public_functions.error import BotError
+from bot_core.services.utils.error import BotError
 from utils.logging_utils import setup_logging
-from bot_core.public_functions.error import error_handler
+from bot_core.services.utils.error import error_handler
 setup_logging()
 logger = logging.getLogger(__name__)
 

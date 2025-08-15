@@ -7,8 +7,8 @@ from telegram.ext import ContextTypes
 
 from utils.config_utils import DEFAULT_CHAR, DEFAULT_PRESET, DEFAULT_API
 from utils.config_utils import ADMIN_LIST as ADMIN
-from bot_core.public_functions.error import BotError, DatabaseError
-from bot_core.public_functions.update_parse import update_info_get
+from bot_core.services.utils.error import BotError, DatabaseError
+from bot_core.services.utils.tg_parse import update_info_get
 from utils import db_utils as db
 from bot_core.repository import UserRepository
 from utils.logging_utils import setup_logging

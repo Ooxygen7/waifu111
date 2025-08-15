@@ -10,8 +10,8 @@ from telegram.ext import ContextTypes
 
 # Local application imports
 from agent.llm_functions import analyze_image_for_rating
-import bot_core.public_functions.frequency_manager as fm
-from bot_core.public_functions import messages
+import bot_core.services.utils.usage as fm
+from bot_core.services import messages
 from bot_core.repository import UserRepository
 from utils import db_utils as db
 from utils.config_utils import get_config

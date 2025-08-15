@@ -5,7 +5,7 @@ from typing import Callable
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bot_core.public_functions.decorators import Decorators
+from bot_core.services.utils.decorators import Decorators
 
 
 class CommandMeta:

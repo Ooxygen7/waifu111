@@ -11,15 +11,15 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
-import bot_core.public_functions.messages
-import bot_core.public_functions.update_parse as public
+import bot_core.services.messages
+import bot_core.services.utils.tg_parse as public
 from bot_core.callback_handlers.base import BaseCallback, CallbackMeta
-from bot_core.public_functions.error import BotError
+from bot_core.services.utils.error import BotError
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
 from .director_classes import DirectorMenu
 from .inline import Inline
-from ..public_functions.conversation import PrivateConv
+from bot_core.services.conversation import PrivateConv
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -803,7 +803,7 @@ class SettingsCallback(BaseCallback):
                     await query.edit_message_text("请选择一个角色：", reply_markup=markup) if not isinstance(markup, str) else await query.edit_message_text(markup)
 
                 elif data == 'character_new':
-                    await bot_core.public_functions.messages.send_message(context, user_id, "请使用 /newchar char_name 的格式创建角色")
+                    await bot_core.services.messages.send_message(context, user_id, "请使用 /newchar char_name 的格式创建角色")
 
                 elif data == 'character_delete':
                     markup = Inline.print_char_list('del', 'private', user_id)
@@ -860,7 +860,7 @@ class DirectorCallback(BaseCallback):
                 print(f'执行{data}耗时{etime - stime}秒')
             else:
                 logger.warning(f"未知的导演模式回调数据: {data}, user_id: {user_id}")
-                await bot_core.public_functions.messages.send_message(context, user_id, "未知的操作，请返回主菜单。")
+                await bot_core.services.messages.send_message(context, user_id, "未知的操作，请返回主菜单。")
                 await self._send_menu(context, user_id, self.menu_manager.get_main_menu_id(), query=query)
 
     async def _send_menu(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, menu_id: str, query=None):
@@ -868,7 +868,7 @@ class DirectorCallback(BaseCallback):
         menu_meta = self.menu_manager.get_menu_meta(menu_id)
         if not menu_meta:
             logger.warning(f"未知的菜单ID: {menu_id}, user_id: {user_id}")
-            await bot_core.public_functions.messages.send_message(context, user_id, "菜单未找到，返回主菜单。")
+            await bot_core.services.messages.send_message(context, user_id, "菜单未找到，返回主菜单。")
             menu_id = self.menu_manager.get_main_menu_id()
             # menu_meta = self.menu_manager.get_menu_meta(menu_id)
 

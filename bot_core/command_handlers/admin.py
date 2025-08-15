@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 from agent.llm_functions import run_agent_session
-import bot_core.public_functions.messages as messages
+import bot_core.services.messages as messages
 from agent.tools_registry import DatabaseSuperToolRegistry
 from utils import db_utils as db
 from utils.config_utils import get_config

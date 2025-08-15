@@ -11,7 +11,7 @@ from flask import (
     jsonify,
 )
 from web.factory import viewer_or_admin_required, format_datetime, get_admin_ids
-from bot_core.public_functions.frequency_manager import get_dashboard_stats
+from bot_core.services.utils.usage import get_dashboard_stats
 from utils import db_utils as db
 import os
 
