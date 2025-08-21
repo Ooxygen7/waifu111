@@ -2,8 +2,8 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from bot_core.public_functions.conversation import PrivateConv
-from bot_core.public_functions.decorators import Decorators
+from bot_core.services.conversation import PrivateConv
+from bot_core.services.utils.decorators import Decorators
 from . import features
 from utils.logging_utils import setup_logging
 setup_logging()

@@ -4,9 +4,8 @@ from typing import Union
 
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
-from bot_core.public_functions.error import BotError
-from utils import file_utils as file
-#from utils import db_utils as db
+from bot_core.services.utils.error import BotError
+from utils import file_utils as file, db_utils as db
 from bot_core.data_repository import UsersRepository as UserRepo
 from utils.logging_utils import setup_logging
 
