@@ -1,5 +1,6 @@
 import logging
 from typing import Optional, AsyncGenerator, Dict, Any, Union
+from enum import Enum
 import html
 import telegram
 from telegram import Update, Message
@@ -12,6 +13,107 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 TELEGRAM_MESSAGE_LIMIT = 4000
+
+
+class ParseMode(Enum):
+    """消息解析模式枚举"""
+    HTML = "HTML"
+    MARKDOWN = "MarkdownV2"
+    NONE = None
+
+
+class MessageErrorHandler:
+    """统一的消息错误处理器"""
+    
+    @staticmethod
+    async def handle_send_error(
+        error: Exception,
+        chat_id: int,
+        text: str,
+        bot: telegram.Bot,
+        placeholder: Optional[Message] = None,
+        fallback_parse_mode: Optional[str] = None
+    ) -> Optional[Message]:
+        """处理消息发送错误，包含回退逻辑"""
+        if isinstance(error, BadRequest):
+            logger.warning(f"消息解析失败: {error}，尝试回退模式")
+            if fallback_parse_mode is not None:
+                try:
+                    if placeholder:
+                        result = await placeholder.edit_text(text=text, parse_mode=fallback_parse_mode)
+                        return result if not isinstance(result, bool) else placeholder
+                    else:
+                        return await bot.send_message(chat_id=chat_id, text=text, parse_mode=fallback_parse_mode)
+                except Exception as fallback_error:
+                    logger.error(f"回退模式也失败: {fallback_error}")
+                    return await MessageErrorHandler._send_error_message(chat_id, bot, placeholder, "消息发送失败")
+            else:
+                return await MessageErrorHandler._send_error_message(chat_id, bot, placeholder, "消息格式错误")
+        
+        elif isinstance(error, TelegramError):
+            if "Message is not modified" in str(error):
+                logger.debug("消息未修改，跳过")
+                return placeholder
+            else:
+                logger.error(f"Telegram错误: {error}")
+                return await MessageErrorHandler._send_error_message(chat_id, bot, placeholder, f"Telegram错误: {error}")
+        
+        else:
+            logger.error(f"未知错误: {error}", exc_info=True)
+            return await MessageErrorHandler._send_error_message(chat_id, bot, placeholder, "发送消息时发生未知错误")
+    
+    @staticmethod
+    async def _send_error_message(
+        chat_id: int, 
+        bot: telegram.Bot, 
+        placeholder: Optional[Message], 
+        error_text: str
+    ) -> Optional[Message]:
+        """发送错误消息"""
+        try:
+            if placeholder:
+                result = await placeholder.edit_text(error_text)
+                return result if not isinstance(result, bool) else placeholder
+            else:
+                return await bot.send_message(chat_id=chat_id, text=error_text)
+        except Exception as e:
+            logger.error(f"发送错误消息也失败: {e}")
+            return None
+
+
+class ChatIdResolver:
+    """Chat ID 解析器，统一处理各种获取chat_id的逻辑"""
+    
+    @staticmethod
+    def resolve_chat_id(
+        update: Optional[Update] = None,
+        placeholder: Optional[Message] = None,
+        explicit_chat_id: Optional[int] = None
+    ) -> Optional[int]:
+        """按优先级解析chat_id"""
+        # 1. 显式提供的chat_id
+        if explicit_chat_id:
+            return explicit_chat_id
+        
+        # 2. 从placeholder消息获取
+        if placeholder:
+            return placeholder.chat_id
+        
+        # 3. 从update获取
+        if update:
+            # 3.1 普通消息
+            if update.message:
+                return update.message.chat_id
+            
+            # 3.2 回调查询
+            if update.callback_query and update.callback_query.message:
+                return getattr(update.callback_query.message, 'chat_id', None)
+            
+            # 3.3 有效聊天
+            if update.effective_chat:
+                return update.effective_chat.id
+        
+        return None
 
 class MessageFactory:
     """
@@ -26,7 +128,25 @@ class MessageFactory:
         self.context = context
         if not self.update and not self.context:
             raise ValueError("必须提供 Update 或 ContextTypes.DEFAULT_TYPE 对象")
-        self.bot = self.context.bot or self.update.get_bot()
+        if self.context:
+            self.bot = self.context.bot
+        elif self.update:
+            self.bot = self.update.get_bot()
+        self.chat_id_resolver = ChatIdResolver()
+        self.error_handler = MessageErrorHandler()
+    
+    @staticmethod
+    def format_extra_content(summary: Optional[str] = None, comment: Optional[str] = None) -> str:
+        """格式化额外内容（摘要和评论）"""
+        content_parts = []
+        
+        if summary and summary != "暂无":
+            content_parts.append(f"<b>摘要:</b>\n{html.escape(summary)}")
+        
+        if comment and comment != "暂无":
+            content_parts.append(f"<b>评论:</b>\n{html.escape(comment)}")
+        
+        return "\n\n".join(content_parts)
 
         
 
@@ -41,76 +161,59 @@ class MessageFactory:
         """
         内部核心方法，处理所有消息的发送和编辑。
         """
-        # 多种方式获取 chat_id
-        if not chat_id:
-            if placeholder:
-                chat_id = placeholder.chat_id
-            elif self.update and self.update.message:
-                chat_id = self.update.message.chat_id
-            elif self.update and self.update.callback_query:
-                chat_id = self.update.callback_query.message.chat_id if self.update.callback_query.message and hasattr(self.update.callback_query.message, 'chat_id') else None
-            elif self.update and self.update.effective_chat:
-                chat_id = self.update.effective_chat.id
-
-        if not chat_id:
+        # 使用ChatIdResolver获取chat_id
+        resolved_chat_id = self.chat_id_resolver.resolve_chat_id(
+            update=self.update,
+            placeholder=placeholder,
+            explicit_chat_id=chat_id
+        )
+        
+        if not resolved_chat_id:
             logger.error(f"无法确定 chat_id。Update: {self.update}, Placeholder: {placeholder}")
             return None
 
-        logger.debug(f"确定的 chat_id: {chat_id}")
+        logger.debug(f"确定的 chat_id: {resolved_chat_id}")
 
         # 1. 分割消息
         text_parts = self._split_text(text)
 
         # 2. 发送或编辑
         sent_message = None
+        current_placeholder = placeholder
+        
         for i, part in enumerate(text_parts):
             is_first_part = (i == 0)
-            target_message = placeholder if is_first_part and placeholder else None
+            target_message = current_placeholder if is_first_part and current_placeholder else None
             
             try:
                 # 尝试使用指定解析模式发送
                 sent_message = await self._try_send_part(
-                    chat_id=chat_id,
+                    chat_id=resolved_chat_id,
                     text_part=part,
                     placeholder=target_message,
                     parse_mode=parse_mode,
                     photo=photo if is_first_part else None # 只有第一部分带图片
                 )
-            except BadRequest as e:
-                logger.warning(f"{parse_mode} 解析失败: {e}，回退到纯文本模式。")
-                logger.warning(f"失败的文本内容: {repr(part)}")
-                try:
-                    # 回退到纯文本模式
-                    sent_message = await self._try_send_part(
-                        chat_id=chat_id,
-                        text_part=part,
-                        placeholder=target_message,
-                        parse_mode=None,
-                        photo=photo if is_first_part else None
-                    )
-                except Exception as e:
-                    logger.error(f"纯文本模式发送也失败: {e}", exc_info=True)
-                    error_msg = f"消息部分 {i+1} 发送失败。"
-                    try:
-                        if target_message:
-                            await target_message.edit_text(error_msg)
-                        else:
-                            await self.bot.send_message(chat_id=chat_id, text=error_msg)
-                    except Exception as fallback_e:
-                        logger.error(f"发送错误消息也失败: {fallback_e}", exc_info=True)
-            except TelegramError as e:
-                if "Message is not modified" in str(e):
-                    logger.debug("消息未修改，跳过。")
-                else:
-                    logger.error(f"发送消息时发生 Telegram 错误: {e}", exc_info=True)
             except Exception as e:
-                logger.error(f"发送消息时发生未知错误: {e}", exc_info=True)
+                # 使用统一错误处理器
+                sent_message = await self.error_handler.handle_send_error(
+                    error=e,
+                    chat_id=resolved_chat_id,
+                    text=part,
+                    bot=self.bot,
+                    placeholder=target_message,
+                    fallback_parse_mode=None if parse_mode is None else None
+                )
+                
+                if not sent_message:
+                    logger.error(f"消息部分 {i+1} 发送完全失败")
+                    continue
 
             # 更新 placeholder 以便下一部分回复
-            if sent_message and not placeholder:
-                placeholder = sent_message
+            if sent_message and not current_placeholder:
+                current_placeholder = sent_message
 
-        return placeholder or sent_message
+        return current_placeholder or sent_message
 
 
     async def _try_send_part(
@@ -129,12 +232,9 @@ class MessageFactory:
                     await placeholder.delete() # 删除占位符
                     return await self.bot.send_photo(chat_id=chat_id, photo=photo, caption=text_part, parse_mode=parse_mode)
 
-                # 编辑消息并处理可能的 bool 返回值
+                # 编辑消息并统一处理返回值
                 result = await placeholder.edit_text(text=text_part, parse_mode=parse_mode)
-                if isinstance(result, bool):
-                    # 消息未修改或编辑成功但未返回新消息对象，返回原消息对象
-                    return placeholder
-                return result
+                return self._normalize_message_result(result, placeholder)
 
             if photo:
                 return await self.bot.send_photo(chat_id=chat_id, photo=photo, caption=text_part, parse_mode=parse_mode)
@@ -147,6 +247,14 @@ class MessageFactory:
         except Exception as e:
             logger.error(f"发送消息部分失败: {e}", exc_info=True)
             raise
+    
+    def _normalize_message_result(self, result: Union[Message, bool], fallback_message: Message) -> Message:
+        """统一处理消息操作的返回值"""
+        if isinstance(result, bool):
+            # 消息未修改或编辑成功但未返回新消息对象，返回原消息对象
+            logger.debug("消息操作返回布尔值，使用fallback消息对象")
+            return fallback_message
+        return result
 
 
     def _split_text(self, text: str) -> list[str]:
@@ -155,21 +263,46 @@ class MessageFactory:
             return [text]
         
         parts = []
-        current_part = ""
+        current_lines = []
+        current_length = 0
+        
         for line in text.split('\n'):
-            if len(current_part) + len(line) + 1 > TELEGRAM_MESSAGE_LIMIT:
-                if current_part:
-                    parts.append(current_part.strip())
-                # 如果单行超长，强制截断
+            line_length = len(line) + 1  # +1 for newline character
+            
+            # 如果单行就超长，强制截断
+            if len(line) > TELEGRAM_MESSAGE_LIMIT:
+                # 先保存当前积累的内容
+                if current_lines:
+                    parts.append('\n'.join(current_lines).strip())
+                    current_lines = []
+                    current_length = 0
+                
+                # 分割超长行
                 while len(line) > TELEGRAM_MESSAGE_LIMIT:
                     parts.append(line[:TELEGRAM_MESSAGE_LIMIT])
                     line = line[TELEGRAM_MESSAGE_LIMIT:]
-                current_part = line + '\n'
+                
+                # 剩余部分作为新的开始
+                if line:
+                    current_lines = [line]
+                    current_length = len(line)
+                continue
+            
+            # 检查是否会超出限制
+            if current_length + line_length > TELEGRAM_MESSAGE_LIMIT:
+                if current_lines:
+                    parts.append('\n'.join(current_lines).strip())
+                current_lines = [line]
+                current_length = len(line)
             else:
-                current_part += line + '\n'
+                current_lines.append(line)
+                current_length += line_length
         
-        if current_part.strip():
-            parts.append(current_part.strip())
+        # 添加最后一部分
+        if current_lines:
+            final_part = '\n'.join(current_lines).strip()
+            if final_part:
+                parts.append(final_part)
             
         return parts
 
@@ -181,16 +314,9 @@ class MessageFactory:
         """编辑一条已存在的消息。"""
         logger.debug(f"MessageFactory.edit 收到参数: text={repr(text[:100])}, summary={repr(summary)}, comment={repr(comment)}")
 
-        extra_content = ""
-        if summary and summary != "暂无":
-            extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
-        if summary and comment:
-            extra_content += "\n\n" # Add a separator
-        if comment and comment != "暂无":
-            extra_content += f"<b>评论:</b>\n{html.escape(comment)}"
-
-        logger.debug(f"MessageFactory.edit extra_content: {repr(extra_content)}")
-
+        # 使用统一的格式化方法
+        extra_content = self.format_extra_content(summary, comment)
+        
         if extra_content:
             # 使用 expandable 属性来创建可折叠的引用块
             text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
@@ -199,67 +325,75 @@ class MessageFactory:
         return await self._send_or_edit_internal(text=text, placeholder=placeholder, parse_mode=parse_mode)
 
 
-# --- 向后兼容的函数 ---
+# --- 向后兼容的函数（已废弃，建议使用MessageFactory） ---
+
+import warnings
+
+def _deprecated_warning(func_name: str, replacement: str):
+    """发出废弃警告"""
+    warnings.warn(
+        f"{func_name} 已废弃，请使用 {replacement}",
+        DeprecationWarning,
+        stacklevel=3
+    )
 
 async def update_message(text: str, placeholder: Message):
     """
     兼容旧版：更新一条消息。
+    @deprecated: 请使用 MessageFactory(update=update).edit(placeholder, text)
     """
+    _deprecated_warning("update_message", "MessageFactory.edit")
+    
     try:
         result = await placeholder.edit_text(text, parse_mode="markdown")
-        if isinstance(result, bool):
-            logger.debug("edit_text 返回布尔值，消息可能未修改")
-    except BadRequest:
-        logger.warning("Markdown 解析失败，回退到纯文本模式。")
-        try:
-            result = await placeholder.edit_text(text)
-            if isinstance(result, bool):
-                logger.debug("edit_text 返回布尔值，消息可能未修改")
-        except Exception as e:
-            logger.error(f"纯文本模式更新消息失败: {e}", exc_info=True)
-    except TelegramError as e:
-        if "Message is not modified" not in str(e):
-            logger.error(f"更新消息时发生 Telegram 错误: {e}", exc_info=True)
+        # 统一返回值处理
+        return result if not isinstance(result, bool) else placeholder
+    except Exception as e:
+        # 使用统一错误处理
+        return await MessageErrorHandler.handle_send_error(
+            error=e,
+            chat_id=placeholder.chat_id,
+            text=text,
+            bot=placeholder.get_bot(),
+            placeholder=placeholder,
+            fallback_parse_mode=None
+        )
 
 
 async def finalize_message(sent_message: Message, text: str, parse: str = "html", summary: Optional[str] = None, comment: Optional[str] = None) -> None:
     """
     兼容旧版：最终确定一条消息。
+    @deprecated: 请使用 MessageFactory.edit 方法
     """
-    extra_content = ""
-    if summary:
-        extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
-    if summary and comment:
-        extra_content += "\n\n" # Add a separator
-    if comment:
-        extra_content += f"<b>评论:</b>\n{html.escape(comment)}"
-
+    _deprecated_warning("finalize_message", "MessageFactory.edit")
+    
+    # 使用统一的格式化方法
+    extra_content = MessageFactory.format_extra_content(summary, comment)
+    
     if extra_content:
-        # 使用 expandable 属性来创建可折叠的引用块
         text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
 
     try:
         result = await sent_message.edit_text(text, parse_mode=parse)
-        if isinstance(result, bool):
-            logger.debug("edit_text 返回布尔值，消息可能未修改")
-    except BadRequest:
-        logger.warning(f"{parse} 解析失败，回退到纯文本模式。")
-        try:
-            result = await sent_message.edit_text(text)
-            if isinstance(result, bool):
-                logger.debug("edit_text 返回布尔值，消息可能未修改")
-        except Exception as e:
-            logger.error(f"纯文本模式最终确定消息失败: {e}", exc_info=True)
-    except TelegramError as e:
-        if "Message is not modified" not in str(e):
-            logger.error(f"最终确定消息时发生 Telegram 错误: {e}", exc_info=True)
+        return result if not isinstance(result, bool) else sent_message
+    except Exception as e:
+        return await MessageErrorHandler.handle_send_error(
+            error=e,
+            chat_id=sent_message.chat_id,
+            text=text,
+            bot=sent_message.get_bot(),
+            placeholder=sent_message,
+            fallback_parse_mode=None
+        )
 
 
 async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_content: str, parse: str = "markdown", photo=None) -> None:
     """
     兼容旧版：发送一条消息。
-    建议使用: `MessageFactory(context=context).send(text, chat_id)`
+    @deprecated: 请使用 MessageFactory(context=context).send(text, chat_id)
     """
+    _deprecated_warning("send_message", "MessageFactory.send")
+    
     factory = MessageFactory(context=context)
     await factory.send(text=message_content, chat_id=chat_id, parse_mode=parse, photo=photo)
 
@@ -301,9 +435,11 @@ async def handle_agent_session(
                 if not llm_text and not tool_results:
                     continue
 
-                iteration_message_text = f"<b>🤖 第 {iteration} 轮分析结果</b>\n\n"
+                # 使用列表收集消息部分，最后join
+                message_parts = [f"<b>🤖 第 {iteration} 轮分析结果</b>"]
+                
                 if llm_text:
-                    iteration_message_text += f"<b>{character_name}:</b> {html.escape(llm_text.strip())}\n\n"
+                    message_parts.append(f"<b>{character_name}:</b> {html.escape(llm_text.strip())}")
                 
                 if tool_results:
                     tool_results_html = []
@@ -313,7 +449,9 @@ async def handle_agent_session(
                         trimmed_result = (tool_result[:2000] + "...") if len(tool_result) > 2000 else tool_result
                         tool_html = f"<b>🔧 {tool_name} 执行结果:</b>\n<blockquote expandable>{html.escape(trimmed_result)}</blockquote>"
                         tool_results_html.append(tool_html)
-                    iteration_message_text += "\n".join(tool_results_html)
+                    message_parts.extend(tool_results_html)
+                
+                iteration_message_text = "\n\n".join(message_parts)
 
                 if current_placeholder:
                     await factory.edit(current_placeholder, iteration_message_text)

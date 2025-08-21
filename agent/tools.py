@@ -236,6 +236,54 @@ class MarketTools:
             error_msg = f"Failed to fetch historical data for {symbol} on {exchange}: {str(e)}"
             return {"display": error_msg, "llm_feedback": error_msg}
     @staticmethod
+    def aggregate_by_dynamic_levels(order_list: list, num_levels: int = 5) -> list:
+        """
+        按动态价格区间聚合订单数据
+
+        Args:
+            order_list: 订单列表，每个元素为 [price, amount]
+            num_levels: 聚合后的档位数量，默认5档
+
+        Returns:
+            聚合后的订单列表，每个元素为 [price_range_start, total_amount]
+        """
+        if not order_list:
+            return []
+
+        if len(order_list) <= num_levels:
+            # 如果订单数量少于档位数，直接返回
+            return [[price, amount] for price, amount in order_list]
+
+        # 找到价格的最大值和最小值
+        prices = [price for price, amount in order_list]
+        min_price = min(prices)
+        max_price = max(prices)
+        price_range = max_price - min_price
+
+        if price_range == 0:
+            # 所有价格相同
+            return [[min_price, sum(amount for _, amount in order_list)]]
+
+        # 计算每档的价格跨度
+        level_size = price_range / num_levels
+
+        # 初始化档位
+        aggregated = {}
+        for i in range(num_levels):
+            range_start = min_price + i * level_size
+            aggregated[i] = [range_start, 0.0]
+
+        # 聚合订单
+        for price, amount in order_list:
+            # 确定所属的档位
+            level_index = min(int((price - min_price) / level_size), num_levels - 1)
+            aggregated[level_index][1] += amount
+
+        # 转换为列表，按价格从高到低排序
+        result = list(aggregated.values())
+        result.sort(key=lambda x: x[0], reverse=True)
+        return result
+    @staticmethod
     async def get_market_depth(symbol: str = "BTC/USDT",
                              depth: int = 10, exchange: str = "binance") -> dict:
         """
@@ -263,11 +311,14 @@ class MarketTools:
                 try_symbol = f"{base_symbol}/USDT:USDT"
             
             try:
-                order_book = await exchange_instance.fetch_order_book(try_symbol, limit=depth*5)
+                order_book = await exchange_instance.fetch_order_book(try_symbol, 5000)  # 获取更多数据用于1%聚合
                 symbol = try_symbol
             except Exception:
-                order_book = await exchange_instance.fetch_order_book(symbol, limit=depth*5)
-            
+                try:
+                    order_book = await exchange_instance.fetch_order_book(symbol, 5000)  # 备选方案
+                except Exception:
+                    order_book = await exchange_instance.fetch_order_book(symbol, 1000)  # 最后的备选方案
+
             bids = order_book.get('bids', [])
             asks = order_book.get('asks', [])
 
@@ -276,9 +327,70 @@ class MarketTools:
                 return {"display": error_msg, "llm_feedback": error_msg}
 
             current_price = (bids[0][0] + asks[0][0]) / 2 if bids and asks else (bids[0][0] if bids else asks[0][0])
-            
-            total_bid_volume = sum(amount for price, amount in bids[:depth])
-            total_ask_volume = sum(amount for price, amount in asks[:depth])
+
+            # 按1%固定百分比聚合数据
+            def aggregate_by_percentage_fixed(order_list: list, current_price: float, percentage_step: float = 1.0, num_levels: int = 5) -> list:
+                """
+                按固定百分比区间聚合订单数据
+
+                Args:
+                    order_list: 订单列表，每个元素为 [price, amount]
+                    current_price: 当前价格
+                    percentage_step: 百分比步长，默认1%
+                    num_levels: 聚合后的档位数量，默认5档
+
+                Returns:
+                    聚合后的订单列表，每个元素为 [price_range_start, total_amount]
+                """
+                if not order_list:
+                    return []
+
+                aggregated = {}
+
+                for price, amount in order_list:
+                    # 计算相对于当前价格的百分比差异
+                    percentage_diff = ((price - current_price) / current_price) * 100
+                    # 确定所属的百分比区间
+                    range_key = round(percentage_diff / percentage_step) * percentage_step
+                    # 计算区间起始价格
+                    range_start_price = current_price * (1 + range_key / 100)
+
+                    if range_key not in aggregated:
+                        aggregated[range_key] = [range_start_price, 0.0]
+                    aggregated[range_key][1] += amount
+
+                # 转换为列表并排序
+                result = list(aggregated.values())
+                result.sort(key=lambda x: x[0], reverse=True)  # 买单从高到低，卖单从低到高
+                return result
+
+            # 智能聚合：优先1%聚合，不够时按数据范围动态调整
+            def smart_aggregate(order_list: list, current_price: float, target_levels: int = 5) -> list:
+                """
+                智能聚合：优先1%聚合，不够时按数据范围动态调整
+                """
+                if not order_list:
+                    return []
+
+                # 首先尝试1%固定百分比聚合
+                aggregated_1pct = aggregate_by_percentage_fixed(order_list, current_price, 1.0, 10)
+
+                if len(aggregated_1pct) >= target_levels:
+                    # 如果1%聚合有足够的档位，取前5个
+                    return aggregated_1pct[:target_levels]
+                else:
+                    # 如果1%聚合不够5档，则按数据范围动态调整
+                    return MarketTools.aggregate_by_dynamic_levels(order_list, target_levels)
+
+            # 对买单和卖单分别进行智能聚合
+            aggregated_bids = smart_aggregate(bids, current_price, 5)
+            aggregated_asks = smart_aggregate(asks, current_price, 5)
+
+            # 重新排序卖单（从低到高）
+            aggregated_asks.sort(key=lambda x: x[0])
+
+            total_bid_volume = sum(amount for _, amount in aggregated_bids[:depth])
+            total_ask_volume = sum(amount for _, amount in aggregated_asks[:depth])
             
             buy_sell_ratio = total_bid_volume / total_ask_volume if total_ask_volume > 0 else float('inf')
             
@@ -296,13 +408,24 @@ class MarketTools:
                     decimal_places = len(price_str.split('.')[1])
             price_format = f"{{:.{decimal_places}f}}"
 
-            support_levels = [bids[i][0] for i in range(1, len(bids)-1) if bids[i][1] > bids[i-1][1] and bids[i][1] > bids[i+1][1]][:3]
-            resistance_levels = [asks[i][0] for i in range(1, len(asks)-1) if asks[i][1] > asks[i-1][1] and asks[i][1] > asks[i+1][1]][:3]
+            # 支撑位和阻力位分析基于交易所的 L2 聚合数据
+            support_levels = [price for price, amount in bids[1:depth] if amount > bids[0][1] * 0.1][:3]
+            resistance_levels = [price for price, amount in asks[1:depth] if amount > asks[0][1] * 0.1][:3]
+
             support_str = ", ".join([price_format.format(price) for price in support_levels]) if support_levels else "未检测到"
             resistance_str = ", ".join([price_format.format(price) for price in resistance_levels]) if resistance_levels else "未检测到"
 
-            bid_str = "\n".join([f"  - 价格: {price_format.format(price)}, 数量: {amount:.4f}" for price, amount in bids[:5]])
-            ask_str = "\n".join([f"  - 价格: {price_format.format(price)}, 数量: {amount:.4f}" for price, amount in asks[:5]])
+            # 显示按1%聚合的买单前5档
+            bid_str = "\n".join([
+                f"  - 价格区间: {price_format.format(price)} , 数量: {amount:.4f}"
+                for price, amount in aggregated_bids[:5]
+            ])
+
+            # 显示按1%聚合的卖单前5档
+            ask_str = "\n".join([
+                f"  - 价格区间: {price_format.format(price)} , 数量: {amount:.4f}"
+                for price, amount in aggregated_asks[:5]
+            ])
             
             await exchange_instance.close()
             
@@ -312,8 +435,8 @@ class MarketTools:
                 f"**市场压力分析:**\n{pressure_analysis}\n\n"
                 f"**潜在支撑位(USDT):** {support_str}\n"
                 f"**潜在阻力位(USDT):** {resistance_str}\n\n"
-                f"**买单前5档:**\n{bid_str}\n\n"
-                f"**卖单前5档:**\n{ask_str}"
+                f"**买单前5档 (按1%价格区间聚合):**\n{bid_str}\n\n"
+                f"**卖单前5档 (按1%价格区间聚合):**\n{ask_str}"
             )
 
             llm_feedback = (
