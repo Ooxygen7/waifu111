@@ -39,10 +39,22 @@ class MessageFactory:
         """
         内部核心方法，处理所有消息的发送和编辑。
         """
-        chat_id = chat_id or (self.update.message.chat_id if self.update and self.update.message else None)
+        # 多种方式获取 chat_id
         if not chat_id:
-            logger.error("无法确定 chat_id")
+            if placeholder:
+                chat_id = placeholder.chat_id
+            elif self.update and self.update.message:
+                chat_id = self.update.message.chat_id
+            elif self.update and self.update.callback_query:
+                chat_id = self.update.callback_query.message.chat_id if self.update.callback_query.message else None
+            elif self.update and self.update.effective_chat:
+                chat_id = self.update.effective_chat.id
+
+        if not chat_id:
+            logger.error(f"无法确定 chat_id。Update: {self.update}, Placeholder: {placeholder}")
             return None
+
+        logger.info(f"确定的 chat_id: {chat_id}")
 
         # 1. 分割消息
         text_parts = self._split_text(text)
@@ -62,8 +74,9 @@ class MessageFactory:
                     parse_mode=parse_mode,
                     photo=photo if is_first_part else None # 只有第一部分带图片
                 )
-            except BadRequest:
-                logger.warning(f"{parse_mode} 解析失败，回退到纯文本模式。")
+            except BadRequest as e:
+                logger.warning(f"{parse_mode} 解析失败: {e}，回退到纯文本模式。")
+                logger.warning(f"失败的文本内容: {repr(part)}")
                 try:
                     # 回退到纯文本模式
                     sent_message = await self._try_send_part(
@@ -151,6 +164,8 @@ class MessageFactory:
 
     async def edit(self, placeholder: Message, text: str, parse_mode: str = "HTML", summary: Optional[str] = None, comment: Optional[str] = None) -> Optional[Message]:
         """编辑一条已存在的消息。"""
+        logger.debug(f"MessageFactory.edit 收到参数: text={repr(text[:100])}, summary={repr(summary)}, comment={repr(comment)}")
+
         extra_content = ""
         if summary and summary != "暂无":
             extra_content += f"<b>摘要:</b>\n{html.escape(summary)}"
@@ -159,10 +174,13 @@ class MessageFactory:
         if comment and comment != "暂无":
             extra_content += f"<b>评论:</b>\n{html.escape(comment)}"
 
+        logger.debug(f"MessageFactory.edit extra_content: {repr(extra_content)}")
+
         if extra_content:
             # 使用 expandable 属性来创建可折叠的引用块
             text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
-        
+
+        logger.debug(f"MessageFactory.edit 最终发送文本: {repr(text[:200])}")
         return await self._send_or_edit_internal(text=text, placeholder=placeholder, parse_mode=parse_mode)
 
 

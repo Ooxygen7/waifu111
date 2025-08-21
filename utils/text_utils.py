@@ -18,6 +18,10 @@ def extract_tag_content(text, tag):
     Returns:
         匹配的标签内容（纯文本），如果没有匹配到，则返回原始文本。
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"extract_tag_content 收到文本 (tag={tag}): {text}")
+
     match_content = None
 
     if tag == 'thinking':
@@ -77,12 +81,17 @@ def extract_tag_content(text, tag):
                 match_content = text[start_pos + len(start_tag):end_pos]
 
     if match_content is None:
+        logger.info(f"extract_tag_content 未找到 {tag} 标签内容，返回'暂无'")
         return "暂无"
+
+    logger.info(f"extract_tag_content 提取的 {tag} 标签内容: {match_content}")
 
     # 移除所有HTML标签，只返回纯文本
     plain_text = re.sub(r'<.*?>', '', match_content, flags=re.DOTALL)
-    
-    return plain_text.strip()
+    result = plain_text.strip()
+
+    logger.info(f"extract_tag_content 处理后返回 (tag={tag}): {result}")
+    return result
 
 
 async def convert_file_id_to_base64(file_id: str, context) -> dict:

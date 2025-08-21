@@ -483,8 +483,15 @@ class PrivateConv:
                 await asyncio.sleep(0.01)
 
             final_response_text = "".join(response_chunks)
+            logger.info(f"AI原始回复: {final_response_text}")
+            logger.info(f"AI原始回复长度: {len(final_response_text)}")
+
             if self.placeholder:
                 self.output = Message(self.placeholder.message_id, final_response_text, 'output')
+                logger.info(f"处理后的text_processed: {repr(self.output.text_processed)}")
+                logger.info(f"处理后的text_summary: {repr(self.output.text_summary)}")
+                logger.info(f"处理后的text_comment: {repr(self.output.text_comment)}")
+
                 # 使用 MessageFactory.edit 进行最终更新，它会处理长消息分割和格式化
                 await factory.edit(
                     placeholder=self.placeholder,
