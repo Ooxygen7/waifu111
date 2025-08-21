@@ -202,7 +202,7 @@ class MessageFactory:
                     text=part,
                     bot=self.bot,
                     placeholder=target_message,
-                    fallback_parse_mode=None if parse_mode is None else None
+                    fallback_parse_mode=None
                 )
                 
                 if not sent_message:
@@ -337,13 +337,13 @@ def _deprecated_warning(func_name: str, replacement: str):
         stacklevel=3
     )
 
-async def update_message(text: str, placeholder: Message):
+async def update_message(text: str, placeholder: Message) -> Optional[Message]:
     """
     兼容旧版：更新一条消息。
     @deprecated: 请使用 MessageFactory(update=update).edit(placeholder, text)
     """
     _deprecated_warning("update_message", "MessageFactory.edit")
-    
+
     try:
         result = await placeholder.edit_text(text, parse_mode="markdown")
         # 统一返回值处理
@@ -360,16 +360,16 @@ async def update_message(text: str, placeholder: Message):
         )
 
 
-async def finalize_message(sent_message: Message, text: str, parse: str = "html", summary: Optional[str] = None, comment: Optional[str] = None) -> None:
+async def finalize_message(sent_message: Message, text: str, parse: str = "html", summary: Optional[str] = None, comment: Optional[str] = None) -> Optional[Message]:
     """
     兼容旧版：最终确定一条消息。
     @deprecated: 请使用 MessageFactory.edit 方法
     """
     _deprecated_warning("finalize_message", "MessageFactory.edit")
-    
+
     # 使用统一的格式化方法
     extra_content = MessageFactory.format_extra_content(summary, comment)
-    
+
     if extra_content:
         text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
 
@@ -387,15 +387,15 @@ async def finalize_message(sent_message: Message, text: str, parse: str = "html"
         )
 
 
-async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_content: str, parse: str = "markdown", photo=None) -> None:
+async def send_message(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_content: str, parse: str = "markdown", photo=None) -> Optional[Message]:
     """
     兼容旧版：发送一条消息。
     @deprecated: 请使用 MessageFactory(context=context).send(text, chat_id)
     """
     _deprecated_warning("send_message", "MessageFactory.send")
-    
+
     factory = MessageFactory(context=context)
-    await factory.send(text=message_content, chat_id=chat_id, parse_mode=parse, photo=photo)
+    return await factory.send(text=message_content, chat_id=chat_id, parse_mode=parse, photo=photo)
 
 
 # --- 重构后的 Agent 会话处理器 ---
