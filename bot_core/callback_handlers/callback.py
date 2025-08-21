@@ -5,9 +5,9 @@ import logging
 import random
 import os
 import time
-from typing import Dict
+from typing import Dict, Union
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Message, MaybeInaccessibleMessage
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
@@ -15,7 +15,9 @@ import bot_core.services.messages
 import bot_core.services.utils.tg_parse as public
 from bot_core.callback_handlers.base import BaseCallback, CallbackMeta
 from bot_core.services.utils.error import BotError
-from utils import db_utils as db
+from bot_core.data_repository import (
+    conversations, user_config, users, groups
+)
 from utils.logging_utils import setup_logging
 from .director_classes import DirectorMenu
 from .inline import Inline
@@ -26,6 +28,64 @@ logger = logging.getLogger(__name__)
 
 # 设置日志配置
 
+
+def get_editable_message(message: Union[Message, MaybeInaccessibleMessage, None]) -> Message | None:
+    """
+    检查并返回可编辑的消息对象。
+    如果消息是 MaybeInaccessibleMessage 或 None，则返回 None。
+    只有真正的 Message 对象才能被编辑。
+    """
+    if message is None:
+        return None
+    if isinstance(message, MaybeInaccessibleMessage):
+        return None
+    return message
+
+
+async def safe_edit_message(message: Union[Message, MaybeInaccessibleMessage, None], text: str, **kwargs) -> bool:
+    """
+    安全地编辑消息，处理 MaybeInaccessibleMessage 类型问题。
+
+    Args:
+        message: 可能是 Message、MaybeInaccessibleMessage 或 None 的消息对象
+        text: 要编辑的文本内容
+        **kwargs: 其他传递给 edit_text 的参数
+
+    Returns:
+        bool: 编辑是否成功
+    """
+    editable_message = get_editable_message(message)
+    if editable_message:
+        try:
+            await editable_message.edit_text(text, **kwargs)
+            return True
+        except Exception as e:
+            logger.warning(f"编辑消息失败: {e}")
+            return False
+    return False
+
+
+async def safe_reply_message(message: Union[Message, MaybeInaccessibleMessage, None], text: str, **kwargs) -> bool:
+    """
+    安全地回复消息，处理 MaybeInaccessibleMessage 类型问题。
+
+    Args:
+        message: 可能是 Message、MaybeInaccessibleMessage 或 None 的消息对象
+        text: 要回复的文本内容
+        **kwargs: 其他传递给 reply_text 的参数
+
+    Returns:
+        bool: 回复是否成功
+    """
+    editable_message = get_editable_message(message)
+    if editable_message:
+        try:
+            await editable_message.reply_text(text, **kwargs)
+            return True
+        except Exception as e:
+            logger.warning(f"回复消息失败: {e}")
+            return False
+    return False
 
 
 
@@ -50,26 +110,32 @@ class SetCharCallback(BaseCallback):
             if not query or not query.message:
                 return
 
-            if db.user_config_arg_update(info['user_id'], 'char', character):
+            if user_config.user_config_arg_update(info['user_id'], 'char', character)["success"]:
                 import random
                 while True:
                     new_conv_id = random.randint(10000000, 99999999)
-                    if db.conversation_private_check(new_conv_id):
+                    if conversations.conversation_private_check(new_conv_id)["data"]:
                         break
-                
+
                 preset = info.get('preset')
                 user_id = info.get('user_id')
 
                 if not preset or not user_id:
-                    await query.message.edit_text("无法获取用户配置，创建新对话失败。")
+                    editable_message = get_editable_message(query.message)
+                    if editable_message:
+                        await editable_message.edit_text("无法获取用户配置，创建新对话失败。")
                     return
-
-                if db.conversation_private_create(new_conv_id, user_id, character, preset):
-                    db.user_config_arg_update(user_id, "conv_id", new_conv_id)
-                    await query.message.edit_text(
-                        f"角色切换成功！会话已重开！当前角色: {character.split('_')[0]}。")
+    
+                if conversations.conversation_private_create(new_conv_id, user_id, character, preset)["success"]:
+                    user_config.user_config_arg_update(user_id, "conv_id", new_conv_id)
+                    editable_message = get_editable_message(query.message)
+                    if editable_message:
+                        await editable_message.edit_text(
+                            f"角色切换成功！会话已重开！当前角色: {character.split('_')[0]}。")
                 else:
-                    await query.message.edit_text("创建新对话失败，请联系管理员。")
+                    editable_message = get_editable_message(query.message)
+                    if editable_message:
+                        await editable_message.edit_text("创建新对话失败，请联系管理员。")
                     return
                 
                 from utils import file_utils
@@ -87,12 +153,14 @@ class SetCharCallback(BaseCallback):
 
                 if char_data and 'meeting' in char_data:
                     meeting_message = char_data['meeting']
-                    await query.message.reply_text(meeting_message)
+                    editable_message = get_editable_message(query.message)
+                    if editable_message:
+                        await editable_message.reply_text(meeting_message)
                     # 重新获取info以确保conv_id是新的
                     updated_info = public.update_info_get(update)
                     if updated_info and updated_info.get('conv_id'):
-                        db.dialog_content_add(updated_info['conv_id'], 'assistant', 1, meeting_message,
-                                              meeting_message, query.message.message_id, 'private')
+                        conversations.dialog_content_add(updated_info['conv_id'], 'assistant', 1, meeting_message,
+                                                         meeting_message, query.message.message_id, 'private')
                 elif char_data is None:
                     logger.warning(f"未能加载角色 {character} 的数据文件。")
         except Exception as e:
@@ -130,12 +198,12 @@ class DelCharCallback(BaseCallback):
             del_path = os.path.join(char_dir, f'{character}_{delmark}_del.txt')
             os.rename(txt_path, del_path)
         if info['char'] == data:
-            db.user_config_arg_update(info['user_id'], 'char', 'cuicuishark_public')
-            db.conversation_private_arg_update(info['conv_id'], 'character', 'cuicuishark_public')
-            await query.message.edit_text(
+            user_config.user_config_arg_update(info['user_id'], 'char', 'cuicuishark_public')
+            conversations.conversation_private_arg_update(info['conv_id'], 'character', 'cuicuishark_public')
+            await safe_edit_message(query.message, 
                 f"角色`{character.split('_')[0]}`删除成功！已为您切换默认角色`cuicuishark` 。")
         else:
-            await query.message.edit_text(
+            await safe_edit_message(query.message, 
                 f"角色`{character.split('_')[0]}`删除成功！")
 
 
@@ -160,17 +228,17 @@ class SetApiCallback(BaseCallback):
                 return
             info = public.update_info_get(update)
             if not info or not info.get('user_id'):
-                await query.message.edit_text("无法获取用户信息。")
+                await safe_edit_message(query.message, "无法获取用户信息。")
                 return
 
-            if db.user_config_arg_update(info['user_id'], 'api', data):
-                await query.message.edit_text(f"api切换成功！当前api: {data}。")
+            if user_config.user_config_arg_update(info['user_id'], 'api', data)["success"]:
+                await safe_edit_message(query.message, f"api切换成功！当前api: {data}。")
             else:
-                await query.message.edit_text("API切换失败。")
+                await safe_edit_message(query.message, "API切换失败。")
         except Exception as e:
             logger.error(f"设置api失败, 错误: {str(e)}")
             if update.callback_query and update.callback_query.message:
-                await update.callback_query.message.edit_text("设置API时发生错误。")
+                await safe_edit_message(update.callback_query.message, "设置API时发生错误。")
 
 
 class SetGroupApiCallback(BaseCallback):
@@ -193,25 +261,25 @@ class SetGroupApiCallback(BaseCallback):
             # 解析回调数据：set_group_api_{api_name}_{group_id}
             parts = data.split('_')
             if len(parts) < 2:
-                await query.message.edit_text("回调数据格式错误。")
+                await safe_edit_message(query.message, "回调数据格式错误。")
                 return
             
             api_name = parts[0]
             group_id = parts[1] if len(parts) > 1 else None
             
             if not group_id:
-                await query.message.edit_text("群组ID缺失。")
+                await safe_edit_message(query.message, "群组ID缺失。")
                 return
             
             # 更新群组配置
-            if db.group_config_arg_update(int(group_id), 'api', api_name):
-                await query.message.edit_text(f"群组API切换成功！当前API: {api_name}。")
+            if groups.group_config_arg_update(int(group_id), 'api', api_name)["success"]:
+                await safe_edit_message(query.message, f"群组API切换成功！当前API: {api_name}。")
             else:
-                await query.message.edit_text("API切换失败，请稍后重试。")
+                await safe_edit_message(query.message, "API切换失败，请稍后重试。")
         except Exception as e:
             logger.error(f"设置群组API失败, 错误: {str(e)}")
             if update.callback_query and update.callback_query.message:
-                await update.callback_query.message.edit_text("设置失败，请稍后重试。")
+                await safe_edit_message(update.callback_query.message, "设置失败，请稍后重试。")
 
 
 class SetPresetCallback(BaseCallback):
@@ -232,22 +300,23 @@ class SetPresetCallback(BaseCallback):
                 return
             info = public.update_info_get(update)
             if not info or not info.get('user_id'):
-                await query.message.edit_text("无法获取用户信息。")
+                await safe_edit_message(query.message, "无法获取用户信息。")
                 return
             
             conv_id = info.get('conv_id')
             if not conv_id:
-                await query.message.edit_text("无法找到当前会话。")
+                await safe_edit_message(query.message, "无法找到当前会话。")
                 return
 
-            if db.user_config_arg_update(info['user_id'], 'preset', data) and db.conversation_private_arg_update(conv_id, 'preset', data):
-                await query.message.edit_text(f"预设切换成功！当前预设: {data}。")
+            if (user_config.user_config_arg_update(info['user_id'], 'preset', data)["success"] and
+                conversations.conversation_private_arg_update(conv_id, 'preset', data)["success"]):
+                await safe_edit_message(query.message, f"预设切换成功！当前预设: {data}。")
             else:
-                await query.message.edit_text("预设切换失败。")
+                await safe_edit_message(query.message, "预设切换失败。")
         except Exception as e:
             logger.error(f"设置预设失败, 错误: {str(e)}")
             if update.callback_query and update.callback_query.message:
-                await update.callback_query.message.edit_text("设置预设时发生错误。")
+                await safe_edit_message(update.callback_query.message, "设置预设时发生错误。")
 
 
 class SetConversationCallback(BaseCallback):
@@ -268,28 +337,29 @@ class SetConversationCallback(BaseCallback):
                 return
             info = public.update_info_get(update)
             if not info or not info.get('user_id'):
-                await query.message.edit_text("无法获取用户信息。")
+                await safe_edit_message(query.message, "无法获取用户信息。")
                 return
             
             user_id = info['user_id']
             conv_id = int(data)
 
-            if db.user_config_arg_update(user_id, 'conv_id', conv_id):
-                conv_data = db.conversation_private_get(conv_id)
-                if conv_data:
-                    char, preset = conv_data
-                    if db.user_config_arg_update(user_id, 'preset', preset) and db.user_config_arg_update(user_id, 'char', char):
-                        await query.message.edit_text(f"加载对话成功！当前对话ID: {conv_id}。")
+            if user_config.user_config_arg_update(user_id, 'conv_id', conv_id)["success"]:
+                conv_result = conversations.conversation_private_get(conv_id)
+                if conv_result["success"] and conv_result["data"]:
+                    char, preset = conv_result["data"]
+                    if (user_config.user_config_arg_update(user_id, 'preset', preset)["success"] and
+                        user_config.user_config_arg_update(user_id, 'char', char)["success"]):
+                        await safe_edit_message(query.message, f"加载对话成功！当前对话ID: {conv_id}。")
                     else:
-                        await query.message.edit_text("更新用户配置失败。")
+                        await safe_edit_message(query.message, "更新用户配置失败。")
                 else:
-                    await query.message.edit_text("找不到对应的对话记录。")
+                    await safe_edit_message(query.message, "找不到对应的对话记录。")
             else:
-                await query.message.edit_text("设置当前对话失败。")
+                await safe_edit_message(query.message, "设置当前对话失败。")
         except Exception as e:
             logger.error(f"设置对话失败, 错误: {str(e)}")
             if update.callback_query and update.callback_query.message:
-                await update.callback_query.message.edit_text("加载对话时发生错误。")
+                await safe_edit_message(update.callback_query.message, "加载对话时发生错误。")
 
 
 class DelConversationCallback(BaseCallback):
@@ -310,16 +380,16 @@ class DelConversationCallback(BaseCallback):
 
         try:
             conv_id = int(data)
-            if db.conversation_private_delete(conv_id):
-                await query.message.edit_text(f"删除对话成功！已删除对话: {conv_id}。")
+            if conversations.conversation_private_delete(conv_id)["success"]:
+                await safe_edit_message(query.message, f"删除对话成功！已删除对话: {conv_id}。")
             else:
-                await query.message.edit_text("删除对话失败，可能对话不存在。")
+                await safe_edit_message(query.message, "删除对话失败，可能对话不存在。")
         except (ValueError, TypeError) as e:
             logger.error(f"删除对话失败，无效数据: {data}, 错误: {str(e)}")
-            await query.message.edit_text("删除对话失败，数据格式错误。")
+            await safe_edit_message(query.message, "删除对话失败，数据格式错误。")
         except Exception as e:
             logger.error(f"删除对话时发生未知错误, 错误: {str(e)}")
-            await query.message.edit_text("删除对话时发生未知错误。")
+            await safe_edit_message(query.message, "删除对话时发生未知错误。")
 
 
 class DialogShowCallback(BaseCallback):
@@ -341,12 +411,13 @@ class DialogShowCallback(BaseCallback):
 
         try:
             conv_id = int(data)
-            conv_info = db.conversation_private_get(conv_id)
-            if not conv_info:
-                await query.message.edit_text("对话不存在或已被删除。")
+            conv_result = conversations.conversation_private_get(conv_id)
+            if not conv_result["success"] or not conv_result["data"]:
+                await safe_edit_message(query.message, "对话不存在或已被删除。")
                 return
-            
-            conv_list = db.user_conversations_get_for_dialog(query.from_user.id)
+
+            conv_list_result = users.user_conversations_get_for_dialog(query.from_user.id)
+            conv_list = conv_list_result["data"] if conv_list_result["success"] else []
             summary = "暂无摘要"
             for conv in conv_list or []:
                 if conv[0] == conv_id:
@@ -360,13 +431,13 @@ class DialogShowCallback(BaseCallback):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.message.edit_text(
+            await safe_edit_message(query.message, 
                 f"对话摘要：\n{summary}",
                 reply_markup=reply_markup
             )
         except Exception as e:
             logger.error(f"显示对话详情失败, 错误: {str(e)}")
-            await query.message.edit_text("获取对话详情失败，请稍后重试。")
+            await safe_edit_message(query.message, "获取对话详情失败，请稍后重试。")
 
 
 class DialogLoadCallback(BaseCallback):
@@ -390,24 +461,24 @@ class DialogLoadCallback(BaseCallback):
             info = public.update_info_get(update)
             assert info is not None
 
-            conv_info = db.conversation_private_get(conv_id)
-            if not conv_info:
-                await query.message.edit_text("对话不存在或已被删除。")
+            conv_result = conversations.conversation_private_get(conv_id)
+            if not conv_result["success"] or not conv_result["data"]:
+                await safe_edit_message(query.message, "对话不存在或已被删除。")
                 return
-            
-            character, preset = conv_info
+
+            character, preset = conv_result["data"]
             user_id = info['user_id']
+
+            user_config.user_config_arg_update(user_id, 'conv_id', conv_id)
+            user_config.user_config_arg_update(user_id, 'char', character)
+            user_config.user_config_arg_update(user_id, 'preset', preset)
             
-            db.user_config_arg_update(user_id, 'conv_id', conv_id)
-            db.user_config_arg_update(user_id, 'char', character)
-            db.user_config_arg_update(user_id, 'preset', preset)
-            
-            await query.message.edit_text(
+            await safe_edit_message(query.message, 
                 f"对话加载成功！\n角色: {character.split('_')[0]}\n预设: {preset}"
             )
         except Exception as e:
             logger.error(f"加载对话失败, 错误: {str(e)}")
-            await query.message.edit_text("加载对话失败，请稍后重试。")
+            await safe_edit_message(query.message, "加载对话失败，请稍后重试。")
 
 
 class DialogDeleteCallback(BaseCallback):
@@ -428,13 +499,13 @@ class DialogDeleteCallback(BaseCallback):
 
         try:
             conv_id = int(data)
-            if db.conversation_private_delete(conv_id):
-                await query.message.edit_text("对话删除成功！")
+            if conversations.conversation_private_delete(conv_id)["success"]:
+                await safe_edit_message(query.message, "对话删除成功！")
             else:
-                await query.message.edit_text("对话删除失败，请稍后重试。")
+                await safe_edit_message(query.message, "对话删除失败，请稍后重试。")
         except Exception as e:
             logger.error(f"删除对话失败, 错误: {str(e)}")
-            await query.message.edit_text("删除对话失败，请稍后重试。")
+            await safe_edit_message(query.message, "删除对话失败，请稍后重试。")
 
 
 class DialogBackCallback(BaseCallback):
@@ -460,15 +531,15 @@ class DialogBackCallback(BaseCallback):
             markup = Inline.print_dialog_conversations(info['user_id'])
             
             if markup == "没有可用的对话。":
-                await query.message.edit_text(markup)
+                await safe_edit_message(query.message, markup)
             else:
-                await query.message.edit_text(
+                await safe_edit_message(query.message, 
                     "请选择一个对话：",
                     reply_markup=markup
                 )
         except Exception as e:
             logger.error(f"返回对话列表失败, 错误: {str(e)}")
-            await query.message.edit_text("返回列表失败，请稍后重试。")
+            await safe_edit_message(query.message, "返回列表失败，请稍后重试。")
 
 
 class GroupCharCallback(BaseCallback):
@@ -492,11 +563,11 @@ class GroupCharCallback(BaseCallback):
             parts = data.split('_')
             char = f"{parts[0]}_{parts[1]}"
             group_id = int(parts[2])
-            db.group_info_update(group_id, 'char', char)
-            await query.message.edit_text(f"切换角色成功！当前角色: {char.split('_')[0]}。")
+            groups.group_info_update(group_id, 'char', char)
+            await safe_edit_message(query.message, f"切换角色成功！当前角色: {char.split('_')[0]}。")
         except Exception as e:
             logger.error(f"设置群组角色失败, 错误: {str(e)}")
-            await query.message.edit_text("设置群组角色失败。")
+            await safe_edit_message(query.message, "设置群组角色失败。")
 
 
 class GroupKeywordCancelCallback(BaseCallback):
@@ -528,7 +599,7 @@ class GroupKeywordCancelCallback(BaseCallback):
             except Exception as e:
                 logger.warning(f"清除按钮失败: {e}")
         context.user_data.clear()
-        await query.message.edit_text("操作已取消，关键词列表未修改。")
+        await safe_edit_message(query.message, "操作已取消，关键词列表未修改。")
 
 
 class GroupKeywordAddCallback(BaseCallback):
@@ -553,7 +624,7 @@ class GroupKeywordAddCallback(BaseCallback):
         keyboard = [[InlineKeyboardButton("取消", callback_data=f"group_kw_cancel_{group_id}")]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         context.user_data['original_message_id'] = query.message.message_id
-        await query.message.edit_text("请回复此消息，输入要添加的关键词（用空格分隔）。", reply_markup=reply_markup)
+        await safe_edit_message(query.message, "请回复此消息，输入要添加的关键词（用空格分隔）。", reply_markup=reply_markup)
         context.user_data['keyword_action'] = 'add'
         context.user_data['group_id'] = group_id
 
@@ -577,9 +648,10 @@ class GroupKeywordDeleteCallback(BaseCallback):
 
         await query.answer()
         group_id = int(data)
-        keywords = db.group_keyword_get(group_id)
+        keywords_result = groups.group_keyword_get(group_id)
+        keywords = keywords_result["data"] if keywords_result["success"] else []
         if not keywords:
-            await query.message.edit_text("当前群组没有关键词可删除。")
+            await safe_edit_message(query.message, "当前群组没有关键词可删除。")
             return
         context.user_data['keyword_action'] = 'delete'
         context.user_data['group_id'] = group_id
@@ -598,7 +670,7 @@ class GroupKeywordDeleteCallback(BaseCallback):
             InlineKeyboardButton("取消", callback_data=f"group_kw_cancel_{group_id}")
         ])
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.edit_text("请选择要删除的关键词：", reply_markup=reply_markup)
+        await safe_edit_message(query.message, "请选择要删除的关键词：", reply_markup=reply_markup)
 
 
 class GroupKeywordSelectCallback(BaseCallback):
@@ -626,10 +698,11 @@ class GroupKeywordSelectCallback(BaseCallback):
             context.user_data['to_delete'] = []
         if keyword not in context.user_data['to_delete']:
             context.user_data['to_delete'].append(keyword)
-        keywords = db.group_keyword_get(group_id)
+        keywords_result = groups.group_keyword_get(group_id)
+        keywords = keywords_result["data"] if keywords_result["success"] else []
         remaining_keywords = [kw for kw in keywords if kw not in context.user_data['to_delete']]
         if not remaining_keywords:
-            await query.message.edit_text("已选择所有关键词进行删除。")
+            await safe_edit_message(query.message, "已选择所有关键词进行删除。")
             keyboard = [
                 [InlineKeyboardButton("提交", callback_data=f"group_kw_submit_del_{group_id}"),
                  InlineKeyboardButton("取消", callback_data=f"group_kw_cancel_{group_id}")]
@@ -650,7 +723,7 @@ class GroupKeywordSelectCallback(BaseCallback):
             ])
         reply_markup = InlineKeyboardMarkup(keyboard)
         selected_text = ", ".join([f"`{kw}`" for kw in context.user_data['to_delete']]) if context.user_data.get('to_delete') else "无"
-        await query.message.edit_text(f"已选择删除的关键词：{selected_text}\r\n请选择更多要删除的关键词：",
+        await safe_edit_message(query.message, f"已选择删除的关键词：{selected_text}\r\n请选择更多要删除的关键词：",
                                       reply_markup=reply_markup, parse_mode='Markdown')
 
 
@@ -675,12 +748,13 @@ class GroupKeywordSubmitDeleteCallback(BaseCallback):
         group_id = int(data)
         to_delete_list = context.user_data.get('to_delete', [])
         if to_delete_list and context.user_data.get('keyword_action') == 'delete':
-            keywords = db.group_keyword_get(group_id)
+            keywords_result = groups.group_keyword_get(group_id)
+            keywords = keywords_result["data"] if keywords_result["success"] else []
             new_keywords = [kw for kw in keywords if kw not in to_delete_list]
-            db.group_keyword_set(group_id, new_keywords)
-            await query.message.edit_text(f"已成功删除关键词：{', '.join(to_delete_list)}")
+            groups.group_keyword_set(group_id, new_keywords)
+            await safe_edit_message(query.message, f"已成功删除关键词：{', '.join(to_delete_list)}")
         else:
-            await query.message.edit_text("删除操作未完成或已取消。")
+            await safe_edit_message(query.message, "删除操作未完成或已取消。")
         context.user_data.clear()
 
 
@@ -774,7 +848,7 @@ class SettingsCallback(BaseCallback):
                     import random
                     while True:
                         new_conv_id = random.randint(10000000, 99999999)
-                        if db.conversation_private_check(new_conv_id):
+                        if conversations.conversation_private_check(new_conv_id)["data"]:
                             break
                     
                     character = info.get('char')
@@ -784,8 +858,8 @@ class SettingsCallback(BaseCallback):
                         await query.edit_message_text("无法获取角色或预设，创建新对话失败。")
                         return
 
-                    if db.conversation_private_create(new_conv_id, user_id, character, preset):
-                        db.user_config_arg_update(user_id, "conv_id", new_conv_id)
+                    if conversations.conversation_private_create(new_conv_id, user_id, character, preset)["success"]:
+                        user_config.user_config_arg_update(user_id, "conv_id", new_conv_id)
                         await query.edit_message_text("创建成功！")
                     else:
                         await query.edit_message_text("创建新对话失败，请联系管理员。")
@@ -818,7 +892,7 @@ class SettingsCallback(BaseCallback):
                 await query.edit_message_text("未知的设置操作。")
         except Exception as e:
             logger.error(f"处理设置回调失败, data: {data}, 错误: {str(e)}")
-            await query.message.edit_text("处理设置时发生错误。")
+            await safe_edit_message(query.message, "处理设置时发生错误。")
 
 
 class DirectorCallback(BaseCallback):
@@ -839,7 +913,8 @@ class DirectorCallback(BaseCallback):
         """
 
         query = update.callback_query
-        await query.answer()
+        if query:
+            await query.answer()
         user_id = update.effective_user.id
 
         if data is None or data == "":
@@ -938,19 +1013,23 @@ class CallbackHandler:
     async def handle_callback_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """处理回调查询"""
         query = update.callback_query
+        if not query:
+            return
+
         await query.answer()
         data = query.data
-        user_id = query.from_user.id
+        user_id = query.from_user.id if query.from_user else 0
 
         try:
             for prefix, callback in self.callback_mapping.items():
-                if data.startswith(prefix):
+                if data and data.startswith(prefix):
                     logger.debug(f"匹配到回调处理器: {prefix}, data: {data}")  # 添加日志
                     await callback.handle_callback(update, context, data[len(prefix):])
                     return
 
             logger.warning(f"未知的回调数据: {data}, user_id: {user_id}")
-            await query.message.reply_text("未知的回调操作。")
+            if query.message:
+                await safe_reply_message(query.message, "未知的回调操作。")
 
         except Exception as e:
             logger.error(f"处理回调查询失败, user_id: {user_id}, data: {data}, 错误: {str(e)}")
