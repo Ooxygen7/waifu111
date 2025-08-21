@@ -9,9 +9,10 @@ from telegram.helpers import escape_markdown
 from telegram.ext import ContextTypes
 
 from bot_core.callback_handlers.inline import Inline
-from utils import db_utils as db, file_utils as file
+from bot_core.data_repository import ConversationsRepository, GroupsRepository
+from utils import file_utils as file
 from utils.logging_utils import setup_logging
-from .base import BaseCommand, CommandMeta
+from bot_core.command_handlers.base import BaseCommand, CommandMeta
 from agent.tools_registry import MarketToolRegistry
 from bot_core.services.messages import handle_agent_session
 from agent.llm_functions import run_agent_session, analyze_image_for_rating, analyze_image_for_kao
@@ -33,9 +34,10 @@ class RemakeCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        if db.conversation_group_delete(
+        result = ConversationsRepository.conversation_group_delete(
             update.message.chat.id, update.message.from_user.id
-        ):
+        )
+        if result["success"]:
             logger.info(f"处理 /remake 命令，用户ID: {update.effective_user.id}")
             await update.message.reply_text("您已重开对话！")
 
@@ -80,7 +82,8 @@ class RateCommand(BaseCommand):
         if not 0 <= rate_value <= 1:
             await update.message.reply_text("请输入一个0-1的小数")
             return
-        if db.group_info_update(update.message.chat.id, "rate", rate_value):
+        result = GroupsRepository.group_info_update(update.message.chat.id, "rate", rate_value)
+        if result["success"]:
             await update.message.reply_text(f"已设置触发频率: {rate_value}")
 
 
@@ -96,7 +99,8 @@ class KeywordCommand(BaseCommand):
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        keywords = db.group_keyword_get(update.message.chat.id)
+        keywords_result = GroupsRepository.group_keyword_get(update.message.chat.id)
+        keywords = keywords_result["data"] if keywords_result["success"] else []
         if not keywords:
             keywords_text = "当前群组没有设置关键词。"
         else:
@@ -145,10 +149,12 @@ class DisableTopicCommand(BaseCommand):
 
             topic_id = str(message.message_thread_id)
 
-            disabled_topics = db.group_disabled_topics_get(group_id)
+            disabled_topics_result = GroupsRepository.group_disabled_topics_get(group_id)
+            disabled_topics = disabled_topics_result["data"] if disabled_topics_result["success"] else []
             if topic_id not in disabled_topics:
                 disabled_topics.append(topic_id)
-                if db.group_disabled_topics_set(group_id, disabled_topics):
+                result = GroupsRepository.group_disabled_topics_set(group_id, disabled_topics)
+                if result["success"]:
                     await message.reply_text(
                         f"已禁用当前话题 (ID: `{topic_id}`)。Bot将不会在此话题中发言。",
                         parse_mode="Markdown",
@@ -191,10 +197,12 @@ class EnableTopicCommand(BaseCommand):
 
             topic_id = str(message.message_thread_id)
 
-            disabled_topics = db.group_disabled_topics_get(group_id)
+            disabled_topics_result = GroupsRepository.group_disabled_topics_get(group_id)
+            disabled_topics = disabled_topics_result["data"] if disabled_topics_result["success"] else []
             if topic_id in disabled_topics:
                 disabled_topics.remove(topic_id)
-                if db.group_disabled_topics_set(group_id, disabled_topics):
+                result = GroupsRepository.group_disabled_topics_set(group_id, disabled_topics)
+                if result["success"]:
                     await message.reply_text(
                         f"已启用当前话题 (ID: `{topic_id}`)。Bot将在此话题中发言。",
                         parse_mode="Markdown",

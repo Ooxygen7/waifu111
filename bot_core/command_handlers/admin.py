@@ -7,10 +7,10 @@ import sys
 from agent.llm_functions import run_agent_session
 import bot_core.services.messages as messages
 from agent.tools_registry import DatabaseSuperToolRegistry
-from utils import db_utils as db
+from bot_core.data_repository import UsersRepository
 from utils.config_utils import get_config
-from utils.db_utils import manual_wal_checkpoint
-from .base import BaseCommand, CommandMeta
+from utils.db_utils import manual_wal_checkpoint, close_all_connections
+from bot_core.command_handlers.base import BaseCommand, CommandMeta
 from utils.logging_utils import setup_logging
 
 setup_logging()
@@ -44,15 +44,18 @@ class AddFrequencyCommand(BaseCommand):
             return
 
         if target_user == 'all':
-            if db.user_frequency_free(value):
+            result = UsersRepository.user_frequency_free(value)
+            if result["success"]:
                 await update.message.reply_text(f"已为所有用户添加{value}条额度")
             else:
                 await update.message.reply_text("操作失败：无法为所有用户添加额度，请检查数据库连接。")
         else:
-            if db.user_info_update(target_user, 'remain_frequency', value, True):
+            result = UsersRepository.user_info_update(target_user, 'remain_frequency', value, True)
+            if result["success"]:
                 if not target_user.startswith('@'):
-                    user_info = db.user_info_get(int(target_user))
-                    if user_info:
+                    user_info_result = UsersRepository.user_info_get(int(target_user))
+                    if user_info_result["success"] and user_info_result["data"]:
+                        user_info = user_info_result["data"]
                         await update.message.reply_text(
                             f"已为{str(user_info['user_name'])}添加{value}条额度")
                     else:
@@ -85,9 +88,14 @@ class SetTierCommand(BaseCommand):
         target_user_id = int(args[0])
         value = int(args[1])
 
-        db.user_info_update(target_user_id, 'account_tier', value, False)
-        await update.message.reply_text(
-            f"{str(db.user_info_get(target_user_id)['user_name'])}账户等级现在是{str(db.user_info_get(target_user_id)['tier'])}")
+        UsersRepository.user_info_update(target_user_id, 'account_tier', value, False)
+        user_info_result = UsersRepository.user_info_get(target_user_id)
+        if user_info_result["success"] and user_info_result["data"]:
+            user_info = user_info_result["data"]
+            await update.message.reply_text(
+                f"{str(user_info['user_name'])}账户等级现在是{str(user_info['tier'])}")
+        else:
+            await update.message.reply_text("用户信息获取失败")
 
 
 class DatabaseCommand(BaseCommand):
@@ -365,7 +373,7 @@ class RestartCommand(BaseCommand):
         try:
             # 1. 关闭数据库连接
             logger.info("正在关闭数据库连接...")
-            db.close_all_connections()
+            close_all_connections()
             await update.message.reply_text("数据库连接已关闭。")
 
             # 2. 执行重启

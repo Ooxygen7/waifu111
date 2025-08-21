@@ -14,9 +14,9 @@ import bot_core.services.utils.tg_parse as public
 from bot_core.callback_handlers.inline import Inline
 from agent.llm_functions import run_agent_session,generate_char
 from bot_core.services.conversation import PrivateConv
-from utils import db_utils as db
+from bot_core.data_repository import ConversationsRepository, UserConfigRepository, UsersRepository, SignRepository
 from utils.logging_utils import setup_logging
-from .base import BaseCommand, CommandMeta
+from bot_core.command_handlers.base import BaseCommand, CommandMeta
 from agent.tools_registry import MarketToolRegistry
 
 setup_logging()
@@ -144,7 +144,8 @@ class StreamCommand(BaseCommand):
         info = public.update_info_get(update)
         if not info:
             return
-        if db.user_stream_switch(info["user_id"]):
+        result = UserConfigRepository.user_stream_switch(info["user_id"])
+        if result["success"]:
             await update.message.reply_text("切换成功！")
 
 
@@ -210,9 +211,10 @@ class NewCommand(BaseCommand):
         # 1. 生成新的会话ID
         while True:
             new_conv_id = random.randint(10000000, 99999999)
-            if db.conversation_private_check(new_conv_id):
+            check_result = ConversationsRepository.conversation_private_check(new_conv_id)
+            if check_result["success"] and check_result["data"]:
                 break
-        
+
         # 2. 从info中获取角色和预设
         character = info.get('char')
         preset = info.get('preset')
@@ -223,10 +225,11 @@ class NewCommand(BaseCommand):
             return
 
         # 3. 创建新对话
-        if db.conversation_private_create(new_conv_id, user_id, character, preset):
+        create_result = ConversationsRepository.conversation_private_create(new_conv_id, user_id, character, preset)
+        if create_result["success"]:
             # 4. 更新用户当前会话ID
-            db.user_config_arg_update(user_id, "conv_id", new_conv_id)
-            db.user_conversations_count_update(user_id)  # 更新用户对话计数
+            UserConfigRepository.user_config_arg_update(user_id, "conv_id", new_conv_id)
+            UsersRepository.user_conversations_count_update(user_id)  # 更新用户对话计数
             await update.message.reply_text("创建成功！", parse_mode="MarkDown")
         else:
             await update.message.reply_text("创建新对话失败，请联系管理员。")
@@ -271,25 +274,29 @@ class SaveCommand(BaseCommand):
         char = config.get("char")
         preset = config.get("preset")
 
-        if conv_id and char and preset and db.conversation_private_update(
-            conv_id, char, preset
-        ) and db.conversation_private_save(conv_id):
+        update_result = ConversationsRepository.conversation_private_update(conv_id, char, preset)
+        save_result = ConversationsRepository.conversation_private_save(conv_id)
+        if conv_id and char and preset and update_result["success"] and save_result["success"]:
             placeholder_message = await update.message.reply_text("保存中...")
 
             async def create_summary(current_conv_id, placeholder):
                 summary = await generate_summary(current_conv_id)
-                if summary and db.conversation_private_summary_add(current_conv_id, summary):
-                    logger.info(
-                        f"保存对话并生成总结, conv_id: {current_conv_id}, summary: {summary}"
-                    )
-                    escaped_summary = escape_markdown(summary, version=1)
-                    try:
-                        await placeholder.edit_text(
-                            f"保存成功，对话总结:`{escaped_summary}`", parse_mode="MarkDown"
+                if summary:
+                    summary_result = ConversationsRepository.conversation_private_summary_add(current_conv_id, summary)
+                    if summary_result["success"]:
+                        logger.info(
+                            f"保存对话并生成总结, conv_id: {current_conv_id}, summary: {summary}"
                         )
-                    except Exception as e:
-                        logger.warning(e)
-                        await placeholder.edit_text(f"保存成功，对话总结:`{escaped_summary}`")
+                        escaped_summary = escape_markdown(summary, version=1)
+                        try:
+                            await placeholder.edit_text(
+                                f"保存成功，对话总结:`{escaped_summary}`", parse_mode="MarkDown"
+                            )
+                        except Exception as e:
+                            logger.warning(e)
+                            await placeholder.edit_text(f"保存成功，对话总结:`{escaped_summary}`")
+                    else:
+                        await placeholder.edit_text("保存失败")
                 else:
                     await placeholder.edit_text("保存失败")
 
@@ -421,7 +428,8 @@ class NickCommand(BaseCommand):
             )
             return
         nick_name = args[0].strip()
-        if db.user_config_arg_update(info["user_id"], "nick", nick_name):
+        result = UserConfigRepository.user_config_arg_update(info["user_id"], "nick", nick_name)
+        if result["success"]:
             await update.message.reply_text(f"昵称已更新为：{nick_name}")
         else:
             await update.message.reply_text("昵称更新失败")
@@ -717,10 +725,12 @@ class SignCommand(BaseCommand):
         if not update.message or not update.message.from_user:
             return
         user_id = update.message.from_user.id
-        sign_info = db.user_sign_info_get(user_id)
+        sign_info_result = SignRepository.user_sign_info_get(user_id)
+        sign_info = sign_info_result["data"] if sign_info_result["success"] else {"last_sign": 0, "frequency": 0}
         if sign_info.get("last_sign") == 0:
-            db.user_sign_info_create(user_id)
-            sign_info = db.user_sign_info_get(user_id)
+            SignRepository.user_sign_info_create(user_id)
+            sign_info_result = SignRepository.user_sign_info_get(user_id)
+            sign_info = sign_info_result["data"] if sign_info_result["success"] else {"frequency": 0}
             await update.message.reply_text(
                 f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)"
             )
@@ -751,10 +761,11 @@ class SignCommand(BaseCommand):
                     f"您8小时内已完成过签到，您可以在{int(remaining_hours)}小时后再次签到。"
                 )
             else:
-                db.user_sign(user_id)
-                sign_info = db.user_sign_info_get(
+                SignRepository.user_sign(user_id)
+                sign_info_result = SignRepository.user_sign_info_get(
                     user_id
                 )
+                sign_info = sign_info_result["data"] if sign_info_result["success"] else {"frequency": 0}
                 await update.message.reply_text(
                     f"签到成功！临时额度+50！\r\n你的临时额度为: {sign_info.get('frequency')}条(上限100)"
                 )
