@@ -22,11 +22,13 @@ class MessageFactory:
     """
 
     def __init__(self, update: Optional[Update] = None, context: Optional[ContextTypes.DEFAULT_TYPE] = None):
-        if not update and not context:
-            raise ValueError("必须提供 Update 或 ContextTypes.DEFAULT_TYPE 对象")
-        self.update = update
+        self.update = update 
         self.context = context
-        self.bot = self.context.bot if self.context else self.update.get_bot()
+        if not self.update and not self.context:
+            raise ValueError("必须提供 Update 或 ContextTypes.DEFAULT_TYPE 对象")
+        self.bot = self.context.bot or self.update.get_bot()
+
+        
 
     async def _send_or_edit_internal(
         self,
@@ -46,7 +48,7 @@ class MessageFactory:
             elif self.update and self.update.message:
                 chat_id = self.update.message.chat_id
             elif self.update and self.update.callback_query:
-                chat_id = self.update.callback_query.message.chat_id if self.update.callback_query.message else None
+                chat_id = self.update.callback_query.message.chat_id if self.update.callback_query.message and hasattr(self.update.callback_query.message, 'chat_id') else None
             elif self.update and self.update.effective_chat:
                 chat_id = self.update.effective_chat.id
 
@@ -54,7 +56,7 @@ class MessageFactory:
             logger.error(f"无法确定 chat_id。Update: {self.update}, Placeholder: {placeholder}")
             return None
 
-        logger.info(f"确定的 chat_id: {chat_id}")
+        logger.debug(f"确定的 chat_id: {chat_id}")
 
         # 1. 分割消息
         text_parts = self._split_text(text)
@@ -89,10 +91,13 @@ class MessageFactory:
                 except Exception as e:
                     logger.error(f"纯文本模式发送也失败: {e}", exc_info=True)
                     error_msg = f"消息部分 {i+1} 发送失败。"
-                    if target_message:
-                        await target_message.edit_text(error_msg)
-                    else:
-                        await self.bot.send_message(chat_id=chat_id, text=error_msg)
+                    try:
+                        if target_message:
+                            await target_message.edit_text(error_msg)
+                        else:
+                            await self.bot.send_message(chat_id=chat_id, text=error_msg)
+                    except Exception as fallback_e:
+                        logger.error(f"发送错误消息也失败: {fallback_e}", exc_info=True)
             except TelegramError as e:
                 if "Message is not modified" in str(e):
                     logger.debug("消息未修改，跳过。")
@@ -117,21 +122,31 @@ class MessageFactory:
         photo: Optional[bytes]
     ) -> Message:
         """尝试发送或编辑单个消息部分。"""
-        if placeholder:
-            # 如果有图片，不能编辑，只能发送新消息
+        try:
+            if placeholder:
+                # 如果有图片，不能编辑，只能发送新消息
+                if photo:
+                    await placeholder.delete() # 删除占位符
+                    return await self.bot.send_photo(chat_id=chat_id, photo=photo, caption=text_part, parse_mode=parse_mode)
+
+                # 编辑消息并处理可能的 bool 返回值
+                result = await placeholder.edit_text(text=text_part, parse_mode=parse_mode)
+                if isinstance(result, bool):
+                    # 消息未修改或编辑成功但未返回新消息对象，返回原消息对象
+                    return placeholder
+                return result
+
             if photo:
-                await placeholder.delete() # 删除占位符
                 return await self.bot.send_photo(chat_id=chat_id, photo=photo, caption=text_part, parse_mode=parse_mode)
-            return await placeholder.edit_text(text=text_part, parse_mode=parse_mode)
-        
-        if photo:
-            return await self.bot.send_photo(chat_id=chat_id, photo=photo, caption=text_part, parse_mode=parse_mode)
-        
-        # 如果是回复，使用 reply_text
-        if self.update and self.update.message:
-             return await self.update.message.reply_text(text=text_part, parse_mode=parse_mode)
-        # 否则直接发送
-        return await self.bot.send_message(chat_id=chat_id, text=text_part, parse_mode=parse_mode)
+
+            # 如果是回复，使用 reply_text
+            if self.update and self.update.message:
+                return await self.update.message.reply_text(text=text_part, parse_mode=parse_mode)
+            # 否则直接发送
+            return await self.bot.send_message(chat_id=chat_id, text=text_part, parse_mode=parse_mode)
+        except Exception as e:
+            logger.error(f"发送消息部分失败: {e}", exc_info=True)
+            raise
 
 
     def _split_text(self, text: str) -> list[str]:
@@ -191,11 +206,15 @@ async def update_message(text: str, placeholder: Message):
     兼容旧版：更新一条消息。
     """
     try:
-        await placeholder.edit_text(text, parse_mode="markdown")
+        result = await placeholder.edit_text(text, parse_mode="markdown")
+        if isinstance(result, bool):
+            logger.debug("edit_text 返回布尔值，消息可能未修改")
     except BadRequest:
         logger.warning("Markdown 解析失败，回退到纯文本模式。")
         try:
-            await placeholder.edit_text(text)
+            result = await placeholder.edit_text(text)
+            if isinstance(result, bool):
+                logger.debug("edit_text 返回布尔值，消息可能未修改")
         except Exception as e:
             logger.error(f"纯文本模式更新消息失败: {e}", exc_info=True)
     except TelegramError as e:
@@ -220,11 +239,15 @@ async def finalize_message(sent_message: Message, text: str, parse: str = "html"
         text = f'{text}\n\n<blockquote expandable>{extra_content}</blockquote>'
 
     try:
-        await sent_message.edit_text(text, parse_mode=parse)
+        result = await sent_message.edit_text(text, parse_mode=parse)
+        if isinstance(result, bool):
+            logger.debug("edit_text 返回布尔值，消息可能未修改")
     except BadRequest:
         logger.warning(f"{parse} 解析失败，回退到纯文本模式。")
         try:
-            await sent_message.edit_text(text)
+            result = await sent_message.edit_text(text)
+            if isinstance(result, bool):
+                logger.debug("edit_text 返回布尔值，消息可能未修改")
         except Exception as e:
             logger.error(f"纯文本模式最终确定消息失败: {e}", exc_info=True)
     except TelegramError as e:
@@ -334,3 +357,4 @@ async def handle_agent_session(
             # 尝试回复原始消息
             if update.message:
                 await factory.send(error_message)
+
