@@ -5,7 +5,9 @@ from typing import Union
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
 from bot_core.public_functions.error import BotError
-from utils import file_utils as file, db_utils as db
+from utils import file_utils as file
+#from utils import db_utils as db
+from bot_core.data_repository import UsersRepository as UserRepo
 from utils.logging_utils import setup_logging
 
 setup_logging()
@@ -84,8 +86,13 @@ class Inline:
             Union[str, InlineKeyboardMarkup]: 如果没有对话返回提示，否则返回键盘标记。
         """
         try:
-            conv_list = db.user_conversations_get(user_id)
-            logger.info(f"获取用户对话列表, user_id: {user_id}")
+            # conv_list = db.user_conversations_get(user_id)
+            conv_dict = UserRepo.user_conversations_get(user_id)
+            if not conv_dict.get("success"):
+                return f"获取对话列表出错！\n{conv_dict.get('error', '')}"
+            else:
+                conv_list = conv_dict.get("data", [])
+            logger.info(f"获取用户对话列表(dialog), user_id: {user_id}")
             if not conv_list:
                 return "没有可用的对话。"
             keyboard = [
@@ -110,7 +117,13 @@ class Inline:
             Union[str, InlineKeyboardMarkup]: 如果没有对话返回提示，否则返回键盘标记。
         """
         try:
-            conv_list = db.user_conversations_get_for_dialog(user_id)
+            # conv_list = db.user_conversations_get_for_dialog(user_id)
+            conv_dict = UserRepo.user_conversations_get(user_id)
+            logger.debug(f"conv_dict: {conv_dict}")
+            if not conv_dict.get("success"):
+                return f"获取对话列表出错！\n{conv_dict.get('error', '')}"
+            else:
+                conv_list = conv_dict.get("data", [])
             logger.info(f"获取用户对话列表(dialog), user_id: {user_id}")
             if not conv_list:
                 return "没有可用的对话。"
