@@ -132,10 +132,11 @@ class LLM:
         content_list = []
         if text_content:
             content_list.append({"type": "text", "text": text_content})
-            
+
         for img in images:
             base64_img = await txt.convert_file_id_to_base64(img, context)
             if base64_img:
+                logger.info(f"图片 {img} 嵌入成功")
                 content_list.append(
                     {
                         "type": "image_url",
@@ -144,9 +145,14 @@ class LLM:
                         },
                     }
                 )
-        
+            else:
+                logger.warning(f"图片 {img} 嵌入失败")
+
         if content_list:
             self.messages.append({"role": "user", "content": content_list})
+            logger.info(f"图片嵌入完成，共处理 {len(images)} 张图片，成功 {len(content_list) - (1 if text_content else 0)} 张")
+        else:
+            logger.warning("图片嵌入失败，所有图片处理均失败")
 
     def set_messages(self, messages):
         """
