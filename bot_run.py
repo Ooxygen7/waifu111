@@ -21,6 +21,7 @@ from utils.config_utils import BOT_TOKEN
 from bot_core.services.utils.error import BotError
 from utils.logging_utils import setup_logging
 from bot_core.services.utils.error import error_handler
+from bot_core.services.trading_monitor import get_trading_monitor
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -169,6 +170,27 @@ def main() -> None:
 
         # 添加错误处理器
         app.add_error_handler(error_handler)
+        
+        # 启动交易监控服务
+        async def start_trading_monitor(app_instance: Application) -> None:
+            """启动交易监控服务"""
+            try:
+                monitor = get_trading_monitor(app_instance.bot)
+                if monitor:
+                    await monitor.start_monitoring()
+                    logger.info("交易监控服务已启动")
+            except Exception as e:
+                logger.error(f"启动交易监控服务失败: {e}")
+        
+        # 添加交易监控启动到post_init
+        original_post_init = app.post_init
+        async def combined_post_init(app_instance: Application) -> None:
+            if original_post_init:
+                await original_post_init(app_instance)
+            await start_trading_monitor(app_instance)
+        
+        app.post_init = combined_post_init
+        
         logger.info("机器人初始化完成，准备启动...")
 
         # 启动机器人并确保资源正确释放
@@ -179,9 +201,20 @@ def main() -> None:
             logger.error(f"轮询过程中发生错误: {str(e)}", exc_info=True)
             raise
         finally:
-            logger.info("正在关闭数据库连接...")
+            logger.info("正在关闭服务...")
+            
+            # 停止交易监控服务
+            try:
+                monitor = get_trading_monitor()
+                if monitor:
+                    import asyncio
+                    asyncio.create_task(monitor.stop_monitoring())
+                    logger.info("交易监控服务已停止")
+            except Exception as e:
+                logger.error(f"停止交易监控服务失败: {e}")
+            
+            # 关闭数据库连接
             from utils.db_utils import close_all_connections
-
             close_all_connections()
             logger.info("数据库连接已关闭")
     except Exception as e:

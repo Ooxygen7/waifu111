@@ -106,7 +106,7 @@ class PromptService:
 
 
         if images:
-            image_prompt = "<image_input>\r\n用户发送了图片，请仔细查看图片内容并根据图片内容回复。\r\n</image_input>\r\n"
+            image_prompt = "<image_input>\r\n用户在你需要回复的消息中发送了图片，请仔细查看图片内容，并根据图片内容回复。\r\n</image_input>\r\n"
             self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"{image_prompt}"})
 
         self.prompt_builder.insert_any({"location":"input_mark_start","mode":"before","content":f"<群聊模式>\r\n现在的时间是{str(datetime.datetime.now())}\r\n"

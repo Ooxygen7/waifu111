@@ -140,3 +140,66 @@ create table user_profiles
     last_updated     ANY,
     primary key (user_id, group_id)
 );
+
+-- 模拟盘交易相关表
+-- 用户模拟盘账户表
+create table trading_accounts
+(
+    user_id          integer not null,
+    group_id         integer not null,
+    balance          REAL default 1000.0,  -- USDT余额
+    total_pnl        REAL default 0.0,     -- 总盈亏
+    created_at       TEXT,
+    updated_at       TEXT,
+    primary key (user_id, group_id)
+);
+
+-- 用户仓位表
+create table trading_positions
+(
+    id               integer not null primary key autoincrement,
+    user_id          integer not null,
+    group_id         integer not null,
+    symbol           TEXT not null,        -- 交易对，如BTC/USDT
+    side             TEXT not null,        -- 'long' 或 'short'
+    size             REAL not null,        -- 仓位大小(USDT价值)
+    entry_price      REAL not null,        -- 开仓价格
+    current_price    REAL,                 -- 当前价格
+    pnl              REAL default 0.0,     -- 未实现盈亏
+    liquidation_price REAL,                -- 强平价格
+    created_at       TEXT not null,
+    updated_at       TEXT
+);
+
+-- 救济金记录表
+create table begging_records
+(
+    user_id          integer not null,
+    group_id         integer not null,
+    last_begging     TEXT,                 -- 最后一次领取救济金时间
+    begging_count    integer default 0,    -- 总领取次数
+    primary key (user_id, group_id)
+);
+
+-- 交易历史记录表
+create table trading_history
+(
+    id               integer not null primary key autoincrement,
+    user_id          integer not null,
+    group_id         integer not null,
+    symbol           TEXT not null,
+    side             TEXT not null,        -- 'long' 或 'short'
+    action           TEXT not null,        -- 'open', 'close', 'liquidated'
+    size             REAL not null,
+    price            REAL not null,
+    pnl              REAL default 0.0,     -- 实现盈亏(平仓时)
+    created_at       TEXT not null
+);
+
+-- 价格缓存表(用于存储实时价格数据)
+create table price_cache
+(
+    symbol           TEXT not null primary key,
+    price            REAL not null,
+    updated_at       TEXT not null
+);

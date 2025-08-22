@@ -17,6 +17,7 @@ from agent.tools_registry import MarketToolRegistry
 from bot_core.services.messages import handle_agent_session
 from agent.llm_functions import run_agent_session, analyze_image_for_rating, analyze_image_for_kao
 from utils.config_utils import get_config
+from bot_core.services.trading_service import trading_service
 
 fuck_api = get_config("fuck_or_not_api", "gemini-2.5")
 setup_logging()
@@ -734,3 +735,193 @@ class KaoCommand(BaseCommand):
             encoded_string = base64.b64encode(
                 image_file.read()).decode("utf-8")
         return encoded_string
+
+
+# 模拟盘交易命令
+class LongCommand(BaseCommand):
+    meta = CommandMeta(
+        name="long",
+        command_type="group",
+        trigger="long",
+        menu_text="做多 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=30,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 解析命令参数
+            args = context.args
+            if len(args) < 2:
+                await update.message.reply_text(
+                    "❌ 用法错误！\n正确格式: /long <交易对> <金额>\n例如: /long btc 100"
+                )
+                return
+            
+            symbol = args[0].upper()
+            try:
+                amount = float(args[1].replace('u', '').replace('U', ''))
+            except ValueError:
+                await update.message.reply_text("❌ 金额格式错误！")
+                return
+            
+            if amount <= 0:
+                await update.message.reply_text("❌ 金额必须大于0！")
+                return
+            
+            # 执行开多仓操作
+            result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"做多命令失败: {e}")
+            await update.message.reply_text("❌ 操作失败，请稍后重试")
+
+
+class ShortCommand(BaseCommand):
+    meta = CommandMeta(
+        name="short",
+        command_type="group",
+        trigger="short",
+        menu_text="做空 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=31,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 解析命令参数
+            args = context.args
+            if len(args) < 2:
+                await update.message.reply_text(
+                    "❌ 用法错误！\n正确格式: /short <交易对> <金额>\n例如: /short btc 100"
+                )
+                return
+            
+            symbol = args[0].upper()
+            try:
+                amount = float(args[1].replace('u', '').replace('U', ''))
+            except ValueError:
+                await update.message.reply_text("❌ 金额格式错误！")
+                return
+            
+            if amount <= 0:
+                await update.message.reply_text("❌ 金额必须大于0！")
+                return
+            
+            # 执行开空仓操作
+            result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"做空命令失败: {e}")
+            await update.message.reply_text("❌ 操作失败，请稍后重试")
+
+
+class PositionCommand(BaseCommand):
+    meta = CommandMeta(
+        name="position",
+        command_type="group",
+        trigger="position",
+        menu_text="查看仓位 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=32,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 获取仓位信息
+            result = await trading_service.get_positions(user_id, group_id)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"查看仓位失败: {e}")
+            await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
+
+
+class BeggingCommand(BaseCommand):
+    meta = CommandMeta(
+        name="begging",
+        command_type="group",
+        trigger="begging",
+        menu_text="领取救济金 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=33,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 领取救济金
+            result = trading_service.begging(user_id, group_id)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"救济金命令失败: {e}")
+            await update.message.reply_text("❌ 救济金发放失败，请稍后重试")
+
+
+class CloseCommand(BaseCommand):
+    meta = CommandMeta(
+        name="close",
+        command_type="group",
+        trigger="close",
+        menu_text="平仓 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=34,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 解析命令参数
+            args = context.args
+            if len(args) < 2:
+                await update.message.reply_text(
+                    "❌ 用法错误！\n正确格式: /close <交易对> <方向> [金额]\n例如: /close btc long 50 (部分平仓)\n或: /close btc long (全部平仓)"
+                )
+                return
+            
+            symbol = args[0].upper()
+            side = args[1].lower()
+            
+            if side not in ['long', 'short']:
+                await update.message.reply_text("❌ 方向必须是 long 或 short！")
+                return
+            
+            amount = None
+            if len(args) >= 3:
+                try:
+                    amount = float(args[2].replace('u', '').replace('U', ''))
+                    if amount <= 0:
+                        await update.message.reply_text("❌ 金额必须大于0！")
+                        return
+                except ValueError:
+                    await update.message.reply_text("❌ 金额格式错误！")
+                    return
+            
+            # 执行平仓操作
+            result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", side, amount)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"平仓命令失败: {e}")
+            await update.message.reply_text("❌ 平仓失败，请稍后重试")
