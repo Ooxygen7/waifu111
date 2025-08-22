@@ -3,8 +3,7 @@ import logging
 from agent.llm_functions import generate_summary
 from utils.db_utils import dialog_summary_add
 logger = logging.getLogger(__name__)
-from bot_core.models import User, Conversation, Group
-
+from bot_core.data_repository.conv_model import Conversation
 
 
 class SummaryService:

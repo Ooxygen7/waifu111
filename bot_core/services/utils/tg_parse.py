@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 
 from telegram import Update, User, Message, Chat
 from bot_core.services.utils.error import BotError, DatabaseError
-from bot_core.repository import UserRepository
+from bot_core.data_repository.conv_repo import UserRepository
 from utils import db_utils as db
 from utils.logging_utils import setup_logging
 

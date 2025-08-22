@@ -3,17 +3,17 @@ import logging
 import random
 from types import SimpleNamespace
 from typing import Optional, List, Dict, Any
-from bot_core.models import User, Conversation
+from bot_core.data_repository.conv_model import User, Conversation
 from telegram import Update
 from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
-from bot_core.models import User as UserModel, Conversation as ConversationModel, Group, GroupConfig
+from bot_core.data_repository.conv_model import User as UserModel, Conversation as ConversationModel, Group, GroupConfig
 from bot_core.services.utils.error import BotError
 from bot_core.services.messages import (
     MessageFactory,
     send_message,
 )
-from bot_core.repository import UserRepository, ConversationRepository,GroupRepository
+from bot_core.data_repository.conv_repo import UserRepository, ConversationRepository,GroupRepository
 import bot_core.services.utils.usage as usage
 from bot_core.services.utils.prompt import PromptService
 from bot_core.services.utils.summary import SummaryService

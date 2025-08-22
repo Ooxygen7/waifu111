@@ -32,7 +32,7 @@ def init_db():
     """
     Initializes the database and creates tables if they don't exist.
     """
-    # This will create all tables defined in models.py that inherit from Base
+    # This will create all tables defined in conv_model.py that inherit from Base
     Base.metadata.create_all(bind=engine)
 
 # You can call init_db() when your application starts to ensure tables are created.

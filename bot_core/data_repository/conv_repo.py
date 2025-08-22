@@ -1,8 +1,8 @@
 import random
 import datetime
-from typing import Optional, List
+from typing import Optional
 import utils.db_utils as db
-from bot_core.models import User, Conversation, DialogMessage
+from bot_core.data_repository.conv_model import User, Conversation, DialogMessage
 
 class UserRepository:
     """

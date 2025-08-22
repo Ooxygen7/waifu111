@@ -3,7 +3,7 @@ import logging
 import json
 import random
 from typing import List, Dict, Any, Optional
-from bot_core.models import User, Conversation, Group
+from bot_core.data_repository.conv_model import User, Conversation, Group
 from utils.LLM_utils import PromptsBuilder
 import utils.db_utils as db
 logger = logging.getLogger(__name__)

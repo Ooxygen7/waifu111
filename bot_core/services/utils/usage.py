@@ -2,7 +2,7 @@ import utils.db_utils as db
 import tiktoken
 import logging
 from utils.logging_utils import setup_logging
-from bot_core.models import User
+from bot_core.data_repository.conv_model import User
 from utils.config_utils import get_api_multiple
 from typing import List, Dict, Any, Optional, Tuple
 

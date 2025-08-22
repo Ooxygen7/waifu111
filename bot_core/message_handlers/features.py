@@ -12,7 +12,7 @@ from telegram.ext import ContextTypes
 from agent.llm_functions import analyze_image_for_rating
 import bot_core.services.utils.usage as fm
 from bot_core.services import messages
-from bot_core.repository import UserRepository
+from bot_core.data_repository.conv_repo import UserRepository
 from utils import db_utils as db
 from utils.config_utils import get_config
 from utils.logging_utils import setup_logging
