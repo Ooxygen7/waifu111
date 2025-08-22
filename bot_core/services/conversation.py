@@ -13,11 +13,13 @@ from bot_core.services.messages import (
     MessageFactory,
     send_message,
 )
-from bot_core.data_repository.conv_repo import UserRepository, ConversationRepository,GroupRepository
+from bot_core.data_repository.conv_repo import UserRepository, ConversationRepository, GroupRepository
+from bot_core.data_repository.users_repository import UsersRepository
+from bot_core.data_repository.groups_repository import GroupsRepository
+from bot_core.data_repository.conversations_repository import ConversationsRepository
 import bot_core.services.utils.usage as usage
 from bot_core.services.utils.prompt import PromptService
 from bot_core.services.utils.summary import SummaryService
-from utils import db_utils as db
 from utils import text_utils as txt
 from utils.LLM_utils import LLM
 from utils.text_utils import contains_nsfw
@@ -94,7 +96,8 @@ class GroupConv:
             raise BotError("GroupConv 初始化失败：缺少必要的 message, chat 或 from_user 对象。")
 
         group_id = update.message.chat.id
-        group_name = db.group_name_get(group_id)
+        group_name_result = GroupsRepository.group_name_get(group_id)
+        group_name = group_name_result["data"] if group_name_result["success"] else ""
         self.group = Group(id=group_id, name=group_name or "")
 
         message_text = update.message.text or update.message.caption or ""
@@ -104,9 +107,9 @@ class GroupConv:
         self.prompt_obj = None
         self.placeholder = None
         
-        group_config_data = db.group_config_get(group_id)
-        if group_config_data:
-            api, char, preset = group_config_data
+        group_config_result = GroupsRepository.group_config_get(group_id)
+        if group_config_result["success"] and group_config_result["data"]:
+            api, char, preset = group_config_result["data"]
             self.config = GroupConfig(api=api, char=char, preset=preset)
         else:
             self.config = GroupConfig()
@@ -124,7 +127,8 @@ class GroupConv:
             raise BotError(f"无法在 GroupConv 中加载或创建用户 {update.message.from_user.id}")
         self.user = user
 
-        self.id = db.conversation_group_get(self.group.id, self.user.id) or None
+        conv_result = ConversationsRepository.conversation_group_get(self.group.id, self.user.id)
+        self.id = conv_result["data"] if conv_result["success"] and conv_result["data"] else None
         
         self.images = self._extract_images()
         try:
@@ -254,7 +258,7 @@ class GroupConv:
 
             # 无论是否存在会话ID，都更新 group_dialogs 表
             if self.trigger:
-                db.group_dialog_response_update(
+                GroupsRepository.group_dialog_response_update(
                     group_id=self.group.id,
                     msg_id=self.input.id,
                     trigger_type=self.trigger,
@@ -566,8 +570,11 @@ class ConversationService:
         user_id = self.user.id
 
         # 1. 获取最后的用户输入和消息ID
-        last_input_text = db.dialog_last_input_get(conv_id)
-        msg_ids = db.conversation_latest_message_id_get(conv_id)
+        last_input_result = ConversationsRepository.dialog_last_input_get(conv_id)
+        last_input_text = last_input_result["data"] if last_input_result["success"] else ""
+
+        msg_ids_result = ConversationsRepository.conversation_latest_message_id_get(conv_id)
+        msg_ids = msg_ids_result["data"] if msg_ids_result["success"] else []
         msg_ids = [msg_id for msg_id in msg_ids if msg_id is not None]
 
         if not msg_ids:
@@ -677,13 +684,14 @@ class ConversationService:
         max_attempts = 5
         for _ in range(max_attempts):
             new_conv_id = random.randint(10000000, 99999999)
-            if db.conversation_group_create(
-                    new_conv_id,
-                    self.user.id,
-                    self.user.user_name or '',
-                    group.id,
-                    group.name or ''
-            ):
+            create_result = ConversationsRepository.conversation_group_create(
+                new_conv_id,
+                self.user.id,
+                self.user.user_name or '',
+                group.id,
+                group.name or ''
+            )
+            if create_result["success"]:
                 logger.info(f"为用户 {self.user.id} 在群组 {group.id} 中创建了新的会话ID: {new_conv_id}")
                 return new_conv_id
 
@@ -708,9 +716,10 @@ class ConversationService:
 
         # 1. 保存会话内容到 group_user_dialogs (用于长期对话上下文)
         # 注意：这与 group_dialogs 表不同，后者用于短期日志和上下文。
-        turn = db.dialog_turn_get(conv_id, 'group')
-        db.dialog_content_add(conv_id, 'user', turn + 1, input_message.text_raw, input_message.text_processed, chat_type='group')
-        db.dialog_content_add(conv_id, 'assistant', turn + 2, output_message.text_raw, output_message.text_processed, chat_type='group')
+        turn_result = ConversationsRepository.dialog_turn_get(conv_id, 'group')
+        turn = turn_result["data"] if turn_result["success"] else 0
+        ConversationsRepository.dialog_content_add(conv_id, 'user', turn + 1, input_message.text_raw, input_message.text_processed, chat_type='group')
+        ConversationsRepository.dialog_content_add(conv_id, 'assistant', turn + 2, output_message.text_raw, output_message.text_processed, chat_type='group')
 
         # 2. 更新群组会话的轮次和时间戳
         self.group_repo.update_group_conversation_turn(conv_id, turns_increase=2)
@@ -724,9 +733,9 @@ class ConversationService:
         usage.update_user_usage(group_context, messages, output_message.text_raw, 'group_chat')
 
         # 5. 更新 group_dialogs 表中已存在的记录，补充AI回复和触发类型
-        db.group_dialog_update(input_message.id, 'trigger_type', trigger, group.id)
-        db.group_dialog_update(input_message.id, 'raw_response', output_message.text_raw, group.id)
-        db.group_dialog_update(input_message.id, 'processed_response', output_message.text_processed, group.id)
+        GroupsRepository.group_dialog_update(input_message.id, 'trigger_type', trigger, group.id)
+        GroupsRepository.group_dialog_update(input_message.id, 'raw_response', output_message.text_raw, group.id)
+        GroupsRepository.group_dialog_update(input_message.id, 'processed_response', output_message.text_processed, group.id)
 
         logger.info(f"成功更新了群组 {group.id} 在 group_dialogs 中的记录 (msg_id: {input_message.id})，并保存了会话。")
 
