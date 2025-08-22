@@ -362,7 +362,7 @@ class TradingService:
             
             # 计算总仓位价值和杠杆倍数
             total_position_value = sum(pos['size'] for pos in positions)
-            leverage_ratio = total_position_value / floating_balance if floating_balance > 0 else 0
+            leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else 0
             
             # 计算动态强平阈值
             dynamic_threshold_ratio = self._calculate_dynamic_liquidation_threshold(leverage_ratio)
@@ -572,8 +572,8 @@ class TradingService:
                 # 计算总仓位价值
                 total_position_value = sum(pos['size'] for pos in user_pos_list)
                 
-                # 计算杠杆倍数 (仓位价值/浮动余额)
-                leverage_ratio = total_position_value / floating_balance if floating_balance > 0 else float('inf')
+                # 计算杠杆倍数 (仓位价值/余额)
+                leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else float('inf')
                 
                 # 根据杠杆倍数动态计算强平阈值
                 dynamic_threshold_ratio = self._calculate_dynamic_liquidation_threshold(leverage_ratio)
@@ -665,6 +665,78 @@ class TradingService:
         except Exception as e:
             logger.error(f"批量更新强平价格失败: {e}")
             return {"success": False, "error": str(e)}
+
+    async def get_ranking_data(self, group_id: int) -> Dict:
+        """获取群组排行榜数据"""
+        try:
+            from utils.db_utils import query_db
+            
+            # 获取总盈亏排行榜 (top 5)
+            pnl_query = """
+                SELECT user_id, total_pnl 
+                FROM trading_accounts 
+                WHERE group_id = ? 
+                ORDER BY total_pnl DESC 
+                LIMIT 5
+            """
+            pnl_results = query_db(pnl_query, (group_id,))
+            
+            # 获取当前浮动余额排行榜 (top 5)
+            balance_query = """
+                SELECT user_id, balance 
+                FROM trading_accounts 
+                WHERE group_id = ? 
+                ORDER BY balance DESC 
+                LIMIT 5
+            """
+            balance_results = query_db(balance_query, (group_id,))
+            
+            # 获取爆仓次数排行榜 (top 5)
+            liquidation_query = """
+                SELECT user_id, COUNT(*) as liquidation_count
+                FROM trading_history 
+                WHERE group_id = ? AND action = 'liquidated'
+                GROUP BY user_id 
+                ORDER BY liquidation_count DESC 
+                LIMIT 5
+            """
+            liquidation_results = query_db(liquidation_query, (group_id,))
+            
+            # 格式化结果
+            pnl_ranking = []
+            for row in pnl_results:
+                pnl_ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1])
+                })
+            
+            balance_ranking = []
+            for row in balance_results:
+                balance_ranking.append({
+                    "user_id": row[0],
+                    "balance": float(row[1])
+                })
+            
+            liquidation_ranking = []
+            for row in liquidation_results:
+                liquidation_ranking.append({
+                    "user_id": row[0],
+                    "liquidation_count": int(row[1])
+                })
+            
+            return {
+                "success": True,
+                "pnl_ranking": pnl_ranking,
+                "balance_ranking": balance_ranking,
+                "liquidation_ranking": liquidation_ranking
+            }
+            
+        except Exception as e:
+            logger.error(f"获取排行榜数据失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 # 全局交易服务实例
 trading_service = TradingService()

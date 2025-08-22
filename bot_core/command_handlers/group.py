@@ -925,3 +925,91 @@ class CloseCommand(BaseCommand):
         except Exception as e:
             logger.error(f"平仓命令失败: {e}")
             await update.message.reply_text("❌ 平仓失败，请稍后重试")
+
+
+class RankCommand(BaseCommand):
+    meta = CommandMeta(
+        name="rank",
+        command_type="group",
+        trigger="rank",
+        menu_text="查看排行榜 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=35,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            group_id = update.effective_chat.id
+            
+            # 获取排行榜数据
+            result = await trading_service.get_ranking_data(group_id)
+            
+            if not result['success']:
+                await update.message.reply_text("❌ 获取排行榜数据失败，请稍后重试")
+                return
+            
+            # 构建排行榜消息
+            message_parts = ["📊 **群组交易排行榜**\n"]
+            
+            # 总盈亏排行榜
+            message_parts.append("🏆 **总盈亏排行榜 TOP5**")
+            if result['pnl_ranking']:
+                for i, user_data in enumerate(result['pnl_ranking'], 1):
+                    user_id = user_data['user_id']
+                    total_pnl = user_data['total_pnl']
+                    try:
+                        user = await context.bot.get_chat_member(group_id, user_id)
+                        username = user.user.first_name or f"用户{user_id}"
+                    except:
+                        username = f"用户{user_id}"
+                    
+                    emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+                    pnl_text = f"+{total_pnl:.2f}" if total_pnl >= 0 else f"{total_pnl:.2f}"
+                    message_parts.append(f"{emoji} {username}: {pnl_text} USDT")
+            else:
+                message_parts.append("暂无数据")
+            
+            message_parts.append("")
+            
+            # 当前余额排行榜
+            message_parts.append("💰 **当前余额排行榜 TOP5**")
+            if result['balance_ranking']:
+                for i, user_data in enumerate(result['balance_ranking'], 1):
+                    user_id = user_data['user_id']
+                    balance = user_data['balance']
+                    try:
+                        user = await context.bot.get_chat_member(group_id, user_id)
+                        username = user.user.first_name or f"用户{user_id}"
+                    except:
+                        username = f"用户{user_id}"
+                    
+                    emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+                    message_parts.append(f"{emoji} {username}: {balance:.2f} USDT")
+            else:
+                message_parts.append("暂无数据")
+            
+            message_parts.append("")
+            
+            # 爆仓次数排行榜
+            message_parts.append("💥 **爆仓次数排行榜 TOP5**")
+            if result['liquidation_ranking']:
+                for i, user_data in enumerate(result['liquidation_ranking'], 1):
+                    user_id = user_data['user_id']
+                    liquidation_count = user_data['liquidation_count']
+                    try:
+                        user = await context.bot.get_chat_member(group_id, user_id)
+                        username = user.user.first_name or f"用户{user_id}"
+                    except:
+                        username = f"用户{user_id}"
+                    
+                    emoji = "💀" if i == 1 else "☠️" if i == 2 else "💥" if i == 3 else "🔥"
+                    message_parts.append(f"{emoji} {username}: {liquidation_count} 次")
+            else:
+                message_parts.append("暂无数据")
+            
+            final_message = "\n".join(message_parts)
+            await update.message.reply_text(final_message, parse_mode="Markdown")
+            
+        except Exception as e:
+            logger.error(f"排行榜命令失败: {e}")
+            await update.message.reply_text("❌ 获取排行榜失败，请稍后重试")

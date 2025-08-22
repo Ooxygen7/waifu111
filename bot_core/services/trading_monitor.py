@@ -90,6 +90,8 @@ class TradingMonitor:
     async def _send_liquidation_notification(self, position: Dict):
         """发送强平通知"""
         try:
+            from utils.db_utils import user_info_get
+            
             user_id = position['user_id']
             group_id = position['group_id']
             symbol = position['symbol']
@@ -100,10 +102,18 @@ class TradingMonitor:
             leverage_ratio = position.get('leverage_ratio', 0)
             threshold_ratio = position.get('threshold_ratio', 0.2)
             
+            # 获取用户信息以构造正确的用户提及
+            user_info = user_info_get(user_id)
+            if user_info and (user_info.get('first_name') or user_info.get('last_name')):
+                user_display_name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip()
+                user_mention = f"[{user_display_name}](tg://user?id={user_id})"
+            else:
+                user_mention = f"[用户{user_id}](tg://user?id={user_id})"
+            
             # 构造强平通知消息
             message = (
                 f"🚨 强平通知 🚨\n\n"
-                f"@{user_id} 您的所有仓位已被强制平仓！\n\n"
+                f"{user_mention} 您的所有仓位已被强制平仓！\n\n"
                 f"📊 触发仓位: {symbol} {side.upper()}\n"
                 f"💰 仓位大小: {size:.2f} USDT\n"
                 f"📉 浮动余额: {floating_balance:.2f} USDT\n"
@@ -117,7 +127,7 @@ class TradingMonitor:
             await self.bot.send_message(
                 chat_id=group_id,
                 text=message,
-                parse_mode='HTML'
+                parse_mode='Markdown'
             )
             
             logger.info(f"强平通知已发送: 用户{user_id} 群组{group_id} 浮动余额{floating_balance:.2f} < 阈值{threshold:.2f}")
