@@ -514,34 +514,6 @@ def user_config_get(userid: int) -> dict:
     )
 
 
-def user_conv_id_get(user_id: int) -> int:
-    """
-    获取用户当前激活的对话ID。
-
-    Args:
-        user_id: 用户ID
-
-    Returns:
-        int: 对话ID，如果未找到或未设置则返回0
-    """
-    command = "SELECT conv_id FROM user_config WHERE uid = ?"
-    result = query_db(command, (user_id,))
-    return result[0][0] if result and result[0] and result[0][0] is not None else 0
-
-
-def user_api_get(userid: int) -> str:
-    """
-    获取用户配置的API。
-
-    Args:
-        userid: 用户ID
-
-    Returns:
-        str: 用户配置的API，如果未找到或未设置则返回空字符串
-    """
-    command = "SELECT api FROM user_config WHERE uid = ?"
-    result = query_db(command, (userid,))
-    return result[0][0] if result else ""
 
 
 def user_stream_get(userid: int) -> Optional[bool]:
@@ -559,21 +531,7 @@ def user_stream_get(userid: int) -> Optional[bool]:
     return True if result[0][0] == "yes" else False
 
 
-def user_stream_switch(userid: int) -> bool:
-    """
-    切换用户的流式传输设置。
 
-    Args:
-        userid: 用户ID
-
-    Returns:
-        bool: 操作是否成功
-    """
-    if user_stream_get(userid):
-        command = "UPDATE  user_config set stream = 'no' WHERE uid = ?"
-    else:
-        command = "UPDATE  user_config set stream = 'yes' WHERE uid = ?"
-    result = revise_db(command, (userid,))
     return result > 0
 
 
@@ -620,11 +578,6 @@ def user_info_check(userid: int) -> bool:
     return bool(result)
 
 
-def user_conversations_get(userid: int) -> Optional[List[Tuple]]:
-    """获取用户未标记为删除的私聊对话列表。返回 (conv_id, character, summary) 元组的列表。"""
-    command = "SELECT conv_id, character, summary,update_at,turns FROM conversations WHERE user_id = ? AND delete_mark = 'no'"
-    result = query_db(command, (userid,))
-    return result if result else None
 
 
 def user_all_conversations_get(userid: int) -> Optional[List[Tuple]]:
@@ -675,38 +628,6 @@ def user_info_get(userid: int) -> dict:
         return {}
 
 
-def user_info_usage_get(userid: int, column_name: str) -> Any:
-    """
-    获取用户 `users` 表中指定列的信息。
-    警告: 此函数直接将 column_name 拼接到SQL查询中，可能存在SQL注入风险。
-          应确保调用时 column_name 来自受信任的、预定义的列名集合。
-          未来版本建议重构此函数以避免直接拼接。
-
-    :param userid: 用户ID。
-    :param column_name: 要查询的列名。
-    :return: 指定列的值，如果查询失败或用户不存在则返回0 (或根据列类型可能为其他默认值)。
-    """
-    # SQL注入风险警告：column_name 未经验证直接拼接到查询中。
-    # 仅在 column_name 确定安全的情况下使用。
-    allowed_columns = {
-        "first_name",
-        "last_name",
-        "user_name",
-        "create_at",
-        "update_at",
-        "input_tokens",
-        "output_tokens",
-        "account_tier",
-        "remain_frequency",
-        "balance",
-    }
-    if column_name not in allowed_columns:
-        print(f"错误: user_info_usage_get 查询了不允许的列名: {column_name}")
-        return 0  # 或者抛出异常
-
-    command = f"SELECT {column_name} FROM users WHERE uid = ?"
-    result = query_db(command, (userid,))
-    return result[0][0] if result and result[0] else 0
 
 
 def user_info_create(
@@ -764,11 +685,6 @@ def user_info_update(userid, field: str, value: Any, increment: bool = False) ->
     return result > 0
 
 
-def user_frequency_free(value: int) -> bool:
-    """为所有用户的 `remain_frequency` 增加指定值。返回操作是否影响了行。"""
-    command = f"UPDATE users SET remain_frequency = COALESCE(remain_frequency, 0) + ?"
-    result = revise_db(command, (value,))
-    return result > 0
 
 
 def _update_conversation_timestamp(
@@ -833,34 +749,6 @@ def dialog_content_add(
     return False
 
 
-def dialog_new_content_add(conv_id: int, turn: int) -> bool:
-    """（似乎是未完成或特定用途的函数）在 `dialogs` 表中插入一条只有 conv_id 和 turn_order 的记录。返回操作是否成功。"""
-    command = "INSERT INTO dialogs (conv_id,turn_order) values (?,?)"
-    return revise_db(command, (conv_id, turn)) > 0
-
-
-def dialog_latest_del(conv_id: int) -> int:
-    """
-    删除指定conv_id中turn_order最大的记录
-    参数:
-        conv_id: 会话ID
-    返回:
-        受影响的行数（通常为1，如果删除成功；0，如果没有记录被删除）
-    """
-    # 步骤1：查询指定conv_id中最大的turn_order
-    query_cmd = "SELECT MAX(turn_order) FROM dialogs WHERE conv_id = ?"
-    result = query_db(query_cmd, (conv_id,))
-
-    # 检查查询结果，如果没有记录，则返回0
-    max_turn_order = result[0][0] if result and result[0][0] is not None else None
-    if max_turn_order is None:
-        return 0
-
-    # 步骤2：删除该conv_id中turn_order最大的记录
-    delete_cmd = "DELETE FROM dialogs WHERE conv_id = ? AND turn_order = ?"
-    affected_rows = revise_db(delete_cmd, (conv_id, max_turn_order))
-
-    return affected_rows
 
 
 def dialog_turn_get(conv_id: int, chat_type: str = "private") -> int:
@@ -915,19 +803,7 @@ def dialog_content_load(
     return result if result else None
 
 
-def dialog_last_input_get(conv_id: int) -> str:
-    """
-    获取指定会话中最新的用户输入内容。
 
-    Args:
-        conv_id: 会话ID
-
-    Returns:
-        str: 最新的用户输入原始内容，如果不存在则返回空字符串
-    """
-    command = "SELECT raw_content FROM dialogs WHERE conv_id = ? AND role = 'user' ORDER BY turn_order DESC LIMIT 1;"
-    result = query_db(command, (conv_id,))
-    return result[0][0] if result else ""
 
 def dialog_summary_get(conv_id: int) -> Optional[list]:
     """
@@ -1022,19 +898,6 @@ def conversation_private_create(
     return result > 0
 
 
-def conversation_private_save(conv_id: int) -> bool:
-    """
-    将私聊对话的delete_mark设置为'no'，表示保存该对话。
-
-    Args:
-        conv_id: 会话ID
-
-    Returns:
-        bool: 操作是否成功
-    """
-    command = "UPDATE conversations SET delete_mark = 'no' WHERE conv_id = ?"
-    result = revise_db(command, (conv_id,))
-    return result > 0
 
 
 def conversation_private_get(conv_id: int) -> Optional[Tuple[str, str]]:
@@ -1052,104 +915,10 @@ def conversation_private_get(conv_id: int) -> Optional[Tuple[str, str]]:
     return result[0] if result else None
 
 
-def conversation_latest_message_id_get(conv_id: int) -> list:
-    """
-    获取指定会话的最新两条消息的msg_id列表。
-
-    Args:
-        conv_id: 会话ID
-
-    Returns:
-        list: msg_id列表，如果未找到则返回空列表
-    """
-    command = (
-        "SELECT msg_id FROM dialogs WHERE conv_id = ? ORDER BY turn_order DESC LIMIT 2;"
-    )
-    result = query_db(command, (conv_id,))
-    if result and len(result) > 0:
-        return [
-            row[0] for row in result
-        ]  # 提取每个元组的第一个元素（msg_id），返回列表
-    else:
-        return []
 
 
-def conversation_delete_messages(conv_id: int, msg_id: int) -> bool:
-    """
-    删除指定 conv_id 和 msg_id 的消息记录。如果存在多个 msg_id 相同的行，只删除 id 最大的那一行。
-    如果成功删除了记录，返回 True；否则，返回 False。
-    """
-    try:
-        # 1. 获取具有相同 conv_id 和 msg_id 的所有记录，并按 id 降序排序
-        query = (
-            "SELECT id FROM dialogs WHERE conv_id = ? AND msg_id = ? ORDER BY id DESC"
-        )
-        rows = query_db(query, (conv_id, msg_id))
-        if not rows:
-            logger.debug(
-                f"未找到 conv_id 为 {conv_id} 且 msg_id 为 {msg_id} 的消息记录"
-            )  # 添加日志
-            return False  # 没有找到匹配的记录
-        # 2. 删除 id 最大的那一条记录
-        max_id = rows[0][0]  # 从元组列表中获取 id
-        delete_command = "DELETE FROM dialogs WHERE id = ?"
-        result = revise_db(
-            delete_command, (max_id,)
-        )  # 执行数据库删除操作，返回受影响的行数
-        if result > 0:
-            logger.debug(
-                f"成功删除消息记录，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}"
-            )  # 添加日志
-        else:
-            logger.debug(
-                f"删除消息记录失败，conv_id: {conv_id}, msg_id: {msg_id}, id: {max_id}"
-            )  # 添加日志
-        return result > 0  # 如果影响的行数大于0，则返回 True，表示删除成功
-    except Exception as e:
-        logger.error(f"删除消息记录时发生错误：{e}")
-        return False  # 发生错误时，返回 False
 
 
-def conversation_group_config_get(
-    conv_id: int, group_id: int
-) -> Optional[Tuple[str, str]]:
-    """
-    获取指定群聊用户会话关联的群组的角色和预设。
-
-    Args:
-        conv_id: 会话ID
-        group_id: 群组ID
-
-    Returns:
-        Optional[Tuple[str, str]]: (char, preset) 元组，如果未找到则返回None
-    """
-    if group_id:
-        command = "SELECT char, preset FROM groups WHERE group_id = ?"
-        result = query_db(command, (group_id,))
-    else:
-        command = "SELECT group_id FROM group_user_conversations WHERE conv_id = ?"
-        result = query_db(command, (conv_id,))
-        group_id = result[0][0]
-        command = "SELECT char, preset FROM groups WHERE group_id = ?"
-        result = query_db(command, (group_id,))
-    return result[0] if result else None
-
-
-def conversation_private_update(conv_id: int, char: str, preset: str) -> bool:
-    """
-    更新指定私聊对话的角色和预设。
-
-    Args:
-        conv_id: 会话ID
-        char: 角色名称
-        preset: 预设名称
-
-    Returns:
-        bool: 操作是否成功
-    """
-    command = "UPDATE conversations SET character = ?, preset = ? WHERE conv_id = ?"
-    result = revise_db(command, (char, preset, conv_id))
-    return result > 0
 
 
 def conversation_private_arg_update(
@@ -1205,75 +974,8 @@ def conversation_private_check(conv_id: int) -> bool:
     return not bool(result)
 
 
-def conversation_private_get_user(conv_id: int) -> Optional[int]:
-    """
-    获取指定私聊对话的用户ID。
-
-    Args:
-        conv_id: 会话ID
-
-    Returns:
-        Optional[int]: 用户ID，如果未找到则返回None
-    """
-    command = "SELECT user_id FROM conversations WHERE conv_id = ?"
-    result = query_db(command, (conv_id,))
-    return result[0][0] if result and result[0] else None
 
 
-def conversation_private_summary_add(conv_id: int, summary: str) -> bool:
-    """
-    为指定私聊对话添加或更新总结。
-
-    Args:
-        conv_id: 会话ID
-        summary: 对话总结
-
-    Returns:
-        bool: 操作是否成功
-    """
-    command = "UPDATE conversations SET summary = ? WHERE conv_id = ?"
-    result = revise_db(command, (summary, conv_id))
-    return result > 0
-
-
-def conversation_group_create(
-    conv_id: int, user_id: int, user_name: str, group_id: int, group_name: str
-) -> bool:
-    """
-    为指定用户在指定群组中创建一条新的群聊用户会话记录，并更新群组的update_time。
-
-    Args:
-        conv_id: 会话ID
-        user_id: 用户ID
-        user_name: 用户名
-        group_id: 群组ID
-        group_name: 群组名
-
-    Returns:
-        bool: 操作是否成功
-    """
-    create_at = str(datetime.datetime.now())
-    group_info_update(group_id, "update_time", create_at)
-    command = "INSERT INTO group_user_conversations (user_id, user_name, group_id, group_name, conv_id, create_at, delete_mark) VALUES (?, ?, ?, ?, ?, ?, 'no')"
-    result = revise_db(
-        command, (user_id, user_name, group_id, group_name, conv_id, create_at)
-    )
-    return result > 0
-
-
-def conversation_group_check(conv_id: int) -> bool:
-    """
-    检查具有指定conv_id且未标记删除的群聊用户会话是否存在。
-
-    Args:
-        conv_id: 会话ID
-
-    Returns:
-        bool: True表示不存在，False表示存在
-    """
-    command = "SELECT conv_id FROM group_user_conversations WHERE conv_id = ? AND delete_mark = 'no'"
-    result = query_db(command, (conv_id,))
-    return not bool(result)
 
 
 def conversation_group_get(group_id: int, user_id: int) -> Optional[int]:
@@ -1312,45 +1014,7 @@ def conversation_group_update(
     return result > 0
 
 
-def conversation_group_delete(group_id: int, user_id: int) -> bool:
-    """
-    将指定用户在指定群组中的群聊用户会话标记为删除(delete_mark = 'yes')。
 
-    Args:
-        group_id: 群组ID
-        user_id: 用户ID
-
-    Returns:
-        bool: 操作是否成功
-    """
-    command = "UPDATE group_user_conversations SET delete_mark = 'yes' WHERE group_id = ? AND user_id = ?"
-    result = revise_db(command, (group_id, user_id))
-    return result > 0
-
-
-def conversation_turns_update(
-    conv_id: int, turn_num: int, chat_type: str = "private"
-) -> bool:
-    """
-    更新指定会话的对话轮数。
-
-    :param conv_id: 会话ID。
-    :param turn_num: 新的对话轮数。
-    :param chat_type: 对话类型，'private' 或 'group'。
-    :return: 操作是否成功。
-    """
-    if chat_type == "private":
-        table = "conversations"
-    elif chat_type == "group":
-        table = "group_user_conversations"
-    else:
-        print(
-            f"警告: 未知的 chat_type '{chat_type}' 在 conversation_turns_update 中，无法更新轮数。"
-        )
-        return False
-    command = f"UPDATE {table} SET turns = ? WHERE conv_id = ?"
-    result = revise_db(command, (turn_num, conv_id))
-    return result > 0
 
 
 def group_check_update(group_id: int) -> bool:
@@ -1407,20 +1071,6 @@ def group_config_arg_update(group_id: int, field: str, value: Any) -> bool:
     result = revise_db(command, (value, group_id))
     return result > 0
 
-
-def group_name_get(group_id: int) -> Optional[str]:
-    """
-    获取指定群组的名称。
-
-    Args:
-        group_id: 群组ID
-
-    Returns:
-        Optional[str]: 群组名称，如果未找到则返回空字符串
-    """
-    command = "SELECT group_name FROM groups WHERE group_id =?"
-    result = query_db(command, (group_id,))
-    return result[0][0] or ""
 
 
 def group_admin_list_get(group_id: int) -> List[str]:
@@ -1533,55 +1183,8 @@ def group_dialog_initial_add(
         return False
 
 
-def group_dialog_response_update(
-    group_id: int,
-    msg_id: int,
-    trigger_type: str,
-    raw_response: str,
-    processed_response: str,
-) -> bool:
-    """
-    在 group_dialogs 表中更新AI的回复内容和触发类型。
-
-    Args:
-        group_id (int): 群组ID。
-        msg_id (int): 原始用户消息的ID，用于定位记录。
-        trigger_type (str): 触发回复的类型 ('reply', '@', 'keyword', 'random')。
-        raw_response (str): LLM返回的原始响应。
-        processed_response (str): 处理后用于显示的响应。
-
-    Returns:
-        bool: 操作是否成功。
-    """
-    command = """
-        UPDATE group_dialogs
-        SET trigger_type = ?, raw_response = ?, processed_response = ?
-        WHERE group_id = ? AND msg_id = ?
-    """
-    params = (trigger_type, raw_response, processed_response, group_id, msg_id)
-    result = revise_db(command, params)
-    if result == 0:
-        logger.warning(f"更新群聊对话回复失败，未找到匹配记录: group_id={group_id}, msg_id={msg_id}")
-    return result > 0
 
 
-def group_dialog_update(msg_id: int, field: str, value: Any, group_id: int) -> bool:
-    """
-    更新group_dialogs表中指定消息的指定字段。
-
-    Args:
-        msg_id: 消息ID
-        field: 要更新的字段名
-        value: 新的字段值
-        group_id: 群组ID
-
-    Returns:
-        bool: 操作是否成功
-    """
-    # print(f"正在把群{group_id}的消息{msg_id}的{field}字段更新为{value}")
-    command = f"UPDATE group_dialogs SET {field} = ? WHERE msg_id = ? AND group_id = ?"
-    result = revise_db(command, (value, msg_id, group_id))
-    return result > 0
 
 
 def group_dialog_get(
@@ -1675,25 +1278,6 @@ def group_disabled_topics_get(group_id: int) -> List[str]:
         return []
 
 
-def group_disabled_topics_set(group_id: int, topics: List[str]) -> bool:
-    """
-    设置指定群组的禁用话题列表（序列化为JSON字符串存储）。
-
-    Args:
-        group_id: 群组ID
-        topics: 禁用话题列表
-
-    Returns:
-        bool: 操作是否成功
-    """
-    try:
-        topics_str = json.dumps(topics, ensure_ascii=False)
-        command = "UPDATE groups SET disabled_topics = ? WHERE group_id = ?"
-        result = revise_db(command, (topics_str, group_id))
-        return result > 0
-    except Exception as e:
-        print(f"设置群组禁用话题错误: {e}")
-        return False
 
 
 def user_sign_info_get(user_id: int) -> dict:
@@ -1716,39 +1300,8 @@ def user_sign_info_get(user_id: int) -> dict:
         return {"user_id": user_id, "last_sign": 0, "sign_count": 0, "frequency": 0}
 
 
-def user_sign_info_create(user_id: int) -> bool:
-    """
-    为指定用户创建签到信息记录。
-
-    Args:
-        user_id: 用户ID
-
-    Returns:
-        bool: 操作是否成功
-    """
-    command = f"INSERT INTO user_sign (user_id,last_sign,sign_count,frequency) VALUES (?,?,?,?)"
-    time = str(datetime.datetime.now())
-    default_frequency = get_config("sign.default_frequency", 50)
-    result = revise_db(command, (user_id, time, 1, default_frequency))
-    return result > 0
 
 
-def user_sign(user_id: int) -> bool:
-    """
-    用户签到，更新签到时间和连续签到天数。
-
-    Args:
-        user_id: 用户ID
-
-    Returns:
-        bool: 操作是否成功
-    """
-    default_frequency = get_config("sign.default_frequency", 50)
-    max_frequency = get_config("sign.max_frequency", 100)
-    command = f"UPDATE user_sign SET last_sign =?,sign_count = COALESCE(sign_count, 0)+1,frequency = MIN(COALESCE(frequency, 0) + {default_frequency}, {max_frequency}) WHERE user_id =?"
-    time = str(datetime.datetime.now())
-    result = revise_db(command, (time, user_id))
-    return result > 0
 
 
 def user_sign_info_update(user_id: int, field: str, value: Any) -> bool:
