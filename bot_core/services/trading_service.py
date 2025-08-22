@@ -437,9 +437,12 @@ class TradingService:
                     TradingRepository.delete_position(user_id, group_id, symbol, side)
                     TradingRepository.update_account_balance(user_id, group_id, 0.0)
                     
-                    # 记录强平历史
+                    # 记录强平历史 - 强平时亏损的是用户的全部余额(保证金)
+                    # 获取用户当前余额作为保证金损失
+                    account = self.get_or_create_account(user_id, group_id)
+                    margin_loss = -account['balance']  # 强平时用户失去全部保证金
                     TradingRepository.add_trading_history(
-                        user_id, group_id, 'liquidated', symbol, side, size, current_price, -size
+                        user_id, group_id, 'liquidated', symbol, side, size, current_price, margin_loss
                     )
         
         except Exception as e:
