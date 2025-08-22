@@ -45,11 +45,17 @@ class TradingMonitor:
         
     async def _monitor_loop(self):
         """监控主循环"""
+        update_counter = 0
         while self.is_running:
             try:
+                # 每30秒更新一次强平价格（3个循环周期）
+                if update_counter % 3 == 0:
+                    await self._update_liquidation_prices()
+                
                 # 检查强平
                 await self._check_liquidations()
                 
+                update_counter += 1
                 # 等待10秒
                 await asyncio.sleep(10)
                 
@@ -59,6 +65,17 @@ class TradingMonitor:
                 logger.error(f"监控循环出错: {e}")
                 await asyncio.sleep(10)  # 出错后等待10秒再继续
                 
+    async def _update_liquidation_prices(self):
+        """更新所有仓位的强平价格"""
+        try:
+            result = await trading_service.update_all_liquidation_prices()
+            if result["success"]:
+                logger.debug(f"已更新 {result['updated_count']}/{result['total_positions']} 个仓位的强平价格")
+            else:
+                logger.error(f"更新强平价格失败: {result.get('error', '未知错误')}")
+        except Exception as e:
+            logger.error(f"更新强平价格失败: {e}")
+    
     async def _check_liquidations(self):
         """检查并处理强平"""
         try:
@@ -78,19 +95,22 @@ class TradingMonitor:
             symbol = position['symbol']
             side = position['side']
             size = position['size']
-            liquidation_price = position['liquidation_price']
-            current_price = position['current_price']
+            floating_balance = position.get('floating_balance', 0)
+            threshold = position.get('threshold', 200)
+            leverage_ratio = position.get('leverage_ratio', 0)
+            threshold_ratio = position.get('threshold_ratio', 0.2)
             
             # 构造强平通知消息
             message = (
                 f"🚨 强平通知 🚨\n\n"
-                f"@{user_id} 您的仓位已被强制平仓！\n\n"
-                f"📊 交易对: {symbol}\n"
-                f"📈 方向: {side.upper()}\n"
+                f"@{user_id} 您的所有仓位已被强制平仓！\n\n"
+                f"📊 触发仓位: {symbol} {side.upper()}\n"
                 f"💰 仓位大小: {size:.2f} USDT\n"
-                f"⚡ 强平价: {liquidation_price:.4f}\n"
-                f"💸 触发价: {current_price:.4f}\n\n"
-                f"💔 您的账户余额已清零，请使用 /begging 领取救济金重新开始交易。"
+                f"📉 浮动余额: {floating_balance:.2f} USDT\n"
+                f"⚖️ 杠杆倍数: {leverage_ratio:.2f}x\n"
+                f"⚠️ 强平阈值: {threshold:.2f} USDT (本金的{threshold_ratio*100:.1f}%)\n\n"
+                f"💔 您的账户余额已清零，所有仓位已被清空。\n"
+                f"🆘 请使用 /begging 领取救济金重新开始交易。"
             )
             
             # 发送到群组
@@ -100,7 +120,7 @@ class TradingMonitor:
                 parse_mode='HTML'
             )
             
-            logger.info(f"强平通知已发送: 用户{user_id} 群组{group_id} {symbol} {side}")
+            logger.info(f"强平通知已发送: 用户{user_id} 群组{group_id} 浮动余额{floating_balance:.2f} < 阈值{threshold:.2f}")
             
         except TelegramError as e:
             logger.error(f"发送强平通知失败: {e}")
