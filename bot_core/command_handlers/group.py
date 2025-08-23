@@ -966,6 +966,7 @@ class RankCommand(BaseCommand):
                     emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
                     pnl_text = f"+{total_pnl:.2f}" if total_pnl >= 0 else f"{total_pnl:.2f}"
                     message_parts.append(f"{emoji} {username}: {pnl_text} USDT")
+
             else:
                 message_parts.append("暂无数据")
             
@@ -1013,3 +1014,57 @@ class RankCommand(BaseCommand):
         except Exception as e:
             logger.error(f"排行榜命令失败: {e}")
             await update.message.reply_text("❌ 获取排行榜失败，请稍后重试")
+
+
+class TestLiquidationCommand(BaseCommand):
+    meta = CommandMeta(
+        name="testliquidation",
+        command_type="group",
+        trigger="testliquidation",
+        menu_text="",
+        show_in_menu=False,
+        menu_weight=99,
+        group_admin_required=True,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """发送测试强平通知消息，用于验证强平通知格式是否正确"""
+        try:
+            from utils.db_utils import user_info_get
+            
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 获取用户信息以构造正确的用户提及
+            user_info = user_info_get(user_id)
+            if user_info and (user_info.get('first_name') or user_info.get('last_name')):
+                user_display_name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip()
+                user_mention = f"[{user_display_name}](tg://user?id={user_id})"
+            else:
+                user_mention = f"[用户{user_id}](tg://user?id={user_id})"
+            
+            # 构造测试强平通知消息
+            message = (
+                f"🚨 强平通知 🚨\n\n"
+                f"{user_mention} 您的所有仓位已被强制平仓！\n\n"
+                f"📊 触发仓位: BTC/USDT LONG\n"
+                f"💰 仓位大小: 1000.00 USDT\n"
+                f"📉 浮动余额: 180.50 USDT\n"
+                f"⚖️ 杠杆倍数: 5.54x\n"
+                f"⚠️ 强平阈值: 200.00 USDT (本金的20.0%)\n\n"
+                f"💔 您的账户余额已清零，所有仓位已被清空。\n"
+                f"🆘 请使用 /begging 领取救济金重新开始交易。\n\n"
+                f"⚠️ 这是一条测试消息，用于验证强平通知格式。"
+            )
+            
+            # 发送测试消息
+            await update.message.reply_text(
+                message,
+                parse_mode='Markdown'
+            )
+            
+            logger.info(f"测试强平通知已发送: 管理员{user_id} 群组{group_id}")
+            
+        except Exception as e:
+            logger.error(f"发送测试强平通知失败: {e}")
+            await update.message.reply_text("❌ 发送测试强平通知失败，请稍后重试")

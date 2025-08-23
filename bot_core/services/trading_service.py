@@ -45,7 +45,11 @@ class TradingService:
             ticker = await asyncio.get_event_loop().run_in_executor(
                 None, self.exchange.fetch_ticker, symbol
             )
-            price = float(ticker['last'])
+            price_val = ticker.get('last')
+            if price_val is None:
+                logger.warning(f"获取的ticker中'last'价格为空: {symbol}")
+                return self._get_price_from_db(symbol)
+            price = float(price_val)
             
             # 更新缓存
             self.price_cache[symbol] = price
@@ -248,7 +252,7 @@ class TradingService:
             logger.error(f"开仓失败: {e}")
             return {'success': False, 'message': '开仓失败，请稍后重试'}
     
-    async def close_position(self, user_id: int, group_id: int, symbol: str, side: str, size: float = None) -> Dict:
+    async def close_position(self, user_id: int, group_id: int, symbol: str, side: str, size: Optional[float] = None) -> Dict:
         """
         平仓操作
         size: 平仓大小，None表示全部平仓
@@ -343,7 +347,10 @@ class TradingService:
                 total_unrealized_pnl += unrealized_pnl
                 
                 # 计算盈亏百分比
-                pnl_percent = (unrealized_pnl / size) * 100
+                # 盈亏百分比应基于保证金计算，而非仓位价值
+                # 保证金 = 仓位价值 / 杠杆倍数 (当前固定100倍)
+                margin = size / 100
+                pnl_percent = (unrealized_pnl / margin) * 100 if margin > 0 else 0
                 
                 position_text.append(
                     f"📈 {symbol} {side.upper()}\n"
@@ -470,35 +477,60 @@ class TradingService:
             return 0.05 + (leverage_ratio - 1.0) * 0.15 / 99.0
     
     async def _calculate_liquidation_price(self, user_id: int, group_id: int, symbol: str, side: str, size: float, entry_price: float) -> float:
-        """计算强平价格 - 基于浮动余额20%阈值"""
+        """计算强平价格 - 基于动态保证金率阈值"""
         try:
             account = self.get_or_create_account(user_id, group_id)
-            initial_balance = 1000.0  # 本金固定为1000 USDT
-            liquidation_threshold = initial_balance * 0.2  # 强平阈值200 USDT
             
-            # 获取用户所有其他仓位的浮动盈亏
+            # 获取用户所有仓位（包括当前仓位）来计算总价值
             positions_result = TradingRepository.get_positions(user_id, group_id)
-            other_positions_pnl = 0.0
+            if not positions_result["success"]:
+                # 如果获取失败，使用一个保守的默认值
+                return entry_price * 0.8 if side == 'long' else entry_price * 1.2
+
+            all_positions = positions_result["positions"]
             
-            if positions_result["success"] and positions_result["positions"]:
-                for pos in positions_result["positions"]:
-                    # 跳过当前正在计算的仓位
-                    if pos['symbol'] == symbol and pos['side'] == side:
-                        continue
-                    
-                    # 获取其他仓位的当前价格和浮动盈亏
-                    current_price = await self.get_current_price(pos['symbol'])
-                    if current_price > 0:
-                        pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
-                        other_positions_pnl += pnl
+            # 检查当前仓位是否已在列表中，如果不在（例如新开仓），则手动加入计算
+            current_position_found = False
+            for pos in all_positions:
+                if pos['symbol'] == symbol and pos['side'] == side:
+                    # 更新仓位大小和价格为最新值
+                    pos['size'] = size
+                    pos['entry_price'] = entry_price
+                    current_position_found = True
+                    break
+            
+            if not current_position_found:
+                all_positions.append({'symbol': symbol, 'side': side, 'size': size, 'entry_price': entry_price})
+
+            # 计算总仓位价值
+            total_position_value = sum(p['size'] for p in all_positions)
+            
+            # 计算杠杆倍数 (仓位价值 / 账户余额)
+            leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else float('inf')
+            
+            # 根据杠杆倍数动态计算强平阈值比例
+            dynamic_threshold_ratio = self._calculate_dynamic_liquidation_threshold(leverage_ratio)
+            liquidation_threshold = account['balance'] * dynamic_threshold_ratio
+            
+            # 获取用户所有其他仓位的当前浮动盈亏
+            other_positions_pnl = 0.0
+            for pos in all_positions:
+                # 跳过当前正在计算的仓位
+                if pos['symbol'] == symbol and pos['side'] == side:
+                    continue
+                
+                current_price = await self.get_current_price(pos['symbol'])
+                if current_price > 0:
+                    pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
+                    other_positions_pnl += pnl
             
             # 计算强平价格
             # 强平条件: 余额 + 其他仓位盈亏 + 当前仓位盈亏 = 强平阈值
-            # 当前仓位盈亏 = (强平价 - 开仓价) / 开仓价 * 仓位大小 (做多)
-            # 当前仓位盈亏 = (开仓价 - 强平价) / 开仓价 * 仓位大小 (做空)
-            
             target_pnl = liquidation_threshold - account['balance'] - other_positions_pnl
             
+            if size <= 0: # 避免除以零
+                return entry_price
+
             if side == 'long':
                 # 做多: target_pnl = (强平价 - 开仓价) / 开仓价 * 仓位大小
                 # 强平价 = 开仓价 * (1 + target_pnl / 仓位大小)
@@ -606,7 +638,9 @@ class TradingService:
                         )
                     
                     # 清零余额
-                    TradingRepository.update_account_balance(user_id, group_id, 0.0)
+                    # 清零余额，并记录亏损到总盈亏
+                    liquidation_loss = -account['balance']
+                    TradingRepository.update_account_balance(user_id, group_id, 0.0, liquidation_loss)
                     
                     logger.info(f"用户 {user_id} 在群组 {group_id} 触发强平，浮动余额: {floating_balance:.2f}, 阈值: {liquidation_threshold:.2f}")
         
