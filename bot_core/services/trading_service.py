@@ -17,8 +17,8 @@ class TradingService:
     """
     
     def __init__(self):
-        # 初始化交易所连接(使用币安作为价格源)
-        self.exchange = ccxt.binance({
+        # 初始化交易所连接(使用Bybit作为价格源)
+        self.exchange = ccxt.bybit({
             'sandbox': False,  # 使用实盘数据但不实际交易
             'enableRateLimit': True,
         })
@@ -332,6 +332,10 @@ class TradingService:
             total_unrealized_pnl = 0
             position_text = []
             
+            # 计算总仓位价值和杠杆倍数
+            total_position_value = sum(pos['size'] for pos in positions)
+            leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else 0
+            
             for pos in positions:
                 symbol = pos['symbol']
                 side = pos['side']
@@ -346,11 +350,13 @@ class TradingService:
                 unrealized_pnl = self._calculate_pnl(entry_price, current_price, size, side)
                 total_unrealized_pnl += unrealized_pnl
                 
-                # 计算盈亏百分比
-                # 盈亏百分比应基于保证金计算，而非仓位价值
-                # 保证金 = 仓位价值 / 杠杆倍数 (当前固定100倍)
-                margin = size / 100
-                pnl_percent = (unrealized_pnl / margin) * 100 if margin > 0 else 0
+                # 计算盈亏百分比 - 按总杠杆率计算
+                # 使用总杠杆倍数而不是固定100倍
+                if leverage_ratio > 0:
+                    margin = size / leverage_ratio
+                    pnl_percent = (unrealized_pnl / margin) * 100 if margin > 0 else 0
+                else:
+                    pnl_percent = 0
                 
                 position_text.append(
                     f"📈 {symbol} {side.upper()}\n"
@@ -367,10 +373,6 @@ class TradingService:
             # 计算保证金率 (浮动余额/余额)
             margin_ratio = (floating_balance / account['balance']) * 100 if account['balance'] > 0 else 0
             
-            # 计算总仓位价值和杠杆倍数
-            total_position_value = sum(pos['size'] for pos in positions)
-            leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else 0
-            
             # 计算动态强平阈值
             dynamic_threshold_ratio = self._calculate_dynamic_liquidation_threshold(leverage_ratio)
             liquidation_threshold = account['balance'] * dynamic_threshold_ratio  # 基于当前余额计算
@@ -386,6 +388,9 @@ class TradingService:
             elif floating_balance < liquidation_threshold * 1.1:
                 risk_warning = "\n⚠️ 警告: 接近强平，请注意风险！"
             
+            # 使用可折叠的引用块显示详细仓位信息
+            detailed_positions = "\n\n".join(position_text)
+            
             message = (
                 f"💰 余额: {account['balance']:.2f} USDT\n"
                 f"📊 总盈亏: {account['total_pnl']:+.2f} USDT\n"
@@ -393,9 +398,12 @@ class TradingService:
                 f"🏦 浮动余额: {floating_balance:.2f} USDT\n"
                 f"{margin_info}\n"
                 f"{leverage_info}\n"
-                f"{threshold_info}{risk_warning}\n\n"
-                + "\n\n".join(position_text)
+                f"{threshold_info}{risk_warning}"
             )
+            
+            # 添加可折叠的详细仓位信息
+            if detailed_positions:
+                message += f"\n\n<blockquote expandable>📋 详细仓位信息\n\n{detailed_positions}</blockquote>"
             
             return {'success': True, 'message': message}
             
@@ -716,12 +724,11 @@ class TradingService:
             pnl_results = query_db(pnl_query, (group_id,))
             
             # 获取当前浮动余额排行榜 (top 5)
+            # 需要计算每个用户的浮动余额 = 余额 + 未实现盈亏
             balance_query = """
-                SELECT user_id, balance 
-                FROM trading_accounts 
-                WHERE group_id = ? 
-                ORDER BY balance DESC 
-                LIMIT 5
+                SELECT ta.user_id, ta.balance
+                FROM trading_accounts ta
+                WHERE ta.group_id = ?
             """
             balance_results = query_db(balance_query, (group_id,))
             
@@ -744,12 +751,33 @@ class TradingService:
                     "total_pnl": float(row[1])
                 })
             
+            # 计算每个用户的浮动余额
             balance_ranking = []
             for row in balance_results:
+                user_id = row[0]
+                balance = float(row[1])
+                
+                # 获取用户所有仓位计算未实现盈亏
+                positions_result = TradingRepository.get_positions(user_id, group_id)
+                total_unrealized_pnl = 0.0
+                
+                if positions_result["success"] and positions_result["positions"]:
+                    for pos in positions_result["positions"]:
+                        current_price = await self.get_current_price(pos['symbol'])
+                        if current_price > 0:
+                            pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
+                            total_unrealized_pnl += pnl
+                
+                floating_balance = balance + total_unrealized_pnl
                 balance_ranking.append({
-                    "user_id": row[0],
-                    "balance": float(row[1])
+                    "user_id": user_id,
+                    "balance": balance,
+                    "floating_balance": floating_balance
                 })
+            
+            # 按浮动余额排序并取前5名
+            balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
+            balance_ranking = balance_ranking[:5]
             
             liquidation_ranking = []
             for row in liquidation_results:

@@ -844,7 +844,7 @@ class PositionCommand(BaseCommand):
             # 获取仓位信息
             result = await trading_service.get_positions(user_id, group_id)
             
-            await update.message.reply_text(result['message'])
+            await update.message.reply_text(result['message'], parse_mode='HTML')
             
         except Exception as e:
             logger.error(f"查看仓位失败: {e}")
@@ -972,12 +972,12 @@ class RankCommand(BaseCommand):
             
             message_parts.append("")
             
-            # 当前余额排行榜
-            message_parts.append("💰 **当前余额排行榜 TOP5**")
+            # 当前浮动余额排行榜
+            message_parts.append("💰 **当前浮动余额排行榜 TOP5**")
             if result['balance_ranking']:
                 for i, user_data in enumerate(result['balance_ranking'], 1):
                     user_id = user_data['user_id']
-                    balance = user_data['balance']
+                    floating_balance = user_data['floating_balance']
                     try:
                         user = await context.bot.get_chat_member(group_id, user_id)
                         username = user.user.first_name or f"用户{user_id}"
@@ -985,7 +985,7 @@ class RankCommand(BaseCommand):
                         username = f"用户{user_id}"
                     
                     emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
-                    message_parts.append(f"{emoji} {username}: {balance:.2f} USDT")
+                    message_parts.append(f"{emoji} {username}: {floating_balance:.2f} USDT")
             else:
                 message_parts.append("暂无数据")
             
