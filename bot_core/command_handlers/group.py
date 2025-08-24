@@ -757,25 +757,96 @@ class LongCommand(BaseCommand):
             args = context.args
             if len(args) < 2:
                 await update.message.reply_text(
-                    "❌ 用法错误！\n正确格式: /long <交易对> <金额>\n例如: /long btc 100"
+                    "❌ 用法错误！\n正确格式: \n"
+                    "单个开仓: /long <交易对> <金额>\n"
+                    "批量开仓(相同金额): /long <币种1> <币种2> <币种3> <金额>\n"
+                    "批量开仓(不同金额): /long <币种1> <币种2> <币种3> <金额1> <金额2> <金额3>\n"
+                    "例如: /long btc 100 或 /long btc eth xrp 5000 或 /long btc eth pepe 5000 2000 200"
                 )
                 return
             
-            symbol = args[0].upper()
-            try:
-                amount = float(args[1].replace('u', '').replace('U', ''))
-            except ValueError:
-                await update.message.reply_text("❌ 金额格式错误！")
-                return
-            
-            if amount <= 0:
-                await update.message.reply_text("❌ 金额必须大于0！")
-                return
-            
-            # 执行开多仓操作
-            result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
-            
-            await update.message.reply_text(result['message'])
+            # 检查是否为批量开仓
+            if len(args) >= 3:
+                # 批量开仓模式
+                symbols = []
+                amounts = []
+                
+                # 尝试解析最后一个参数作为金额
+                try:
+                    last_amount = float(args[-1].replace('u', '').replace('U', ''))
+                    if last_amount > 0:
+                        # 检查是否为相同金额模式
+                        if len(args) == len([arg for arg in args[:-1] if not arg.replace('.', '').replace('u', '').replace('U', '').isdigit()]) + 1:
+                            # 相同金额模式: /long btc eth xrp 5000
+                            symbols = [arg.upper() for arg in args[:-1]]
+                            amounts = [last_amount] * len(symbols)
+                        else:
+                            # 检查是否为不同金额模式
+                            # 找到第一个数字参数的位置
+                            first_amount_idx = None
+                            for i, arg in enumerate(args):
+                                try:
+                                    float(arg.replace('u', '').replace('U', ''))
+                                    first_amount_idx = i
+                                    break
+                                except ValueError:
+                                    continue
+                            
+                            if first_amount_idx is not None:
+                                symbols = [arg.upper() for arg in args[:first_amount_idx]]
+                                amount_args = args[first_amount_idx:]
+                                
+                                if len(symbols) == len(amount_args):
+                                    # 不同金额模式: /long btc eth pepe 5000 2000 200
+                                    amounts = []
+                                    for amount_str in amount_args:
+                                        try:
+                                            amount = float(amount_str.replace('u', '').replace('U', ''))
+                                            if amount <= 0:
+                                                await update.message.reply_text("❌ 所有金额必须大于0！")
+                                                return
+                                            amounts.append(amount)
+                                        except ValueError:
+                                            await update.message.reply_text(f"❌ 金额格式错误: {amount_str}")
+                                            return
+                                else:
+                                    await update.message.reply_text("❌ 币种数量与金额数量不匹配！")
+                                    return
+                            else:
+                                await update.message.reply_text("❌ 未找到有效的金额参数！")
+                                return
+                    else:
+                        await update.message.reply_text("❌ 金额必须大于0！")
+                        return
+                except ValueError:
+                    await update.message.reply_text("❌ 金额格式错误！")
+                    return
+                
+                # 执行批量开仓
+                results = []
+                for symbol, amount in zip(symbols, amounts):
+                    result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
+                    results.append(f"{symbol}: {result['message']}")
+                
+                response = "📈 批量做多结果:\n" + "\n".join(results)
+                await update.message.reply_text(response)
+            else:
+                # 单个开仓模式
+                symbol = args[0].upper()
+                try:
+                    amount = float(args[1].replace('u', '').replace('U', ''))
+                except ValueError:
+                    await update.message.reply_text("❌ 金额格式错误！")
+                    return
+                
+                if amount <= 0:
+                    await update.message.reply_text("❌ 金额必须大于0！")
+                    return
+                
+                # 执行开多仓操作
+                result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
+                
+                await update.message.reply_text(result['message'])
             
         except Exception as e:
             logger.error(f"做多命令失败: {e}")
@@ -801,25 +872,96 @@ class ShortCommand(BaseCommand):
             args = context.args
             if len(args) < 2:
                 await update.message.reply_text(
-                    "❌ 用法错误！\n正确格式: /short <交易对> <金额>\n例如: /short btc 100"
+                    "❌ 用法错误！\n正确格式: \n"
+                    "单个开仓: /short <交易对> <金额>\n"
+                    "批量开仓(相同金额): /short <币种1> <币种2> <币种3> <金额>\n"
+                    "批量开仓(不同金额): /short <币种1> <币种2> <币种3> <金额1> <金额2> <金额3>\n"
+                    "例如: /short btc 100 或 /short btc eth xrp 5000 或 /short btc eth pepe 5000 2000 200"
                 )
                 return
             
-            symbol = args[0].upper()
-            try:
-                amount = float(args[1].replace('u', '').replace('U', ''))
-            except ValueError:
-                await update.message.reply_text("❌ 金额格式错误！")
-                return
-            
-            if amount <= 0:
-                await update.message.reply_text("❌ 金额必须大于0！")
-                return
-            
-            # 执行开空仓操作
-            result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
-            
-            await update.message.reply_text(result['message'])
+            # 检查是否为批量开仓
+            if len(args) >= 3:
+                # 批量开仓模式
+                symbols = []
+                amounts = []
+                
+                # 尝试解析最后一个参数作为金额
+                try:
+                    last_amount = float(args[-1].replace('u', '').replace('U', ''))
+                    if last_amount > 0:
+                        # 检查是否为相同金额模式
+                        if len(args) == len([arg for arg in args[:-1] if not arg.replace('.', '').replace('u', '').replace('U', '').isdigit()]) + 1:
+                            # 相同金额模式: /short btc eth xrp 5000
+                            symbols = [arg.upper() for arg in args[:-1]]
+                            amounts = [last_amount] * len(symbols)
+                        else:
+                            # 检查是否为不同金额模式
+                            # 找到第一个数字参数的位置
+                            first_amount_idx = None
+                            for i, arg in enumerate(args):
+                                try:
+                                    float(arg.replace('u', '').replace('U', ''))
+                                    first_amount_idx = i
+                                    break
+                                except ValueError:
+                                    continue
+                            
+                            if first_amount_idx is not None:
+                                symbols = [arg.upper() for arg in args[:first_amount_idx]]
+                                amount_args = args[first_amount_idx:]
+                                
+                                if len(symbols) == len(amount_args):
+                                    # 不同金额模式: /short btc eth pepe 5000 2000 200
+                                    amounts = []
+                                    for amount_str in amount_args:
+                                        try:
+                                            amount = float(amount_str.replace('u', '').replace('U', ''))
+                                            if amount <= 0:
+                                                await update.message.reply_text("❌ 所有金额必须大于0！")
+                                                return
+                                            amounts.append(amount)
+                                        except ValueError:
+                                            await update.message.reply_text(f"❌ 金额格式错误: {amount_str}")
+                                            return
+                                else:
+                                    await update.message.reply_text("❌ 币种数量与金额数量不匹配！")
+                                    return
+                            else:
+                                await update.message.reply_text("❌ 未找到有效的金额参数！")
+                                return
+                    else:
+                        await update.message.reply_text("❌ 金额必须大于0！")
+                        return
+                except ValueError:
+                    await update.message.reply_text("❌ 金额格式错误！")
+                    return
+                
+                # 执行批量开仓
+                results = []
+                for symbol, amount in zip(symbols, amounts):
+                    result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
+                    results.append(f"{symbol}: {result['message']}")
+                
+                response = "📉 批量做空结果:\n" + "\n".join(results)
+                await update.message.reply_text(response)
+            else:
+                # 单个开仓模式
+                symbol = args[0].upper()
+                try:
+                    amount = float(args[1].replace('u', '').replace('U', ''))
+                except ValueError:
+                    await update.message.reply_text("❌ 金额格式错误！")
+                    return
+                
+                if amount <= 0:
+                    await update.message.reply_text("❌ 金额必须大于0！")
+                    return
+                
+                # 执行开空仓操作
+                result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
+                
+                await update.message.reply_text(result['message'])
             
         except Exception as e:
             logger.error(f"做空命令失败: {e}")
