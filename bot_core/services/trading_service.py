@@ -906,14 +906,14 @@ class TradingService:
                 # 构建交易记录列表
                 trade_records = []
                 for i, trade in enumerate(history, 1):
-                    action_emoji = {
-                        'open': '📈' if trade['side'] == 'long' else '📉',
-                        'close': '✅',
-                        'liquidated': '💥'
-                    }.get(trade['action'], '❓')
+                    # 多空单用上涨下跌emoji
+                    side_emoji = '📈' if trade['side'] == 'long' else '📉'
                     
-                    side_text = '多' if trade['side'] == 'long' else '空'
-                    pnl_text = f"{trade['pnl']:+.2f}" if trade['action'] in ['close', 'liquidated'] else '-'
+                    # 盈亏用勾叉
+                    pnl_emoji = '✅' if trade['pnl'] > 0 else '❌'
+                    
+                    # 提取币种（去掉USDT后缀）
+                    coin = trade['symbol'].replace('USDT', '')
                     
                     # 格式化时间
                     try:
@@ -926,10 +926,12 @@ class TradingService:
                     except:
                         time_str = str(trade['created_at'])[:16]
                     
+                    # 使用数据库查询到的开仓价格和平仓价格
+                    entry_price = trade['entry_price']  # 开仓价格
+                    exit_price = trade['price']         # 平仓价格
+                    
                     trade_records.append(
-                        f"{i:2d}. {action_emoji} {trade['symbol']} {side_text} "
-                        f"${trade['size']:.0f} @{trade['price']:.4f} "
-                        f"PnL:{pnl_text} {time_str}"
+                        f"{side_emoji}{pnl_emoji} | {coin} | Entry:{entry_price:.4f} | Exit:{exit_price:.4f} | ${trade['size']:.0f} | PnL:{trade['pnl']:+.0f} | {time_str}"
                     )
                 
                 recent_trades = "\n".join(trade_records)
@@ -938,7 +940,11 @@ class TradingService:
                 win_rate_info = (
                     f"📈 总交易次数: {win_rate_data['total_trades']}\n"
                     f"🎯 盈利次数: {win_rate_data['winning_trades']}\n"
-                    f"📊 胜率: {win_rate_data['win_rate']:.1f}%"
+                    f"📊 胜率: {win_rate_data['win_rate']:.1f}%\n"
+                    f"💰 平均仓位: ${win_rate_data['avg_position_size']:.0f}\n"
+                    f"⏱️ 平均持仓: {win_rate_data['avg_holding_time']:.1f}小时\n"
+                    f"📈 平均盈亏: {win_rate_data['avg_pnl']:+.2f} USDT\n"
+                    f"⚖️ 盈亏比: {win_rate_data['profit_loss_ratio']:.2f}"
                 )
                 
                 message = (

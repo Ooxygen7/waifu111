@@ -287,13 +287,25 @@ class TradingRepository:
         """获取用户交易历史记录(不包含持仓中的仓位)"""
         try:
             command = """
-                SELECT action, symbol, side, size, price, pnl, created_at
-                FROM trading_history 
-                WHERE user_id = ? AND group_id = ? AND action IN ('close', 'liquidated')
-                ORDER BY created_at DESC
+                SELECT close_trade.action, close_trade.symbol, close_trade.side, 
+                       close_trade.size, close_trade.price as exit_price, 
+                       close_trade.pnl, close_trade.created_at,
+                       open_trade.price as entry_price
+                FROM trading_history close_trade
+                LEFT JOIN (
+                    SELECT symbol, side, price, 
+                           ROW_NUMBER() OVER (PARTITION BY symbol, side ORDER BY created_at DESC) as rn
+                    FROM trading_history 
+                    WHERE user_id = ? AND group_id = ? AND action = 'open'
+                ) open_trade ON close_trade.symbol = open_trade.symbol 
+                                AND close_trade.side = open_trade.side 
+                                AND open_trade.rn = 1
+                WHERE close_trade.user_id = ? AND close_trade.group_id = ? 
+                      AND close_trade.action IN ('close', 'liquidated')
+                ORDER BY close_trade.created_at DESC
                 LIMIT ?
             """
-            result = query_db(command, (user_id, group_id, limit))
+            result = query_db(command, (user_id, group_id, user_id, group_id, limit))
             
             history = []
             for row in result:
@@ -302,9 +314,10 @@ class TradingRepository:
                     "symbol": row[1],
                     "side": row[2],
                     "size": float(row[3]),
-                    "price": float(row[4]),
+                    "price": float(row[4]),  # exit_price
                     "pnl": float(row[5]),
-                    "created_at": row[6]
+                    "created_at": row[6],
+                    "entry_price": float(row[7]) if row[7] is not None else float(row[4])  # 如果没有找到开仓记录，使用平仓价格
                 })
             
             return {
@@ -320,15 +333,27 @@ class TradingRepository:
 
     @staticmethod
     def get_win_rate(user_id: int, group_id: int) -> dict:
-        """计算用户总胜率(不包含持仓中的仓位，强平判定为亏损)"""
+        """计算用户胜率和交易统计(被强平的仓位判定为亏损)"""
         try:
-            # 获取所有平仓记录(action='close')和强平记录(action='liquidated')
+            # 获取所有已平仓和被强平的交易记录，包含开仓时间
             command = """
-                SELECT pnl, action
-                FROM trading_history 
-                WHERE user_id = ? AND group_id = ? AND action IN ('close', 'liquidated')
+                SELECT close_trade.pnl, close_trade.created_at as close_time, 
+                       close_trade.size, close_trade.action,
+                       open_trade.created_at as open_time
+                FROM trading_history close_trade
+                LEFT JOIN (
+                    SELECT symbol, side, created_at,
+                           ROW_NUMBER() OVER (PARTITION BY symbol, side ORDER BY created_at DESC) as rn
+                    FROM trading_history 
+                    WHERE user_id = ? AND group_id = ? AND action = 'open'
+                ) open_trade ON close_trade.symbol = open_trade.symbol 
+                                AND close_trade.side = open_trade.side 
+                                AND open_trade.rn = 1
+                WHERE close_trade.user_id = ? AND close_trade.group_id = ? 
+                      AND close_trade.action IN ('close', 'liquidated')
+                ORDER BY close_trade.created_at
             """
-            result = query_db(command, (user_id, group_id))
+            result = query_db(command, (user_id, group_id, user_id, group_id))
             
             if not result:
                 return {
@@ -336,21 +361,80 @@ class TradingRepository:
                     "total_trades": 0,
                     "winning_trades": 0,
                     "losing_trades": 0,
-                    "win_rate": 0.0
+                    "win_rate": 0.0,
+                    "avg_position_size": 0.0,
+                    "avg_holding_time": 0.0,
+                    "avg_pnl": 0.0,
+                    "profit_loss_ratio": 0.0
                 }
             
             total_trades = len(result)
-            # 只有平仓且盈利的交易才算胜利，强平一律算亏损
-            winning_trades = sum(1 for row in result if row[1] == 'close' and float(row[0]) > 0)
+            winning_trades = 0
+            total_pnl = 0.0
+            total_position_size = 0.0
+            total_holding_time = 0.0
+            winning_pnl = 0.0
+            losing_pnl = 0.0
+            valid_holding_times = 0
+            
+            for row in result:
+                pnl = float(row[0])
+                close_time = row[1]
+                size = float(row[2])
+                action = row[3]
+                open_time = row[4]
+                
+                total_pnl += pnl
+                total_position_size += size
+                
+                # 计算持仓时间（如果有开仓时间）
+                if open_time and close_time:
+                    try:
+                        from datetime import datetime
+                        if isinstance(open_time, str):
+                            open_dt = datetime.fromisoformat(open_time.replace('Z', '+00:00'))
+                        else:
+                            open_dt = open_time
+                        
+                        if isinstance(close_time, str):
+                            close_dt = datetime.fromisoformat(close_time.replace('Z', '+00:00'))
+                        else:
+                            close_dt = close_time
+                        
+                        holding_time_hours = (close_dt - open_dt).total_seconds() / 3600
+                        total_holding_time += holding_time_hours
+                        valid_holding_times += 1
+                    except:
+                        pass
+                
+                # 只有平仓且盈利的交易才算胜利，强平一律算亏损
+                if action == 'close' and pnl > 0:
+                    winning_trades += 1
+                    winning_pnl += pnl
+                else:
+                    losing_pnl += abs(pnl)
+            
             losing_trades = total_trades - winning_trades
             win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0
+            avg_position_size = total_position_size / total_trades if total_trades > 0 else 0.0
+            avg_holding_time = total_holding_time / valid_holding_times if valid_holding_times > 0 else 0.0
+            avg_pnl = total_pnl / total_trades if total_trades > 0 else 0.0
+            
+            # 盈亏比 = 平均盈利 / 平均亏损
+            avg_win = winning_pnl / winning_trades if winning_trades > 0 else 0.0
+            avg_loss = losing_pnl / losing_trades if losing_trades > 0 else 0.0
+            profit_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 0.0
             
             return {
                 "success": True,
                 "total_trades": total_trades,
                 "winning_trades": winning_trades,
                 "losing_trades": losing_trades,
-                "win_rate": round(win_rate, 2)
+                "win_rate": round(win_rate, 2),
+                "avg_position_size": round(avg_position_size, 2),
+                "avg_holding_time": round(avg_holding_time, 2),
+                "avg_pnl": round(avg_pnl, 2),
+                "profit_loss_ratio": round(profit_loss_ratio, 2)
             }
         except Exception as e:
             logger.error(f"计算胜率失败: {e}")
