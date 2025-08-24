@@ -335,25 +335,28 @@ class TradingRepository:
     def get_win_rate(user_id: int, group_id: int) -> dict:
         """计算用户胜率和交易统计(被强平的仓位判定为亏损)"""
         try:
-            # 获取所有已平仓和被强平的交易记录，包含开仓时间
+            # 获取所有已平仓和被强平的交易记录，匹配对应的开仓时间
             command = """
                 SELECT close_trade.pnl, close_trade.created_at as close_time, 
                        close_trade.size, close_trade.action,
-                       open_trade.created_at as open_time
+                       (
+                           SELECT open_sub.created_at 
+                           FROM trading_history open_sub
+                           WHERE open_sub.user_id = close_trade.user_id 
+                             AND open_sub.group_id = close_trade.group_id
+                             AND open_sub.symbol = close_trade.symbol
+                             AND open_sub.side = close_trade.side
+                             AND open_sub.action = 'open'
+                             AND open_sub.created_at < close_trade.created_at
+                           ORDER BY open_sub.created_at DESC
+                           LIMIT 1
+                       ) as open_time
                 FROM trading_history close_trade
-                LEFT JOIN (
-                    SELECT symbol, side, created_at,
-                           ROW_NUMBER() OVER (PARTITION BY symbol, side ORDER BY created_at DESC) as rn
-                    FROM trading_history 
-                    WHERE user_id = ? AND group_id = ? AND action = 'open'
-                ) open_trade ON close_trade.symbol = open_trade.symbol 
-                                AND close_trade.side = open_trade.side 
-                                AND open_trade.rn = 1
                 WHERE close_trade.user_id = ? AND close_trade.group_id = ? 
                       AND close_trade.action IN ('close', 'liquidated')
                 ORDER BY close_trade.created_at
             """
-            result = query_db(command, (user_id, group_id, user_id, group_id))
+            result = query_db(command, (user_id, group_id))
             
             if not result:
                 return {
