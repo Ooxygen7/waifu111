@@ -912,8 +912,8 @@ class TradingService:
                     # 盈亏用勾叉
                     pnl_emoji = '✅' if trade['pnl'] > 0 else '❌'
                     
-                    # 提取币种（去掉USDT后缀）
-                    coin = trade['symbol'].replace('USDT', '')
+                    # 提取币种（去掉/USDT后缀）
+                    coin = trade['symbol'].replace('/USDT', '')
                     
                     # 格式化时间
                     try:
@@ -947,11 +947,32 @@ class TradingService:
                     f"⚖️ 盈亏比: {win_rate_data['profit_loss_ratio']:.2f}"
                 )
                 
-                message = (
-                    f"📊 盈亏报告\n\n"
-                    f"<blockquote expandable>📋 最近15笔交易\n\n{recent_trades}</blockquote>\n\n"
+                # 币种统计信息
+                symbol_stats = ""
+                if win_rate_data['most_profitable_symbol']:
+                    most_profitable_coin = win_rate_data['most_profitable_symbol'].replace('/USDT', '')
+                    symbol_stats += f"🏆 最赚钱币种: {most_profitable_coin} (+{win_rate_data['most_profitable_pnl']:.0f} USDT, {win_rate_data['most_profitable_count']}次, 平均{win_rate_data['most_profitable_avg_pnl']:+.1f})\n"
+                
+                if win_rate_data['most_loss_symbol']:
+                    most_loss_coin = win_rate_data['most_loss_symbol'].replace('/USDT', '')
+                    symbol_stats += f"💸 最亏钱币种: {most_loss_coin} ({win_rate_data['most_loss_pnl']:+.0f} USDT, {win_rate_data['most_loss_count']}次, 平均{win_rate_data['most_loss_avg_pnl']:+.1f})\n"
+                
+                if win_rate_data['most_traded_symbol']:
+                    most_traded_coin = win_rate_data['most_traded_symbol'].replace('/USDT', '')
+                    symbol_stats += f"🔥 最常交易币种: {most_traded_coin} ({win_rate_data['most_traded_count']}次, 平均{win_rate_data['most_traded_avg_pnl']:+.1f} USDT)"
+                
+                # 构建完整消息
+                message_parts = [
+                    "📊 盈亏报告\n",
+                    f"<blockquote expandable>📋 最近15笔交易\n\n{recent_trades}</blockquote>\n",
                     f"<blockquote expandable>📈 胜率统计\n\n{win_rate_info}</blockquote>"
-                )
+                ]
+                
+                # 如果有币种统计信息，添加到消息中
+                if symbol_stats.strip():
+                    message_parts.append(f"\n<blockquote expandable>🎯 币种统计\n\n{symbol_stats}</blockquote>")
+                
+                message = "".join(message_parts)
             
             return {
                 "success": True,

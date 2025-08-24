@@ -338,7 +338,7 @@ class TradingRepository:
             # 获取所有已平仓和被强平的交易记录，匹配对应的开仓时间
             command = """
                 SELECT close_trade.pnl, close_trade.created_at as close_time, 
-                       close_trade.size, close_trade.action,
+                       close_trade.size, close_trade.action, close_trade.symbol,
                        (
                            SELECT open_sub.created_at 
                            FROM trading_history open_sub
@@ -368,7 +368,18 @@ class TradingRepository:
                     "avg_position_size": 0.0,
                     "avg_holding_time": 0.0,
                     "avg_pnl": 0.0,
-                    "profit_loss_ratio": 0.0
+                    "profit_loss_ratio": 0.0,
+                    "most_profitable_symbol": "",
+                    "most_profitable_pnl": 0.0,
+                    "most_profitable_count": 0,
+                    "most_profitable_avg_pnl": 0.0,
+                    "most_loss_symbol": "",
+                    "most_loss_pnl": 0.0,
+                    "most_loss_count": 0,
+                    "most_loss_avg_pnl": 0.0,
+                    "most_traded_symbol": "",
+                    "most_traded_count": 0,
+                    "most_traded_avg_pnl": 0.0
                 }
             
             total_trades = len(result)
@@ -380,12 +391,27 @@ class TradingRepository:
             losing_pnl = 0.0
             valid_holding_times = 0
             
+            # 按币种统计
+            symbol_stats = {}
+            
             for row in result:
                 pnl = float(row[0])
                 close_time = row[1]
                 size = float(row[2])
                 action = row[3]
-                open_time = row[4]
+                symbol = row[4]
+                open_time = row[5]
+                
+                # 初始化币种统计
+                if symbol not in symbol_stats:
+                    symbol_stats[symbol] = {
+                        'total_pnl': 0.0,
+                        'trade_count': 0
+                    }
+                
+                # 更新币种统计
+                symbol_stats[symbol]['total_pnl'] += pnl
+                symbol_stats[symbol]['trade_count'] += 1
                 
                 total_pnl += pnl
                 total_position_size += size
@@ -428,6 +454,19 @@ class TradingRepository:
             avg_loss = losing_pnl / losing_trades if losing_trades > 0 else 0.0
             profit_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 0.0
             
+            # 计算币种排名
+            most_profitable_symbol = ""
+            most_loss_symbol = ""
+            most_traded_symbol = ""
+            
+            if symbol_stats:
+                # 赚得最多的币种
+                most_profitable_symbol = max(symbol_stats.keys(), key=lambda x: symbol_stats[x]['total_pnl'])
+                # 亏得最多的币种
+                most_loss_symbol = min(symbol_stats.keys(), key=lambda x: symbol_stats[x]['total_pnl'])
+                # 交易次数最多的币种
+                most_traded_symbol = max(symbol_stats.keys(), key=lambda x: symbol_stats[x]['trade_count'])
+            
             return {
                 "success": True,
                 "total_trades": total_trades,
@@ -437,7 +476,18 @@ class TradingRepository:
                 "avg_position_size": round(avg_position_size, 2),
                 "avg_holding_time": round(avg_holding_time, 2),
                 "avg_pnl": round(avg_pnl, 2),
-                "profit_loss_ratio": round(profit_loss_ratio, 2)
+                "profit_loss_ratio": round(profit_loss_ratio, 2),
+                "most_profitable_symbol": most_profitable_symbol,
+                "most_profitable_pnl": round(symbol_stats[most_profitable_symbol]['total_pnl'], 2) if most_profitable_symbol else 0.0,
+                "most_profitable_count": symbol_stats[most_profitable_symbol]['trade_count'] if most_profitable_symbol else 0,
+                "most_profitable_avg_pnl": round(symbol_stats[most_profitable_symbol]['total_pnl'] / symbol_stats[most_profitable_symbol]['trade_count'], 2) if most_profitable_symbol and symbol_stats[most_profitable_symbol]['trade_count'] > 0 else 0.0,
+                "most_loss_symbol": most_loss_symbol,
+                "most_loss_pnl": round(symbol_stats[most_loss_symbol]['total_pnl'], 2) if most_loss_symbol else 0.0,
+                "most_loss_count": symbol_stats[most_loss_symbol]['trade_count'] if most_loss_symbol else 0,
+                "most_loss_avg_pnl": round(symbol_stats[most_loss_symbol]['total_pnl'] / symbol_stats[most_loss_symbol]['trade_count'], 2) if most_loss_symbol and symbol_stats[most_loss_symbol]['trade_count'] > 0 else 0.0,
+                "most_traded_symbol": most_traded_symbol,
+                "most_traded_count": symbol_stats[most_traded_symbol]['trade_count'] if most_traded_symbol else 0,
+                "most_traded_avg_pnl": round(symbol_stats[most_traded_symbol]['total_pnl'] / symbol_stats[most_traded_symbol]['trade_count'], 2) if most_traded_symbol and symbol_stats[most_traded_symbol]['trade_count'] > 0 else 0.0
             }
         except Exception as e:
             logger.error(f"计算胜率失败: {e}")
