@@ -324,9 +324,13 @@ class TradingService:
             positions = positions_result["positions"]
             
             if not positions:
+                account_info = (
+                    f"💰 余额: {account['balance']:.2f} USDT\n"
+                    f"📊 总盈亏: {account['total_pnl']:+.2f} USDT"
+                )
                 return {
                     'success': True,
-                    'message': f"💰 余额: {account['balance']:.2f} USDT\n📊 总盈亏: {account['total_pnl']:+.2f} USDT\n📋 当前无持仓"
+                    'message': f"<blockquote expandable>💼 账户信息\n\n{account_info}</blockquote>\n\n📋 当前无持仓"
                 }
             
             total_unrealized_pnl = 0
@@ -391,15 +395,18 @@ class TradingService:
             # 使用可折叠的引用块显示详细仓位信息
             detailed_positions = "\n\n".join(position_text)
             
-            message = (
+            # 构建可折叠的账户信息
+            account_info = (
                 f"💰 余额: {account['balance']:.2f} USDT\n"
                 f"📊 总盈亏: {account['total_pnl']:+.2f} USDT\n"
                 f"💸 未实现盈亏: {total_unrealized_pnl:+.2f} USDT\n"
                 f"🏦 浮动余额: {floating_balance:.2f} USDT\n"
                 f"{margin_info}\n"
                 f"{leverage_info}\n"
-                f"{threshold_info}{risk_warning}"
+                f"{threshold_info}"
             )
+            
+            message = f"<blockquote expandable>💼 账户信息\n\n{account_info}</blockquote>{risk_warning}"
             
             # 添加可折叠的详细仓位信息
             if detailed_positions:
@@ -798,6 +805,88 @@ class TradingService:
             return {
                 "success": False,
                 "error": str(e)
+            }
+    
+    def get_pnl_report(self, user_id: int, group_id: int) -> Dict:
+        """获取用户盈亏报告，包含最近15笔交易记录和总胜率"""
+        try:
+            # 获取交易历史记录
+            history_result = TradingRepository.get_trading_history(user_id, group_id, 15)
+            if not history_result["success"]:
+                return {
+                    "success": False,
+                    "message": f"获取交易历史失败: {history_result['error']}"
+                }
+            
+            # 获取胜率数据
+            win_rate_result = TradingRepository.get_win_rate(user_id, group_id)
+            if not win_rate_result["success"]:
+                return {
+                    "success": False,
+                    "message": f"计算胜率失败: {win_rate_result['error']}"
+                }
+            
+            history = history_result["history"]
+            win_rate_data = win_rate_result
+            
+            # 构建消息
+            if not history:
+                message = "📊 盈亏报告\n\n❌ 暂无交易记录"
+            else:
+                # 构建交易记录列表
+                trade_records = []
+                for i, trade in enumerate(history, 1):
+                    action_emoji = {
+                        'open': '📈' if trade['side'] == 'long' else '📉',
+                        'close': '✅',
+                        'liquidated': '💥'
+                    }.get(trade['action'], '❓')
+                    
+                    side_text = '多' if trade['side'] == 'long' else '空'
+                    pnl_text = f"{trade['pnl']:+.2f}" if trade['action'] in ['close', 'liquidated'] else '-'
+                    
+                    # 格式化时间
+                    try:
+                        from datetime import datetime
+                        if isinstance(trade['created_at'], str):
+                            dt = datetime.fromisoformat(trade['created_at'].replace('Z', '+00:00'))
+                        else:
+                            dt = trade['created_at']
+                        time_str = dt.strftime('%m-%d %H:%M')
+                    except:
+                        time_str = str(trade['created_at'])[:16]
+                    
+                    trade_records.append(
+                        f"{i:2d}. {action_emoji} {trade['symbol']} {side_text} "
+                        f"${trade['size']:.0f} @{trade['price']:.4f} "
+                        f"PnL:{pnl_text} {time_str}"
+                    )
+                
+                recent_trades = "\n".join(trade_records)
+                
+                # 胜率信息
+                win_rate_info = (
+                    f"📈 总交易次数: {win_rate_data['total_trades']}\n"
+                    f"🎯 盈利次数: {win_rate_data['winning_trades']}\n"
+                    f"📊 胜率: {win_rate_data['win_rate']:.1f}%"
+                )
+                
+                message = (
+                    f"📊 盈亏报告\n\n"
+                    f"<blockquote expandable>📋 最近15笔交易\n\n{recent_trades}</blockquote>\n\n"
+                    f"<blockquote expandable>📈 胜率统计\n\n{win_rate_info}</blockquote>"
+                )
+            
+            return {
+                "success": True,
+                "message": message
+            }
+            
+        except Exception as e:
+            logger.error(f"获取盈亏报告失败: {e}")
+            return {
+                "success": False,
+                "message": f"获取盈亏报告失败: {str(e)}"
             }
 
 # 全局交易服务实例

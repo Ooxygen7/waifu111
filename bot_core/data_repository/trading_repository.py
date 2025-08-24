@@ -283,6 +283,83 @@ class TradingRepository:
             }
 
     @staticmethod
+    def get_trading_history(user_id: int, group_id: int, limit: int = 15) -> dict:
+        """获取用户交易历史记录(不包含持仓中的仓位)"""
+        try:
+            command = """
+                SELECT action, symbol, side, size, price, pnl, created_at
+                FROM trading_history 
+                WHERE user_id = ? AND group_id = ? AND action IN ('close', 'liquidated')
+                ORDER BY created_at DESC
+                LIMIT ?
+            """
+            result = query_db(command, (user_id, group_id, limit))
+            
+            history = []
+            for row in result:
+                history.append({
+                    "action": row[0],
+                    "symbol": row[1],
+                    "side": row[2],
+                    "size": float(row[3]),
+                    "price": float(row[4]),
+                    "pnl": float(row[5]),
+                    "created_at": row[6]
+                })
+            
+            return {
+                "success": True,
+                "history": history
+            }
+        except Exception as e:
+            logger.error(f"获取交易历史失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_win_rate(user_id: int, group_id: int) -> dict:
+        """计算用户总胜率(不包含持仓中的仓位，强平判定为亏损)"""
+        try:
+            # 获取所有平仓记录(action='close')和强平记录(action='liquidated')
+            command = """
+                SELECT pnl, action
+                FROM trading_history 
+                WHERE user_id = ? AND group_id = ? AND action IN ('close', 'liquidated')
+            """
+            result = query_db(command, (user_id, group_id))
+            
+            if not result:
+                return {
+                    "success": True,
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "win_rate": 0.0
+                }
+            
+            total_trades = len(result)
+            # 只有平仓且盈利的交易才算胜利，强平一律算亏损
+            winning_trades = sum(1 for row in result if row[1] == 'close' and float(row[0]) > 0)
+            losing_trades = total_trades - winning_trades
+            win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0
+            
+            return {
+                "success": True,
+                "total_trades": total_trades,
+                "winning_trades": winning_trades,
+                "losing_trades": losing_trades,
+                "win_rate": round(win_rate, 2)
+            }
+        except Exception as e:
+            logger.error(f"计算胜率失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
     def get_begging_record(user_id: int, group_id: int) -> dict:
         """获取用户今日救济金记录"""
         try:

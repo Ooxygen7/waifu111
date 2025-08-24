@@ -851,6 +851,31 @@ class PositionCommand(BaseCommand):
             await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
 
 
+class PnlCommand(BaseCommand):
+    meta = CommandMeta(
+        name="pnl",
+        command_type="group",
+        trigger="pnl",
+        menu_text="盈亏报告 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=33,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 获取盈亏报告
+            result = trading_service.get_pnl_report(user_id, group_id)
+            
+            await update.message.reply_text(result['message'], parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"盈亏报告命令失败: {e}")
+            await update.message.reply_text("❌ 获取盈亏报告失败，请稍后重试")
+
+
 class BeggingCommand(BaseCommand):
     meta = CommandMeta(
         name="begging",
@@ -858,7 +883,7 @@ class BeggingCommand(BaseCommand):
         trigger="begging",
         menu_text="领取救济金 (模拟盘)",
         show_in_menu=True,
-        menu_weight=33,
+        menu_weight=34,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -883,7 +908,7 @@ class CloseCommand(BaseCommand):
         trigger="close",
         menu_text="平仓 (模拟盘)",
         show_in_menu=True,
-        menu_weight=34,
+        menu_weight=35,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -934,7 +959,7 @@ class RankCommand(BaseCommand):
         trigger="rank",
         menu_text="查看排行榜 (模拟盘)",
         show_in_menu=True,
-        menu_weight=35,
+        menu_weight=36,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
