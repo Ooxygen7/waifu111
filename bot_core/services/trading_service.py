@@ -311,8 +311,78 @@ class TradingService:
         except Exception as e:
             logger.error(f"平仓失败: {e}")
             return {'success': False, 'message': '平仓失败，请稍后重试'}
-    
-    async def get_positions(self, user_id: int, group_id: int) -> Dict:
+
+    async def close_all_positions(self, user_id: int, group_id: int) -> Dict:
+        """
+        一键全平所有仓位
+        """
+        try:
+            # 获取用户所有仓位
+            positions_result = TradingRepository.get_positions(user_id, group_id)
+            if not positions_result["success"]:
+                return {'success': False, 'message': '获取仓位信息失败'}
+            
+            positions = positions_result["positions"]
+            if not positions:
+                return {'success': False, 'message': '当前没有持仓'}
+            
+            total_pnl = 0.0
+            closed_positions = []
+            
+            # 逐个平仓所有仓位
+            for position in positions:
+                symbol = position['symbol']
+                side = position['side']
+                size = position['size']
+                
+                # 获取当前价格
+                current_price = await self.get_current_price(symbol)
+                if current_price <= 0:
+                    continue
+                
+                # 计算盈亏
+                pnl = self._calculate_pnl(position['entry_price'], current_price, size, side)
+                total_pnl += pnl
+                
+                # 删除仓位
+                delete_result = TradingRepository.delete_position(user_id, group_id, symbol, side)
+                if delete_result["success"]:
+                    closed_positions.append({
+                        'symbol': symbol,
+                        'side': side,
+                        'size': size,
+                        'pnl': pnl
+                    })
+                    
+                    # 记录交易历史
+                    TradingRepository.add_trading_history(
+                        user_id, group_id, 'close', symbol, side, size, current_price, pnl
+                    )
+            
+            if not closed_positions:
+                return {'success': False, 'message': '平仓失败，无法获取价格信息'}
+            
+            # 更新账户余额
+            account = self.get_or_create_account(user_id, group_id)
+            new_balance = account['balance'] + total_pnl
+            
+            balance_result = TradingRepository.update_account_balance(user_id, group_id, new_balance, total_pnl)
+            if not balance_result["success"]:
+                return {'success': False, 'message': '更新账户余额失败'}
+            
+            # 构建返回消息
+            message_lines = ["🔄 一键全平成功！"]
+            for pos in closed_positions:
+                message_lines.append(f"{pos['symbol']} {pos['side'].upper()} -{pos['size']:.2f} USDT (盈亏: {pos['pnl']:+.2f} USDT)")
+            message_lines.append(f"\n💰 总盈亏: {total_pnl:+.2f} USDT")
+            
+            return {'success': True, 'message': '\n'.join(message_lines)}
+            
+        except Exception as e:
+            logger.error(f"一键全平失败: {e}")
+            return {'success': False, 'message': '一键全平失败，请稍后重试'}
+
+    async def get_positions(self, user_id: int, group_id: int) -> str:
         """获取用户所有仓位信息"""
         try:
             account = self.get_or_create_account(user_id, group_id)

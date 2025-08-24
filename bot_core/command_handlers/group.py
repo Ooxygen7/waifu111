@@ -918,9 +918,21 @@ class CloseCommand(BaseCommand):
             
             # 解析命令参数
             args = context.args
+            
+            # 如果没有参数，执行一键全平
+            if len(args) == 0:
+                result = await trading_service.close_all_positions(user_id, group_id)
+                await update.message.reply_text(result['message'])
+                return
+            
+            # 如果参数不足，显示用法说明
             if len(args) < 2:
                 await update.message.reply_text(
-                    "❌ 用法错误！\n正确格式: /close <交易对> <方向> [金额]\n例如: /close btc long 50 (部分平仓)\n或: /close btc long (全部平仓)"
+                    "❌ 用法错误！\n正确格式:\n" +
+                    "• /close (一键全平所有仓位)\n" +
+                    "• /close <交易对> <方向> [金额]\n" +
+                    "例如: /close btc long 50 (部分平仓)\n" +
+                    "或: /close btc long (全部平仓)"
                 )
                 return
             
