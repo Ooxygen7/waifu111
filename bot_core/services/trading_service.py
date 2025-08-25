@@ -1248,9 +1248,11 @@ class TradingService:
             new_total_debt = current_total_debt + amount * 1.1  # 包含10%手续费
             
             if new_total_debt > max_allowed_debt:
+                # 计算实际最大可贷金额（考虑10%手续费）
+                max_loan_amount = (max_allowed_debt - current_total_debt) / 1.1
                 return {
                     "success": False,
-                    "message": f"贷款额度不足！\n💰 当前余额: {current_balance:.2f} USDT\n💸 净余额: {net_balance:.2f} USDT (扣除贷款本金: {total_loan_principal:.2f} USDT)\n💳 当前欠款: {current_total_debt:.2f} USDT\n📊 最大可贷: {max_allowed_debt - current_total_debt:.2f} USDT\n🏦 申请金额: {amount:.2f} USDT (含手续费: {amount * 1.1:.2f} USDT)\n\n💡 "
+                    "message": f"贷款额度不足！\n💰 当前余额: {current_balance:.2f} USDT\n💸 净余额: {net_balance:.2f} USDT (扣除贷款本金: {total_loan_principal:.2f} USDT)\n💳 当前欠款: {current_total_debt:.2f} USDT\n📊 最大可贷: {max_loan_amount:.2f} USDT\n🏦 申请金额: {amount:.2f} USDT (含手续费: {amount * 1.1:.2f} USDT)\n\n💡 最大可贷金额已考虑10%手续费"
                 }
             
             # 创建贷款记录

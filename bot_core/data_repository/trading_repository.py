@@ -548,11 +548,11 @@ class TradingRepository:
                     l.user_id,
                     SUM(l.remaining_debt) as total_debt,
                     ta.balance,
-                    COALESCE(SUM(l.principal), 0) as total_loan_principal,
-                    (ta.balance - COALESCE(SUM(l.principal), 0)) as net_balance,
+                    COALESCE(SUM(l.principal / 1.1), 0) as total_loan_received,
+                    (ta.balance - COALESCE(SUM(l.principal / 1.1), 0)) as net_balance,
                     CASE 
-                        WHEN (ta.balance - COALESCE(SUM(l.principal), 0)) > 0 
-                        THEN SUM(l.remaining_debt) / (ta.balance - COALESCE(SUM(l.principal), 0))
+                        WHEN (ta.balance - COALESCE(SUM(l.principal / 1.1), 0)) > 0 
+                        THEN SUM(l.remaining_debt) / (ta.balance - COALESCE(SUM(l.principal / 1.1), 0))
                         ELSE 999999
                     END as debt_ratio,
                     MIN(l.loan_time) as earliest_loan_time,
@@ -569,15 +569,15 @@ class TradingRepository:
             ranking = []
             for row in result:
                 ranking.append({
-                    "user_id": row[0],
-                    "total_debt": float(row[1]),
-                    "balance": float(row[2]),
-                    "total_loan_principal": float(row[3]),
-                    "net_balance": float(row[4]),
-                    "debt_ratio": float(row[5]),
-                    "earliest_loan_time": row[6],
-                    "latest_interest_time": row[7]
-                })
+                "user_id": row[0],
+                "total_debt": float(row[1]),
+                "balance": float(row[2]),
+                "total_loan_received": float(row[3]),
+                "net_balance": float(row[4]),
+                "debt_ratio": float(row[5]),
+                "earliest_loan_time": row[6],
+                "latest_interest_time": row[7]
+            })
             
             return {
                 "success": True,
@@ -601,11 +601,11 @@ class TradingRepository:
                     g.group_name,
                     SUM(l.remaining_debt) as total_debt,
                     ta.balance,
-                    COALESCE(SUM(l.principal), 0) as total_loan_principal,
-                    (ta.balance - COALESCE(SUM(l.principal), 0)) as net_balance,
+                    COALESCE(SUM(l.principal / 1.1), 0) as total_loan_received,
+                    (ta.balance - COALESCE(SUM(l.principal / 1.1), 0)) as net_balance,
                     CASE 
-                        WHEN (ta.balance - COALESCE(SUM(l.principal), 0)) > 0 
-                        THEN SUM(l.remaining_debt) / (ta.balance - COALESCE(SUM(l.principal), 0))
+                        WHEN (ta.balance - COALESCE(SUM(l.principal / 1.1), 0)) > 0 
+                        THEN SUM(l.remaining_debt) / (ta.balance - COALESCE(SUM(l.principal / 1.1), 0))
                         ELSE 999999
                     END as debt_ratio,
                     MIN(l.loan_time) as earliest_loan_time,
@@ -628,7 +628,7 @@ class TradingRepository:
                     "group_name": row[2] or f"群组{row[1]}",
                     "total_debt": float(row[3]),
                     "balance": float(row[4]),
-                    "total_loan_principal": float(row[5]),
+                    "total_loan_received": float(row[5]),
                     "net_balance": float(row[6]),
                     "debt_ratio": float(row[7]),
                     "earliest_loan_time": row[8],
