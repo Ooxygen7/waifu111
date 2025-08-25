@@ -855,69 +855,27 @@ class TradingService:
     async def get_ranking_data(self, group_id: int) -> Dict:
         """获取群组排行榜数据"""
         try:
-            from utils.db_utils import query_db
+            # 使用 repository 方法获取盈利排行榜
+            profit_result = TradingRepository.get_group_profit_ranking(group_id)
+            profit_ranking = profit_result.get("ranking", []) if profit_result.get("success") else []
             
-            # 获取盈利排行榜 (top 5)
-            profit_query = """
-                SELECT user_id, total_pnl 
-                FROM trading_accounts 
-                WHERE group_id = ? AND total_pnl > 0
-                ORDER BY total_pnl DESC 
-                LIMIT 5
-            """
-            profit_results = query_db(profit_query, (group_id,))
+            # 使用 repository 方法获取亏损排行榜
+            loss_result = TradingRepository.get_group_loss_ranking(group_id)
+            loss_ranking = loss_result.get("ranking", []) if loss_result.get("success") else []
             
-            # 获取亏损排行榜 (top 5, 按亏损从多到少排序)
-            loss_query = """
-                SELECT user_id, total_pnl 
-                FROM trading_accounts 
-                WHERE group_id = ? AND total_pnl < 0
-                ORDER BY total_pnl ASC 
-                LIMIT 5
-            """
-            loss_results = query_db(loss_query, (group_id,))
+            # 使用 repository 方法获取账户余额信息
+            balance_result = TradingRepository.get_group_balance_accounts(group_id)
+            balance_accounts = balance_result.get("accounts", []) if balance_result.get("success") else []
             
-            # 获取当前浮动余额排行榜 (top 5)
-            # 需要计算每个用户的浮动余额 = 余额 + 未实现盈亏
-            balance_query = """
-                SELECT ta.user_id, ta.balance
-                FROM trading_accounts ta
-                WHERE ta.group_id = ?
-            """
-            balance_results = query_db(balance_query, (group_id,))
-            
-            # 获取爆仓次数排行榜 (top 10)
-            liquidation_query = """
-                SELECT user_id, COUNT(*) as liquidation_count
-                FROM trading_history 
-                WHERE group_id = ? AND action = 'liquidated'
-                GROUP BY user_id 
-                ORDER BY liquidation_count DESC 
-                LIMIT 10
-            """
-            liquidation_results = query_db(liquidation_query, (group_id,))
-            
-            # 格式化盈利排行榜结果
-            profit_ranking = []
-            for row in profit_results:
-                profit_ranking.append({
-                    "user_id": row[0],
-                    "total_pnl": float(row[1])
-                })
-            
-            # 格式化亏损排行榜结果
-            loss_ranking = []
-            for row in loss_results:
-                loss_ranking.append({
-                    "user_id": row[0],
-                    "total_pnl": float(row[1])
-                })
+            # 使用 repository 方法获取爆仓次数排行榜
+            liquidation_result = TradingRepository.get_group_liquidation_ranking(group_id)
+            liquidation_ranking = liquidation_result.get("ranking", []) if liquidation_result.get("success") else []
             
             # 计算每个用户的浮动余额
             balance_ranking = []
-            for row in balance_results:
-                user_id = row[0]
-                balance = float(row[1])
+            for account in balance_accounts:
+                user_id = account["user_id"]
+                balance = account["balance"]
                 
                 # 获取用户所有仓位计算未实现盈亏
                 positions_result = TradingRepository.get_positions(user_id, group_id)
@@ -941,13 +899,6 @@ class TradingService:
             balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
             balance_ranking = balance_ranking[:10]
             
-            liquidation_ranking = []
-            for row in liquidation_results:
-                liquidation_ranking.append({
-                    "user_id": row[0],
-                    "liquidation_count": int(row[1])
-                })
-            
             return {
                 "success": True,
                 "profit_ranking": profit_ranking,
@@ -963,80 +914,109 @@ class TradingService:
                 "error": str(e)
             }
     
+    def _calculate_overdue_days(self, loan_time: str) -> int:
+        """计算贷款逾期天数"""
+        try:
+            loan_datetime = datetime.fromisoformat(loan_time.replace('Z', '+00:00'))
+            current_datetime = datetime.now()
+            
+            # 计算从贷款开始到现在的天数
+            days_since_loan = (current_datetime - loan_datetime).days
+            
+            # 假设贷款期限为30天，超过30天算逾期
+            overdue_days = max(0, days_since_loan - 30)
+            
+            return overdue_days
+        except Exception as e:
+            logger.error(f"计算逾期天数失败: {e}")
+            return 0
+    
+    async def get_deadbeat_ranking_data(self, group_id: int) -> Dict:
+        """获取群组老赖排行榜数据"""
+        try:
+            # 获取老赖排行榜数据
+            result = TradingRepository.get_group_deadbeat_ranking(group_id)
+            
+            if not result['success']:
+                return result
+            
+            # 为每个老赖计算逾期天数
+            deadbeat_ranking = []
+            for deadbeat in result['ranking']:
+                overdue_days = self._calculate_overdue_days(deadbeat['earliest_loan_time'])
+                deadbeat_ranking.append({
+                    **deadbeat,
+                    'overdue_days': overdue_days
+                })
+            
+            return {
+                "success": True,
+                "deadbeat_ranking": deadbeat_ranking
+            }
+            
+        except Exception as e:
+            logger.error(f"获取老赖排行榜数据失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def get_global_deadbeat_ranking_data(self) -> Dict:
+        """获取跨群老赖排行榜数据"""
+        try:
+            # 获取跨群老赖排行榜数据
+            result = TradingRepository.get_global_deadbeat_ranking()
+            
+            if not result['success']:
+                return result
+            
+            # 为每个老赖计算逾期天数
+            deadbeat_ranking = []
+            for deadbeat in result['ranking']:
+                overdue_days = self._calculate_overdue_days(deadbeat['earliest_loan_time'])
+                deadbeat_ranking.append({
+                    **deadbeat,
+                    'overdue_days': overdue_days
+                })
+            
+            return {
+                "success": True,
+                "deadbeat_ranking": deadbeat_ranking
+            }
+            
+        except Exception as e:
+            logger.error(f"获取跨群老赖排行榜数据失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     async def get_global_ranking_data(self) -> Dict:
         """获取跨群排行榜数据"""
         try:
-            from utils.db_utils import query_db
+            # 使用 repository 方法获取跨群盈利排行榜
+            profit_result = TradingRepository.get_global_profit_ranking()
+            profit_ranking = profit_result.get("ranking", []) if profit_result.get("success") else []
             
-            # 获取盈利排行榜 (跨群，取每个用户最好的盈利成绩)
-            profit_query = """
-                SELECT ta.user_id, MAX(ta.total_pnl) as best_pnl, ta.group_id, g.group_name
-                FROM trading_accounts ta
-                LEFT JOIN groups g ON ta.group_id = g.group_id
-                WHERE ta.total_pnl > 0
-                GROUP BY ta.user_id 
-                ORDER BY best_pnl DESC 
-                LIMIT 5
-            """
-            profit_results = query_db(profit_query)
+            # 使用 repository 方法获取跨群亏损排行榜
+            loss_result = TradingRepository.get_global_loss_ranking()
+            loss_ranking = loss_result.get("ranking", []) if loss_result.get("success") else []
             
-            # 获取亏损排行榜 (跨群，取每个用户最差的亏损成绩)
-            loss_query = """
-                SELECT ta.user_id, MIN(ta.total_pnl) as worst_pnl, ta.group_id, g.group_name
-                FROM trading_accounts ta
-                LEFT JOIN groups g ON ta.group_id = g.group_id
-                WHERE ta.total_pnl < 0
-                GROUP BY ta.user_id 
-                ORDER BY worst_pnl ASC 
-                LIMIT 5
-            """
-            loss_results = query_db(loss_query)
+            # 使用 repository 方法获取跨群账户余额信息
+            balance_result = TradingRepository.get_global_balance_accounts()
+            balance_accounts = balance_result.get("accounts", []) if balance_result.get("success") else []
             
-            # 获取浮动余额排行榜 (跨群，取每个用户最好的成绩)
-            balance_query = """
-                SELECT ta.user_id, ta.balance, ta.group_id, g.group_name
-                FROM trading_accounts ta
-                LEFT JOIN groups g ON ta.group_id = g.group_id
-            """
-            balance_results = query_db(balance_query)
-            
-            # 获取爆仓次数排行榜 (跨群，取每个用户最少的爆仓次数)
-            liquidation_query = """
-                SELECT th.user_id, COUNT(*) as liquidation_count, th.group_id, g.group_name
-                FROM trading_history th
-                LEFT JOIN groups g ON th.group_id = g.group_id
-                WHERE th.action = 'liquidated'
-                GROUP BY th.user_id, th.group_id
-            """
-            liquidation_results = query_db(liquidation_query)
-            
-            # 格式化盈利排行榜结果
-            profit_ranking = []
-            for row in profit_results:
-                profit_ranking.append({
-                    "user_id": row[0],
-                    "total_pnl": float(row[1]),
-                    "group_id": row[2],
-                    "group_name": row[3] or f"群组{row[2]}"
-                })
-            
-            # 格式化亏损排行榜结果
-            loss_ranking = []
-            for row in loss_results:
-                loss_ranking.append({
-                    "user_id": row[0],
-                    "total_pnl": float(row[1]),
-                    "group_id": row[2],
-                    "group_name": row[3] or f"群组{row[2]}"
-                })
+            # 使用 repository 方法获取跨群爆仓次数排行榜
+            liquidation_result = TradingRepository.get_global_liquidation_ranking()
+            liquidation_data_list = liquidation_result.get("ranking", []) if liquidation_result.get("success") else []
             
             # 计算每个用户在各群的浮动余额，取最好的
             user_best_balance = {}
-            for row in balance_results:
-                user_id = row[0]
-                balance = float(row[1])
-                group_id = row[2]
-                group_name = row[3] or f"群组{row[2]}"
+            for account in balance_accounts:
+                user_id = account["user_id"]
+                balance = account["balance"]
+                group_id = account["group_id"]
+                group_name = account["group_name"]
                 
                 # 获取用户在该群的所有仓位计算未实现盈亏
                 positions_result = TradingRepository.get_positions(user_id, group_id)
@@ -1068,11 +1048,11 @@ class TradingService:
             
             # 计算每个用户的最多爆仓次数
             user_max_liquidation = {}
-            for row in liquidation_results:
-                user_id = row[0]
-                liquidation_count = int(row[1])
-                group_id = row[2]
-                group_name = row[3] or f"群组{row[2]}"
+            for liquidation_data in liquidation_data_list:
+                user_id = liquidation_data["user_id"]
+                liquidation_count = liquidation_data["liquidation_count"]
+                group_id = liquidation_data["group_id"]
+                group_name = liquidation_data["group_name"]
                 
                 # 保存该用户的最多爆仓次数
                 if user_id not in user_max_liquidation or liquidation_count > user_max_liquidation[user_id]["liquidation_count"]:
@@ -1166,10 +1146,13 @@ class TradingService:
                 win_rate_info = (
                     f"📈 总交易次数: {win_rate_data['total_trades']}\n"
                     f"🎯 盈利次数: {win_rate_data['winning_trades']}\n"
+                    f"📉 亏损次数: {win_rate_data['losing_trades']}\n"
+                    f"⚡ 强平次数: {win_rate_data['liquidated_trades']}\n"
                     f"📊 胜率: {win_rate_data['win_rate']:.1f}%\n"
                     f"💰 平均仓位: ${win_rate_data['avg_position_size']:.0f}\n"
                     f"⏱️ 平均持仓: {win_rate_data['avg_holding_time']:.1f}小时\n"
-                    f"📈 平均盈亏: {win_rate_data['avg_pnl']:+.2f} USDT\n"
+                    f"📈 平均盈利: {win_rate_data['avg_win']:+.2f} USDT\n"
+                    f"📉 平均亏损: {win_rate_data['avg_loss']:+.2f} USDT\n"
                     f"⚖️ 盈亏比: {win_rate_data['profit_loss_ratio']:.2f}"
                 )
                 
@@ -1211,6 +1194,338 @@ class TradingService:
                 "success": False,
                 "message": f"获取盈亏报告失败: {str(e)}"
             }
+
+    def apply_loan(self, user_id: int, group_id: int, amount: float) -> Dict:
+        """申请贷款"""
+        try:
+            # 获取用户账户信息
+            account_result = TradingRepository.get_account(user_id, group_id)
+            if not account_result["success"]:
+                return {
+                    "success": False,
+                    "message": "获取账户信息失败"
+                }
+            
+            account = account_result.get("account")
+            if not account:
+                # 创建新账户
+                create_result = TradingRepository.create_account(user_id, group_id)
+                if not create_result["success"]:
+                    return {
+                        "success": False,
+                        "message": "创建账户失败"
+                    }
+                account = {"balance": 1000.0}
+            
+            current_balance = account["balance"]
+            
+            # 获取当前活跃贷款
+            loans_result = TradingRepository.get_active_loans(user_id, group_id)
+            if not loans_result["success"]:
+                return {
+                    "success": False,
+                    "message": "获取贷款信息失败"
+                }
+            
+            # 计算当前总欠款和总贷款本金
+            current_total_debt = 0.0
+            total_loan_principal = 0.0
+            for loan in loans_result["loans"]:
+                # 更新利息
+                updated_debt = self._calculate_compound_interest(
+                    loan["remaining_debt"], 
+                    loan["last_interest_time"], 
+                    loan["interest_rate"]
+                )
+                current_total_debt += updated_debt
+                total_loan_principal += loan["principal"]
+            
+            # 计算净余额：当前余额减去所有贷款本金（排除贷款获得的资金）
+            net_balance = current_balance - total_loan_principal
+            
+            # 检查贷款额度：总欠款不能超过净余额的20倍
+            max_allowed_debt = net_balance * 20
+            new_total_debt = current_total_debt + amount * 1.1  # 包含10%手续费
+            
+            if new_total_debt > max_allowed_debt:
+                return {
+                    "success": False,
+                    "message": f"贷款额度不足！\n💰 当前余额: {current_balance:.2f} USDT\n💸 净余额: {net_balance:.2f} USDT (扣除贷款本金: {total_loan_principal:.2f} USDT)\n💳 当前欠款: {current_total_debt:.2f} USDT\n📊 最大可贷: {max_allowed_debt - current_total_debt:.2f} USDT\n🏦 申请金额: {amount:.2f} USDT (含手续费: {amount * 1.1:.2f} USDT)\n\n💡 "
+                }
+            
+            # 创建贷款记录
+            loan_result = TradingRepository.create_loan(user_id, group_id, amount)
+            if not loan_result["success"]:
+                return {
+                    "success": False,
+                    "message": "创建贷款记录失败"
+                }
+            
+            # 更新用户余额
+            new_balance = current_balance + amount
+            balance_result = TradingRepository.update_account_balance(user_id, group_id, new_balance)
+            if not balance_result["success"]:
+                return {
+                    "success": False,
+                    "message": "更新余额失败"
+                }
+            
+            return {
+                "success": True,
+                "message": f"🏦 贷款成功！\n\n💰 贷款金额: {amount:.2f} USDT\n💸 手续费(10%): {amount * 0.1:.2f} USDT\n📊 实际欠款: {amount * 1.1:.2f} USDT\n💳 当前余额: {new_balance:.2f} USDT\n\n⚠️ 每6小时产生0.2%复利，请及时还款！",
+                "loan_id": loan_result["loan_id"],
+                "amount": amount,
+                "new_balance": new_balance
+            }
+            
+        except Exception as e:
+            logger.error(f"申请贷款失败: {e}")
+            return {
+                "success": False,
+                "message": f"申请贷款失败: {str(e)}"
+            }
+    
+    def repay_loan(self, user_id: int, group_id: int, amount: float = None) -> Dict:
+        """还款操作"""
+        try:
+            # 获取用户账户信息
+            account_result = TradingRepository.get_account(user_id, group_id)
+            if not account_result["success"] or not account_result.get("account"):
+                return {
+                    "success": False,
+                    "message": "账户不存在"
+                }
+            
+            current_balance = account_result["account"]["balance"]
+            
+            # 获取活跃贷款
+            loans_result = TradingRepository.get_active_loans(user_id, group_id)
+            if not loans_result["success"]:
+                return {
+                    "success": False,
+                    "message": "获取贷款信息失败"
+                }
+            
+            if not loans_result["loans"]:
+                return {
+                    "success": False,
+                    "message": "没有待还贷款"
+                }
+            
+            # 更新所有贷款的利息
+            total_debt = 0.0
+            updated_loans = []
+            for loan in loans_result["loans"]:
+                updated_debt = self._calculate_compound_interest(
+                    loan["remaining_debt"], 
+                    loan["last_interest_time"], 
+                    loan["interest_rate"]
+                )
+                # 更新数据库中的欠款
+                TradingRepository.update_loan_debt(loan["id"], updated_debt)
+                loan["remaining_debt"] = updated_debt
+                updated_loans.append(loan)
+                total_debt += updated_debt
+            
+            # 如果没有指定金额，则全额还款
+            if amount is None:
+                amount = total_debt
+            else:
+                # 如果指定了金额，检查是否超过实际欠款
+                if amount > total_debt:
+                    return {
+                        "success": False,
+                        "message": f"还款金额超过实际欠款！\n💸 实际欠款: {total_debt:.2f} USDT\n💰 指定还款: {amount:.2f} USDT\n\n💡 请输入不超过实际欠款的金额，或使用 /repay 进行全额还款"
+                    }
+            
+            # 检查余额是否足够（保留1000 USDT）
+            available_balance = max(0, current_balance - 1000)
+            if amount > available_balance:
+                return {
+                    "success": False,
+                    "message": f"余额不足！\n当前余额: {current_balance:.2f} USDT\n可用于还款: {available_balance:.2f} USDT\n需要还款: {amount:.2f} USDT\n\n💡 系统会保留1000 USDT作为救济金基础"
+                }
+            
+            # 按贷款时间顺序还款（先还旧贷款）
+            remaining_amount = amount
+            repaid_loans = []
+            
+            for loan in sorted(updated_loans, key=lambda x: x["created_at"]):
+                if remaining_amount <= 0:
+                    break
+                
+                loan_debt = loan["remaining_debt"]
+                repay_amount = min(remaining_amount, loan_debt)
+                
+                # 执行还款
+                repay_result = TradingRepository.repay_loan(
+                    loan["id"], user_id, group_id, repay_amount
+                )
+                
+                if repay_result["success"]:
+                    repaid_loans.append({
+                        "loan_id": loan["id"],
+                        "amount": repay_amount,
+                        "remaining": repay_result["remaining_after"],
+                        "paid_off": repay_result["paid_off"]
+                    })
+                    remaining_amount -= repay_amount
+            
+            # 更新用户余额
+            new_balance = current_balance - amount
+            TradingRepository.update_account_balance(user_id, group_id, new_balance)
+            
+            # 生成还款报告
+            message_parts = [f"💳 还款成功！\n\n💰 还款金额: {amount:.2f} USDT\n💳 剩余余额: {new_balance:.2f} USDT\n\n"]
+            
+            for repaid in repaid_loans:
+                status = "✅ 已结清" if repaid["paid_off"] else f"剩余: {repaid['remaining']:.2f} USDT"
+                message_parts.append(f"📋 贷款#{repaid['loan_id']}: {repaid['amount']:.2f} USDT ({status})\n")
+            
+            # 检查是否还有剩余欠款
+            remaining_loans = TradingRepository.get_active_loans(user_id, group_id)
+            if remaining_loans["success"] and remaining_loans["loans"]:
+                remaining_total = sum(loan["remaining_debt"] for loan in remaining_loans["loans"])
+                message_parts.append(f"\n⚠️ 剩余总欠款: {remaining_total:.2f} USDT")
+            else:
+                message_parts.append("\n🎉 所有贷款已结清！")
+            
+            return {
+                "success": True,
+                "message": "".join(message_parts),
+                "repaid_amount": amount,
+                "new_balance": new_balance,
+                "repaid_loans": repaid_loans
+            }
+            
+        except Exception as e:
+            logger.error(f"还款失败: {e}")
+            return {
+                "success": False,
+                "message": f"还款失败: {str(e)}"
+            }
+    
+    def get_loan_bill(self, user_id: int, group_id: int) -> Dict:
+        """获取贷款账单"""
+        try:
+            # 获取贷款汇总
+            summary_result = TradingRepository.get_loan_summary(user_id, group_id)
+            if not summary_result["success"]:
+                return {
+                    "success": False,
+                    "message": "获取贷款信息失败"
+                }
+            
+            summary = summary_result["summary"]
+            
+            # 获取活跃贷款详情
+            loans_result = TradingRepository.get_active_loans(user_id, group_id)
+            if not loans_result["success"]:
+                return {
+                    "success": False,
+                    "message": "获取贷款详情失败"
+                }
+            
+            # 更新利息并计算总欠款
+            current_total_debt = 0.0
+            loan_details = []
+            
+            for loan in loans_result["loans"]:
+                # 计算最新利息
+                updated_debt = self._calculate_compound_interest(
+                    loan["remaining_debt"], 
+                    loan["last_interest_time"], 
+                    loan["interest_rate"]
+                )
+                
+                # 更新数据库
+                TradingRepository.update_loan_debt(loan["id"], updated_debt)
+                
+                current_total_debt += updated_debt
+                
+                # 计算贷款天数
+                loan_time = datetime.fromisoformat(loan["loan_time"])
+                days_since_loan = (datetime.now() - loan_time).days
+                
+                loan_details.append({
+                    "id": loan["id"],
+                    "principal": loan["principal"],
+                    "current_debt": updated_debt,
+                    "days": days_since_loan,
+                    "loan_time": loan["loan_time"]
+                })
+            
+            # 生成账单消息
+            if not loan_details:
+                return {
+                    "success": True,
+                    "message": "🎉 恭喜！您当前没有任何贷款\n\n📊 历史统计:\n" +
+                             f"📈 总贷款次数: {summary['total_loans']}\n" +
+                             f"💰 累计借款: {summary['total_borrowed']:.2f} USDT\n" +
+                             f"💳 累计还款: {summary['total_repaid']:.2f} USDT"
+                }
+            
+            message_parts = [
+                "🏦 贷款账单\n\n",
+                f"📊 当前状态:\n",
+                f"💰 活跃贷款: {summary['active_loan_count']} 笔\n",
+                f"💸 总欠款: {current_total_debt:.2f} USDT\n\n",
+                "📋 贷款详情:\n"
+            ]
+            
+            for i, loan in enumerate(loan_details, 1):
+                interest_generated = loan["current_debt"] - loan["principal"] * 1.1
+                message_parts.append(
+                    f"{i}. 贷款#{loan['id']}\n" +
+                    f"   💰 本金: {loan['principal']:.2f} USDT\n" +
+                    f"   💸 当前欠款: {loan['current_debt']:.2f} USDT\n" +
+                    f"   📈 产生利息: {interest_generated:.2f} USDT\n" +
+                    f"   📅 贷款天数: {loan['days']} 天\n\n"
+                )
+            
+            message_parts.extend([
+                "📊 历史统计:\n",
+                f"📈 总贷款次数: {summary['total_loans']}\n",
+                f"💰 累计借款: {summary['total_borrowed']:.2f} USDT\n",
+                f"💳 累计还款: {summary['total_repaid']:.2f} USDT\n\n",
+                "⚠️ 利息每6小时复利0.2%，请及时还款！"
+            ])
+            
+            return {
+                "success": True,
+                "message": "".join(message_parts),
+                "total_debt": current_total_debt,
+                "active_loans": len(loan_details)
+            }
+            
+        except Exception as e:
+            logger.error(f"获取贷款账单失败: {e}")
+            return {
+                "success": False,
+                "message": f"获取贷款账单失败: {str(e)}"
+            }
+    
+    def _calculate_compound_interest(self, principal: float, last_interest_time: str, rate: float = 0.002) -> float:
+        """计算复利"""
+        try:
+            last_time = datetime.fromisoformat(last_interest_time)
+            current_time = datetime.now()
+            
+            # 计算经过的6小时周期数
+            time_diff = current_time - last_time
+            periods = time_diff.total_seconds() / (6 * 3600)  # 6小时为一个周期
+            
+            if periods < 1:
+                return principal  # 不足一个周期，不计息
+            
+            # 复利计算: A = P(1 + r)^n
+            compound_amount = principal * ((1 + rate) ** int(periods))
+            
+            return compound_amount
+            
+        except Exception as e:
+            logger.error(f"计算复利失败: {e}")
+            return principal
 
 # 全局交易服务实例
 trading_service = TradingService()

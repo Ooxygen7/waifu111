@@ -47,6 +47,606 @@ class TradingRepository:
             }
 
     @staticmethod
+    def create_loan(user_id: int, group_id: int, principal: float) -> dict:
+        """创建新贷款记录"""
+        try:
+            current_time = datetime.datetime.now().isoformat()
+            # 计算初始欠款(本金 + 10%手续费)
+            initial_debt = principal * 1.1
+            
+            command = """
+                INSERT INTO loans (user_id, group_id, principal, remaining_debt, 
+                                 loan_time, last_interest_time, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            result = revise_db(command, (user_id, group_id, principal, initial_debt,
+                                       current_time, current_time, current_time))
+            
+            if result:
+                return {
+                    "success": True,
+                    "loan_id": result,
+                    "principal": principal,
+                    "initial_debt": initial_debt
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": "创建贷款记录失败"
+                }
+        except Exception as e:
+            logger.error(f"创建贷款记录失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_active_loans(user_id: int, group_id: int) -> dict:
+        """获取用户的活跃贷款记录"""
+        try:
+            command = """
+                SELECT id, principal, remaining_debt, interest_rate, initial_fee,
+                       loan_time, last_interest_time, status, created_at
+                FROM loans 
+                WHERE user_id = ? AND group_id = ? AND status = 'active'
+                ORDER BY created_at DESC
+            """
+            
+            result = query_db(command, (user_id, group_id))
+            
+            loans = []
+            if result:
+                for row in result:
+                    loans.append({
+                        "id": row[0],
+                        "principal": float(row[1]),
+                        "remaining_debt": float(row[2]),
+                        "interest_rate": float(row[3]),
+                        "initial_fee": float(row[4]),
+                        "loan_time": row[5],
+                        "last_interest_time": row[6],
+                        "status": row[7],
+                        "created_at": row[8]
+                    })
+            
+            return {
+                "success": True,
+                "loans": loans
+            }
+        except Exception as e:
+            logger.error(f"获取活跃贷款记录失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def update_loan_debt(loan_id: int, new_debt: float, last_interest_time: str = None) -> dict:
+        """更新贷款欠款金额和计息时间"""
+        try:
+            if last_interest_time is None:
+                last_interest_time = datetime.datetime.now().isoformat()
+            
+            command = """
+                UPDATE loans 
+                SET remaining_debt = ?, last_interest_time = ?, updated_at = ?
+                WHERE id = ?
+            """
+            
+            current_time = datetime.datetime.now().isoformat()
+            result = revise_db(command, (new_debt, last_interest_time, current_time, loan_id))
+            
+            return {
+                "success": bool(result),
+                "updated": bool(result)
+            }
+        except Exception as e:
+            logger.error(f"更新贷款欠款失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def repay_loan(loan_id: int, user_id: int, group_id: int, amount: float) -> dict:
+        """还款操作"""
+        try:
+            current_time = datetime.datetime.now().isoformat()
+            
+            # 获取当前贷款信息
+            loan_query = "SELECT remaining_debt FROM loans WHERE id = ? AND user_id = ? AND group_id = ?"
+            loan_result = query_db(loan_query, (loan_id, user_id, group_id))
+            
+            if not loan_result:
+                return {
+                    "success": False,
+                    "error": "贷款记录不存在"
+                }
+            
+            current_debt = float(loan_result[0][0])
+            remaining_after = max(0, current_debt - amount)
+            
+            # 记录还款
+            repayment_command = """
+                INSERT INTO loan_repayments (loan_id, user_id, group_id, amount, 
+                                           repayment_time, remaining_after, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            repayment_result = revise_db(repayment_command, (loan_id, user_id, group_id, amount,
+                                                           current_time, remaining_after, current_time))
+            
+            if not repayment_result:
+                return {
+                    "success": False,
+                    "error": "记录还款失败"
+                }
+            
+            # 更新贷款状态
+            if remaining_after <= 0:
+                # 完全还清
+                loan_update_command = """
+                    UPDATE loans 
+                    SET remaining_debt = 0, status = 'paid_off', updated_at = ?
+                    WHERE id = ?
+                """
+                revise_db(loan_update_command, (current_time, loan_id))
+            else:
+                # 部分还款
+                loan_update_command = """
+                    UPDATE loans 
+                    SET remaining_debt = ?, updated_at = ?
+                    WHERE id = ?
+                """
+                revise_db(loan_update_command, (remaining_after, current_time, loan_id))
+            
+            return {
+                "success": True,
+                "repayment_id": repayment_result,
+                "amount": amount,
+                "remaining_after": remaining_after,
+                "paid_off": remaining_after <= 0
+            }
+        except Exception as e:
+            logger.error(f"还款操作失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_loan_summary(user_id: int, group_id: int) -> dict:
+        """获取用户贷款汇总信息"""
+        try:
+            # 获取活跃贷款统计
+            active_loans_query = """
+                SELECT COUNT(*) as loan_count, 
+                       COALESCE(SUM(remaining_debt), 0) as total_debt,
+                       COALESCE(SUM(principal), 0) as total_principal
+                FROM loans 
+                WHERE user_id = ? AND group_id = ? AND status = 'active'
+            """
+            
+            active_result = query_db(active_loans_query, (user_id, group_id))
+            
+            # 获取历史贷款统计
+            total_loans_query = """
+                SELECT COUNT(*) as total_loans,
+                       COALESCE(SUM(principal), 0) as total_borrowed
+                FROM loans 
+                WHERE user_id = ? AND group_id = ?
+            """
+            
+            total_result = query_db(total_loans_query, (user_id, group_id))
+            
+            # 获取还款统计
+            repayment_query = """
+                SELECT COALESCE(SUM(amount), 0) as total_repaid
+                FROM loan_repayments 
+                WHERE user_id = ? AND group_id = ?
+            """
+            
+            repayment_result = query_db(repayment_query, (user_id, group_id))
+            
+            summary = {
+                "active_loan_count": 0,
+                "total_debt": 0.0,
+                "total_principal": 0.0,
+                "total_loans": 0,
+                "total_borrowed": 0.0,
+                "total_repaid": 0.0
+            }
+            
+            if active_result:
+                summary["active_loan_count"] = active_result[0][0] or 0
+                summary["total_debt"] = float(active_result[0][1] or 0)
+                summary["total_principal"] = float(active_result[0][2] or 0)
+            
+            if total_result:
+                summary["total_loans"] = total_result[0][0] or 0
+                summary["total_borrowed"] = float(total_result[0][1] or 0)
+            
+            if repayment_result:
+                summary["total_repaid"] = float(repayment_result[0][0] or 0)
+            
+            return {
+                "success": True,
+                "summary": summary
+            }
+        except Exception as e:
+            logger.error(f"获取贷款汇总失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_group_profit_ranking(group_id: int, limit: int = 5) -> dict:
+        """获取群组盈利排行榜"""
+        try:
+            command = """
+                SELECT user_id, total_pnl 
+                FROM trading_accounts 
+                WHERE group_id = ? AND total_pnl > 0
+                ORDER BY total_pnl DESC 
+                LIMIT ?
+            """
+            result = query_db(command, (group_id, limit))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1])
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取群组盈利排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_group_loss_ranking(group_id: int, limit: int = 5) -> dict:
+        """获取群组亏损排行榜"""
+        try:
+            command = """
+                SELECT user_id, total_pnl 
+                FROM trading_accounts 
+                WHERE group_id = ? AND total_pnl < 0
+                ORDER BY total_pnl ASC 
+                LIMIT ?
+            """
+            result = query_db(command, (group_id, limit))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1])
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取群组亏损排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_group_balance_accounts(group_id: int) -> dict:
+        """获取群组所有账户余额信息"""
+        try:
+            command = """
+                SELECT ta.user_id, ta.balance
+                FROM trading_accounts ta
+                WHERE ta.group_id = ?
+            """
+            result = query_db(command, (group_id,))
+            
+            accounts = []
+            for row in result:
+                accounts.append({
+                    "user_id": row[0],
+                    "balance": float(row[1])
+                })
+            
+            return {
+                "success": True,
+                "accounts": accounts
+            }
+        except Exception as e:
+            logger.error(f"获取群组账户余额失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_group_liquidation_ranking(group_id: int, limit: int = 10) -> dict:
+        """获取群组爆仓次数排行榜"""
+        try:
+            command = """
+                SELECT user_id, COUNT(*) as liquidation_count
+                FROM trading_history 
+                WHERE group_id = ? AND action = 'liquidated'
+                GROUP BY user_id 
+                ORDER BY liquidation_count DESC 
+                LIMIT ?
+            """
+            result = query_db(command, (group_id, limit))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "liquidation_count": int(row[1])
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取群组爆仓排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_global_profit_ranking(limit: int = 5) -> dict:
+        """获取跨群盈利排行榜"""
+        try:
+            command = """
+                SELECT ta.user_id, MAX(ta.total_pnl) as best_pnl, ta.group_id, g.group_name
+                FROM trading_accounts ta
+                LEFT JOIN groups g ON ta.group_id = g.group_id
+                WHERE ta.total_pnl > 0
+                GROUP BY ta.user_id 
+                ORDER BY best_pnl DESC 
+                LIMIT ?
+            """
+            result = query_db(command, (limit,))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取跨群盈利排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_global_loss_ranking(limit: int = 5) -> dict:
+        """获取跨群亏损排行榜"""
+        try:
+            command = """
+                SELECT ta.user_id, MIN(ta.total_pnl) as worst_pnl, ta.group_id, g.group_name
+                FROM trading_accounts ta
+                LEFT JOIN groups g ON ta.group_id = g.group_id
+                WHERE ta.total_pnl < 0
+                GROUP BY ta.user_id 
+                ORDER BY worst_pnl ASC 
+                LIMIT ?
+            """
+            result = query_db(command, (limit,))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取跨群亏损排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_global_balance_accounts() -> dict:
+        """获取跨群所有账户余额信息"""
+        try:
+            command = """
+                SELECT ta.user_id, ta.balance, ta.group_id, g.group_name
+                FROM trading_accounts ta
+                LEFT JOIN groups g ON ta.group_id = g.group_id
+            """
+            result = query_db(command)
+            
+            accounts = []
+            for row in result:
+                accounts.append({
+                    "user_id": row[0],
+                    "balance": float(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+            
+            return {
+                "success": True,
+                "accounts": accounts
+            }
+        except Exception as e:
+            logger.error(f"获取跨群账户余额失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_global_liquidation_ranking() -> dict:
+        """获取跨群爆仓次数排行榜"""
+        try:
+            command = """
+                SELECT th.user_id, COUNT(*) as liquidation_count, th.group_id, g.group_name
+                FROM trading_history th
+                LEFT JOIN groups g ON th.group_id = g.group_id
+                WHERE th.action = 'liquidated'
+                GROUP BY th.user_id, th.group_id
+            """
+            result = query_db(command)
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "liquidation_count": int(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取跨群爆仓排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_group_deadbeat_ranking(group_id: int, limit: int = 5) -> dict:
+        """获取群组老赖排行榜 - 按欠款金额/净余额比例排序"""
+        try:
+            command = """
+                SELECT 
+                    l.user_id,
+                    SUM(l.remaining_debt) as total_debt,
+                    ta.balance,
+                    COALESCE(SUM(l.principal), 0) as total_loan_principal,
+                    (ta.balance - COALESCE(SUM(l.principal), 0)) as net_balance,
+                    CASE 
+                        WHEN (ta.balance - COALESCE(SUM(l.principal), 0)) > 0 
+                        THEN SUM(l.remaining_debt) / (ta.balance - COALESCE(SUM(l.principal), 0))
+                        ELSE 999999
+                    END as debt_ratio,
+                    MIN(l.loan_time) as earliest_loan_time,
+                    MAX(l.last_interest_time) as latest_interest_time
+                FROM loans l
+                JOIN trading_accounts ta ON l.user_id = ta.user_id AND l.group_id = ta.group_id
+                WHERE l.group_id = ? AND l.status = 'active' AND l.remaining_debt > 0
+                GROUP BY l.user_id, ta.balance
+                ORDER BY debt_ratio DESC
+                LIMIT ?
+            """
+            result = query_db(command, (group_id, limit))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_debt": float(row[1]),
+                    "balance": float(row[2]),
+                    "total_loan_principal": float(row[3]),
+                    "net_balance": float(row[4]),
+                    "debt_ratio": float(row[5]),
+                    "earliest_loan_time": row[6],
+                    "latest_interest_time": row[7]
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取群组老赖排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_global_deadbeat_ranking(limit: int = 5) -> dict:
+        """获取跨群老赖排行榜 - 按欠款金额/净余额比例排序"""
+        try:
+            command = """
+                SELECT 
+                    l.user_id,
+                    l.group_id,
+                    g.group_name,
+                    SUM(l.remaining_debt) as total_debt,
+                    ta.balance,
+                    COALESCE(SUM(l.principal), 0) as total_loan_principal,
+                    (ta.balance - COALESCE(SUM(l.principal), 0)) as net_balance,
+                    CASE 
+                        WHEN (ta.balance - COALESCE(SUM(l.principal), 0)) > 0 
+                        THEN SUM(l.remaining_debt) / (ta.balance - COALESCE(SUM(l.principal), 0))
+                        ELSE 999999
+                    END as debt_ratio,
+                    MIN(l.loan_time) as earliest_loan_time,
+                    MAX(l.last_interest_time) as latest_interest_time
+                FROM loans l
+                JOIN trading_accounts ta ON l.user_id = ta.user_id AND l.group_id = ta.group_id
+                LEFT JOIN groups g ON l.group_id = g.group_id
+                WHERE l.status = 'active' AND l.remaining_debt > 0
+                GROUP BY l.user_id, l.group_id, ta.balance
+                ORDER BY debt_ratio DESC
+                LIMIT ?
+            """
+            result = query_db(command, (limit,))
+            
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "group_id": row[1],
+                    "group_name": row[2] or f"群组{row[1]}",
+                    "total_debt": float(row[3]),
+                    "balance": float(row[4]),
+                    "total_loan_principal": float(row[5]),
+                    "net_balance": float(row[6]),
+                    "debt_ratio": float(row[7]),
+                    "earliest_loan_time": row[8],
+                    "latest_interest_time": row[9]
+                })
+            
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取跨群老赖排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
     def create_account(user_id: int, group_id: int, initial_balance: float = 1000.0) -> dict:
         """创建用户交易账户"""
         try:
@@ -364,10 +964,13 @@ class TradingRepository:
                     "total_trades": 0,
                     "winning_trades": 0,
                     "losing_trades": 0,
+                    "liquidated_trades": 0,
                     "win_rate": 0.0,
                     "avg_position_size": 0.0,
                     "avg_holding_time": 0.0,
                     "avg_pnl": 0.0,
+                    "avg_win": 0.0,
+                    "avg_loss": 0.0,
                     "profit_loss_ratio": 0.0,
                     "most_profitable_symbol": "",
                     "most_profitable_pnl": 0.0,
@@ -384,6 +987,8 @@ class TradingRepository:
             
             total_trades = len(result)
             winning_trades = 0
+            losing_trades = 0
+            liquidated_trades = 0  # 强平次数
             total_pnl = 0.0
             total_position_size = 0.0
             total_holding_time = 0.0
@@ -436,14 +1041,19 @@ class TradingRepository:
                     except:
                         pass
                 
-                # 只有平仓且盈利的交易才算胜利，强平一律算亏损
-                if action == 'close' and pnl > 0:
-                    winning_trades += 1
-                    winning_pnl += pnl
-                else:
+                # 统计交易类型和盈亏
+                if action == 'liquidated':
+                    liquidated_trades += 1
+                    losing_trades += 1
                     losing_pnl += abs(pnl)
+                elif action == 'close':
+                    if pnl > 0:
+                        winning_trades += 1
+                        winning_pnl += pnl
+                    else:
+                        losing_trades += 1
+                        losing_pnl += abs(pnl)
             
-            losing_trades = total_trades - winning_trades
             win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0
             avg_position_size = total_position_size / total_trades if total_trades > 0 else 0.0
             avg_holding_time = total_holding_time / valid_holding_times if valid_holding_times > 0 else 0.0
@@ -451,8 +1061,8 @@ class TradingRepository:
             
             # 盈亏比 = 平均盈利 / 平均亏损
             avg_win = winning_pnl / winning_trades if winning_trades > 0 else 0.0
-            avg_loss = losing_pnl / losing_trades if losing_trades > 0 else 0.0
-            profit_loss_ratio = avg_win / avg_loss if avg_loss > 0 else 0.0
+            avg_loss = -losing_pnl / losing_trades if losing_trades > 0 else 0.0  # 显示为负数
+            profit_loss_ratio = avg_win / abs(avg_loss) if avg_loss != 0 else 0.0  # 计算时用绝对值
             
             # 计算币种排名
             most_profitable_symbol = ""
@@ -472,10 +1082,13 @@ class TradingRepository:
                 "total_trades": total_trades,
                 "winning_trades": winning_trades,
                 "losing_trades": losing_trades,
+                "liquidated_trades": liquidated_trades,
                 "win_rate": round(win_rate, 2),
                 "avg_position_size": round(avg_position_size, 2),
                 "avg_holding_time": round(avg_holding_time, 2),
                 "avg_pnl": round(avg_pnl, 2),
+                "avg_win": round(avg_win, 2),
+                "avg_loss": round(avg_loss, 2),
                 "profit_loss_ratio": round(profit_loss_ratio, 2),
                 "most_profitable_symbol": most_profitable_symbol,
                 "most_profitable_pnl": round(symbol_stats[most_profitable_symbol]['total_pnl'], 2) if most_profitable_symbol else 0.0,

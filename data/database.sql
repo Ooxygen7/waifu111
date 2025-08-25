@@ -203,3 +203,34 @@ create table price_cache
     price            REAL not null,
     updated_at       TEXT not null
 );
+
+-- 贷款记录表
+create table loans
+(
+    id               integer not null primary key autoincrement,
+    user_id          integer not null,
+    group_id         integer not null,
+    principal        REAL not null,        -- 本金
+    remaining_debt   REAL not null,        -- 剩余欠款(本金+利息)
+    interest_rate    REAL default 0.002,   -- 每6小时利率(0.2%)
+    initial_fee      REAL default 0.1,     -- 初始手续费(10%)
+    loan_time        TEXT not null,        -- 贷款时间
+    last_interest_time TEXT not null,      -- 最后一次计息时间
+    status           TEXT default 'active', -- 'active', 'paid_off'
+    created_at       TEXT not null,
+    updated_at       TEXT
+);
+
+-- 还款记录表
+create table loan_repayments
+(
+    id               integer not null primary key autoincrement,
+    loan_id          integer not null,
+    user_id          integer not null,
+    group_id         integer not null,
+    amount           REAL not null,        -- 还款金额
+    repayment_time   TEXT not null,        -- 还款时间
+    remaining_after  REAL not null,        -- 还款后剩余欠款
+    created_at       TEXT not null,
+    foreign key (loan_id) references loans(id)
+);

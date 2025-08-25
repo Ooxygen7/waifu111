@@ -1147,10 +1147,12 @@ class RankCommand(BaseCommand):
             if is_global:
                 # 获取全局排行榜数据
                 result = await trading_service.get_global_ranking_data()
+                deadbeat_result = await trading_service.get_global_deadbeat_ranking_data()
                 title = "📊 <b>全球交易排行榜</b>\n"
             else:
                 # 获取群组排行榜数据
                 result = await trading_service.get_ranking_data(group_id)
+                deadbeat_result = await trading_service.get_deadbeat_ranking_data(group_id)
                 title = "📊 <b>群组交易排行榜</b>\n"
             
             if not result['success']:
@@ -1306,6 +1308,57 @@ class RankCommand(BaseCommand):
             else:
                 message_parts.append("<blockquote expandable>暂无数据</blockquote>")
             
+            message_parts.append("")
+            
+            # 老赖排行榜
+            message_parts.append("🏴‍☠️ <b>老赖排行榜 TOP5</b>")
+            if deadbeat_result.get('success') and deadbeat_result.get('deadbeat_ranking'):
+                deadbeat_lines = []
+                for i, deadbeat_data in enumerate(deadbeat_result['deadbeat_ranking'], 1):
+                    user_id = deadbeat_data['user_id']
+                    total_debt = deadbeat_data['total_debt']
+                    net_balance = deadbeat_data['net_balance']
+                    debt_ratio = deadbeat_data['debt_ratio']
+                    overdue_days = deadbeat_data['overdue_days']
+                    group_name = deadbeat_data.get('group_name', '') if is_global else ''
+                    
+                    try:
+                        # 对于全局排行榜，尝试从任意群组获取用户信息
+                        if is_global:
+                            try:
+                                user = await context.bot.get_chat_member(group_id, user_id)
+                                username = user.user.first_name or f"用户{user_id}"
+                            except:
+                                username = f"用户{user_id}"
+                        else:
+                            user = await context.bot.get_chat_member(group_id, user_id)
+                            username = user.user.first_name or f"用户{user_id}"
+                    except:
+                        username = f"用户{user_id}"
+                    
+                    emoji = "💀" if i == 1 else "☠️" if i == 2 else "🏴‍☠️" if i == 3 else "💸" if i == 4 else "🔴"
+                    
+                    # 格式化债务比例
+                    if debt_ratio >= 999999:
+                        ratio_text = "∞"
+                    else:
+                        ratio_text = f"{debt_ratio:.1f}x"
+                    
+                    # 格式化逾期信息
+                    if overdue_days > 0:
+                        overdue_text = f"逾期{overdue_days}天"
+                    else:
+                        overdue_text = "未逾期"
+                    
+                    if is_global and group_name:
+                        deadbeat_lines.append(f"{emoji} {username} ({group_name}): 欠款{total_debt:.2f} USDT | 净余额{net_balance:.2f} | 比例{ratio_text} | {overdue_text}")
+                    else:
+                        deadbeat_lines.append(f"{emoji} {username}: 欠款{total_debt:.2f} USDT | 净余额{net_balance:.2f} | 比例{ratio_text} | {overdue_text}")
+                
+                message_parts.append(f"<blockquote expandable>{'\n'.join(deadbeat_lines)}</blockquote>")
+            else:
+                message_parts.append("<blockquote expandable>暂无老赖数据</blockquote>")
+            
             final_message = "\n".join(message_parts)
             await update.message.reply_text(final_message, parse_mode="HTML")
             
@@ -1366,3 +1419,118 @@ class TestLiquidationCommand(BaseCommand):
         except Exception as e:
             logger.error(f"发送测试强平通知失败: {e}")
             await update.message.reply_text("❌ 发送测试强平通知失败，请稍后重试")
+
+
+class LoanCommand(BaseCommand):
+    meta = CommandMeta(
+        name="loan",
+        command_type="group",
+        trigger="loan",
+        menu_text="申请贷款 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=37,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 解析命令参数
+            args = context.args
+            if len(args) != 1:
+                await update.message.reply_text(
+                    "❌ 用法错误！\n正确格式: /loan <金额>\n"
+                    "例如: /loan 10000"
+                )
+                return
+            
+            try:
+                amount = float(args[0].replace('u', '').replace('U', ''))
+                if amount <= 0:
+                    await update.message.reply_text("❌ 贷款金额必须大于0！")
+                    return
+            except ValueError:
+                await update.message.reply_text("❌ 金额格式错误！")
+                return
+            
+            # 申请贷款
+            result = trading_service.apply_loan(user_id, group_id, amount)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"贷款申请失败: {e}")
+            await update.message.reply_text("❌ 贷款申请失败，请稍后重试")
+
+
+class RepayCommand(BaseCommand):
+    meta = CommandMeta(
+        name="repay",
+        command_type="group",
+        trigger="repay",
+        menu_text="还款 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=38,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 解析命令参数
+            args = context.args
+            amount = None
+            
+            if len(args) == 1:
+                try:
+                    amount = float(args[0].replace('u', '').replace('U', ''))
+                    if amount <= 0:
+                        await update.message.reply_text("❌ 还款金额必须大于0！")
+                        return
+                except ValueError:
+                    await update.message.reply_text("❌ 金额格式错误！")
+                    return
+            elif len(args) > 1:
+                await update.message.reply_text(
+                    "❌ 用法错误！\n正确格式:\n"
+                    "• /repay (一次性结清所有贷款)\n"
+                    "• /repay <金额> (部分还款)\n"
+                    "例如: /repay 或 /repay 5000"
+                )
+                return
+            
+            # 执行还款
+            result = trading_service.repay_loan(user_id, group_id, amount)
+            
+            await update.message.reply_text(result['message'])
+            
+        except Exception as e:
+            logger.error(f"还款失败: {e}")
+            await update.message.reply_text("❌ 还款失败，请稍后重试")
+
+
+class BillCommand(BaseCommand):
+    meta = CommandMeta(
+        name="bill",
+        command_type="group",
+        trigger="bill",
+        menu_text="查看贷款账单 (模拟盘)",
+        show_in_menu=True,
+        menu_weight=39,
+    )
+
+    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        try:
+            user_id = update.effective_user.id
+            group_id = update.effective_chat.id
+            
+            # 获取贷款账单
+            result = trading_service.get_loan_bill(user_id, group_id)
+            
+            await update.message.reply_text(result['message'], parse_mode='HTML')
+            
+        except Exception as e:
+            logger.error(f"获取贷款账单失败: {e}")
+            await update.message.reply_text("❌ 获取贷款账单失败，请稍后重试")
