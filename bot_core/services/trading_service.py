@@ -10,6 +10,11 @@ from utils.logging_utils import setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
+# 屏蔽ccxt的日志输出
+logging.getLogger('ccxt').setLevel(logging.WARNING)
+logging.getLogger('ccxt.base').setLevel(logging.WARNING)
+logging.getLogger('ccxt.bybit').setLevel(logging.WARNING)
+
 class TradingService:
     """
     模拟盘交易服务
