@@ -852,15 +852,25 @@ class TradingService:
         try:
             from utils.db_utils import query_db
             
-            # 获取总盈亏排行榜 (top 10)
-            pnl_query = """
+            # 获取盈利排行榜 (top 5)
+            profit_query = """
                 SELECT user_id, total_pnl 
                 FROM trading_accounts 
-                WHERE group_id = ? 
+                WHERE group_id = ? AND total_pnl > 0
                 ORDER BY total_pnl DESC 
-                LIMIT 10
+                LIMIT 5
             """
-            pnl_results = query_db(pnl_query, (group_id,))
+            profit_results = query_db(profit_query, (group_id,))
+            
+            # 获取亏损排行榜 (top 5, 按亏损从多到少排序)
+            loss_query = """
+                SELECT user_id, total_pnl 
+                FROM trading_accounts 
+                WHERE group_id = ? AND total_pnl < 0
+                ORDER BY total_pnl ASC 
+                LIMIT 5
+            """
+            loss_results = query_db(loss_query, (group_id,))
             
             # 获取当前浮动余额排行榜 (top 5)
             # 需要计算每个用户的浮动余额 = 余额 + 未实现盈亏
@@ -882,10 +892,18 @@ class TradingService:
             """
             liquidation_results = query_db(liquidation_query, (group_id,))
             
-            # 格式化结果
-            pnl_ranking = []
-            for row in pnl_results:
-                pnl_ranking.append({
+            # 格式化盈利排行榜结果
+            profit_ranking = []
+            for row in profit_results:
+                profit_ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1])
+                })
+            
+            # 格式化亏损排行榜结果
+            loss_ranking = []
+            for row in loss_results:
+                loss_ranking.append({
                     "user_id": row[0],
                     "total_pnl": float(row[1])
                 })
@@ -927,7 +945,8 @@ class TradingService:
             
             return {
                 "success": True,
-                "pnl_ranking": pnl_ranking,
+                "profit_ranking": profit_ranking,
+                "loss_ranking": loss_ranking,
                 "balance_ranking": balance_ranking,
                 "liquidation_ranking": liquidation_ranking
             }
@@ -944,16 +963,29 @@ class TradingService:
         try:
             from utils.db_utils import query_db
             
-            # 获取总盈亏排行榜 (跨群，取每个用户最好的成绩)
-            pnl_query = """
+            # 获取盈利排行榜 (跨群，取每个用户最好的盈利成绩)
+            profit_query = """
                 SELECT ta.user_id, MAX(ta.total_pnl) as best_pnl, ta.group_id, g.group_name
                 FROM trading_accounts ta
                 LEFT JOIN groups g ON ta.group_id = g.group_id
+                WHERE ta.total_pnl > 0
                 GROUP BY ta.user_id 
                 ORDER BY best_pnl DESC 
-                LIMIT 10
+                LIMIT 5
             """
-            pnl_results = query_db(pnl_query)
+            profit_results = query_db(profit_query)
+            
+            # 获取亏损排行榜 (跨群，取每个用户最差的亏损成绩)
+            loss_query = """
+                SELECT ta.user_id, MIN(ta.total_pnl) as worst_pnl, ta.group_id, g.group_name
+                FROM trading_accounts ta
+                LEFT JOIN groups g ON ta.group_id = g.group_id
+                WHERE ta.total_pnl < 0
+                GROUP BY ta.user_id 
+                ORDER BY worst_pnl ASC 
+                LIMIT 5
+            """
+            loss_results = query_db(loss_query)
             
             # 获取浮动余额排行榜 (跨群，取每个用户最好的成绩)
             balance_query = """
@@ -973,10 +1005,20 @@ class TradingService:
             """
             liquidation_results = query_db(liquidation_query)
             
-            # 格式化总盈亏排行榜结果
-            pnl_ranking = []
-            for row in pnl_results:
-                pnl_ranking.append({
+            # 格式化盈利排行榜结果
+            profit_ranking = []
+            for row in profit_results:
+                profit_ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+            
+            # 格式化亏损排行榜结果
+            loss_ranking = []
+            for row in loss_results:
+                loss_ranking.append({
                     "user_id": row[0],
                     "total_pnl": float(row[1]),
                     "group_id": row[2],
@@ -1043,7 +1085,8 @@ class TradingService:
             
             return {
                 "success": True,
-                "pnl_ranking": pnl_ranking,
+                "profit_ranking": profit_ranking,
+                "loss_ranking": loss_ranking,
                 "balance_ranking": balance_ranking,
                 "liquidation_ranking": liquidation_ranking
             }
