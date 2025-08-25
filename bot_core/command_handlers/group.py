@@ -1067,33 +1067,53 @@ class CloseCommand(BaseCommand):
                 await update.message.reply_text(result['message'])
                 return
             
-            # 如果参数不足，显示用法说明
-            if len(args) < 2:
-                await update.message.reply_text(
-                    "❌ 用法错误！\n正确格式:\n" +
-                    "• /close (一键全平所有仓位)\n" +
-                    "• /close <交易对> <方向> [金额]\n" +
-                    "例如: /close btc long 50 (部分平仓)\n" +
-                    "或: /close btc long (全部平仓)"
-                )
+            # 如果只有一个参数，智能平仓该币种的所有仓位
+            if len(args) == 1:
+                symbol = args[0].upper()
+                result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", None, None)
+                await update.message.reply_text(result['message'])
                 return
             
             symbol = args[0].upper()
-            side = args[1].lower()
             
-            if side not in ['long', 'short']:
-                await update.message.reply_text("❌ 方向必须是 long 或 short！")
-                return
-            
-            amount = None
-            if len(args) >= 3:
+            # 检查第二个参数是方向还是金额
+            second_arg = args[1].lower()
+            if second_arg in ['long', 'short']:
+                # 第二个参数是方向
+                side = second_arg
+                amount = None
+                
+                # 检查是否有第三个参数（金额）
+                if len(args) >= 3:
+                    try:
+                        amount = float(args[2].replace('u', '').replace('U', ''))
+                        if amount <= 0:
+                            await update.message.reply_text("❌ 金额必须大于0！")
+                            return
+                    except ValueError:
+                        await update.message.reply_text("❌ 金额格式错误！")
+                        return
+            else:
+                # 第二个参数可能是金额，智能平仓
                 try:
-                    amount = float(args[2].replace('u', '').replace('U', ''))
+                    amount = float(second_arg.replace('u', '').replace('U', ''))
                     if amount <= 0:
                         await update.message.reply_text("❌ 金额必须大于0！")
                         return
+                    side = None  # 智能平仓
                 except ValueError:
-                    await update.message.reply_text("❌ 金额格式错误！")
+                    # 既不是方向也不是有效金额，显示用法说明
+                    await update.message.reply_text(
+                        "❌ 用法错误！\n正确格式:\n" +
+                        "• /close (一键全平所有仓位)\n" +
+                        "• /close <交易对> (智能平仓该币种所有仓位)\n" +
+                        "• /close <交易对> <方向> (平指定方向仓位)\n" +
+                        "• /close <交易对> <方向> <金额> (部分平仓)\n" +
+                        "• /close <交易对> <金额> (智能部分平仓)\n" +
+                        "例如: /close btc (平BTC所有仓位)\n" +
+                        "或: /close btc long (平BTC多头仓位)\n" +
+                        "或: /close btc 50 (智能平仓50U)"
+                    )
                     return
             
             # 执行平仓操作

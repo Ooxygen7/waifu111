@@ -252,9 +252,10 @@ class TradingService:
             logger.error(f"开仓失败: {e}")
             return {'success': False, 'message': '开仓失败，请稍后重试'}
     
-    async def close_position(self, user_id: int, group_id: int, symbol: str, side: str, size: Optional[float] = None) -> Dict:
+    async def close_position(self, user_id: int, group_id: int, symbol: str, side: Optional[str] = None, size: Optional[float] = None) -> Dict:
         """
-        平仓操作
+        智能平仓操作
+        side: 仓位方向，None表示智能平仓（根据持仓情况自动决定）
         size: 平仓大小，None表示全部平仓
         """
         try:
@@ -263,48 +264,80 @@ class TradingService:
             if current_price <= 0:
                 return {'success': False, 'message': f'无法获取 {symbol} 价格'}
             
-            # 获取仓位信息
-            position_result = TradingRepository.get_position(user_id, group_id, symbol, side)
-            if not position_result["success"] or not position_result["position"]:
-                return {'success': False, 'message': f'没有找到 {symbol} {side.upper()} 仓位'}
+            # 获取该币种的所有仓位
+            positions_result = TradingRepository.get_positions(user_id, group_id)
+            if not positions_result["success"]:
+                return {'success': False, 'message': '获取仓位信息失败'}
             
-            position = position_result["position"]
+            # 筛选出指定币种的仓位
+            symbol_positions = [pos for pos in positions_result["positions"] if pos['symbol'] == symbol]
             
-            # 确定平仓大小
-            close_size = size if size and size <= position['size'] else position['size']
+            if not symbol_positions:
+                return {'success': False, 'message': f'没有找到 {symbol} 仓位'}
             
-            # 计算盈亏
-            pnl = self._calculate_pnl(position['entry_price'], current_price, close_size, side)
-            
-            if close_size >= position['size']:
-                # 全部平仓
-                delete_result = TradingRepository.delete_position(user_id, group_id, symbol, side)
-                if not delete_result["success"]:
-                    return {'success': False, 'message': '删除仓位失败'}
-                message = f"平仓成功！\n{symbol} {side.upper()} -{close_size:.2f} USDT\n盈亏: {pnl:+.2f} USDT"
+            # 如果指定了方向，只平指定方向的仓位
+            if side:
+                target_positions = [pos for pos in symbol_positions if pos['side'] == side]
+                if not target_positions:
+                    return {'success': False, 'message': f'没有找到 {symbol} {side.upper()} 仓位'}
             else:
-                # 部分平仓
-                new_size = position['size'] - close_size
-                update_result = TradingRepository.update_position(
-                    user_id, group_id, symbol, side, new_size, position['entry_price'], position['liquidation_price']
+                # 智能平仓：平所有该币种的仓位
+                target_positions = symbol_positions
+            
+            total_pnl = 0.0
+            close_messages = []
+            
+            # 逐个平仓
+            for position in target_positions:
+                pos_side = position['side']
+                pos_size = position['size']
+                
+                # 确定平仓大小
+                if size and len(target_positions) == 1:
+                    # 只有一个仓位且指定了平仓大小
+                    close_size = min(size, pos_size)
+                else:
+                    # 多个仓位或未指定大小，全部平仓
+                    close_size = pos_size
+                
+                # 计算盈亏
+                pnl = self._calculate_pnl(position['entry_price'], current_price, close_size, pos_side)
+                total_pnl += pnl
+                
+                if close_size >= pos_size:
+                    # 全部平仓
+                    delete_result = TradingRepository.delete_position(user_id, group_id, symbol, pos_side)
+                    if not delete_result["success"]:
+                        return {'success': False, 'message': f'删除 {pos_side.upper()} 仓位失败'}
+                    close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (盈亏: {pnl:+.2f} USDT)")
+                else:
+                    # 部分平仓
+                    new_size = pos_size - close_size
+                    update_result = TradingRepository.update_position(
+                        user_id, group_id, symbol, pos_side, new_size, position['entry_price'], position['liquidation_price']
+                    )
+                    if not update_result["success"]:
+                        return {'success': False, 'message': f'更新 {pos_side.upper()} 仓位失败'}
+                    close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (剩余: {new_size:.2f} USDT, 盈亏: {pnl:+.2f} USDT)")
+                
+                # 记录交易历史
+                TradingRepository.add_trading_history(
+                    user_id, group_id, 'close', symbol, pos_side, close_size, current_price, pnl
                 )
-                if not update_result["success"]:
-                    return {'success': False, 'message': '更新仓位失败'}
-                message = f"部分平仓成功！\n{symbol} {side.upper()} -{close_size:.2f} USDT\n剩余仓位: {new_size:.2f} USDT\n盈亏: {pnl:+.2f} USDT"
             
-            # 更新账户余额和总盈亏 - 杠杆交易只需要加上盈亏
+            # 更新账户余额和总盈亏
             account = self.get_or_create_account(user_id, group_id)
-            new_balance = account['balance'] + pnl
-            new_total_pnl = account['total_pnl'] + pnl
+            new_balance = account['balance'] + total_pnl
             
-            balance_result = TradingRepository.update_account_balance(user_id, group_id, new_balance, pnl)
+            balance_result = TradingRepository.update_account_balance(user_id, group_id, new_balance, total_pnl)
             if not balance_result["success"]:
                 return {'success': False, 'message': '更新账户余额失败'}
             
-            # 记录交易历史
-            TradingRepository.add_trading_history(
-                user_id, group_id, 'close', symbol, side, close_size, current_price, pnl
-            )
+            # 构建返回消息
+            if len(close_messages) == 1:
+                message = f"平仓成功！\n{close_messages[0]}"
+            else:
+                message = f"批量平仓成功！\n" + "\n".join(close_messages) + f"\n总盈亏: {total_pnl:+.2f} USDT"
             
             return {'success': True, 'message': message}
                 
@@ -382,7 +415,7 @@ class TradingService:
             logger.error(f"一键全平失败: {e}")
             return {'success': False, 'message': '一键全平失败，请稍后重试'}
 
-    async def get_positions(self, user_id: int, group_id: int) -> str:
+    async def get_positions(self, user_id: int, group_id: int) -> dict:
         """获取用户所有仓位信息"""
         try:
             account = self.get_or_create_account(user_id, group_id)
