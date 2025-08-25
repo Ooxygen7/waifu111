@@ -939,6 +939,122 @@ class TradingService:
                 "error": str(e)
             }
     
+    async def get_global_ranking_data(self) -> Dict:
+        """获取跨群排行榜数据"""
+        try:
+            from utils.db_utils import query_db
+            
+            # 获取总盈亏排行榜 (跨群，取每个用户最好的成绩)
+            pnl_query = """
+                SELECT ta.user_id, MAX(ta.total_pnl) as best_pnl, ta.group_id, g.group_name
+                FROM trading_accounts ta
+                LEFT JOIN groups g ON ta.group_id = g.group_id
+                GROUP BY ta.user_id 
+                ORDER BY best_pnl DESC 
+                LIMIT 10
+            """
+            pnl_results = query_db(pnl_query)
+            
+            # 获取浮动余额排行榜 (跨群，取每个用户最好的成绩)
+            balance_query = """
+                SELECT ta.user_id, ta.balance, ta.group_id, g.group_name
+                FROM trading_accounts ta
+                LEFT JOIN groups g ON ta.group_id = g.group_id
+            """
+            balance_results = query_db(balance_query)
+            
+            # 获取爆仓次数排行榜 (跨群，取每个用户最少的爆仓次数)
+            liquidation_query = """
+                SELECT th.user_id, COUNT(*) as liquidation_count, th.group_id, g.group_name
+                FROM trading_history th
+                LEFT JOIN groups g ON th.group_id = g.group_id
+                WHERE th.action = 'liquidated'
+                GROUP BY th.user_id, th.group_id
+            """
+            liquidation_results = query_db(liquidation_query)
+            
+            # 格式化总盈亏排行榜结果
+            pnl_ranking = []
+            for row in pnl_results:
+                pnl_ranking.append({
+                    "user_id": row[0],
+                    "total_pnl": float(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+            
+            # 计算每个用户在各群的浮动余额，取最好的
+            user_best_balance = {}
+            for row in balance_results:
+                user_id = row[0]
+                balance = float(row[1])
+                group_id = row[2]
+                group_name = row[3] or f"群组{row[2]}"
+                
+                # 获取用户在该群的所有仓位计算未实现盈亏
+                positions_result = TradingRepository.get_positions(user_id, group_id)
+                total_unrealized_pnl = 0.0
+                
+                if positions_result["success"] and positions_result["positions"]:
+                    for pos in positions_result["positions"]:
+                        current_price = await self.get_current_price(pos['symbol'])
+                        if current_price > 0:
+                            pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
+                            total_unrealized_pnl += pnl
+                
+                floating_balance = balance + total_unrealized_pnl
+                
+                # 保存该用户的最好成绩
+                if user_id not in user_best_balance or floating_balance > user_best_balance[user_id]["floating_balance"]:
+                    user_best_balance[user_id] = {
+                        "user_id": user_id,
+                        "balance": balance,
+                        "floating_balance": floating_balance,
+                        "group_id": group_id,
+                        "group_name": group_name
+                    }
+            
+            # 转换为列表并排序
+            balance_ranking = list(user_best_balance.values())
+            balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
+            balance_ranking = balance_ranking[:10]
+            
+            # 计算每个用户的最少爆仓次数
+            user_min_liquidation = {}
+            for row in liquidation_results:
+                user_id = row[0]
+                liquidation_count = int(row[1])
+                group_id = row[2]
+                group_name = row[3] or f"群组{row[2]}"
+                
+                # 保存该用户的最少爆仓次数
+                if user_id not in user_min_liquidation or liquidation_count < user_min_liquidation[user_id]["liquidation_count"]:
+                    user_min_liquidation[user_id] = {
+                        "user_id": user_id,
+                        "liquidation_count": liquidation_count,
+                        "group_id": group_id,
+                        "group_name": group_name
+                    }
+            
+            # 转换为列表并排序（爆仓次数从少到多）
+            liquidation_ranking = list(user_min_liquidation.values())
+            liquidation_ranking.sort(key=lambda x: x["liquidation_count"])
+            liquidation_ranking = liquidation_ranking[:10]
+            
+            return {
+                "success": True,
+                "pnl_ranking": pnl_ranking,
+                "balance_ranking": balance_ranking,
+                "liquidation_ranking": liquidation_ranking
+            }
+            
+        except Exception as e:
+            logger.error(f"获取跨群排行榜数据失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     def get_pnl_report(self, user_id: int, group_id: int) -> Dict:
         """获取用户盈亏报告，包含最近15笔交易记录和总胜率"""
         try:

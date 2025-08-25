@@ -1140,15 +1140,25 @@ class RankCommand(BaseCommand):
         try:
             group_id = update.effective_chat.id
             
-            # 获取排行榜数据
-            result = await trading_service.get_ranking_data(group_id)
+            # 检查是否有参数
+            args = context.args
+            is_global = len(args) > 0 and args[0].lower() == 'all'
+            
+            if is_global:
+                # 获取全局排行榜数据
+                result = await trading_service.get_global_ranking_data()
+                title = "📊 **全球交易排行榜**\n"
+            else:
+                # 获取群组排行榜数据
+                result = await trading_service.get_ranking_data(group_id)
+                title = "📊 **群组交易排行榜**\n"
             
             if not result['success']:
                 await update.message.reply_text("❌ 获取排行榜数据失败，请稍后重试")
                 return
             
             # 构建排行榜消息
-            message_parts = ["📊 **群组交易排行榜**\n"]
+            message_parts = [title]
             
             # 总盈亏排行榜
             message_parts.append("🏆 **总盈亏排行榜 TOP5**")
@@ -1156,15 +1166,30 @@ class RankCommand(BaseCommand):
                 for i, user_data in enumerate(result['pnl_ranking'], 1):
                     user_id = user_data['user_id']
                     total_pnl = user_data['total_pnl']
+                    group_name = user_data.get('group_name', '') if is_global else ''
+                    
                     try:
-                        user = await context.bot.get_chat_member(group_id, user_id)
-                        username = user.user.first_name or f"用户{user_id}"
+                        # 对于全局排行榜，尝试从任意群组获取用户信息
+                        if is_global:
+                            # 尝试从当前群组获取用户信息，如果失败则使用默认名称
+                            try:
+                                user = await context.bot.get_chat_member(group_id, user_id)
+                                username = user.user.first_name or f"用户{user_id}"
+                            except:
+                                username = f"用户{user_id}"
+                        else:
+                            user = await context.bot.get_chat_member(group_id, user_id)
+                            username = user.user.first_name or f"用户{user_id}"
                     except:
                         username = f"用户{user_id}"
                     
                     emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
                     pnl_text = f"+{total_pnl:.2f}" if total_pnl >= 0 else f"{total_pnl:.2f}"
-                    message_parts.append(f"{emoji} {username}: {pnl_text} USDT")
+                    
+                    if is_global and group_name:
+                        message_parts.append(f"{emoji} {username} ({group_name}): {pnl_text} USDT")
+                    else:
+                        message_parts.append(f"{emoji} {username}: {pnl_text} USDT")
 
             else:
                 message_parts.append("暂无数据")
@@ -1177,14 +1202,28 @@ class RankCommand(BaseCommand):
                 for i, user_data in enumerate(result['balance_ranking'], 1):
                     user_id = user_data['user_id']
                     floating_balance = user_data['floating_balance']
+                    group_name = user_data.get('group_name', '') if is_global else ''
+                    
                     try:
-                        user = await context.bot.get_chat_member(group_id, user_id)
-                        username = user.user.first_name or f"用户{user_id}"
+                        # 对于全局排行榜，尝试从任意群组获取用户信息
+                        if is_global:
+                            try:
+                                user = await context.bot.get_chat_member(group_id, user_id)
+                                username = user.user.first_name or f"用户{user_id}"
+                            except:
+                                username = f"用户{user_id}"
+                        else:
+                            user = await context.bot.get_chat_member(group_id, user_id)
+                            username = user.user.first_name or f"用户{user_id}"
                     except:
                         username = f"用户{user_id}"
                     
                     emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
-                    message_parts.append(f"{emoji} {username}: {floating_balance:.2f} USDT")
+                    
+                    if is_global and group_name:
+                        message_parts.append(f"{emoji} {username} ({group_name}): {floating_balance:.2f} USDT")
+                    else:
+                        message_parts.append(f"{emoji} {username}: {floating_balance:.2f} USDT")
             else:
                 message_parts.append("暂无数据")
             
@@ -1196,14 +1235,28 @@ class RankCommand(BaseCommand):
                 for i, user_data in enumerate(result['liquidation_ranking'], 1):
                     user_id = user_data['user_id']
                     liquidation_count = user_data['liquidation_count']
+                    group_name = user_data.get('group_name', '') if is_global else ''
+                    
                     try:
-                        user = await context.bot.get_chat_member(group_id, user_id)
-                        username = user.user.first_name or f"用户{user_id}"
+                        # 对于全局排行榜，尝试从任意群组获取用户信息
+                        if is_global:
+                            try:
+                                user = await context.bot.get_chat_member(group_id, user_id)
+                                username = user.user.first_name or f"用户{user_id}"
+                            except:
+                                username = f"用户{user_id}"
+                        else:
+                            user = await context.bot.get_chat_member(group_id, user_id)
+                            username = user.user.first_name or f"用户{user_id}"
                     except:
                         username = f"用户{user_id}"
                     
                     emoji = "💀" if i == 1 else "☠️" if i == 2 else "💥" if i == 3 else "🔥"
-                    message_parts.append(f"{emoji} {username}: {liquidation_count} 次")
+                    
+                    if is_global and group_name:
+                        message_parts.append(f"{emoji} {username} ({group_name}): {liquidation_count} 次")
+                    else:
+                        message_parts.append(f"{emoji} {username}: {liquidation_count} 次")
             else:
                 message_parts.append("暂无数据")
             
