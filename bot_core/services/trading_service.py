@@ -852,13 +852,13 @@ class TradingService:
         try:
             from utils.db_utils import query_db
             
-            # 获取总盈亏排行榜 (top 5)
+            # 获取总盈亏排行榜 (top 10)
             pnl_query = """
                 SELECT user_id, total_pnl 
                 FROM trading_accounts 
                 WHERE group_id = ? 
                 ORDER BY total_pnl DESC 
-                LIMIT 5
+                LIMIT 10
             """
             pnl_results = query_db(pnl_query, (group_id,))
             
@@ -871,14 +871,14 @@ class TradingService:
             """
             balance_results = query_db(balance_query, (group_id,))
             
-            # 获取爆仓次数排行榜 (top 5)
+            # 获取爆仓次数排行榜 (top 10)
             liquidation_query = """
                 SELECT user_id, COUNT(*) as liquidation_count
                 FROM trading_history 
                 WHERE group_id = ? AND action = 'liquidated'
                 GROUP BY user_id 
                 ORDER BY liquidation_count DESC 
-                LIMIT 5
+                LIMIT 10
             """
             liquidation_results = query_db(liquidation_query, (group_id,))
             
@@ -914,9 +914,9 @@ class TradingService:
                     "floating_balance": floating_balance
                 })
             
-            # 按浮动余额排序并取前5名
+            # 按浮动余额排序并取前10名
             balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
-            balance_ranking = balance_ranking[:5]
+            balance_ranking = balance_ranking[:10]
             
             liquidation_ranking = []
             for row in liquidation_results:
@@ -1019,26 +1019,26 @@ class TradingService:
             balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
             balance_ranking = balance_ranking[:10]
             
-            # 计算每个用户的最少爆仓次数
-            user_min_liquidation = {}
+            # 计算每个用户的最多爆仓次数
+            user_max_liquidation = {}
             for row in liquidation_results:
                 user_id = row[0]
                 liquidation_count = int(row[1])
                 group_id = row[2]
                 group_name = row[3] or f"群组{row[2]}"
                 
-                # 保存该用户的最少爆仓次数
-                if user_id not in user_min_liquidation or liquidation_count < user_min_liquidation[user_id]["liquidation_count"]:
-                    user_min_liquidation[user_id] = {
+                # 保存该用户的最多爆仓次数
+                if user_id not in user_max_liquidation or liquidation_count > user_max_liquidation[user_id]["liquidation_count"]:
+                    user_max_liquidation[user_id] = {
                         "user_id": user_id,
                         "liquidation_count": liquidation_count,
                         "group_id": group_id,
                         "group_name": group_name
                     }
             
-            # 转换为列表并排序（爆仓次数从少到多）
-            liquidation_ranking = list(user_min_liquidation.values())
-            liquidation_ranking.sort(key=lambda x: x["liquidation_count"])
+            # 转换为列表并排序（爆仓次数从多到少）
+            liquidation_ranking = list(user_max_liquidation.values())
+            liquidation_ranking.sort(key=lambda x: x["liquidation_count"], reverse=True)
             liquidation_ranking = liquidation_ranking[:10]
             
             return {

@@ -1147,11 +1147,11 @@ class RankCommand(BaseCommand):
             if is_global:
                 # 获取全局排行榜数据
                 result = await trading_service.get_global_ranking_data()
-                title = "📊 **全球交易排行榜**\n"
+                title = "📊 <b>全球交易排行榜</b>\n"
             else:
                 # 获取群组排行榜数据
                 result = await trading_service.get_ranking_data(group_id)
-                title = "📊 **群组交易排行榜**\n"
+                title = "📊 <b>群组交易排行榜</b>\n"
             
             if not result['success']:
                 await update.message.reply_text("❌ 获取排行榜数据失败，请稍后重试")
@@ -1161,8 +1161,9 @@ class RankCommand(BaseCommand):
             message_parts = [title]
             
             # 总盈亏排行榜
-            message_parts.append("🏆 **总盈亏排行榜 TOP5**")
+            message_parts.append("🏆 <b>总盈亏排行榜 TOP10</b>")
             if result['pnl_ranking']:
+                pnl_lines = []
                 for i, user_data in enumerate(result['pnl_ranking'], 1):
                     user_id = user_data['user_id']
                     total_pnl = user_data['total_pnl']
@@ -1187,18 +1188,20 @@ class RankCommand(BaseCommand):
                     pnl_text = f"+{total_pnl:.2f}" if total_pnl >= 0 else f"{total_pnl:.2f}"
                     
                     if is_global and group_name:
-                        message_parts.append(f"{emoji} {username} ({group_name}): {pnl_text} USDT")
+                        pnl_lines.append(f"{emoji} {username} ({group_name}): {pnl_text} USDT")
                     else:
-                        message_parts.append(f"{emoji} {username}: {pnl_text} USDT")
-
+                        pnl_lines.append(f"{emoji} {username}: {pnl_text} USDT")
+                
+                message_parts.append(f"<blockquote>{'<br>'.join(pnl_lines)}</blockquote>")
             else:
-                message_parts.append("暂无数据")
+                message_parts.append("<blockquote>暂无数据</blockquote>")
             
             message_parts.append("")
             
             # 当前浮动余额排行榜
-            message_parts.append("💰 **当前浮动余额排行榜 TOP5**")
+            message_parts.append("💰 <b>当前浮动余额排行榜 TOP10</b>")
             if result['balance_ranking']:
+                balance_lines = []
                 for i, user_data in enumerate(result['balance_ranking'], 1):
                     user_id = user_data['user_id']
                     floating_balance = user_data['floating_balance']
@@ -1221,17 +1224,20 @@ class RankCommand(BaseCommand):
                     emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
                     
                     if is_global and group_name:
-                        message_parts.append(f"{emoji} {username} ({group_name}): {floating_balance:.2f} USDT")
+                        balance_lines.append(f"{emoji} {username} ({group_name}): {floating_balance:.2f} USDT")
                     else:
-                        message_parts.append(f"{emoji} {username}: {floating_balance:.2f} USDT")
+                        balance_lines.append(f"{emoji} {username}: {floating_balance:.2f} USDT")
+                
+                message_parts.append(f"<blockquote>{'<br>'.join(balance_lines)}</blockquote>")
             else:
-                message_parts.append("暂无数据")
+                message_parts.append("<blockquote>暂无数据</blockquote>")
             
             message_parts.append("")
             
             # 爆仓次数排行榜
-            message_parts.append("💥 **爆仓次数排行榜 TOP5**")
+            message_parts.append("💥 <b>爆仓次数排行榜 TOP10</b>")
             if result['liquidation_ranking']:
+                liquidation_lines = []
                 for i, user_data in enumerate(result['liquidation_ranking'], 1):
                     user_id = user_data['user_id']
                     liquidation_count = user_data['liquidation_count']
@@ -1254,14 +1260,16 @@ class RankCommand(BaseCommand):
                     emoji = "💀" if i == 1 else "☠️" if i == 2 else "💥" if i == 3 else "🔥"
                     
                     if is_global and group_name:
-                        message_parts.append(f"{emoji} {username} ({group_name}): {liquidation_count} 次")
+                        liquidation_lines.append(f"{emoji} {username} ({group_name}): {liquidation_count} 次")
                     else:
-                        message_parts.append(f"{emoji} {username}: {liquidation_count} 次")
+                        liquidation_lines.append(f"{emoji} {username}: {liquidation_count} 次")
+                
+                message_parts.append(f"<blockquote>{'<br>'.join(liquidation_lines)}</blockquote>")
             else:
-                message_parts.append("暂无数据")
+                message_parts.append("<blockquote>暂无数据</blockquote>")
             
             final_message = "\n".join(message_parts)
-            await update.message.reply_text(final_message, parse_mode="Markdown")
+            await update.message.reply_text(final_message, parse_mode="HTML")
             
         except Exception as e:
             logger.error(f"排行榜命令失败: {e}")
