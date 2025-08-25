@@ -20,7 +20,7 @@ def extract_tag_content(text, tag):
     """
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"extract_tag_content 收到文本 (tag={tag}): {text}")
+    logger.debug(f"extract_tag_content 收到文本 (tag={tag}): {text}")
 
     match_content = None
 
@@ -81,16 +81,16 @@ def extract_tag_content(text, tag):
                 match_content = text[start_pos + len(start_tag):end_pos]
 
     if match_content is None:
-        logger.info(f"extract_tag_content 未找到 {tag} 标签内容，返回'暂无'")
+        logger.debug(f"extract_tag_content 未找到 {tag} 标签内容，返回'暂无'")
         return "暂无"
 
-    logger.info(f"extract_tag_content 提取的 {tag} 标签内容: {match_content}")
+    logger.debug(f"extract_tag_content 提取的 {tag} 标签内容: {match_content}")
 
     # 移除所有HTML标签，只返回纯文本
     plain_text = re.sub(r'<.*?>', '', match_content, flags=re.DOTALL)
     result = plain_text.strip()
 
-    logger.info(f"extract_tag_content 处理后返回 (tag={tag}): {result}")
+    logger.debug(f"extract_tag_content 处理后返回 (tag={tag}): {result}")
     return result
 
 

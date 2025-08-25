@@ -1192,7 +1192,7 @@ class RankCommand(BaseCommand):
                     else:
                         pnl_lines.append(f"{emoji} {username}: {pnl_text} USDT")
                 
-                message_parts.append(f"<blockquote>{'<br>'.join(pnl_lines)}</blockquote>")
+                message_parts.append(f"<blockquote>{'\n'.join(pnl_lines)}</blockquote>")
             else:
                 message_parts.append("<blockquote>暂无数据</blockquote>")
             
@@ -1228,7 +1228,7 @@ class RankCommand(BaseCommand):
                     else:
                         balance_lines.append(f"{emoji} {username}: {floating_balance:.2f} USDT")
                 
-                message_parts.append(f"<blockquote>{'<br>'.join(balance_lines)}</blockquote>")
+                message_parts.append(f"<blockquote>{'\n'.join(balance_lines)}</blockquote>")
             else:
                 message_parts.append("<blockquote>暂无数据</blockquote>")
             
@@ -1264,7 +1264,7 @@ class RankCommand(BaseCommand):
                     else:
                         liquidation_lines.append(f"{emoji} {username}: {liquidation_count} 次")
                 
-                message_parts.append(f"<blockquote>{'<br>'.join(liquidation_lines)}</blockquote>")
+                message_parts.append(f"<blockquote>{'\n'.join(liquidation_lines)}</blockquote>")
             else:
                 message_parts.append("<blockquote>暂无数据</blockquote>")
             
