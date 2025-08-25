@@ -113,14 +113,13 @@ class TradingMonitor:
             # 构造强平通知消息
             message = (
                 f"🚨 强平通知 🚨\n\n"
-                f"{user_mention} 您的所有仓位已被强制平仓！\n\n"
+                f"{user_mention} ，恭喜您！您的所有仓位已被清算！\n\n"
                 f"📊 触发仓位: {symbol} {side.upper()}\n"
-                f"💰 仓位大小: {size:.2f} USDT\n"
-                f"📉 浮动余额: {floating_balance:.2f} USDT\n"
                 f"⚖️ 杠杆倍数: {leverage_ratio:.2f}x\n"
                 f"⚠️ 强平阈值: {threshold:.2f} USDT (本金的{threshold_ratio*100:.1f}%)\n\n"
-                f"💔 您的账户余额已清零，所有仓位已被清空。\n"
-                f"🆘 请使用 /begging 领取救济金重新开始交易。"
+                f"📉 当前余额: {floating_balance:.2f} USDT\n"
+                f"💔 您的资金已成为流动性。\n"
+                f"🆘 使用 /begging 可以领取救济金重新开始交易。"
             )
             
             # 发送到群组

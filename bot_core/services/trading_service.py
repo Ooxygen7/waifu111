@@ -238,13 +238,25 @@ class TradingService:
                 
                 message = f"开仓成功！\n{symbol} {side.upper()} {size:.2f} USDT\n开仓价: {current_price:.4f}\n强平价: {liquidation_price:.4f}"
             
-            # 杠杆交易不扣除余额，余额就是保证金
-            # 仓位占用保证金，但不从余额中扣除
+            # 计算开仓手续费 (万分之3.5)
+            open_fee = size * 0.00035
             
-            # 记录交易历史
+            # 从账户余额中扣除手续费
+            account = self.get_or_create_account(user_id, group_id)
+            new_balance = account['balance'] - open_fee
+            
+            # 更新账户余额（扣除手续费，但不计入总盈亏统计）
+            balance_result = TradingRepository.update_account_balance(user_id, group_id, new_balance, 0.0)
+            if not balance_result["success"]:
+                return {'success': False, 'message': '更新账户余额失败'}
+            
+            # 记录交易历史（手续费作为负盈亏记录，但不影响胜率）
             TradingRepository.add_trading_history(
-                user_id, group_id, 'open', symbol, side, size, current_price
+                user_id, group_id, 'open', symbol, side, size, current_price, -open_fee
             )
+            
+            # 在消息中显示手续费信息
+            message += f"\n手续费: -{open_fee:.2f} USDT"
             
             return {'success': True, 'message': message}
                 
@@ -285,6 +297,7 @@ class TradingService:
                 target_positions = symbol_positions
             
             total_pnl = 0.0
+            total_close_fee = 0.0
             close_messages = []
             
             # 逐个平仓
@@ -300,16 +313,22 @@ class TradingService:
                     # 多个仓位或未指定大小，全部平仓
                     close_size = pos_size
                 
-                # 计算盈亏
-                pnl = self._calculate_pnl(position['entry_price'], current_price, close_size, pos_side)
-                total_pnl += pnl
+                # 计算平仓手续费 (万分之3.5)
+                close_fee = close_size * 0.00035
+                total_close_fee += close_fee
+                
+                # 计算盈亏（不包含手续费）
+                pnl_before_fee = self._calculate_pnl(position['entry_price'], current_price, close_size, pos_side)
+                # 计算扣除手续费后的净盈亏
+                net_pnl = pnl_before_fee - close_fee
+                total_pnl += net_pnl
                 
                 if close_size >= pos_size:
                     # 全部平仓
                     delete_result = TradingRepository.delete_position(user_id, group_id, symbol, pos_side)
                     if not delete_result["success"]:
                         return {'success': False, 'message': f'删除 {pos_side.upper()} 仓位失败'}
-                    close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (盈亏: {pnl:+.2f} USDT)")
+                    close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (盈亏: {pnl_before_fee:+.2f} USDT, 手续费: -{close_fee:.2f} USDT, 净盈亏: {net_pnl:+.2f} USDT)")
                 else:
                     # 部分平仓
                     new_size = pos_size - close_size
@@ -318,11 +337,11 @@ class TradingService:
                     )
                     if not update_result["success"]:
                         return {'success': False, 'message': f'更新 {pos_side.upper()} 仓位失败'}
-                    close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (剩余: {new_size:.2f} USDT, 盈亏: {pnl:+.2f} USDT)")
+                    close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (剩余: {new_size:.2f} USDT, 盈亏: {pnl_before_fee:+.2f} USDT, 手续费: -{close_fee:.2f} USDT, 净盈亏: {net_pnl:+.2f} USDT)")
                 
-                # 记录交易历史
+                # 记录交易历史（记录净盈亏，包含手续费）
                 TradingRepository.add_trading_history(
-                    user_id, group_id, 'close', symbol, pos_side, close_size, current_price, pnl
+                    user_id, group_id, 'close', symbol, pos_side, close_size, current_price, net_pnl
                 )
             
             # 更新账户余额和总盈亏
@@ -337,7 +356,7 @@ class TradingService:
             if len(close_messages) == 1:
                 message = f"平仓成功！\n{close_messages[0]}"
             else:
-                message = f"批量平仓成功！\n" + "\n".join(close_messages) + f"\n总盈亏: {total_pnl:+.2f} USDT"
+                message = f"批量平仓成功！\n" + "\n".join(close_messages) + f"\n总手续费: -{total_close_fee:.2f} USDT\n总净盈亏: {total_pnl:+.2f} USDT"
             
             return {'success': True, 'message': message}
                 
@@ -360,6 +379,7 @@ class TradingService:
                 return {'success': False, 'message': '当前没有持仓'}
             
             total_pnl = 0.0
+            total_close_fee = 0.0
             closed_positions = []
             
             # 逐个平仓所有仓位
@@ -373,9 +393,15 @@ class TradingService:
                 if current_price <= 0:
                     continue
                 
-                # 计算盈亏
-                pnl = self._calculate_pnl(position['entry_price'], current_price, size, side)
-                total_pnl += pnl
+                # 计算平仓手续费 (万分之3.5)
+                close_fee = size * 0.00035
+                total_close_fee += close_fee
+                
+                # 计算盈亏（不包含手续费）
+                pnl_before_fee = self._calculate_pnl(position['entry_price'], current_price, size, side)
+                # 计算扣除手续费后的净盈亏
+                net_pnl = pnl_before_fee - close_fee
+                total_pnl += net_pnl
                 
                 # 删除仓位
                 delete_result = TradingRepository.delete_position(user_id, group_id, symbol, side)
@@ -384,12 +410,14 @@ class TradingService:
                         'symbol': symbol,
                         'side': side,
                         'size': size,
-                        'pnl': pnl
+                        'pnl_before_fee': pnl_before_fee,
+                        'close_fee': close_fee,
+                        'net_pnl': net_pnl
                     })
                     
-                    # 记录交易历史
+                    # 记录交易历史（记录净盈亏，包含手续费）
                     TradingRepository.add_trading_history(
-                        user_id, group_id, 'close', symbol, side, size, current_price, pnl
+                        user_id, group_id, 'close', symbol, side, size, current_price, net_pnl
                     )
             
             if not closed_positions:
@@ -406,8 +434,9 @@ class TradingService:
             # 构建返回消息
             message_lines = ["🔄 一键全平成功！"]
             for pos in closed_positions:
-                message_lines.append(f"{pos['symbol']} {pos['side'].upper()} -{pos['size']:.2f} USDT (盈亏: {pos['pnl']:+.2f} USDT)")
-            message_lines.append(f"\n💰 总盈亏: {total_pnl:+.2f} USDT")
+                message_lines.append(f"{pos['symbol']} {pos['side'].upper()} -{pos['size']:.2f} USDT (盈亏: {pos['pnl_before_fee']:+.2f} USDT, 手续费: -{pos['close_fee']:.2f} USDT, 净盈亏: {pos['net_pnl']:+.2f} USDT)")
+            message_lines.append(f"\n💰 总手续费: -{total_close_fee:.2f} USDT")
+            message_lines.append(f"💰 总净盈亏: {total_pnl:+.2f} USDT")
             
             return {'success': True, 'message': '\n'.join(message_lines)}
             
