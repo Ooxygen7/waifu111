@@ -836,7 +836,7 @@ class TradingService:
                         logger.error(f"更新仓位 {pos['symbol']} {pos['side']} 强平价格失败: {e}")
                         continue
             
-            logger.info(f"已更新 {updated_count} 个仓位的强平价格")
+            logger.debug(f"已更新 {updated_count} 个仓位的强平价格")
             return {
                 "success": True, 
                 "updated_count": updated_count,
