@@ -1106,10 +1106,10 @@ class CloseCommand(BaseCommand):
         try:
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
-            
+
             # 解析命令参数
             args = context.args
-            
+
             # 如果没有参数，执行一键全平
             if len(args) == 0:
                 result = await trading_service.close_all_positions(user_id, group_id)
@@ -1121,6 +1121,32 @@ class CloseCommand(BaseCommand):
                     delete_user_message=True
                 )
                 return
+
+            # 检查是否为批量平仓模式（多个币种参数，且没有数字参数）
+            if len(args) >= 2:
+                # 检查是否所有参数都是币种名称（没有数字参数）
+                has_numeric = any(arg.replace('.', '').replace('u', '').replace('U', '').isdigit() for arg in args)
+                if not has_numeric:
+                    # 批量平仓模式：/close xrp btc eth
+                    symbols = [arg.upper() for arg in args]
+                    results = []
+
+                    for symbol in symbols:
+                        try:
+                            result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", None, None)
+                            results.append(f"{symbol}: {result['message']}")
+                        except Exception as e:
+                            results.append(f"{symbol}: ❌ 平仓失败 - {str(e)}")
+
+                    response = "🔄 批量平仓结果:\n" + "\n".join(results)
+                    await MessageDeletionService.send_and_schedule_delete(
+                        update=update,
+                        context=context,
+                        text=response,
+                        delay_seconds=120,
+                        delete_user_message=True
+                    )
+                    return
 
             # 如果只有一个参数，智能平仓该币种的所有仓位
             if len(args) == 1:
@@ -1134,16 +1160,17 @@ class CloseCommand(BaseCommand):
                     delete_user_message=True
                 )
                 return
-            
+
+            # 传统模式：单币种平仓（支持方向和金额参数）
             symbol = args[0].upper()
-            
+
             # 检查第二个参数是方向还是金额
             second_arg = args[1].lower()
             if second_arg in ['long', 'short']:
                 # 第二个参数是方向
                 side = second_arg
                 amount = None
-                
+
                 # 检查是否有第三个参数（金额）
                 if len(args) >= 3:
                     try:
@@ -1168,15 +1195,19 @@ class CloseCommand(BaseCommand):
                         "❌ 用法错误！\n正确格式:\n" +
                         "• /close (一键全平所有仓位)\n" +
                         "• /close <交易对> (智能平仓该币种所有仓位)\n" +
+                        "• /close <币种1> <币种2> <币种3> (批量平仓多个币种)\n" +
                         "• /close <交易对> <方向> (平指定方向仓位)\n" +
                         "• /close <交易对> <方向> <金额> (部分平仓)\n" +
                         "• /close <交易对> <金额> (智能部分平仓)\n" +
-                        "例如: /close btc (平BTC所有仓位)\n" +
-                        "或: /close btc long (平BTC多头仓位)\n" +
-                        "或: /close btc 50 (智能平仓50U)"
+                        "例如:\n" +
+                        "/close (全平所有仓位)\n" +
+                        "/close btc (平BTC所有仓位)\n" +
+                        "/close xrp btc eth (批量平仓XRP、BTC、ETH)\n" +
+                        "/close btc long (平BTC多头仓位)\n" +
+                        "/close btc 50 (智能平仓50U)"
                     )
                     return
-            
+
             # 执行平仓操作
             result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", side, amount)
 
@@ -1187,7 +1218,7 @@ class CloseCommand(BaseCommand):
                 delay_seconds=120,
                 delete_user_message=True
             )
-            
+
         except Exception as e:
             logger.error(f"平仓命令失败: {e}")
             await update.message.reply_text("❌ 平仓失败，请稍后重试")
