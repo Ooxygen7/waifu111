@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Optional, AsyncGenerator, Dict, Any, Union
 from enum import Enum
@@ -495,4 +496,89 @@ async def handle_agent_session(
             # 尝试回复原始消息
             if update.message:
                 await factory.send(error_message)
+
+
+class MessageDeletionService:
+    """消息删除服务，提供统一的自动删除功能"""
+
+    @staticmethod
+    async def schedule_auto_delete(
+        context: ContextTypes.DEFAULT_TYPE,
+        chat_id: int,
+        message_id: int,
+        delay_seconds: int = 120,
+        user_message_id: Optional[int] = None
+    ) -> None:
+        """
+        安排消息自动删除
+
+        Args:
+            context: Telegram context
+            chat_id: 聊天ID
+            message_id: 要删除的bot回复消息ID
+            delay_seconds: 删除延迟时间（秒）
+            user_message_id: 用户指令消息ID（可选，如果提供则也会尝试删除）
+        """
+        try:
+            await asyncio.sleep(delay_seconds)
+
+            # 删除bot回复消息
+            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+            logger.debug(f"已删除bot回复消息: {message_id}")
+
+            # 如果提供了用户消息ID，尝试删除用户指令消息
+            if user_message_id:
+                try:
+                    await context.bot.delete_message(chat_id=chat_id, message_id=user_message_id)
+                    logger.debug(f"已删除用户指令消息: {user_message_id}")
+                except Exception as user_delete_error:
+                    logger.warning(f"删除用户指令消息失败: {user_delete_error}")
+
+        except Exception as e:
+            logger.warning(f"自动删除消息失败: {e}")
+
+    @staticmethod
+    async def send_and_schedule_delete(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        text: str,
+        parse_mode: str = "HTML",
+        delay_seconds: int = 120,
+        delete_user_message: bool = True
+    ) -> Optional[Message]:
+        """
+        发送消息并安排自动删除
+
+        Args:
+            update: Telegram update
+            context: Telegram context
+            text: 消息文本
+            parse_mode: 解析模式
+            delay_seconds: 删除延迟时间（秒）
+            delete_user_message: 是否同时删除用户指令消息
+
+        Returns:
+            发送的消息对象
+        """
+        # 发送回复消息
+        sent_message = await update.message.reply_text(text, parse_mode=parse_mode)
+
+        if sent_message:
+            # 获取用户指令消息ID
+            user_message_id = None
+            if delete_user_message and update.message:
+                user_message_id = update.message.message_id
+
+            # 安排自动删除
+            context.application.create_task(
+                MessageDeletionService.schedule_auto_delete(
+                    context=context,
+                    chat_id=update.effective_chat.id,
+                    message_id=sent_message.message_id,
+                    delay_seconds=delay_seconds,
+                    user_message_id=user_message_id
+                )
+            )
+
+        return sent_message
 

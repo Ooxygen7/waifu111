@@ -14,7 +14,7 @@ from utils import file_utils as file
 from utils.logging_utils import setup_logging
 from bot_core.command_handlers.base import BaseCommand, CommandMeta
 from agent.tools_registry import MarketToolRegistry
-from bot_core.services.messages import handle_agent_session
+from bot_core.services.messages import handle_agent_session, MessageDeletionService
 from agent.llm_functions import run_agent_session, analyze_image_for_rating, analyze_image_for_kao
 from utils.config_utils import get_config
 from bot_core.services.trading_service import trading_service
@@ -752,7 +752,7 @@ class LongCommand(BaseCommand):
         try:
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
-            
+
             # 解析命令参数
             args = context.args
             if len(args) < 2:
@@ -764,13 +764,13 @@ class LongCommand(BaseCommand):
                     "例如: /long btc 100 或 /long btc eth xrp 5000 或 /long btc eth pepe 5000 2000 200"
                 )
                 return
-            
+
             # 检查是否为批量开仓
             if len(args) >= 3:
                 # 批量开仓模式
                 symbols = []
                 amounts = []
-                
+
                 # 尝试解析最后一个参数作为金额
                 try:
                     last_amount = float(args[-1].replace('u', '').replace('U', ''))
@@ -791,11 +791,11 @@ class LongCommand(BaseCommand):
                                     break
                                 except ValueError:
                                     continue
-                            
+
                             if first_amount_idx is not None:
                                 symbols = [arg.upper() for arg in args[:first_amount_idx]]
                                 amount_args = args[first_amount_idx:]
-                                
+
                                 if len(symbols) == len(amount_args):
                                     # 不同金额模式: /long btc eth pepe 5000 2000 200
                                     amounts = []
@@ -821,15 +821,21 @@ class LongCommand(BaseCommand):
                 except ValueError:
                     await update.message.reply_text("❌ 金额格式错误！")
                     return
-                
+
                 # 执行批量开仓
                 results = []
                 for symbol, amount in zip(symbols, amounts):
                     result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
                     results.append(f"{symbol}: {result['message']}")
-                
+
                 response = "📈 批量做多结果:\n" + "\n".join(results)
-                await update.message.reply_text(response)
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=response,
+                    delay_seconds=120,
+                    delete_user_message=True
+                )
             else:
                 # 单个开仓模式
                 symbol = args[0].upper()
@@ -838,19 +844,26 @@ class LongCommand(BaseCommand):
                 except ValueError:
                     await update.message.reply_text("❌ 金额格式错误！")
                     return
-                
+
                 if amount <= 0:
                     await update.message.reply_text("❌ 金额必须大于0！")
                     return
-                
+
                 # 执行开多仓操作
                 result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
-                
-                await update.message.reply_text(result['message'])
-            
+
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=result['message'],
+                    delay_seconds=120,
+                    delete_user_message=True
+                )
+
         except Exception as e:
             logger.error(f"做多命令失败: {e}")
             await update.message.reply_text("❌ 操作失败，请稍后重试")
+
 
 
 class ShortCommand(BaseCommand):
@@ -944,7 +957,13 @@ class ShortCommand(BaseCommand):
                     results.append(f"{symbol}: {result['message']}")
                 
                 response = "📉 批量做空结果:\n" + "\n".join(results)
-                await update.message.reply_text(response)
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=response,
+                    delay_seconds=120,
+                    delete_user_message=True
+                )
             else:
                 # 单个开仓模式
                 symbol = args[0].upper()
@@ -953,19 +972,26 @@ class ShortCommand(BaseCommand):
                 except ValueError:
                     await update.message.reply_text("❌ 金额格式错误！")
                     return
-                
+
                 if amount <= 0:
                     await update.message.reply_text("❌ 金额必须大于0！")
                     return
-                
+
                 # 执行开空仓操作
                 result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
-                
-                await update.message.reply_text(result['message'])
+
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=result['message'],
+                    delay_seconds=120,
+                    delete_user_message=True
+                )
             
         except Exception as e:
             logger.error(f"做空命令失败: {e}")
             await update.message.reply_text("❌ 操作失败，请稍后重试")
+
 
 
 class PositionCommand(BaseCommand):
@@ -985,12 +1011,20 @@ class PositionCommand(BaseCommand):
             
             # 获取仓位信息
             result = await trading_service.get_positions(user_id, group_id)
-            
-            await update.message.reply_text(result['message'], parse_mode='HTML')
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                parse_mode='HTML',
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"查看仓位失败: {e}")
             await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
+
 
 
 class PnlCommand(BaseCommand):
@@ -1010,12 +1044,20 @@ class PnlCommand(BaseCommand):
             
             # 获取盈亏报告
             result = trading_service.get_pnl_report(user_id, group_id)
-            
-            await update.message.reply_text(result['message'], parse_mode='HTML')
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                parse_mode='HTML',
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"盈亏报告命令失败: {e}")
             await update.message.reply_text("❌ 获取盈亏报告失败，请稍后重试")
+
 
 
 class BeggingCommand(BaseCommand):
@@ -1035,12 +1077,19 @@ class BeggingCommand(BaseCommand):
             
             # 领取救济金
             result = trading_service.begging(user_id, group_id)
-            
-            await update.message.reply_text(result['message'])
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"救济金命令失败: {e}")
             await update.message.reply_text("❌ 救济金发放失败，请稍后重试")
+
 
 
 class CloseCommand(BaseCommand):
@@ -1064,14 +1113,26 @@ class CloseCommand(BaseCommand):
             # 如果没有参数，执行一键全平
             if len(args) == 0:
                 result = await trading_service.close_all_positions(user_id, group_id)
-                await update.message.reply_text(result['message'])
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=result['message'],
+                    delay_seconds=120,
+                    delete_user_message=True
+                )
                 return
-            
+
             # 如果只有一个参数，智能平仓该币种的所有仓位
             if len(args) == 1:
                 symbol = args[0].upper()
                 result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", None, None)
-                await update.message.reply_text(result['message'])
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=result['message'],
+                    delay_seconds=120,
+                    delete_user_message=True
+                )
                 return
             
             symbol = args[0].upper()
@@ -1118,12 +1179,19 @@ class CloseCommand(BaseCommand):
             
             # 执行平仓操作
             result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", side, amount)
-            
-            await update.message.reply_text(result['message'])
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"平仓命令失败: {e}")
             await update.message.reply_text("❌ 平仓失败，请稍后重试")
+
 
 
 class RankCommand(BaseCommand):
@@ -1570,3 +1638,4 @@ class BillCommand(BaseCommand):
         except Exception as e:
             logger.error(f"获取贷款账单失败: {e}")
             await update.message.reply_text("❌ 获取贷款账单失败，请稍后重试")
+
