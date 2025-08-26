@@ -1500,7 +1500,7 @@ class RankCommand(BaseCommand):
                 context=context,
                 text=final_message,
                 parse_mode='HTML',
-                delay_seconds=120,
+                delay_seconds=240,
                 delete_user_message=True
             )
             
