@@ -518,7 +518,7 @@ class TradingRepository:
                 GROUP BY th.user_id, th.group_id
             """
             result = query_db(command)
-            
+
             ranking = []
             for row in result:
                 ranking.append({
@@ -527,13 +527,80 @@ class TradingRepository:
                     "group_id": row[2],
                     "group_name": row[3] or f"群组{row[2]}"
                 })
-            
+
             return {
                 "success": True,
                 "ranking": ranking
             }
         except Exception as e:
             logger.error(f"获取跨群爆仓排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_group_trading_volume_ranking(group_id: int, limit: int = 10) -> dict:
+        """获取群组交易量排行榜"""
+        try:
+            command = """
+                SELECT user_id, COALESCE(SUM(size), 0) as total_volume
+                FROM trading_history
+                WHERE group_id = ? AND action IN ('open', 'close', 'liquidated')
+                GROUP BY user_id
+                ORDER BY total_volume DESC
+                LIMIT ?
+            """
+            result = query_db(command, (group_id, limit))
+
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_volume": float(row[1])
+                })
+
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取群组交易量排行榜失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_global_trading_volume_ranking(limit: int = 10) -> dict:
+        """获取跨群交易量排行榜"""
+        try:
+            command = """
+                SELECT th.user_id, COALESCE(SUM(th.size), 0) as total_volume, th.group_id, g.group_name
+                FROM trading_history th
+                LEFT JOIN groups g ON th.group_id = g.group_id
+                WHERE th.action IN ('open', 'close', 'liquidated')
+                GROUP BY th.user_id, th.group_id
+                ORDER BY total_volume DESC
+                LIMIT ?
+            """
+            result = query_db(command, (limit,))
+
+            ranking = []
+            for row in result:
+                ranking.append({
+                    "user_id": row[0],
+                    "total_volume": float(row[1]),
+                    "group_id": row[2],
+                    "group_name": row[3] or f"群组{row[2]}"
+                })
+
+            return {
+                "success": True,
+                "ranking": ranking
+            }
+        except Exception as e:
+            logger.error(f"获取跨群交易量排行榜失败: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -967,6 +1034,8 @@ class TradingRepository:
                     "liquidated_trades": 0,
                     "win_rate": 0.0,
                     "avg_position_size": 0.0,
+                    "total_position_size": 0.0,
+                    "fee_contribution": 0.0,
                     "avg_holding_time": 0.0,
                     "avg_pnl": 0.0,
                     "avg_win": 0.0,
@@ -991,6 +1060,7 @@ class TradingRepository:
             liquidated_trades = 0  # 强平次数
             total_pnl = 0.0
             total_position_size = 0.0
+            total_fee_contribution = 0.0  # 手续费贡献
             total_holding_time = 0.0
             winning_pnl = 0.0
             losing_pnl = 0.0
@@ -1020,6 +1090,10 @@ class TradingRepository:
                 
                 total_pnl += pnl
                 total_position_size += size
+
+                # 计算手续费贡献（开仓+平仓手续费）
+                fee = size * 0.00035 * 2  # 万分之3.5的开仓和平仓手续费
+                total_fee_contribution += fee
                 
                 # 计算持仓时间（如果有开仓时间）
                 if open_time and close_time:
@@ -1056,6 +1130,7 @@ class TradingRepository:
             
             win_rate = (winning_trades / total_trades) * 100 if total_trades > 0 else 0.0
             avg_position_size = total_position_size / total_trades if total_trades > 0 else 0.0
+            total_position_size_doubled = total_position_size * 2  # 累计交易量乘以2（开仓+平仓）
             avg_holding_time = total_holding_time / valid_holding_times if valid_holding_times > 0 else 0.0
             avg_pnl = total_pnl / total_trades if total_trades > 0 else 0.0
             
@@ -1085,6 +1160,8 @@ class TradingRepository:
                 "liquidated_trades": liquidated_trades,
                 "win_rate": round(win_rate, 2),
                 "avg_position_size": round(avg_position_size, 2),
+                "total_position_size": round(total_position_size_doubled, 2),
+                "fee_contribution": round(total_fee_contribution, 2),
                 "avg_holding_time": round(avg_holding_time, 2),
                 "avg_pnl": round(avg_pnl, 2),
                 "avg_win": round(avg_win, 2),

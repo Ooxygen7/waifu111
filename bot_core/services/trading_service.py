@@ -701,8 +701,10 @@ class TradingService:
     async def check_liquidations(self) -> List[Dict]:
         """检查所有仓位是否需要强平 - 基于浮动余额计算"""
         liquidated_positions = []
-        
+
         try:
+            # 首先检查并清理小额债务
+            await self._cleanup_small_debts()
             all_positions_result = TradingRepository.get_all_positions()
             if not all_positions_result["success"]:
                 return liquidated_positions
@@ -899,12 +901,17 @@ class TradingService:
             balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
             balance_ranking = balance_ranking[:10]
             
+            # 获取交易量排行榜
+            volume_result = TradingRepository.get_group_trading_volume_ranking(group_id)
+            volume_ranking = volume_result.get("ranking", []) if volume_result.get("success") else []
+
             return {
                 "success": True,
                 "profit_ranking": profit_ranking,
                 "loss_ranking": loss_ranking,
                 "balance_ranking": balance_ranking,
-                "liquidation_ranking": liquidation_ranking
+                "liquidation_ranking": liquidation_ranking,
+                "volume_ranking": volume_ranking
             }
             
         except Exception as e:
@@ -1068,12 +1075,17 @@ class TradingService:
             liquidation_ranking.sort(key=lambda x: x["liquidation_count"], reverse=True)
             liquidation_ranking = liquidation_ranking[:10]
             
+            # 获取跨群交易量排行榜
+            global_volume_result = TradingRepository.get_global_trading_volume_ranking()
+            global_volume_ranking = global_volume_result.get("ranking", []) if global_volume_result.get("success") else []
+
             return {
                 "success": True,
                 "profit_ranking": profit_ranking,
                 "loss_ranking": loss_ranking,
                 "balance_ranking": balance_ranking,
-                "liquidation_ranking": liquidation_ranking
+                "liquidation_ranking": liquidation_ranking,
+                "volume_ranking": global_volume_ranking
             }
             
         except Exception as e:
@@ -1149,7 +1161,9 @@ class TradingService:
                     f"📉 亏损次数: {win_rate_data['losing_trades']}\n"
                     f"⚡ 强平次数: {win_rate_data['liquidated_trades']}\n"
                     f"📊 胜率: {win_rate_data['win_rate']:.1f}%\n"
-                    f"💰 平均仓位: ${win_rate_data['avg_position_size']:.0f}\n"
+                    f"💰 累计交易量: ${win_rate_data['total_position_size']:.0f}\n"
+                    f"💸 手续费贡献: ${win_rate_data['fee_contribution']:.2f}\n"
+                    f" 平均仓位: ${win_rate_data['avg_position_size']:.0f}\n"
                     f"⏱️ 平均持仓: {win_rate_data['avg_holding_time']:.1f}小时\n"
                     f"📈 平均盈利: {win_rate_data['avg_win']:+.2f} USDT\n"
                     f"📉 平均亏损: {win_rate_data['avg_loss']:+.2f} USDT\n"
@@ -1287,7 +1301,7 @@ class TradingService:
                 "message": f"申请贷款失败: {str(e)}"
             }
     
-    def repay_loan(self, user_id: int, group_id: int, amount: float = None) -> Dict:
+    def repay_loan(self, user_id: int, group_id: int, amount: Optional[float] = None) -> Dict:
         """还款操作"""
         try:
             # 获取用户账户信息
@@ -1355,21 +1369,42 @@ class TradingService:
             for loan in sorted(updated_loans, key=lambda x: x["created_at"]):
                 if remaining_amount <= 0:
                     break
-                
+
                 loan_debt = loan["remaining_debt"]
                 repay_amount = min(remaining_amount, loan_debt)
-                
+
+                # 添加调试日志 - 跟踪还款计算
+                logger.debug(f"处理贷款 #{loan['id']}: 原始债务={loan_debt:.10f}, 还款金额={repay_amount:.10f}")
+
                 # 执行还款
                 repay_result = TradingRepository.repay_loan(
                     loan["id"], user_id, group_id, repay_amount
                 )
-                
+
                 if repay_result["success"]:
+                    remaining_after = repay_result["remaining_after"]
+                    # 检查是否出现精度损失导致的小额剩余债务
+                    if 0 < remaining_after < 0.05:
+                        logger.warning(f"检测到精度损失: 贷款 #{loan['id']} 剩余债务 {remaining_after:.10f} USDT，低于0.05 USDT阈值")
+                        # 将小额剩余债务设为0并标记为已还款
+                        TradingRepository.update_loan_debt(loan["id"], 0.0)
+                        # 更新贷款状态为已还清
+                        current_time = datetime.now().isoformat()
+                        loan_update_command = """
+                            UPDATE loans
+                            SET remaining_debt = 0, status = 'paid_off', updated_at = ?
+                            WHERE id = ?
+                        """
+                        from utils.db_utils import revise_db
+                        revise_db(loan_update_command, (current_time, loan["id"]))
+                        remaining_after = 0.0
+                        logger.info(f"已清理小额债务: 贷款 #{loan['id']} 剩余债务已设为0")
+
                     repaid_loans.append({
                         "loan_id": loan["id"],
                         "amount": repay_amount,
-                        "remaining": repay_result["remaining_after"],
-                        "paid_off": repay_result["paid_off"]
+                        "remaining": remaining_after,
+                        "paid_off": repay_result["paid_off"] or remaining_after == 0.0
                     })
                     remaining_amount -= repay_amount
             
@@ -1512,22 +1547,79 @@ class TradingService:
         try:
             last_time = datetime.fromisoformat(last_interest_time)
             current_time = datetime.now()
-            
+
             # 计算经过的6小时周期数
             time_diff = current_time - last_time
             periods = time_diff.total_seconds() / (6 * 3600)  # 6小时为一个周期
-            
+
             if periods < 1:
                 return principal  # 不足一个周期，不计息
-            
+
             # 复利计算: A = P(1 + r)^n
             compound_amount = principal * ((1 + rate) ** int(periods))
-            
+
+            # 添加调试日志 - 跟踪利息计算精度
+            if abs(compound_amount - principal) > 0.0001:  # 如果利息变化超过0.0001
+                logger.debug(f"利息计算: 本金={principal:.10f}, 周期数={int(periods)}, 利率={rate}, 计算结果={compound_amount:.10f}, 利息={compound_amount-principal:.10f}")
+
             return compound_amount
-            
+
         except Exception as e:
             logger.error(f"计算复利失败: {e}")
             return principal
+
+    async def _cleanup_small_debts(self) -> None:
+        """清理所有用户的小额债务（低于0.05 USDT）"""
+        try:
+            logger.debug("开始清理小额债务...")
+
+            # 获取所有活跃贷款 - 使用数据库查询
+            command = """
+                SELECT id, user_id, group_id, remaining_debt, interest_rate, loan_time, last_interest_time
+                FROM loans
+                WHERE status = 'active' AND remaining_debt > 0
+            """
+            from utils.db_utils import query_db
+            result = query_db(command)
+
+            if not result:
+                logger.debug("没有找到活跃贷款")
+                return
+
+            cleaned_count = 0
+            for row in result:
+                loan_id = row[0]
+                user_id = row[1]
+                group_id = row[2]
+                remaining_debt = float(row[3])
+
+                # 检查是否是小额债务
+                if 0 < remaining_debt < 0.05:
+                    logger.info(f"发现小额债务: 用户 {user_id} 在群组 {group_id} 的贷款 #{loan_id} 剩余债务 {remaining_debt:.10f} USDT")
+
+                    # 将小额债务设为0并标记为已还款
+                    current_time = datetime.now().isoformat()
+                    TradingRepository.update_loan_debt(loan_id, 0.0)
+
+                    # 更新贷款状态为已还清
+                    loan_update_command = """
+                        UPDATE loans
+                        SET remaining_debt = 0, status = 'paid_off', updated_at = ?
+                        WHERE id = ?
+                    """
+                    from utils.db_utils import revise_db
+                    revise_db(loan_update_command, (current_time, loan_id))
+
+                    logger.info(f"已清理小额债务: 贷款 #{loan_id} 剩余债务已设为0")
+                    cleaned_count += 1
+
+            if cleaned_count > 0:
+                logger.info(f"小额债务清理完成，共清理 {cleaned_count} 笔债务")
+            else:
+                logger.debug("没有发现需要清理的小额债务")
+
+        except Exception as e:
+            logger.error(f"清理小额债务失败: {e}")
 
 # 全局交易服务实例
 trading_service = TradingService()

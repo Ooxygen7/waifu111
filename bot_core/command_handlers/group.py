@@ -1282,7 +1282,7 @@ class RankCommand(BaseCommand):
                     user_id = user_data['user_id']
                     liquidation_count = user_data['liquidation_count']
                     group_name = user_data.get('group_name', '') if is_global else ''
-                    
+
                     try:
                         # 对于全局排行榜，尝试从任意群组获取用户信息
                         if is_global:
@@ -1296,18 +1296,54 @@ class RankCommand(BaseCommand):
                             username = user.user.first_name or f"用户{user_id}"
                     except:
                         username = f"用户{user_id}"
-                    
+
                     emoji = "💀" if i == 1 else "☠️" if i == 2 else "💥" if i == 3 else "🔥"
-                    
+
                     if is_global and group_name:
                         liquidation_lines.append(f"{emoji} {username} ({group_name}): {liquidation_count} 次")
                     else:
                         liquidation_lines.append(f"{emoji} {username}: {liquidation_count} 次")
-                
+
                 message_parts.append(f"<blockquote expandable>{'\n'.join(liquidation_lines)}</blockquote>")
             else:
                 message_parts.append("<blockquote expandable>暂无数据</blockquote>")
-            
+
+            message_parts.append("")
+
+            # 交易量排行榜
+            message_parts.append("📊 <b>交易量排行榜 TOP10</b>")
+            if result['volume_ranking']:
+                volume_lines = []
+                for i, user_data in enumerate(result['volume_ranking'], 1):
+                    user_id = user_data['user_id']
+                    total_volume = user_data['total_volume']
+                    group_name = user_data.get('group_name', '') if is_global else ''
+
+                    try:
+                        # 对于全局排行榜，尝试从任意群组获取用户信息
+                        if is_global:
+                            try:
+                                user = await context.bot.get_chat_member(group_id, user_id)
+                                username = user.user.first_name or f"用户{user_id}"
+                            except:
+                                username = f"用户{user_id}"
+                        else:
+                            user = await context.bot.get_chat_member(group_id, user_id)
+                            username = user.user.first_name or f"用户{user_id}"
+                    except:
+                        username = f"用户{user_id}"
+
+                    emoji = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else "🏅"
+
+                    if is_global and group_name:
+                        volume_lines.append(f"{emoji} {username} ({group_name}): {total_volume:.0f} USDT")
+                    else:
+                        volume_lines.append(f"{emoji} {username}: {total_volume:.0f} USDT")
+
+                message_parts.append(f"<blockquote expandable>{'\n'.join(volume_lines)}</blockquote>")
+            else:
+                message_parts.append("<blockquote expandable>暂无数据</blockquote>")
+
             message_parts.append("")
             
             # 老赖排行榜
