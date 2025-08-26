@@ -202,7 +202,12 @@ class TradingService:
                 if not update_result["success"]:
                     return {'success': False, 'message': '更新仓位失败'}
                 
-                message = f"加仓成功！\n{symbol} {side.upper()} +{size:.2f} USDT\n平均开仓价: {new_entry:.4f}\n总仓位: {new_size:.2f} USDT"
+                # 使用新的显示格式
+                side_emoji = "📈" if side == 'long' else "📉"
+                coin_symbol = symbol.replace('/USDT', '')
+                formatted_entry_price = self._format_price(new_entry)
+
+                message = f"加仓成功！\n{side_emoji} {coin_symbol} +{size:.2f} USDT\n平均开仓价: {formatted_entry_price}\n总仓位: {new_size:.2f} USDT"
             else:
                 # 新开仓位 - 验证仓位价值不超过浮动余额的100倍
                 # 获取用户所有现有仓位计算总价值
@@ -241,7 +246,13 @@ class TradingService:
                 if not create_result["success"]:
                     return {'success': False, 'message': '创建仓位失败'}
                 
-                message = f"开仓成功！\n{symbol} {side.upper()} {size:.2f} USDT\n开仓价: {current_price:.4f}\n强平价: {liquidation_price:.4f}"
+                # 使用新的显示格式
+                side_emoji = "📈" if side == 'long' else "📉"
+                coin_symbol = symbol.replace('/USDT', '')
+                formatted_entry_price = self._format_price(current_price)
+                formatted_liquidation_price = self._format_price(liquidation_price)
+
+                message = f"开仓成功！\n{side_emoji} {coin_symbol} {size:.2f} USDT\n开仓价: {formatted_entry_price}\n强平价: {formatted_liquidation_price}"
             
             # 计算开仓手续费 (万分之3.5)
             open_fee = size * 0.00035

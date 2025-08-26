@@ -81,8 +81,54 @@ def test_position_format():
         print(f"\n仓位 {i}:")
         print(position_display)
 
+def test_open_position_messages():
+    """测试开仓成功消息格式"""
+    service = TradingService()
+
+    # 模拟不同的价格和方向
+    test_cases = [
+        {
+            'symbol': 'BTC/USDT',
+            'side': 'long',
+            'size': 100.0,
+            'current_price': 1.2345,
+            'liquidation_price': 1.1,
+            'new_entry': 1.2345
+        },
+        {
+            'symbol': 'ETH/USDT',
+            'side': 'short',
+            'size': 50.0,
+            'current_price': 0.00001234,
+            'liquidation_price': 0.00001111,
+            'new_entry': 0.00001234
+        }
+    ]
+
+    print("\n=== 开仓成功消息格式测试 ===")
+    for i, case in enumerate(test_cases, 1):
+        # 使用新的显示格式
+        side_emoji = "📈" if case['side'] == 'long' else "📉"
+        coin_symbol = case['symbol'].replace('/USDT', '')
+        formatted_entry_price = service._format_price(case['current_price'])
+        formatted_liquidation_price = service._format_price(case['liquidation_price'])
+
+        # 新开仓位消息格式
+        new_position_message = f"开仓成功！\n{side_emoji} {coin_symbol} {case['size']:.2f} USDT\n开仓价: {formatted_entry_price}\n强平价: {formatted_liquidation_price}"
+
+        # 加仓消息格式
+        formatted_new_entry_price = service._format_price(case['new_entry'])
+        add_position_message = f"加仓成功！\n{side_emoji} {coin_symbol} +{case['size']:.2f} USDT\n平均开仓价: {formatted_new_entry_price}\n总仓位: {case['size']*2:.2f} USDT"
+
+        print(f"\n测试用例 {i} ({case['side'].upper()}):")
+        print("新开仓位消息:")
+        print(new_position_message)
+        print("\n加仓消息:")
+        print(add_position_message)
+
 if __name__ == "__main__":
     print("开始测试仓位显示格式修改...")
     test_price_precision()
     test_position_format()
+    test_open_position_messages()
     print("\n测试完成！")
