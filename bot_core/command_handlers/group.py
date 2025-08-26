@@ -1464,7 +1464,14 @@ class RankCommand(BaseCommand):
                 message_parts.append("<blockquote expandable>暂无老赖数据</blockquote>")
             
             final_message = "\n".join(message_parts)
-            await update.message.reply_text(final_message, parse_mode="HTML")
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=final_message,
+                parse_mode='HTML',
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"排行榜命令失败: {e}")
@@ -1560,8 +1567,14 @@ class LoanCommand(BaseCommand):
             
             # 申请贷款
             result = trading_service.apply_loan(user_id, group_id, amount)
-            
-            await update.message.reply_text(result['message'])
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"贷款申请失败: {e}")
@@ -1607,8 +1620,14 @@ class RepayCommand(BaseCommand):
             
             # 执行还款
             result = trading_service.repay_loan(user_id, group_id, amount)
-            
-            await update.message.reply_text(result['message'])
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"还款失败: {e}")
@@ -1632,8 +1651,15 @@ class BillCommand(BaseCommand):
             
             # 获取贷款账单
             result = trading_service.get_loan_bill(user_id, group_id)
-            
-            await update.message.reply_text(result['message'], parse_mode='HTML')
+
+            await MessageDeletionService.send_and_schedule_delete(
+                update=update,
+                context=context,
+                text=result['message'],
+                parse_mode='HTML',
+                delay_seconds=120,
+                delete_user_message=True
+            )
             
         except Exception as e:
             logger.error(f"获取贷款账单失败: {e}")
