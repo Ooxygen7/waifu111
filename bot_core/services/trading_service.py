@@ -483,14 +483,14 @@ class TradingService:
                 size = pos['size']
                 entry_price = pos['entry_price']
                 liquidation_price = pos['liquidation_price']
-                
+
                 # 获取当前价格
                 current_price = await self.get_current_price(symbol)
-                
+
                 # 计算未实现盈亏
                 unrealized_pnl = self._calculate_pnl(entry_price, current_price, size, side)
                 total_unrealized_pnl += unrealized_pnl
-                
+
                 # 计算盈亏百分比 - 按总杠杆率计算
                 # 使用总杠杆倍数而不是固定100倍
                 if leverage_ratio > 0:
@@ -498,14 +498,25 @@ class TradingService:
                     pnl_percent = (unrealized_pnl / margin) * 100 if margin > 0 else 0
                 else:
                     pnl_percent = 0
-                
+
+                # 使用不同emoji表示多空方向
+                side_emoji = "📈" if side == 'long' else "📉"
+
+                # 移除/USDT后缀，只显示币种
+                coin_symbol = symbol.replace('/USDT', '')
+
+                # 使用动态价格精度
+                formatted_entry_price = self._format_price(entry_price)
+                formatted_current_price = self._format_price(current_price)
+                formatted_liquidation_price = self._format_price(liquidation_price)
+
                 position_text.append(
-                    f"📈 {symbol} {side.upper()}\n"
+                    f"{side_emoji} {coin_symbol}\n"
                     f"   仓位: {size:.2f} USDT\n"
-                    f"   开仓价: {entry_price:.4f}\n"
-                    f"   当前价: {current_price:.4f}\n"
+                    f"   开仓价: {formatted_entry_price}\n"
+                    f"   当前价: {formatted_current_price}\n"
                     f"   盈亏: {unrealized_pnl:+.2f} USDT ({pnl_percent:+.2f}%)\n"
-                    f"   强平价: {liquidation_price:.4f}"
+                    f"   强平价: {formatted_liquidation_price}"
                 )
             
             # 计算浮动余额
@@ -1542,6 +1553,18 @@ class TradingService:
                 "message": f"获取贷款账单失败: {str(e)}"
             }
     
+    def _get_price_precision(self, price: float) -> int:
+        """根据价格大小返回小数位数"""
+        if price >= 0.01:
+            return 4  # > 0.01 USDT, 精确到4位小数
+        else:
+            return 8  # < 0.01 USDT, 精确到8位小数
+
+    def _format_price(self, price: float) -> str:
+        """根据价格大小格式化价格显示"""
+        precision = self._get_price_precision(price)
+        return f"{price:.{precision}f}"
+
     def _calculate_compound_interest(self, principal: float, last_interest_time: str, rate: float = 0.002) -> float:
         """计算复利"""
         try:
