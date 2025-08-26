@@ -140,9 +140,25 @@ class UpdateParser:
     def _extract_message_info(self) -> Dict[str, Any]:
         """从Message对象提取信息。"""
         if not self.message: return {}
+
+        # 检查消息类型并设置相应的文本表示
+        message_text = ""
+        if self.message.text:
+            message_text = self.message.text
+        elif self.message.photo:
+            message_text = "[img]"
+        elif self.message.document:
+            message_text = "[file]"
+        elif self.message.sticker:
+            message_text = "[sticker]"
+        elif self.message.animation:
+            message_text = "[gif]"
+        else:
+            message_text = ""  # 其他类型保持为空
+
         return {
             'message_id': self.message.message_id,
-            'message_text': self.message.text or ''
+            'message_text': message_text
         }
 
     def _extract_chat_info(self) -> Dict[str, Any]:

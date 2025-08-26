@@ -31,6 +31,8 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     # 检查是否为命令
     if message_text.startswith('/'):
+        info = update_info_get(update)
+        _group_dialog_add(info)
         command_parts = message_text[1:].split()
         command_full = command_parts[0]
         command_parts_at = command_full.split('@')
