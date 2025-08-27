@@ -190,3 +190,44 @@ def update_info_get(update: Update) -> Optional[Dict[str, Any]]:
     """
     parser = UpdateParser(update)
     return parser.parse() or {}
+
+
+def parse_commands_with_and(message_text: str) -> list[tuple[str, list[str]]]:
+    """
+    Parse command string containing && separators and return list of commands.
+    Each command is a tuple: (command_name, args_list)
+
+    Args:
+        message_text (str): The message text containing commands
+
+    Returns:
+        list[tuple[str, list[str]]]: List of commands, each element is (command, args)
+    """
+    if not message_text.startswith('/'):
+        return []
+
+    # Split commands by &&
+    command_strings = message_text.split('&&')
+
+    parsed_commands = []
+    for cmd_str in command_strings:
+        cmd_str = cmd_str.strip()
+        if not cmd_str:
+            continue
+
+        # Ensure command starts with /
+        if not cmd_str.startswith('/'):
+            cmd_str = '/' + cmd_str
+
+        # Parse individual command
+        parts = cmd_str[1:].split()  # Remove leading /
+        if not parts:
+            continue
+
+        command_full = parts[0]
+        command = command_full.split('@')[0]  # Handle @botname case
+        args = parts[1:]
+
+        parsed_commands.append((command, args))
+
+    return parsed_commands

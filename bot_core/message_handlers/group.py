@@ -8,7 +8,7 @@ from telegram.ext import ContextTypes
 from bot_core.services.conversation import GroupConv
 from bot_core.services.utils.decorators import Decorators
 from bot_core.services.utils.error import BotError
-from bot_core.services.utils.tg_parse import update_info_get
+from bot_core.services.utils.tg_parse import update_info_get, parse_commands_with_and
 from utils import db_utils as db
 from . import features
 
@@ -33,24 +33,51 @@ async def group_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if message_text.startswith('/'):
         info = update_info_get(update)
         _group_dialog_add(info)
-        command_parts = message_text[1:].split()
-        command_full = command_parts[0]
-        command_parts_at = command_full.split('@')
-        command = command_parts_at[0]
 
-        # 如果命令中包含@，则检查是否是发给本机器人的
-        if len(command_parts_at) > 1:
-            bot_username = command_parts_at[1]
-            if bot_username != context.bot.username:
-                return  # 不是发给我的命令，忽略
+        # 解析包含&&的指令
+        commands = parse_commands_with_and(message_text)
 
-        handler = CommandHandlers.get_command_handler(command, "group")
-        if handler:
-            logger.info(f"群组命令: /{command}, 群组ID: {update.message.chat.id}, 用户ID: {user_id}")
-            # 将命令参数填充到 context.args
-            context.args = command_parts[1:]
-            await handler(update, context)
+        if commands:
+            # 按顺序执行每个指令
+            for command, args in commands:
+                # 处理@botname的情况
+                command_parts_at = command.split('@')
+                command_name = command_parts_at[0]
+
+                # 如果命令中包含@，则检查是否是发给本机器人的
+                if len(command_parts_at) > 1:
+                    bot_username = command_parts_at[1]
+                    if bot_username != context.bot.username:
+                        continue  # 不是发给我的命令，跳过
+
+                handler = CommandHandlers.get_command_handler(command_name, "group")
+                if handler:
+                    logger.info(f"群组命令: /{command_name}, 群组ID: {update.message.chat.id}, 用户ID: {user_id}")
+                    # 将命令参数填充到 context.args
+                    context.args = args
+                    await handler(update, context)
+
             return
+        else:
+            # 回退到旧的解析方式（单指令）
+            command_parts = message_text[1:].split()
+            command_full = command_parts[0]
+            command_parts_at = command_full.split('@')
+            command = command_parts_at[0]
+
+            # 如果命令中包含@，则检查是否是发给本机器人的
+            if len(command_parts_at) > 1:
+                bot_username = command_parts_at[1]
+                if bot_username != context.bot.username:
+                    return  # 不是发给我的命令，忽略
+
+            handler = CommandHandlers.get_command_handler(command, "group")
+            if handler:
+                logger.info(f"群组命令: /{command}, 群组ID: {update.message.chat.id}, 用户ID: {user_id}")
+                # 将命令参数填充到 context.args
+                context.args = command_parts[1:]
+                await handler(update, context)
+                return
 
     try:
         # 检查是否在关键词添加模式
