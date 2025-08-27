@@ -1129,7 +1129,7 @@ class CloseCommand(BaseCommand):
                     update=update,
                     context=context,
                     text=result['message'],
-                    delay_seconds=120,
+                    delay_seconds=30,
                     delete_user_message=True
                 )
                 return
@@ -1227,7 +1227,7 @@ class CloseCommand(BaseCommand):
                 update=update,
                 context=context,
                 text=result['message'],
-                delay_seconds=30,
+                delay_seconds=10,
                 delete_user_message=True
             )
 
