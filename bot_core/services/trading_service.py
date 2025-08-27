@@ -789,36 +789,35 @@ class TradingService:
                 liquidation_threshold = account['balance'] * dynamic_threshold_ratio
                 
                 if floating_balance < liquidation_threshold:
-                    # 触发强平 - 清空所有仓位
+                    # 触发强平 - 清空所有仓位，只记录一次爆仓事件
+                    liquidated_positions.append({
+                        'user_id': user_id,
+                        'group_id': group_id,
+                        'floating_balance': floating_balance,
+                        'threshold': liquidation_threshold,
+                        'leverage_ratio': leverage_ratio,
+                        'threshold_ratio': dynamic_threshold_ratio,
+                        'total_positions': len(user_pos_list),
+                        'total_position_value': total_position_value
+                    })
+
+                    # 清空所有仓位
                     for pos in user_pos_list:
-                        liquidated_positions.append({
-                            'user_id': user_id,
-                            'group_id': group_id,
-                            'symbol': pos['symbol'],
-                            'side': pos['side'],
-                            'size': pos['size'],
-                            'entry_price': pos['entry_price'],
-                            'floating_balance': floating_balance,
-                            'threshold': liquidation_threshold,
-                            'leverage_ratio': leverage_ratio,
-                            'threshold_ratio': dynamic_threshold_ratio
-                        })
-                        
                         # 删除仓位
                         TradingRepository.delete_position(user_id, group_id, pos['symbol'], pos['side'])
-                        
+
                         # 记录强平历史
                         current_price = await self.get_current_price(pos['symbol'])
                         TradingRepository.add_trading_history(
-                            user_id, group_id, 'liquidated', pos['symbol'], pos['side'], 
+                            user_id, group_id, 'liquidated', pos['symbol'], pos['side'],
                             pos['size'], current_price, -account['balance']
                         )
-                    
+
                     # 清零余额
                     # 清零余额，并记录亏损到总盈亏
                     liquidation_loss = -account['balance']
                     TradingRepository.update_account_balance(user_id, group_id, 0.0, liquidation_loss)
-                    
+
                     logger.info(f"用户 {user_id} 在群组 {group_id} 触发强平，浮动余额: {floating_balance:.2f}, 阈值: {liquidation_threshold:.2f}")
         
         except Exception as e:

@@ -91,17 +91,16 @@ class TradingMonitor:
         """发送强平通知"""
         try:
             from utils.db_utils import user_info_get
-            
+
             user_id = position['user_id']
             group_id = position['group_id']
-            symbol = position['symbol']
-            side = position['side']
-            size = position['size']
             floating_balance = position.get('floating_balance', 0)
             threshold = position.get('threshold', 200)
             leverage_ratio = position.get('leverage_ratio', 0)
             threshold_ratio = position.get('threshold_ratio', 0.2)
-            
+            total_positions = position.get('total_positions', 0)
+            total_position_value = position.get('total_position_value', 0)
+
             # 获取用户信息以构造正确的用户提及
             user_info = user_info_get(user_id)
             if user_info and (user_info.get('first_name') or user_info.get('last_name')):
@@ -109,28 +108,29 @@ class TradingMonitor:
                 user_mention = f"[{user_display_name}](tg://user?id={user_id})"
             else:
                 user_mention = f"[用户{user_id}](tg://user?id={user_id})"
-            
+
             # 构造强平通知消息
             message = (
                 f"🚨 强平通知 🚨\n\n"
                 f"{user_mention} ，恭喜您！您的所有仓位已被清算！\n\n"
-                f"📊 触发仓位: {symbol} {side.upper()}\n"
+                f"📊 持仓情况: {total_positions} 个币种\n"
+                f"💰 总仓位价值: {total_position_value:.2f} USDT\n"
                 f"⚖️ 杠杆倍数: {leverage_ratio:.2f}x\n"
                 f"⚠️ 强平阈值: {threshold:.2f} USDT (本金的{threshold_ratio*100:.1f}%)\n\n"
                 f"📉 当前余额: {floating_balance:.2f} USDT\n"
                 f"💔 您的资金已成为流动性。\n"
                 f"🆘 使用 /begging 可以领取救济金重新开始交易。"
             )
-            
+
             # 发送到群组
             await self.bot.send_message(
                 chat_id=group_id,
                 text=message,
                 parse_mode='Markdown'
             )
-            
+
             logger.info(f"强平通知已发送: 用户{user_id} 群组{group_id} 浮动余额{floating_balance:.2f} < 阈值{threshold:.2f}")
-            
+
         except TelegramError as e:
             logger.error(f"发送强平通知失败: {e}")
         except Exception as e:
