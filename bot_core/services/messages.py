@@ -9,6 +9,7 @@ from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
 from utils.logging_utils import setup_logging
+from bot_core.services.trading_service import trading_service
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -581,4 +582,118 @@ class MessageDeletionService:
             )
 
         return sent_message
+
+class RealTimePositionService:
+    """实时仓位更新服务，提供定时更新仓位信息的功"""
+
+    @staticmethod
+    async def start_realtime_update(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        user_id: int,
+        group_id: int,
+        initial_message: Message
+    ) -> None:
+        """
+        启动实时仓位更新
+
+        Args:
+            update: Telegram update对象
+            context: Telegram context对象
+            user_id: 用户ID
+            group_id: 群组ID
+            initial_message: 初始消息对象，用于后续编辑
+        """
+        try:
+            # 创建消息工厂
+            factory = MessageFactory(update=update, context=context)
+
+            # 总更新时长120秒，每10秒更新一次
+            total_duration = 120
+            update_interval = 10
+            updates_count = total_duration // update_interval
+
+            # 循环更新消息
+            for i in range(updates_count):
+                try:
+                    # 计算剩余时间
+                    remaining_seconds = total_duration - (i + 1) * update_interval
+
+                    # 获取最新的仓位信息
+                    result = await trading_service.get_positions(user_id, group_id)
+
+                    if not result['success']:
+                        logger.error(f"获取仓位信息失败: {result.get('message', '未知错误')}")
+                        continue
+
+                    # 构建实时更新消息
+                    position_message = RealTimePositionService._build_realtime_message(
+                        result['message'],
+                        remaining_seconds
+                    )
+
+                    # 编辑消息
+                    await factory.edit(initial_message, position_message)
+
+                    # 如果不是最后一次更新，等待下一次更新
+                    if i < updates_count - 1:
+                        await asyncio.sleep(update_interval)
+
+                except Exception as update_error:
+                    logger.error(f"更新仓位消息失败: {update_error}")
+                    continue
+
+            # 120秒后删除消息
+            await RealTimePositionService._cleanup_message(
+                context, group_id, initial_message.message_id
+            )
+
+        except Exception as e:
+            logger.error(f"实时更新过程失败: {e}")
+            # 发生错误时也清理消息
+            try:
+                await RealTimePositionService._cleanup_message(
+                    context, group_id, initial_message.message_id
+                )
+            except Exception as cleanup_error:
+                logger.error(f"清理消息失败: {cleanup_error}")
+
+    @staticmethod
+    def _build_realtime_message(position_data: str, remaining_seconds: int) -> str:
+        """
+        构建实时更新消息
+
+        Args:
+            position_data: 仓位数据字符串
+            remaining_seconds: 剩余时间（秒）
+
+        Returns:
+            格式化的消息字符串
+        """
+        # 添加实时更新状态头
+        status_header = f"🔄 实时更新中... (剩余: {remaining_seconds}秒)\n\n"
+
+        # 返回组合后的消息
+        return status_header + position_data
+
+    @staticmethod
+    async def _cleanup_message(
+        context: ContextTypes.DEFAULT_TYPE,
+        chat_id: int,
+        message_id: int
+    ) -> None:
+        """
+        清理（删除）消息
+
+        Args:
+            context: Telegram context对象
+            chat_id: 聊天ID
+            message_id: 要删除的消息ID
+        """
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=message_id)
+            logger.debug(f"已删除实时更新消息: {message_id}")
+        except Exception as e:
+            logger.warning(f"删除实时更新消息失败: {e}")
+
 

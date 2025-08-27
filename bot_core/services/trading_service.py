@@ -473,12 +473,13 @@ class TradingService:
             
             if not positions:
                 account_info = (
-                    f"💰 余额: {account['balance']:.2f} USDT\n"
-                    f"📊 总盈亏: {account['total_pnl']:+.2f} USDT"
+                    f"🏦 浮动余额: {account['balance']:.2f} USDT({account['balance']:.2f}+0.00)\n"
+                    f"📊 杠杆率: 0.00x(仓位总价值:0u)\n"
+                    f"⚠️ 强平阈值: {account['balance'] * 0.05:.2f} USDT (5.0%)"
                 )
                 return {
                     'success': True,
-                    'message': f"<blockquote expandable>💼 账户信息\n\n{account_info}</blockquote>\n\n📋 当前无持仓"
+                    'message': f"<blockquote>💼 账户信息\n\n{account_info}</blockquote>\n\n📋 当前无持仓"
                 }
             
             total_unrealized_pnl = 0
@@ -516,33 +517,37 @@ class TradingService:
                 # 移除/USDT后缀，只显示币种
                 coin_symbol = symbol.replace('/USDT', '')
 
+                # 计算数量（仓位价值/开仓价格）
+                quantity = size / entry_price if entry_price > 0 else 0
+
+                # 格式化数量显示
+                def format_quantity(q: float) -> str:
+                    if q >= 1000000:
+                        return f"{q/1000000:.2f}m"
+                    elif q >= 1000:
+                        return f"{q/1000:.2f}k"
+                    else:
+                        return f"{q:.2f}"
+
+                formatted_quantity = format_quantity(quantity)
+
                 # 使用动态价格精度
                 formatted_entry_price = self._format_price(entry_price)
                 formatted_current_price = self._format_price(current_price)
-                formatted_liquidation_price = self._format_price(liquidation_price)
 
                 position_text.append(
-                    f"{side_emoji} {coin_symbol}\n"
-                    f"   仓位: {size:.2f} USDT\n"
-                    f"   开仓价: {formatted_entry_price}\n"
-                    f"   当前价: {formatted_current_price}\n"
-                    f"   盈亏: {unrealized_pnl:+.2f} USDT ({pnl_percent:+.2f}%)\n"
-                    f"   强平价: {formatted_liquidation_price}"
+                    f"{side_emoji}  {coin_symbol} |数量{formatted_quantity}| {unrealized_pnl:+.2f} USDT ({pnl_percent:+.2f}%)\n"
+                    f"   开仓:{formatted_entry_price} |现价:{formatted_current_price}"
                 )
             
             # 计算浮动余额
             floating_balance = account['balance'] + total_unrealized_pnl
             
-            # 计算保证金率 (浮动余额/余额)
-            margin_ratio = (floating_balance / account['balance']) * 100 if account['balance'] > 0 else 0
-            
             # 计算动态强平阈值
             dynamic_threshold_ratio = self._calculate_dynamic_liquidation_threshold(leverage_ratio)
             liquidation_threshold = account['balance'] * dynamic_threshold_ratio  # 基于当前余额计算
-            
-            # 构建保证金率和杠杆信息显示
-            margin_info = f"⚖️ 保证金率: {margin_ratio:.2f}%"
-            leverage_info = f"📊 杠杆倍数: {leverage_ratio:.2f}x"
+
+            # 构建强平阈值信息
             threshold_info = f"⚠️ 强平阈值: {liquidation_threshold:.2f} USDT ({dynamic_threshold_ratio*100:.1f}%)"
             
             risk_warning = ""
@@ -554,22 +559,18 @@ class TradingService:
             # 使用可折叠的引用块显示详细仓位信息
             detailed_positions = "\n\n".join(position_text)
             
-            # 构建可折叠的账户信息
+            # 构建简化的账户信息
             account_info = (
-                f"💰 余额: {account['balance']:.2f} USDT\n"
-                f"📊 总盈亏: {account['total_pnl']:+.2f} USDT\n"
-                f"💸 未实现盈亏: {total_unrealized_pnl:+.2f} USDT\n"
-                f"🏦 浮动余额: {floating_balance:.2f} USDT\n"
-                f"{margin_info}\n"
-                f"{leverage_info}\n"
+                f"🏦 浮动余额: {floating_balance:.2f} USDT({account['balance']:.2f}{total_unrealized_pnl:+.2f})\n"
+                f"📊 杠杆率: {leverage_ratio:.2f}(仓位总价值:{total_position_value:.0f}u)\n"
                 f"{threshold_info}"
             )
             
             message = f"<blockquote expandable>💼 账户信息\n\n{account_info}</blockquote>{risk_warning}"
-            
-            # 添加可折叠的详细仓位信息
+
+            # 添加详细仓位信息（实时更新，不使用expandable）
             if detailed_positions:
-                message += f"\n\n<blockquote expandable>📋 详细仓位信息\n\n{detailed_positions}</blockquote>"
+                message += f"\n\n<blockquote>📋 详细仓位信息\n\n{detailed_positions}</blockquote>"
             
             return {'success': True, 'message': message}
             
@@ -1120,6 +1121,10 @@ class TradingService:
     def get_pnl_report(self, user_id: int, group_id: int) -> Dict:
         """获取用户盈亏报告，包含最近15笔交易记录和总胜率"""
         try:
+            # 获取用户账户信息（包含累计盈亏）
+            account = self.get_or_create_account(user_id, group_id)
+            total_pnl = account['total_pnl']
+
             # 获取交易历史记录
             history_result = TradingRepository.get_trading_history(user_id, group_id, 15)
             if not history_result["success"]:
@@ -1127,7 +1132,7 @@ class TradingService:
                     "success": False,
                     "message": f"获取交易历史失败: {history_result['error']}"
                 }
-            
+
             # 获取胜率数据
             win_rate_result = TradingRepository.get_win_rate(user_id, group_id)
             if not win_rate_result["success"]:
@@ -1135,13 +1140,15 @@ class TradingService:
                     "success": False,
                     "message": f"计算胜率失败: {win_rate_result['error']}"
                 }
-            
+
             history = history_result["history"]
             win_rate_data = win_rate_result
-            
+
             # 构建消息
             if not history:
-                message = "📊 盈亏报告\n\n❌ 暂无交易记录"
+                pnl_status = "📈 累计盈利" if total_pnl >= 0 else "📉 累计亏损"
+                pnl_color = "🟢" if total_pnl >= 0 else "🔴"
+                message = f"📊 盈亏报告\n\n{pnl_color} {pnl_status}: {total_pnl:+.2f} USDT\n\n❌ 暂无交易记录"
             else:
                 # 构建交易记录列表
                 trade_records = []
@@ -1207,16 +1214,21 @@ class TradingService:
                     symbol_stats += f"🔥 最常交易币种: {most_traded_coin} ({win_rate_data['most_traded_count']}次, 平均{win_rate_data['most_traded_avg_pnl']:+.1f} USDT)"
                 
                 # 构建完整消息
+                # 累计盈亏信息
+                pnl_status = "📈 累计盈利" if total_pnl >= 0 else "📉 累计亏损"
+                pnl_color = "🟢" if total_pnl >= 0 else "🔴"
+
                 message_parts = [
                     "📊 盈亏报告\n",
+                    f"<blockquote expandable>💰 累计盈亏\n{pnl_color} {pnl_status}: {total_pnl:+.2f} USDT</blockquote>\n",
                     f"<blockquote expandable>📋 最近15笔交易\n\n{recent_trades}</blockquote>\n",
                     f"<blockquote expandable>📈 胜率统计\n\n{win_rate_info}</blockquote>"
                 ]
-                
+
                 # 如果有币种统计信息，添加到消息中
                 if symbol_stats.strip():
                     message_parts.append(f"\n<blockquote expandable>🎯 币种统计\n\n{symbol_stats}</blockquote>")
-                
+
                 message = "".join(message_parts)
             
             return {

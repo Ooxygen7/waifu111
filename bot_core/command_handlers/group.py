@@ -14,7 +14,7 @@ from utils import file_utils as file
 from utils.logging_utils import setup_logging
 from bot_core.command_handlers.base import BaseCommand, CommandMeta
 from agent.tools_registry import MarketToolRegistry
-from bot_core.services.messages import handle_agent_session, MessageDeletionService
+from bot_core.services.messages import handle_agent_session, MessageDeletionService, RealTimePositionService
 from agent.llm_functions import run_agent_session, analyze_image_for_rating, analyze_image_for_kao
 from utils.config_utils import get_config
 from bot_core.services.trading_service import trading_service
@@ -1008,19 +1008,31 @@ class PositionCommand(BaseCommand):
         try:
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
-            
-            # 获取仓位信息
+
+            # 获取初始仓位信息
             result = await trading_service.get_positions(user_id, group_id)
 
-            await MessageDeletionService.send_and_schedule_delete(
-                update=update,
-                context=context,
-                text=result['message'],
-                parse_mode='HTML',
-                delay_seconds=120,
-                delete_user_message=True
+            if not result['success']:
+                await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
+                return
+
+            # 发送初始消息
+            initial_message = await update.message.reply_text(
+                RealTimePositionService._build_realtime_message(result['message'], 120),
+                parse_mode='HTML'
             )
-            
+
+            # 启动实时更新
+            context.application.create_task(
+                RealTimePositionService.start_realtime_update(
+                    update=update,
+                    context=context,
+                    user_id=user_id,
+                    group_id=group_id,
+                    initial_message=initial_message
+                )
+            )
+
         except Exception as e:
             logger.error(f"查看仓位失败: {e}")
             await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
