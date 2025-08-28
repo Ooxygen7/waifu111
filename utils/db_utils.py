@@ -9,6 +9,7 @@ from typing import Any, List, Optional, Tuple,Union
 
 from utils.config_utils import get_config, project_root
 from utils.logging_utils import setup_logging
+from utils.schema_migration import check_and_migrate_database_schema
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ def init_database_if_not_exists():
     """
     检查 data/data.db 是否存在，如果不存在则用 data/database.sql 初始化数据库。
     同时检查所需的表是否都存在，如果有缺失则创建。
+    现在还会检查表结构是否符合 database.sql，如果不符合则进行迁移。
     """
     # 使用绝对路径，确保无论从哪个目录运行都能找到文件
     db_path = os.path.join(project_root, "data", "data.db")
@@ -46,46 +48,65 @@ def init_database_if_not_exists():
             logger.error(f"数据库初始化失败: {e}", exc_info=True)
             raise RuntimeError(f"数据库初始化失败: {e}")
     
-    # 检查所需表是否存在
+    # 使用新的表结构检查和迁移功能
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        logger.info("开始检查和迁移数据库表结构...")
+        migration_success = check_and_migrate_database_schema()
         
-        # 获取sql文件中的所有CREATE TABLE语句
-        with open(sql_path, "r", encoding="utf-8") as f:
-            sql_content = f.read()
-            create_table_statements = [stmt.strip() for stmt in sql_content.split(';') 
-                                     if 'CREATE TABLE' in stmt.upper()]
-        
-        # 获取当前数据库中的所有表
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        existing_tables = set(table[0] for table in cursor.fetchall())
-        
-        # 检查每个CREATE TABLE语句
-        for stmt in create_table_statements:
-            # 提取表名 - 使用大小写不敏感的方式
-            stmt_upper = stmt.upper()
-            if 'CREATE TABLE' in stmt_upper:
-                # 找到CREATE TABLE的位置，然后提取表名
-                create_table_pos = stmt_upper.find('CREATE TABLE')
-                table_part = stmt[create_table_pos + len('CREATE TABLE'):].strip()
-                table_name = table_part.split('(')[0].strip()
-                
-                if table_name not in existing_tables:
-                    logger.warning(f"检测到缺失表 {table_name}，正在创建...")
-                    try:
-                        cursor.execute(stmt)
-                        conn.commit()
-                        logger.info(f"表 {table_name} 创建成功")
-                    except sqlite3.Error as e:
-                        logger.error(f"创建表 {table_name} 失败: {e}")
-                        raise
-        
-        conn.close()
-        
+        if migration_success:
+            logger.info("数据库表结构检查和迁移完成")
+        else:
+            logger.warning("数据库表结构迁移过程中出现问题，但数据库仍可使用")
+            
     except Exception as e:
-        logger.error(f"检查数据库表结构时发生错误: {e}", exc_info=True)
-        raise RuntimeError(f"检查数据库表结构失败: {e}")
+        logger.error(f"数据库表结构检查和迁移失败: {e}", exc_info=True)
+        # 如果新的迁移功能失败，回退到原来的简单检查方式
+        logger.info("回退到简单的表存在性检查...")
+        try:
+            _fallback_table_check(db_path, sql_path)
+        except Exception as fallback_error:
+            logger.error(f"回退检查也失败: {fallback_error}", exc_info=True)
+            raise RuntimeError(f"数据库表结构检查失败: {e}")
+
+
+def _fallback_table_check(db_path: str, sql_path: str):
+    """
+    回退的表存在性检查方法（原来的逻辑）
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # 获取sql文件中的所有CREATE TABLE语句
+    with open(sql_path, "r", encoding="utf-8") as f:
+        sql_content = f.read()
+        create_table_statements = [stmt.strip() for stmt in sql_content.split(';') 
+                                 if 'CREATE TABLE' in stmt.upper()]
+    
+    # 获取当前数据库中的所有表
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    existing_tables = set(table[0] for table in cursor.fetchall())
+    
+    # 检查每个CREATE TABLE语句
+    for stmt in create_table_statements:
+        # 提取表名 - 使用大小写不敏感的方式
+        stmt_upper = stmt.upper()
+        if 'CREATE TABLE' in stmt_upper:
+            # 找到CREATE TABLE的位置，然后提取表名
+            create_table_pos = stmt_upper.find('CREATE TABLE')
+            table_part = stmt[create_table_pos + len('CREATE TABLE'):].strip()
+            table_name = table_part.split('(')[0].strip()
+            
+            if table_name not in existing_tables:
+                logger.warning(f"检测到缺失表 {table_name}，正在创建...")
+                try:
+                    cursor.execute(stmt)
+                    conn.commit()
+                    logger.info(f"表 {table_name} 创建成功")
+                except sqlite3.Error as e:
+                    logger.error(f"创建表 {table_name} 失败: {e}")
+                    raise
+    
+    conn.close()
 
 
 class DatabaseConnectionPool:
