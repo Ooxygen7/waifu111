@@ -145,13 +145,52 @@ create table user_profiles
 -- 用户模拟盘账户表
 create table trading_accounts
 (
-    user_id          integer not null,
-    group_id         integer not null,
-    balance          REAL default 1000.0,  -- USDT余额
-    total_pnl        REAL default 0.0,     -- 总盈亏
-    created_at       TEXT,
-    updated_at       TEXT,
+    user_id              integer not null,
+    group_id             integer not null,
+    balance              REAL default 1000.0,   -- USDT余额
+    total_pnl            REAL default 0.0,      -- 总盈亏
+    trading_count        integer default 0,     -- 交易次数
+    winning_trades       integer default 0,     -- 盈利次数
+    losing_trades        integer default 0,     -- 亏损次数
+    total_profit         REAL default 0.0,      -- 总盈利额
+    total_loss           REAL default 0.0,      -- 总亏损额
+    loan_count           integer default 0,     -- 贷款次数
+    total_loan_amount    REAL default 0.0,      -- 贷款总额
+    total_repayment_amount REAL default 0.0,    -- 还款总额
+    current_debt         REAL default 0.0,      -- 当前欠款额
+    total_fees           REAL default 0.0,      -- 累计手续费
+    frozen_margin        REAL default 0.0,      -- 冻结保证金
+    created_at           TEXT,
+    updated_at           TEXT,
     primary key (user_id, group_id)
+);
+
+-- 交易订单表
+create table trading_orders
+(
+    order_id         TEXT primary key,         -- 订单ID
+    user_id          integer not null,         -- 用户ID
+    group_id         integer not null,         -- 群组ID
+    symbol           TEXT not null,            -- 交易对，如BTC/USDT
+    direction        TEXT not null,            -- 方向: 'ask'(卖出) 或 'bid'(买入)
+    role             TEXT not null,            -- 角色: 'taker'(限价单) 或 'maker'(市价单)
+    order_type       TEXT not null,            -- 订单属性: 'open'(开仓), 'tp'(止盈), 'sl'(止损)
+    operation        TEXT not null,            -- 操作类型: 'reduction'(减仓), 'addition'(加仓)
+    status           TEXT default 'pending',   -- 订单状态: 'pending'(待成交), 'executed'(已成交), 'cancelled'(已取消)
+    volume           REAL not null,            -- 订单数量(USDT价值)
+    price            REAL,                     -- 委托价格，null表示市价单
+    tp_price         REAL,                     -- 止盈价格
+    sl_price         REAL,                     -- 止损价格
+    margin_locked    REAL default 0.0,         -- 冻结保证金
+    fee_rate         REAL default 0.0035,      -- 手续费率 (默认3.5‰)
+    actual_fee       REAL default 0.0,         -- 实际手续费
+    related_position_id integer,               -- 关联的仓位ID
+    created_at       TEXT not null,            -- 创建时间
+    executed_at      TEXT,                     -- 成交时间
+    cancelled_at     TEXT,                     -- 取消时间
+    expiry_time      TEXT,                     -- 过期时间
+    notes            TEXT,                     -- 备注信息
+    FOREIGN KEY (user_id, group_id) REFERENCES trading_accounts(user_id, group_id)
 );
 
 -- 用户仓位表

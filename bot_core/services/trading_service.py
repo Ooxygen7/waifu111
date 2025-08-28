@@ -97,26 +97,27 @@ class TradingService:
             result = TradingRepository.get_account(user_id, group_id)
             if not result["success"]:
                 logger.error(f"获取账户失败: {result['error']}")
-                return {'balance': 0.0, 'total_pnl': 0.0}
+                return {'balance': 0.0, 'total_pnl': 0.0, 'frozen_margin': 0.0}
             
             if result["account"]:
                 account = result["account"]
                 return {
                     'balance': account['balance'],
-                    'total_pnl': account['total_pnl']
+                    'total_pnl': account['total_pnl'],
+                    'frozen_margin': account.get('frozen_margin', 0.0)
                 }
             
             # 创建新账户
             create_result = TradingRepository.create_account(user_id, group_id)
             if not create_result["success"]:
                 logger.error(f"创建账户失败: {create_result['error']}")
-                return {'balance': 0.0, 'total_pnl': 0.0}
+                return {'balance': 0.0, 'total_pnl': 0.0, 'frozen_margin': 0.0}
             
-            return {'balance': 1000.0, 'total_pnl': 0.0}
+            return {'balance': 1000.0, 'total_pnl': 0.0, 'frozen_margin': 0.0}
                 
         except Exception as e:
             logger.error(f"获取/创建账户失败: {e}")
-            return {'balance': 0.0, 'total_pnl': 0.0}
+            return {'balance': 0.0, 'total_pnl': 0.0, 'frozen_margin': 0.0}
     
     async def open_position(self, user_id: int, group_id: int, symbol: str, side: str, size: float) -> Dict:
         """
@@ -135,8 +136,9 @@ class TradingService:
             
             # 计算所需保证金 (100倍杠杆，即1%保证金)
             required_margin = size / 100
-            if account['balance'] < required_margin:
-                return {'success': False, 'message': f'保证金不足，需要: {required_margin:.2f} USDT，当前余额: {account["balance"]:.2f} USDT'}
+            available_balance = account['balance'] - account['frozen_margin']
+            if available_balance < required_margin:
+                return {'success': False, 'message': f'保证金不足，需要: {required_margin:.2f} USDT，可用余额: {available_balance:.2f} USDT'}
             
             # 检查是否已有相同方向的仓位
             position_result = TradingRepository.get_position(user_id, group_id, symbol, side)
@@ -148,8 +150,8 @@ class TradingService:
             if existing_position:
                 # 加仓操作 - 检查额外保证金
                 additional_margin = size / 100
-                if account['balance'] < additional_margin:
-                    return {'success': False, 'message': f'加仓保证金不足，需要: {additional_margin:.2f} USDT，当前余额: {account["balance"]:.2f} USDT'}
+                if available_balance < additional_margin:
+                    return {'success': False, 'message': f'加仓保证金不足，需要: {additional_margin:.2f} USDT，可用余额: {available_balance:.2f} USDT'}
                 
                 old_size = existing_position['size']
                 old_entry = existing_position['entry_price']

@@ -20,7 +20,7 @@ class TradingRepository:
         try:
             command = "SELECT * FROM trading_accounts WHERE user_id = ? AND group_id = ?"
             result = query_db(command, (user_id, group_id))
-            
+
             if result:
                 account = result[0]
                 return {
@@ -31,7 +31,18 @@ class TradingRepository:
                         "balance": float(account[2]),
                         "total_pnl": float(account[3]),
                         "created_at": account[4],
-                        "updated_at": account[5]
+                        "updated_at": account[5],
+                        "trading_count": int(account[6]) if account[6] else 0,
+                        "winning_trades": int(account[7]) if account[7] else 0,
+                        "losing_trades": int(account[8]) if account[8] else 0,
+                        "total_profit": float(account[9]) if account[9] else 0.0,
+                        "total_loss": float(account[10]) if account[10] else 0.0,
+                        "loan_count": int(account[11]) if account[11] else 0,
+                        "total_loan_amount": float(account[12]) if account[12] else 0.0,
+                        "total_repayment_amount": float(account[13]) if account[13] else 0.0,
+                        "current_debt": float(account[14]) if account[14] else 0.0,
+                        "total_fees": float(account[15]) if account[15] else 0.0,
+                        "frozen_margin": float(account[16]) if account[16] else 0.0
                     }
                 }
             else:
@@ -41,6 +52,181 @@ class TradingRepository:
                 }
         except Exception as e:
             logger.error(f"获取交易账户失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_order(order_id: str) -> dict:
+        """获取单个订单信息"""
+        try:
+            command = "SELECT * FROM trading_orders WHERE order_id = ?"
+            result = query_db(command, (order_id,))
+            
+            if result:
+                row = result[0]
+                order = {
+                    "order_id": row[0],
+                    "user_id": row[1],
+                    "group_id": row[2],
+                    "symbol": row[3],
+                    "direction": row[4],
+                    "role": row[5],
+                    "order_type": row[6],
+                    "operation": row[7],
+                    "status": row[8],
+                    "volume": float(row[9]),
+                    "price": float(row[10]) if row[10] else None,
+                    "tp_price": float(row[11]) if row[11] else None,
+                    "sl_price": float(row[12]) if row[12] else None,
+                    "margin_locked": float(row[13]) if row[13] else 0.0,
+                    "fee_rate": float(row[14]) if row[14] else 0.0035,
+                    "actual_fee": float(row[15]) if row[15] else 0.0,
+                    "related_position_id": row[16],
+                    "created_at": row[17],
+                    "executed_at": row[18],
+                    "cancelled_at": row[19]
+                }
+                return {
+                    "success": True,
+                    "order": order
+                }
+            else:
+                return {
+                    "success": True,
+                    "order": None
+                }
+        except Exception as e:
+            logger.error(f"获取订单失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_orders(user_id: int, group_id: int, status: str = None) -> dict:
+        """获取用户订单列表"""
+        try:
+            if status:
+                command = "SELECT * FROM trading_orders WHERE user_id = ? AND group_id = ? AND status = ? ORDER BY created_at DESC"
+                result = query_db(command, (user_id, group_id, status))
+            else:
+                command = "SELECT * FROM trading_orders WHERE user_id = ? AND group_id = ? ORDER BY created_at DESC"
+                result = query_db(command, (user_id, group_id))
+            
+            orders = []
+            for row in result:
+                orders.append({
+                    "order_id": row[0],
+                    "user_id": row[1],
+                    "group_id": row[2],
+                    "symbol": row[3],
+                    "direction": row[4],
+                    "role": row[5],
+                    "order_type": row[6],
+                    "operation": row[7],
+                    "status": row[8],
+                    "volume": float(row[9]),
+                    "price": float(row[10]) if row[10] else None,
+                    "tp_price": float(row[11]) if row[11] else None,
+                    "sl_price": float(row[12]) if row[12] else None,
+                    "margin_locked": float(row[13]) if row[13] else 0.0,
+                    "fee_rate": float(row[14]) if row[14] else 0.0035,
+                    "actual_fee": float(row[15]) if row[15] else 0.0,
+                    "related_position_id": row[16],
+                    "created_at": row[17],
+                    "executed_at": row[18],
+                    "cancelled_at": row[19]
+                })
+            
+            return {
+                "success": True,
+                "orders": orders
+            }
+        except Exception as e:
+            logger.error(f"获取订单列表失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_orders_by_type(order_type: str, status: str = "pending") -> dict:
+        """根据订单类型获取订单列表"""
+        try:
+            command = "SELECT * FROM trading_orders WHERE order_type = ? AND status = ? ORDER BY created_at ASC"
+            result = query_db(command, (order_type, status))
+            
+            orders = []
+            for row in result:
+                orders.append({
+                    "order_id": row[0],
+                    "user_id": row[1],
+                    "group_id": row[2],
+                    "symbol": row[3],
+                    "direction": row[4],
+                    "role": row[5],
+                    "order_type": row[6],
+                    "operation": row[7],
+                    "status": row[8],
+                    "volume": float(row[9]),
+                    "price": float(row[10]) if row[10] else None,
+                    "tp_price": float(row[11]) if row[11] else None,
+                    "sl_price": float(row[12]) if row[12] else None,
+                    "margin_locked": float(row[13]) if row[13] else 0.0,
+                    "fee_rate": float(row[14]) if row[14] else 0.0035,
+                    "actual_fee": float(row[15]) if row[15] else 0.0,
+                    "related_position_id": row[16],
+                    "created_at": row[17],
+                    "executed_at": row[18],
+                    "cancelled_at": row[19]
+                })
+            
+            return {
+                "success": True,
+                "orders": orders
+            }
+        except Exception as e:
+            logger.error(f"根据类型获取订单失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def execute_order(order_id: str, execution_price: float) -> dict:
+        """执行订单"""
+        try:
+            now = datetime.datetime.now().isoformat()
+            command = "UPDATE trading_orders SET status = 'executed', executed_at = ? WHERE order_id = ?"
+            revise_db(command, (now, order_id))
+            
+            return {
+                "success": True,
+                "executed": True
+            }
+        except Exception as e:
+            logger.error(f"执行订单失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def cancel_order(order_id: str) -> dict:
+        """取消订单"""
+        try:
+            now = datetime.datetime.now().isoformat()
+            command = "UPDATE trading_orders SET status = 'cancelled', cancelled_at = ? WHERE order_id = ?"
+            revise_db(command, (now, order_id))
+            
+            return {
+                "success": True,
+                "cancelled": True
+            }
+        except Exception as e:
+            logger.error(f"取消订单失败: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -717,13 +903,17 @@ class TradingRepository:
     def create_account(user_id: int, group_id: int, initial_balance: float = 1000.0) -> dict:
         """创建用户交易账户"""
         try:
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().isoformat()
             command = """
-                INSERT INTO trading_accounts (user_id, group_id, balance, total_pnl, created_at, updated_at)
-                VALUES (?, ?, ?, 0.0, ?, ?)
+                INSERT INTO trading_accounts (
+                    user_id, group_id, balance, total_pnl, trading_count, winning_trades,
+                    losing_trades, total_profit, total_loss, loan_count, total_loan_amount,
+                    total_repayment_amount, current_debt, total_fees, frozen_margin,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, 0.0, 0, 0, 0, 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, ?, ?)
             """
             revise_db(command, (user_id, group_id, initial_balance, now, now))
-            
+
             return {
                 "success": True,
                 "account": {
@@ -731,6 +921,17 @@ class TradingRepository:
                     "group_id": group_id,
                     "balance": initial_balance,
                     "total_pnl": 0.0,
+                    "trading_count": 0,
+                    "winning_trades": 0,
+                    "losing_trades": 0,
+                    "total_profit": 0.0,
+                    "total_loss": 0.0,
+                    "loan_count": 0,
+                    "total_loan_amount": 0.0,
+                    "total_repayment_amount": 0.0,
+                    "current_debt": 0.0,
+                    "total_fees": 0.0,
+                    "frozen_margin": 0.0,
                     "created_at": now,
                     "updated_at": now
                 }
@@ -743,20 +944,127 @@ class TradingRepository:
             }
 
     @staticmethod
-    def update_account_balance(user_id: int, group_id: int, new_balance: float, pnl_change: float = 0.0) -> dict:
-        """更新用户账户余额和总盈亏"""
+    def update_account_balance(user_id: int, group_id: int, new_balance: float, pnl_change: float = 0.0,
+                              fee_change: float = 0.0, is_win: bool = None) -> dict:
+        """更新用户账户余额和相关统计数据"""
         try:
-            now = datetime.datetime.now()
-            command = """
-                UPDATE trading_accounts 
-                SET balance = ?, total_pnl = total_pnl + ?, updated_at = ?
+            now = datetime.datetime.now().isoformat()
+
+            # 构建动态更新语句
+            update_parts = ["balance = ?", "updated_at = ?"]
+            params = [new_balance, now]
+
+            if pnl_change != 0:
+                update_parts.append("total_pnl = total_pnl + ?")
+                params.append(pnl_change)
+
+                # 如果提供了交易胜负信息，更新相应统计
+                if pnl_change > 0:
+                    update_parts.extend([
+                        "trading_count = trading_count + 1",
+                        "winning_trades = winning_trades + 1",
+                        "total_profit = total_profit + ?"
+                    ])
+                    params.append(pnl_change)
+                elif pnl_change < 0:
+                    update_parts.extend([
+                        "trading_count = trading_count + 1",
+                        "losing_trades = losing_trades + 1",
+                        "total_loss = total_loss + ?"
+                    ])
+                    params.append(abs(pnl_change))
+
+            if fee_change != 0:
+                update_parts.append("total_fees = total_fees + ?")
+                params.append(fee_change)
+
+            # 如果pnl_change为0且is_win由调用者明确指定，则只更新统计
+            if pnl_change == 0 and is_win is not None:
+                if is_win:
+                    update_parts.extend([
+                        "trading_count = trading_count + 1",
+                        "winning_trades = winning_trades + 1"
+                    ])
+                else:
+                    update_parts.extend([
+                        "trading_count = trading_count + 1",
+                        "losing_trades = losing_trades + 1"
+                    ])
+
+            command = f"""
+                UPDATE trading_accounts
+                SET {", ".join(update_parts)}
                 WHERE user_id = ? AND group_id = ?
             """
-            revise_db(command, (new_balance, pnl_change, now, user_id, group_id))
-            
+            params.extend([user_id, group_id])
+
+            revise_db(command, params)
+
             return {"success": True}
         except Exception as e:
             logger.error(f"更新账户余额失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def update_account_margin(user_id: int, group_id: int, margin_change: float) -> dict:
+        """更新账户冻结保证金"""
+        try:
+            now = datetime.datetime.now().isoformat()
+            command = """
+                UPDATE trading_accounts
+                SET frozen_margin = frozen_margin + ?, updated_at = ?
+                WHERE user_id = ? AND group_id = ?
+            """
+            revise_db(command, (margin_change, now, user_id, group_id))
+
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"更新保证金失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def update_loan_stats(user_id: int, group_id: int, loan_amount: float = 0.0,
+                         repayment_amount: float = 0.0, debt_change: float = 0.0) -> dict:
+        """更新账户贷款相关统计"""
+        try:
+            now = datetime.datetime.now().isoformat()
+
+            update_parts = ["updated_at = ?"]
+            params = [now]
+
+            if loan_amount > 0:
+                update_parts.extend([
+                    "loan_count = loan_count + 1",
+                    "total_loan_amount = total_loan_amount + ?"
+                ])
+                params.append(loan_amount)
+
+            if repayment_amount > 0:
+                update_parts.append("total_repayment_amount = total_repayment_amount + ?")
+                params.append(repayment_amount)
+
+            if debt_change != 0:
+                update_parts.append("current_debt = current_debt + ?")
+                params.append(debt_change)
+
+            command = f"""
+                UPDATE trading_accounts
+                SET {", ".join(update_parts)}
+                WHERE user_id = ? AND group_id = ?
+            """
+            params.extend([user_id, group_id])
+
+            revise_db(command, params)
+
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"更新贷款统计失败: {e}")
             return {
                 "success": False,
                 "error": str(e)
@@ -1331,6 +1639,38 @@ class TradingRepository:
             }
         except Exception as e:
             logger.error(f"获取完整交易历史失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def create_order(order_id: str, user_id: int, group_id: int, symbol: str, direction: str,
+                     role: str, order_type: str, operation: str, volume: float,
+                     price: float = None, tp_price: float = None, sl_price: float = None,
+                     margin_locked: float = 0.0, fee_rate: float = 0.0035) -> dict:
+        """创建新的交易订单"""
+        try:
+            now = datetime.datetime.now().isoformat()
+
+            command = """
+                INSERT INTO trading_orders (
+                    order_id, user_id, group_id, symbol, direction, role,
+                    order_type, operation, volume, price, tp_price, sl_price,
+                    margin_locked, fee_rate, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+
+            revise_db(command, (order_id, user_id, group_id, symbol, direction, role,
+                              order_type, operation, volume, price, tp_price, sl_price,
+                              margin_locked, fee_rate, now))
+
+            return {
+                "success": True,
+                "order_id": order_id
+            }
+        except Exception as e:
+            logger.error(f"创建订单失败: {e}")
             return {
                 "success": False,
                 "error": str(e)
