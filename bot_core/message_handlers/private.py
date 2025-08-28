@@ -33,7 +33,16 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             # 按顺序执行每个指令
             for command, args in commands:
                 # 处理@botname的情况
-                command_name = command.split('@')[0]
+                command_parts_at = command.split('@')
+                command_name = command_parts_at[0]
+
+                # 如果命令中包含@，则检查是否是发给本机器人的
+                if len(command_parts_at) > 1:
+                    bot_username = command_parts_at[1]
+                    logger.info(f"检测到@用户名: {bot_username}, 当前机器人用户名: {context.bot.username}")
+                    if bot_username != context.bot.username:
+                        logger.info(f"跳过不匹配的@命令: /{command_name}@{bot_username}, 当前机器人: {context.bot.username}")
+                        continue  # 不是发给我的命令，跳过
 
                 handler = CommandHandlers.get_command_handler(command_name, "private")
                 if handler:
@@ -46,7 +55,17 @@ async def private_msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             # 回退到旧的解析方式（单指令）
             command_parts = message_text[1:].split()
-            command = command_parts[0].split('@')[0]
+            command_full = command_parts[0]
+            command_parts_at = command_full.split('@')
+            command = command_parts_at[0]
+
+            # 如果命令中包含@，则检查是否是发给本机器人的
+            if len(command_parts_at) > 1:
+                bot_username = command_parts_at[1]
+                logger.info(f"单命令检测到@用户名: {bot_username}, 当前机器人用户名: {context.bot.username}")
+                if bot_username != context.bot.username:
+                    logger.info(f"跳过不匹配的@命令: /{command}@{bot_username}, 当前机器人: {context.bot.username}")
+                    return  # 不是发给我的命令，忽略
 
             handler = CommandHandlers.get_command_handler(command, "private")
             if handler:

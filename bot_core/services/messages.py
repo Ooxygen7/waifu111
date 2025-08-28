@@ -583,6 +583,57 @@ class MessageDeletionService:
 
         return sent_message
 
+    @staticmethod
+    async def send_photo_and_schedule_delete(
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        photo: bytes,
+        caption: str = "",
+        parse_mode: str = "HTML",
+        delay_seconds: int = 120,
+        delete_user_message: bool = True
+    ) -> Optional[Message]:
+        """
+        发送图片消息并安排自动删除
+
+        Args:
+            update: Telegram update
+            context: Telegram context
+            photo: 图片bytes数据
+            caption: 图片描述
+            parse_mode: 解析模式
+            delay_seconds: 删除延迟时间（秒）
+            delete_user_message: 是否同时删除用户指令消息
+
+        Returns:
+            发送的消息对象
+        """
+        # 发送图片消息
+        sent_message = await update.message.reply_photo(
+            photo=photo,
+            caption=caption,
+            parse_mode=parse_mode
+        )
+
+        if sent_message:
+            # 获取用户指令消息ID
+            user_message_id = None
+            if delete_user_message and update.message:
+                user_message_id = update.message.message_id
+
+            # 安排自动删除
+            context.application.create_task(
+                MessageDeletionService.schedule_auto_delete(
+                    context=context,
+                    chat_id=update.effective_chat.id,
+                    message_id=sent_message.message_id,
+                    delay_seconds=delay_seconds,
+                    user_message_id=user_message_id
+                )
+            )
+
+        return sent_message
+
 class RealTimePositionService:
     """实时仓位更新服务，提供定时更新仓位信息的功"""
 

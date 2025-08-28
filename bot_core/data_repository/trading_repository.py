@@ -1279,10 +1279,58 @@ class TradingRepository:
                 VALUES (?, ?, ?)
             """
             revise_db(command, (symbol, price, now))
-            
+
             return {"success": True}
         except Exception as e:
             logger.error(f"更新价格缓存失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def get_full_trading_history(user_id: int, group_id: int) -> dict:
+        """获取用户完整的交易历史记录(用于绘图，不限制数量)"""
+        try:
+            command = """
+                SELECT close_trade.action, close_trade.symbol, close_trade.side,
+                       close_trade.size, close_trade.price as exit_price,
+                       close_trade.pnl, close_trade.created_at,
+                       open_trade.price as entry_price
+                FROM trading_history close_trade
+                LEFT JOIN (
+                    SELECT symbol, side, price,
+                           ROW_NUMBER() OVER (PARTITION BY symbol, side ORDER BY created_at DESC) as rn
+                    FROM trading_history
+                    WHERE user_id = ? AND group_id = ? AND action = 'open'
+                ) open_trade ON close_trade.symbol = open_trade.symbol
+                                AND close_trade.side = open_trade.side
+                                AND open_trade.rn = 1
+                WHERE close_trade.user_id = ? AND close_trade.group_id = ?
+                      AND close_trade.action IN ('close', 'liquidated')
+                ORDER BY close_trade.created_at ASC
+            """
+            result = query_db(command, (user_id, group_id, user_id, group_id))
+
+            history = []
+            for row in result:
+                history.append({
+                    "action": row[0],
+                    "symbol": row[1],
+                    "side": row[2],
+                    "size": float(row[3]),
+                    "price": float(row[4]),  # exit_price
+                    "pnl": float(row[5]),
+                    "created_at": row[6],
+                    "entry_price": float(row[7]) if row[7] is not None else float(row[4])  # 如果没有找到开仓记录，使用平仓价格
+                })
+
+            return {
+                "success": True,
+                "history": history
+            }
+        except Exception as e:
+            logger.error(f"获取完整交易历史失败: {e}")
             return {
                 "success": False,
                 "error": str(e)

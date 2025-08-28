@@ -1053,22 +1053,83 @@ class PnlCommand(BaseCommand):
         try:
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
-            
+
             # 获取盈亏报告
             result = trading_service.get_pnl_report(user_id, group_id)
 
-            await MessageDeletionService.send_and_schedule_delete(
-                update=update,
-                context=context,
-                text=result['message'],
-                parse_mode='HTML',
-                delay_seconds=120,
-                delete_user_message=True
-            )
-            
+            # 生成盈亏折线图
+            chart_image = trading_service.generate_pnl_chart(user_id, group_id)
+
+            if chart_image:
+                # 有图表时，发送图片，caption只显示最近交易
+                # 解析盈亏报告，提取最近交易部分
+                recent_trades = self._extract_recent_trades(result['message'])
+
+                # 构建简短caption
+                caption = f"📊 Trading PnL Chart\n\n{recent_trades}"
+
+                # 确保caption不超过Telegram限制
+                if len(caption) > 1024:
+                    caption = caption[:1020] + "..."
+
+                # 发送图片和定时删除
+                await MessageDeletionService.send_photo_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    photo=chart_image,
+                    caption=caption,
+                    parse_mode='HTML',
+                    delay_seconds=180,  # 盈亏报告保留5分钟
+                    delete_user_message=True
+                )
+            else:
+                # 没有图表时，只发送文本报告
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=result['message'],
+                    parse_mode='HTML',
+                    delay_seconds=180,  # 盈亏报告保留5分钟
+                    delete_user_message=True
+                )
+
         except Exception as e:
             logger.error(f"盈亏报告命令失败: {e}")
             await update.message.reply_text("❌ 获取盈亏报告失败，请稍后重试")
+
+    def _extract_recent_trades(self, full_message: str) -> str:
+        """从完整消息中提取最近交易部分（精简版）"""
+        try:
+            # 查找最近交易的部分
+            if "最近15笔交易" in full_message:
+                # 找到最近交易的开始位置
+                start = full_message.find("📋 最近15笔交易")
+                if start != -1:
+                    # 只取最近5笔交易来缩短caption
+                    trades_section = full_message[start:start+800]  # 限制长度
+                    lines = trades_section.split('\n')
+
+                    # 提取最近5笔交易记录
+                    recent_trades = []
+                    trade_count = 0
+                    for line in lines:
+                        if '|' in line and ('📈' in line or '📉' in line):  # 交易记录行
+                            recent_trades.append(line.strip())
+                            trade_count += 1
+                            if trade_count >= 5:  # 只取最近5笔
+                                break
+
+                    if recent_trades:
+                        return "Recent 5 Trades:\n" + "\n".join(recent_trades)
+            elif "暂无交易记录" in full_message:
+                return "No recent trades"
+            else:
+                # 如果找不到交易记录，返回简短摘要
+                return "No recent trading activity"
+
+        except Exception as e:
+            logger.error(f"提取最近交易失败: {e}")
+            return "Error extracting trades"
 
 
 
