@@ -7,7 +7,8 @@ class ThirdPartyFilter(logging.Filter):
     """
     third_party_libs = {
         "telegram", "httpcore", "httpx", "asyncio", "urllib3", "requests",
-        "aiohttp", "websocket", "pydantic", "json", "sqlite3", "PIL","openai"
+        "aiohttp", "websocket", "pydantic", "json", "sqlite3", "PIL","openai",
+        "matplotlib", "matplotlib.font_manager"
     }
 
     def filter(self, record):

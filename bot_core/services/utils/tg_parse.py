@@ -225,7 +225,8 @@ def parse_commands_with_and(message_text: str) -> list[tuple[str, list[str]]]:
             continue
 
         command_full = parts[0]
-        command = command_full.split('@')[0]  # Handle @botname case
+        # Keep @botname in command for handler to check
+        command = command_full
         args = parts[1:]
 
         parsed_commands.append((command, args))

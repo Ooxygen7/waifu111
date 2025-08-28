@@ -1790,6 +1790,14 @@ class TradingService:
 
             # 添加统计信息
             win_rate_percent = f"{win_rate_data['win_rate']:.1f}%" if win_rate_data and 'win_rate' in win_rate_data else '0.0%'
+            avg_holding_time = win_rate_data['avg_holding_time'] if win_rate_data and 'avg_holding_time' in win_rate_data else 0.0
+            avg_win = win_rate_data['avg_win'] if win_rate_data and 'avg_win' in win_rate_data else 0.0
+            avg_loss = win_rate_data['avg_loss'] if win_rate_data and 'avg_loss' in win_rate_data else 0.0
+            profit_loss_ratio = win_rate_data['profit_loss_ratio'] if win_rate_data and 'profit_loss_ratio' in win_rate_data else 0.0
+            avg_position_size = win_rate_data['avg_position_size'] if win_rate_data and 'avg_position_size' in win_rate_data else 0.0
+            total_position_size = win_rate_data['total_position_size'] if win_rate_data and 'total_position_size' in win_rate_data else 0.0
+            fee_contribution = win_rate_data['fee_contribution'] if win_rate_data and 'fee_contribution' in win_rate_data else 0.0
+
             stats_text = f"""PnL Statistics
 
 Total PnL: {account['total_pnl']:+.2f} USDT
@@ -1801,6 +1809,15 @@ Winning Trades: {win_rate_data['winning_trades'] if win_rate_data else 0}
 Losing Trades: {win_rate_data['losing_trades'] if win_rate_data else 0}
 Liquidations: {win_rate_data['liquidated_trades'] if win_rate_data else 0}
 Win Rate: {win_rate_percent}
+
+Performance:
+Avg Holding Time: {avg_holding_time:.1f}h
+Avg Profit: {avg_win:+.2f} USDT
+Avg Loss: {avg_loss:+.2f} USDT
+Profit/Loss Ratio: {profit_loss_ratio:.2f}
+Avg Position Size: ${avg_position_size:.0f}
+Total Volume: ${total_position_size:.0f}
+Fee Contribution: ${fee_contribution:.2f}
             """
 
             ax2.text(0.05, 0.95, stats_text, transform=ax2.transAxes,
