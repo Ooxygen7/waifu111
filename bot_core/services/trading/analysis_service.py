@@ -399,6 +399,220 @@ class AnalysisService:
             logger.error(f"计算逾期天数失败: {e}")
             return 0
 
+    def generate_pnl_chart(self, user_id: int, group_id: int) -> Optional[bytes]:
+        """
+        生成盈亏折线图，包含统计信息
+        
+        Args:
+            user_id: 用户ID
+            group_id: 群组ID
+            
+        Returns:
+            图表的字节数据，失败时返回None
+        """
+        try:
+            import matplotlib
+            matplotlib.use('Agg')  # 使用非GUI后端
+            import matplotlib.pyplot as plt
+            import matplotlib.font_manager as fm
+            from scipy.ndimage import uniform_filter1d
+            import io
+            import os
+            from datetime import datetime
+
+            # 设置字体 - 处理中文字体问题
+            import matplotlib.font_manager as fm
+
+            # 查找系统中可用的字体
+            font_path = None
+            for font in fm.findSystemFonts():
+                if 'arial' in font.lower() or 'helvetica' in font.lower() or 'dejavu' in font.lower():
+                    font_path = font
+                    break
+
+            if font_path:
+                plt.rcParams['font.sans-serif'] = [fm.FontProperties(fname=font_path).get_name()]
+            else:
+                plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'Helvetica']
+
+            plt.rcParams['axes.unicode_minus'] = False
+            plt.rcParams['font.family'] = 'sans-serif'
+
+            # 获取完整交易历史
+            history_result = TradingRepository.get_full_trading_history(user_id, group_id)
+            if not history_result["success"] or not history_result["history"]:
+                return None
+
+            history = history_result["history"]
+
+            if len(history) < 2:
+                return None  # 至少需要2个数据点才能绘制有意义的图表
+
+            # 计算累计盈亏
+            cumulative_pnl = 0.0
+            pnl_values = [0.0]  # 起始点
+            dates = [None]  # 对应的日期
+            min_pnl = 0.0
+            max_pnl = 0.0
+            min_date = None
+            max_date = None
+
+            for trade in history:
+                cumulative_pnl += trade['pnl']
+                pnl_values.append(cumulative_pnl)
+                dates.append(trade['created_at'])
+
+                # 记录最低点和最高点
+                if cumulative_pnl < min_pnl:
+                    min_pnl = cumulative_pnl
+                    min_date = trade['created_at']
+                if cumulative_pnl > max_pnl:
+                    max_pnl = cumulative_pnl
+                    max_date = trade['created_at']
+
+            # 获取胜率统计数据
+            win_rate_result = TradingRepository.get_win_rate(user_id, group_id)
+            win_rate_data = win_rate_result if win_rate_result["success"] else None
+
+            # 获取账户信息
+            from .account_service import account_service
+            account = account_service.get_or_create_account(user_id, group_id)
+
+            # 创建类似网页grid的布局：图表占9，统计信息占3
+            fig = plt.figure(figsize=(16, 12))
+
+            # 使用GridSpec创建不规则布局
+            # 图表区域占主要空间（9/12），统计信息占右侧小块（3/12）
+            gs = fig.add_gridspec(12, 12, hspace=0.4, wspace=0.4)
+
+            # 主图表 - 盈亏曲线（占据9/12的空间）
+            ax1 = fig.add_subplot(gs[:, :9])  # 所有行，前9列
+            ax1.set_facecolor('#f8f9fa')
+
+            # 绘制平滑曲线
+            if len(pnl_values) > 3:
+                # 使用均匀滤波器平滑曲线
+                window_size = max(3, len(pnl_values) // 10)  # 动态窗口大小
+                smoothed_pnl = uniform_filter1d(pnl_values, size=window_size)
+                ax1.plot(smoothed_pnl, color='#00ff88', linewidth=3, alpha=0.8, label='PnL Curve')
+            else:
+                ax1.plot(pnl_values, color='#00ff88', linewidth=3, alpha=0.8, label='PnL Curve')
+
+            # 绘制原始折线
+            ax1.plot(pnl_values, color='#0088ff', linewidth=1, alpha=0.6, linestyle='--', label='Raw Data')
+
+            # 标记最低点和最高点
+            if min_date:
+                min_idx = dates.index(min_date) + 1
+                ax1.scatter(min_idx, min_pnl, color='red', s=100, zorder=5, marker='v', label=f'Lowest: {min_pnl:.2f}')
+                ax1.annotate(f'Low: {min_pnl:.2f}', xy=(min_idx, min_pnl),
+                            xytext=(10, -20), textcoords='offset points',
+                            bbox=dict(boxstyle='round,pad=0.3', facecolor='red', alpha=0.7),
+                            fontsize=12, color='white')
+
+            if max_date:
+                max_idx = dates.index(max_date) + 1
+                ax1.scatter(max_idx, max_pnl, color='green', s=100, zorder=5, marker='^', label=f'Highest: {max_pnl:.2f}')
+                ax1.annotate(f'High: {max_pnl:.2f}', xy=(max_idx, max_pnl),
+                            xytext=(10, 20), textcoords='offset points',
+                            bbox=dict(boxstyle='round,pad=0.3', facecolor='green', alpha=0.7),
+                            fontsize=12, color='white')
+
+            # 添加零线
+            ax1.axhline(y=0, color='gray', linestyle='-', alpha=0.5, linewidth=1)
+            ax1.set_title('Trading PnL Chart', fontsize=16, fontweight='bold', pad=20)
+            ax1.set_xlabel('Trade Count', fontsize=12)
+            ax1.set_ylabel('Cumulative PnL (USDT)', fontsize=12)
+            ax1.grid(True, alpha=0.3, linestyle='--')
+            ax1.legend(loc='upper left', fontsize=10)
+
+            # 统计信息子图（右侧3/12空间的上半部分）
+            ax2 = fig.add_subplot(gs[:6, 9:])  # 前6行，9-11列
+            ax2.set_facecolor('#f8f9fa')
+            ax2.axis('off')
+
+            # 添加统计信息
+            win_rate_percent = f"{win_rate_data['win_rate']:.1f}%" if win_rate_data and 'win_rate' in win_rate_data else '0.0%'
+            avg_holding_time = win_rate_data['avg_holding_time'] if win_rate_data and 'avg_holding_time' in win_rate_data else 0.0
+            avg_win = win_rate_data['avg_win'] if win_rate_data and 'avg_win' in win_rate_data else 0.0
+            avg_loss = win_rate_data['avg_loss'] if win_rate_data and 'avg_loss' in win_rate_data else 0.0
+            profit_loss_ratio = win_rate_data['profit_loss_ratio'] if win_rate_data and 'profit_loss_ratio' in win_rate_data else 0.0
+            avg_position_size = win_rate_data['avg_position_size'] if win_rate_data and 'avg_position_size' in win_rate_data else 0.0
+            total_position_size = win_rate_data['total_position_size'] if win_rate_data and 'total_position_size' in win_rate_data else 0.0
+            fee_contribution = win_rate_data['fee_contribution'] if win_rate_data and 'fee_contribution' in win_rate_data else 0.0
+
+            stats_text = f"""PnL Statistics
+
+Total PnL: {account['total_pnl']:+.2f} USDT
+Current Balance: {account['balance']:.2f} USDT
+
+Trading Stats:
+Total Trades: {win_rate_data['total_trades'] if win_rate_data else 0}
+Winning Trades: {win_rate_data['winning_trades'] if win_rate_data else 0}
+Losing Trades: {win_rate_data['losing_trades'] if win_rate_data else 0}
+Liquidations: {win_rate_data['liquidated_trades'] if win_rate_data else 0}
+Win Rate: {win_rate_percent}
+
+Performance:
+Avg Holding Time: {avg_holding_time:.1f}h
+Avg Profit: {avg_win:+.2f} USDT
+Avg Loss: {avg_loss:+.2f} USDT
+Profit/Loss Ratio: {profit_loss_ratio:.2f}
+Avg Position Size: ${avg_position_size:.0f}
+Total Volume: ${total_position_size:.0f}
+Fee Contribution: ${fee_contribution:.2f}
+            """
+
+            ax2.text(0.05, 0.95, stats_text, transform=ax2.transAxes,
+                    fontsize=12, verticalalignment='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+            # 币种统计子图（右侧3/12空间的下半部分）
+            ax3 = fig.add_subplot(gs[6:, 9:])  # 后6行，9-11列
+            ax3.set_facecolor('#f8f9fa')
+            ax3.axis('off')
+
+            # 获取币种统计
+            symbol_stats_text = "Symbol Statistics\n\n" if win_rate_data and win_rate_data.get('most_profitable_symbol') else "No Symbol Stats"
+
+            if win_rate_data and win_rate_data.get('most_profitable_symbol'):
+                symbol_stats_text += f"""Best Symbol: {win_rate_data['most_profitable_symbol'].replace('/USDT', '')}
+PnL: {win_rate_data['most_profitable_pnl']:+.0f} USDT
+Avg: {win_rate_data['most_profitable_avg_pnl']:+.1f}
+
+Worst Symbol: {win_rate_data['most_loss_symbol'].replace('/USDT', '')}
+PnL: {win_rate_data['most_loss_pnl']:+.0f} USDT
+Avg: {win_rate_data['most_loss_avg_pnl']:+.1f}
+
+Most Traded: {win_rate_data['most_traded_symbol'].replace('/USDT', '')}
+Trades: {win_rate_data['most_traded_count']}
+Avg: {win_rate_data['most_traded_avg_pnl']:+.1f}
+                """
+
+            ax3.text(0.05, 0.95, symbol_stats_text, transform=ax3.transAxes,
+                    fontsize=11, verticalalignment='top', fontfamily='monospace',
+                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+            # 设置主标题
+            fig.suptitle('Trading PnL Analysis Report', fontsize=18, fontweight='bold', y=0.98)
+
+            # 美化图表
+            plt.tight_layout()
+
+            # 将图表保存为bytes
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', dpi=150, bbox_inches='tight',
+                       facecolor='#f0f0f0', edgecolor='none')
+            buf.seek(0)
+            image_bytes = buf.read()
+            plt.close()
+
+            return image_bytes
+
+        except Exception as e:
+            logger.error(f"生成盈亏图表失败: {e}")
+            return None
+
     def _analyze_trading_history(self, history: List[Dict]) -> Dict:
         """分析交易历史数据"""
         if not history:

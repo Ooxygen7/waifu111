@@ -787,7 +787,7 @@ class LongCommand(BaseCommand):
                         user_id, group_id, f"{symbol}/USDT", "long", "open", amount
                     )
                     results.append(f"{symbol}: {result['message']}")
-                
+
                 response = "📈 批量做多结果:\n" + "\n".join(results)
                 await MessageDeletionService.send_and_schedule_delete(
                     update=update,
@@ -815,11 +815,11 @@ class LongCommand(BaseCommand):
                         order_id = result.get('order_id')
                         if tp_price:
                             await order_service.create_limit_order(
-                                user_id, group_id, f"{symbol}/USDT", "short", "tp", amount, tp_price, parent_order_id=order_id
+                                user_id, group_id, f"{symbol}/USDT", "short", "tp", amount, tp_price
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price, parent_order_id=order_id
+                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount
                             )
                 else:
                     # 市价单模式
@@ -835,7 +835,7 @@ class LongCommand(BaseCommand):
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price
+                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount
                             )
                 
                 await MessageDeletionService.send_and_schedule_delete(
@@ -989,11 +989,11 @@ class ShortCommand(BaseCommand):
                         order_id = result.get('order_id')
                         if tp_price:
                             await order_service.create_limit_order(
-                                user_id, group_id, f"{symbol}/USDT", "long", "tp", amount, tp_price, parent_order_id=order_id
+                                user_id, group_id, f"{symbol}/USDT", "long", "tp", amount, tp_price
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price, parent_order_id=order_id
+                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount
                             )
                 else:
                     # 市价单模式
@@ -1009,7 +1009,7 @@ class ShortCommand(BaseCommand):
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price
+                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount
                             )
                 
                 await MessageDeletionService.send_and_schedule_delete(
@@ -1239,7 +1239,7 @@ class PnlCommand(BaseCommand):
             result = await analysis_service.get_pnl_report(user_id, group_id)
 
             # 生成盈亏折线图 (暂时禁用，新版本暂未实现)
-            chart_image = None  # trading_service.generate_pnl_chart(user_id, group_id)
+            chart_image = analysis_service.generate_pnl_chart(user_id, group_id)
 
             if chart_image:
                 # 有图表时，发送图片，caption只显示最近交易
@@ -1330,8 +1330,7 @@ class BeggingCommand(BaseCommand):
             group_id = update.effective_chat.id
             
             # 领取救济金
-            # begging 功能暂时禁用，新版本暂未实现
-            result = {"success": False, "message": "❌ 救济金功能暂时维护中，请稍后再试"}  # trading_service.begging(user_id, group_id)
+            result = loan_service.begging(user_id, group_id)
 
             await MessageDeletionService.send_and_schedule_delete(
                 update=update,
@@ -1388,8 +1387,8 @@ class CloseCommand(BaseCommand):
 
                     for symbol in symbols:
                         try:
-                            # 使用市价单平仓替代老的 close_position 方法
-                            result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "close", "close", None)
+                            # 使用市价单平仓 - 多头仓位使用卖出方向
+                            result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "short", "close", None)
                             results.append(f"{symbol}: {result['message']}")
                         except Exception as e:
                             results.append(f"{symbol}: ❌ 平仓失败 - {str(e)}")
@@ -1407,8 +1406,8 @@ class CloseCommand(BaseCommand):
             # 如果只有一个参数，智能平仓该币种的所有仓位
             if len(args) == 1:
                 symbol = args[0].upper()
-                # 使用市价单平仓替代老的 close_position 方法
-                result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "close", "close", None)
+                # 使用市价单平仓替代老的 close_position 方法 - 多头仓位使用卖出方向
+                result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "short", "close", None)
                 await MessageDeletionService.send_and_schedule_delete(
                     update=update,
                     context=context,
@@ -1465,10 +1464,11 @@ class CloseCommand(BaseCommand):
                     )
                     return
 
-            # 执行平仓操作
+            # 执行平仓操作 - 根据仓位方向使用相反的交易方向
+            close_direction = "short" if side == "long" else "long"
             result = await order_service.create_market_order(
-                user_id, group_id, f"{symbol}/USDT", 
-                "short" if side == "long" else "long", "close", amount
+                user_id, group_id, f"{symbol}/USDT",
+                close_direction, "close", amount
             )
 
             await MessageDeletionService.send_and_schedule_delete(
@@ -2065,10 +2065,12 @@ class TakeProfitCommand(BaseCommand):
                     user_id=user_id,
                     group_id=group_id,
                     symbol=f"{symbol}/USDT",
-                    side='sell' if position['side'] == 'long' else 'buy',
-                    amount=abs(position['size']),
-                    price=price,
-                    order_type='tp'
+                    direction='ask' if position['side'] == 'long' else 'bid',
+                    role='maker',
+                    order_type='tp',
+                    operation='addition',
+                    volume=abs(position['size']),
+                    price=price
                 )
                 
                 if result['success']:
@@ -2262,10 +2264,12 @@ class StopLossCommand(BaseCommand):
                     user_id=user_id,
                     group_id=group_id,
                     symbol=f"{symbol}/USDT",
-                    side='sell' if position['side'] == 'long' else 'buy',
-                    amount=abs(position['size']),
-                    price=price,
-                    order_type='sl'
+                    direction='ask' if position['side'] == 'long' else 'bid',
+                    role='maker',
+                    order_type='sl',
+                    operation='addition',
+                    volume=abs(position['size']),
+                    price=price
                 )
                 
                 if result['success']:

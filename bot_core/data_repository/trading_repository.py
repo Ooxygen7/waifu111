@@ -30,19 +30,19 @@ class TradingRepository:
                         "group_id": account[1],
                         "balance": float(account[2]),
                         "total_pnl": float(account[3]),
-                        "created_at": account[4],
-                        "updated_at": account[5],
-                        "trading_count": int(account[6]) if account[6] else 0,
-                        "winning_trades": int(account[7]) if account[7] else 0,
-                        "losing_trades": int(account[8]) if account[8] else 0,
-                        "total_profit": float(account[9]) if account[9] else 0.0,
-                        "total_loss": float(account[10]) if account[10] else 0.0,
-                        "loan_count": int(account[11]) if account[11] else 0,
-                        "total_loan_amount": float(account[12]) if account[12] else 0.0,
-                        "total_repayment_amount": float(account[13]) if account[13] else 0.0,
-                        "current_debt": float(account[14]) if account[14] else 0.0,
-                        "total_fees": float(account[15]) if account[15] else 0.0,
-                        "frozen_margin": float(account[16]) if account[16] else 0.0
+                        "trading_count": int(account[4]) if account[4] else 0,
+                        "winning_trades": int(account[5]) if account[5] else 0,
+                        "losing_trades": int(account[6]) if account[6] else 0,
+                        "total_profit": float(account[7]) if account[7] else 0.0,
+                        "total_loss": float(account[8]) if account[8] else 0.0,
+                        "loan_count": int(account[9]) if account[9] else 0,
+                        "total_loan_amount": float(account[10]) if account[10] else 0.0,
+                        "total_repayment_amount": float(account[11]) if account[11] else 0.0,
+                        "current_debt": float(account[12]) if account[12] else 0.0,
+                        "total_fees": float(account[13]) if account[13] else 0.0,
+                        "frozen_margin": float(account[14]) if account[14] else 0.0,
+                        "created_at": account[15],
+                        "updated_at": account[16]
                     }
                 }
             else:

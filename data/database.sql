@@ -162,8 +162,13 @@ create table trading_accounts
     frozen_margin        REAL default 0.0,      -- 冻结保证金
     created_at           TEXT,
     updated_at           TEXT,
-    primary key (user_id, group_id)
+    primary key (user_id, group_id),
+    FOREIGN KEY (group_id) REFERENCES groups(group_id) ON DELETE CASCADE
 );
+
+-- 创建账户表索引
+create index idx_trading_accounts_user on trading_accounts(user_id);
+create index idx_trading_accounts_group on trading_accounts(group_id);
 
 -- 交易订单表
 create table trading_orders
@@ -173,8 +178,8 @@ create table trading_orders
     group_id         integer not null,         -- 群组ID
     symbol           TEXT not null,            -- 交易对，如BTC/USDT
     direction        TEXT not null,            -- 方向: 'ask'(卖出) 或 'bid'(买入)
-    role             TEXT not null,            -- 角色: 'taker'(限价单) 或 'maker'(市价单)
-    order_type       TEXT not null,            -- 订单属性: 'open'(开仓), 'tp'(止盈), 'sl'(止损)
+    role             TEXT not null,            -- 角色: 'taker'(市价单) 或 'maker'(限价单)
+    order_type       TEXT not null,            -- 订单属性: 'open'(开仓), 'close'(平仓), 'tp'(止盈), 'sl'(止损)
     operation        TEXT not null,            -- 操作类型: 'reduction'(减仓), 'addition'(加仓)
     status           TEXT default 'pending',   -- 订单状态: 'pending'(待成交), 'executed'(已成交), 'cancelled'(已取消)
     volume           REAL not null,            -- 订单数量(USDT价值)
@@ -182,7 +187,7 @@ create table trading_orders
     tp_price         REAL,                     -- 止盈价格
     sl_price         REAL,                     -- 止损价格
     margin_locked    REAL default 0.0,         -- 冻结保证金
-    fee_rate         REAL default 0.0035,      -- 手续费率 (默认3.5‰)
+    fee_rate         REAL default 0.0035,      -- 手续费率 (默认3.5%)
     actual_fee       REAL default 0.0,         -- 实际手续费
     related_position_id integer,               -- 关联的仓位ID
     created_at       TEXT not null,            -- 创建时间
@@ -193,6 +198,12 @@ create table trading_orders
     FOREIGN KEY (user_id, group_id) REFERENCES trading_accounts(user_id, group_id)
 );
 
+-- 创建索引提高查询性能
+create index idx_trading_orders_user_group on trading_orders(user_id, group_id);
+create index idx_trading_orders_status on trading_orders(status);
+create index idx_trading_orders_type on trading_orders(order_type);
+create index idx_trading_orders_symbol on trading_orders(symbol);
+
 -- 用户仓位表
 create table trading_positions
 (
@@ -200,15 +211,21 @@ create table trading_positions
     user_id          integer not null,
     group_id         integer not null,
     symbol           TEXT not null,        -- 交易对，如BTC/USDT
-    side             TEXT not null,        -- 'long' 或 'short'
+    side             TEXT not null,        -- 'long'(多头) 或 'short'(空头)
     size             REAL not null,        -- 仓位大小(USDT价值)
     entry_price      REAL not null,        -- 开仓价格
     current_price    REAL,                 -- 当前价格
     pnl              REAL default 0.0,     -- 未实现盈亏
     liquidation_price REAL,                -- 强平价格
     created_at       TEXT not null,
-    updated_at       TEXT
+    updated_at       TEXT,
+    FOREIGN KEY (user_id, group_id) REFERENCES trading_accounts(user_id, group_id)
 );
+
+-- 创建仓位表索引
+create index idx_trading_positions_user_group on trading_positions(user_id, group_id);
+create index idx_trading_positions_symbol on trading_positions(symbol);
+create index idx_trading_positions_side on trading_positions(side);
 
 -- 救济金记录表
 create table begging_records
@@ -227,13 +244,20 @@ create table trading_history
     user_id          integer not null,
     group_id         integer not null,
     symbol           TEXT not null,
-    side             TEXT not null,        -- 'long' 或 'short'
-    action           TEXT not null,        -- 'open', 'close', 'liquidated'
+    side             TEXT not null,        -- 'long'(多头) 或 'short'(空头)
+    action           TEXT not null,        -- 'open'(开仓), 'close'(平仓), 'liquidated'(强平)
     size             REAL not null,
     price            REAL not null,
     pnl              REAL default 0.0,     -- 实现盈亏(平仓时)
-    created_at       TEXT not null
+    created_at       TEXT not null,
+    FOREIGN KEY (user_id, group_id) REFERENCES trading_accounts(user_id, group_id)
 );
+
+-- 创建交易历史表索引
+create index idx_trading_history_user_group on trading_history(user_id, group_id);
+create index idx_trading_history_symbol on trading_history(symbol);
+create index idx_trading_history_action on trading_history(action);
+create index idx_trading_history_created_at on trading_history(created_at DESC);
 
 -- 价格缓存表(用于存储实时价格数据)
 create table price_cache
