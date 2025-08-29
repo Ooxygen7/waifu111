@@ -24,6 +24,8 @@ from bot_core.services.trading.account_service import account_service
 from bot_core.services.trading.position_service import position_service
 from bot_core.services.trading.analysis_service import analysis_service
 from bot_core.services.trading.loan_service import loan_service
+from bot_core.services.trading.price_service import price_service
+from bot_core.data_repository.trading_repository import TradingRepository
 
 fuck_api = get_config("fuck_or_not_api", "gemini-2.5")
 setup_logging()
@@ -1187,9 +1189,9 @@ class PositionCommand(BaseCommand):
             if pending_orders:
                 message_parts.append("⏳ 挂单:")
                 for order in pending_orders:
-                    side_emoji = "📈" if order.get('side') == 'long' else "📉"
+                    side_emoji = "📈" if order.get('direction') == 'bid' else "📉"
                     message_parts.append(
-                        f"{side_emoji} {order.get('symbol', 'N/A')} | {order.get('amount', 0):.2f} USDT | "
+                        f"{side_emoji} {order.get('symbol', 'N/A')} | {order.get('volume', 0):.2f} USDT | "
                         f"价格: {order.get('price', 0):.4f}"
                     )
                 message_parts.append("")
@@ -1200,12 +1202,12 @@ class PositionCommand(BaseCommand):
                 for order in tp_orders:
                     message_parts.append(
                         f"🎯 {order.get('symbol', 'N/A')} TP | 价格: {order.get('price', 0):.4f} | "
-                        f"数量: {order.get('amount', 0):.4f}"
+                        f"数量: {order.get('volume', 0):.2f} USDT"
                     )
                 for order in sl_orders:
                     message_parts.append(
                         f"🛡️ {order.get('symbol', 'N/A')} SL | 价格: {order.get('price', 0):.4f} | "
-                        f"数量: {order.get('amount', 0):.4f}"
+                        f"数量: {order.get('volume', 0):.2f} USDT"
                     )
                 message_parts.append("")
             
@@ -1387,9 +1389,30 @@ class CloseCommand(BaseCommand):
 
                     for symbol in symbols:
                         try:
-                            # 使用市价单平仓 - 多头仓位使用卖出方向
-                            result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "short", "close", None)
-                            results.append(f"{symbol}: {result['message']}")
+                            # 获取该币种的所有仓位
+                            positions_result = TradingRepository.get_positions(user_id, group_id)
+                            if positions_result["success"]:
+                                symbol_positions = [p for p in positions_result["positions"] if p['symbol'] == f"{symbol}/USDT"]
+                                if symbol_positions:
+                                    # 逐个平仓该币种的所有仓位
+                                    for position in symbol_positions:
+                                        current_price = await price_service.get_current_price(position['symbol'])
+                                        if current_price:
+                                            # 根据仓位方向确定平仓方向
+                                            close_direction = "ask" if position['side'] == 'long' else "bid"
+                                            close_result = await position_service._reduce_position(
+                                                user_id, group_id, position['symbol'], close_direction, position['size'], current_price
+                                            )
+                                            if close_result["success"]:
+                                                results.append(f"{symbol}: ✅ 平仓成功")
+                                            else:
+                                                results.append(f"{symbol}: ❌ {close_result['message']}")
+                                        else:
+                                            results.append(f"{symbol}: ❌ 无法获取价格")
+                                else:
+                                    results.append(f"{symbol}: ❌ 无持仓")
+                            else:
+                                results.append(f"{symbol}: ❌ 获取仓位失败")
                         except Exception as e:
                             results.append(f"{symbol}: ❌ 平仓失败 - {str(e)}")
 
@@ -1406,15 +1429,45 @@ class CloseCommand(BaseCommand):
             # 如果只有一个参数，智能平仓该币种的所有仓位
             if len(args) == 1:
                 symbol = args[0].upper()
-                # 使用市价单平仓替代老的 close_position 方法 - 多头仓位使用卖出方向
-                result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "short", "close", None)
-                await MessageDeletionService.send_and_schedule_delete(
-                    update=update,
-                    context=context,
-                    text=result['message'],
-                    delay_seconds=120,
-                    delete_user_message=True
-                )
+                try:
+                    # 获取该币种的所有仓位
+                    positions_result = TradingRepository.get_positions(user_id, group_id)
+                    if not positions_result["success"]:
+                        await update.message.reply_text("❌ 获取仓位信息失败")
+                        return
+                    
+                    symbol_positions = [p for p in positions_result["positions"] if p['symbol'] == f"{symbol}/USDT"]
+                    if not symbol_positions:
+                        await update.message.reply_text(f"❌ 没有找到 {symbol} 的持仓")
+                        return
+                    
+                    # 逐个平仓该币种的所有仓位
+                    results = []
+                    for position in symbol_positions:
+                        current_price = await price_service.get_current_price(position['symbol'])
+                        if current_price:
+                            # 根据仓位方向确定平仓方向
+                            close_direction = "ask" if position['side'] == 'long' else "bid"
+                            close_result = await position_service._reduce_position(
+                                user_id, group_id, position['symbol'], close_direction, position['size'], current_price
+                            )
+                            if close_result["success"]:
+                                results.append(close_result['message'])
+                            else:
+                                results.append(f"❌ {close_result['message']}")
+                        else:
+                            results.append(f"❌ 无法获取 {position['symbol']} 价格")
+                    
+                    response = "\n".join(results) if results else "❌ 平仓失败"
+                    await MessageDeletionService.send_and_schedule_delete(
+                        update=update,
+                        context=context,
+                        text=response,
+                        delay_seconds=120,
+                        delete_user_message=True
+                    )
+                except Exception as e:
+                    await update.message.reply_text(f"❌ 平仓失败: {str(e)}")
                 return
 
             # 传统模式：单币种平仓（支持方向和金额参数）
@@ -1464,20 +1517,76 @@ class CloseCommand(BaseCommand):
                     )
                     return
 
-            # 执行平仓操作 - 根据仓位方向使用相反的交易方向
-            close_direction = "short" if side == "long" else "long"
-            result = await order_service.create_market_order(
-                user_id, group_id, f"{symbol}/USDT",
-                close_direction, "close", amount
-            )
-
-            await MessageDeletionService.send_and_schedule_delete(
-                update=update,
-                context=context,
-                text=result['message'],
-                delay_seconds=10,
-                delete_user_message=True
-            )
+            # 执行平仓操作
+            try:
+                # 获取当前价格
+                current_price = await price_service.get_current_price(f"{symbol}/USDT")
+                if not current_price:
+                    await update.message.reply_text(f"❌ 无法获取 {symbol} 当前价格")
+                    return
+                
+                if side:
+                    # 指定方向平仓
+                    if amount:
+                        # 部分平仓指定方向
+                        close_direction = "ask" if side == "long" else "bid"
+                        result = await position_service._reduce_position(
+                            user_id, group_id, f"{symbol}/USDT", close_direction, amount, current_price
+                        )
+                    else:
+                        # 全平指定方向
+                        positions_result = TradingRepository.get_positions(user_id, group_id)
+                        if not positions_result["success"]:
+                            await update.message.reply_text("❌ 获取仓位信息失败")
+                            return
+                        
+                        target_positions = [p for p in positions_result["positions"] 
+                                          if p['symbol'] == f"{symbol}/USDT" and p['side'] == side]
+                        if not target_positions:
+                            await update.message.reply_text(f"❌ 没有找到 {symbol} {side.upper()} 仓位")
+                            return
+                        
+                        # 平掉所有该方向的仓位
+                        results = []
+                        for position in target_positions:
+                            close_direction = "ask" if position['side'] == 'long' else "bid"
+                            close_result = await position_service._reduce_position(
+                                user_id, group_id, position['symbol'], close_direction, position['size'], current_price
+                            )
+                            if close_result["success"]:
+                                results.append(close_result['message'])
+                            else:
+                                results.append(f"❌ {close_result['message']}")
+                        
+                        result = {"success": True, "message": "\n".join(results)}
+                else:
+                    # 智能部分平仓（平最大的仓位）
+                    positions_result = TradingRepository.get_positions(user_id, group_id)
+                    if not positions_result["success"]:
+                        await update.message.reply_text("❌ 获取仓位信息失败")
+                        return
+                    
+                    symbol_positions = [p for p in positions_result["positions"] if p['symbol'] == f"{symbol}/USDT"]
+                    if not symbol_positions:
+                        await update.message.reply_text(f"❌ 没有找到 {symbol} 的持仓")
+                        return
+                    
+                    # 找到最大的仓位进行部分平仓
+                    largest_position = max(symbol_positions, key=lambda x: x['size'])
+                    close_direction = "ask" if largest_position['side'] == 'long' else "bid"
+                    result = await position_service._reduce_position(
+                        user_id, group_id, largest_position['symbol'], close_direction, amount, current_price
+                    )
+                
+                await MessageDeletionService.send_and_schedule_delete(
+                    update=update,
+                    context=context,
+                    text=result['message'],
+                    delay_seconds=10,
+                    delete_user_message=True
+                )
+            except Exception as e:
+                await update.message.reply_text(f"❌ 平仓失败: {str(e)}")
 
         except Exception as e:
             logger.error(f"平仓命令失败: {e}")

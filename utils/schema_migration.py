@@ -351,10 +351,13 @@ class DatabaseSchemaComparator:
     
     def _columns_differ(self, expected: ColumnInfo, current: ColumnInfo) -> bool:
         """检查两个列定义是否不同"""
-        # 简化的比较，主要比较数据类型和是否可空
+        # 比较数据类型、是否可空、主键、唯一约束等重要属性
         return (
             expected.data_type.upper() != current.data_type.upper() or
-            expected.nullable != current.nullable
+            expected.nullable != current.nullable or
+            expected.primary_key != current.primary_key or
+            expected.unique != current.unique or
+            expected.autoincrement != current.autoincrement
         )
 
 def get_schema_parser() -> SQLSchemaParser:

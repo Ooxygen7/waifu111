@@ -70,7 +70,7 @@ create table group_user_dialogs
 
 create table groups
 (
-    group_id        integer,
+    group_id        integer primary key,
     members_list    ANY,
     call_count      integer,
     keywords        ANY,

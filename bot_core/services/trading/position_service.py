@@ -346,7 +346,7 @@ class PositionService:
             entry_price = position['entry_price']
 
             # 计算盈亏（包含手续费）
-            fee = size * 0.0035  # 万分之3.5
+            fee = size * 0.00035  # 万分之3.5
             pnl_before_fee = self._calculate_pnl(entry_price, exit_price, size, side)
             net_pnl = pnl_before_fee - fee
 
@@ -406,7 +406,7 @@ class PositionService:
             remaining_value = remaining_size * entry_price
 
             # 计算手续费和平仓盈亏
-            fee = close_size * 0.0035  # 万分之3.5
+            fee = close_size * 0.00035  # 万分之3.5
             pnl_before_fee = self._calculate_pnl(entry_price, exit_price, close_size, side)
             net_pnl = pnl_before_fee - fee
 
@@ -679,7 +679,7 @@ class PositionService:
                     continue
 
                 # 计算手续费和平仓盈亏
-                fee = position['size'] * 0.0035  # 万分之3.5
+                fee = position['size'] * 0.00035  # 万分之3.5
                 pnl_before_fee = self._calculate_pnl(position['entry_price'], current_price,
                                                    position['size'], position['side'])
                 net_pnl = pnl_before_fee - fee

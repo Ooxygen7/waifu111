@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 class TradingRepository:
     """交易相关的数据库操作"""
+    
+
 
     @staticmethod
     def get_account(user_id: int, group_id: int) -> dict:
@@ -901,7 +903,7 @@ class TradingRepository:
 
     @staticmethod
     def create_account(user_id: int, group_id: int, initial_balance: float = 1000.0) -> dict:
-        """创建用户交易账户"""
+        """创建新的交易账户"""
         try:
             now = datetime.datetime.now().isoformat()
             command = """

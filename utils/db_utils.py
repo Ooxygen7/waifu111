@@ -67,6 +67,16 @@ def init_database_if_not_exists():
         except Exception as fallback_error:
             logger.error(f"回退检查也失败: {fallback_error}", exc_info=True)
             raise RuntimeError(f"数据库表结构检查失败: {e}")
+    
+    # 检查和创建索引
+    try:
+        logger.info("开始检查和创建数据库索引...")
+        _check_and_create_indexes(db_path, sql_path)
+        logger.info("数据库索引检查和创建完成")
+    except Exception as e:
+        logger.error(f"数据库索引检查和创建失败: {e}", exc_info=True)
+        # 索引创建失败不应该阻止应用启动，只记录警告
+        logger.warning("索引创建失败，但不影响基本功能")
 
 
 def _fallback_table_check(db_path: str, sql_path: str):
@@ -107,6 +117,58 @@ def _fallback_table_check(db_path: str, sql_path: str):
                     raise
     
     conn.close()
+
+
+def _check_and_create_indexes(db_path: str, sql_path: str):
+    """
+    检查和创建数据库索引
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    try:
+        # 读取SQL文件内容
+        with open(sql_path, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+        
+        # 提取所有CREATE INDEX语句
+        import re
+        index_statements = re.findall(
+            r'create\s+index\s+[^;]+;', 
+            sql_content, 
+            re.IGNORECASE | re.DOTALL
+        )
+        
+        # 获取当前数据库中的所有索引
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%';")
+        existing_indexes = set(index[0] for index in cursor.fetchall())
+        
+        # 检查每个索引语句
+        for stmt in index_statements:
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+                
+            # 提取索引名
+            index_match = re.search(r'create\s+index\s+(\w+)', stmt, re.IGNORECASE)
+            if index_match:
+                index_name = index_match.group(1)
+                
+                if index_name not in existing_indexes:
+                    logger.info(f"检测到缺失索引 {index_name}，正在创建...")
+                    try:
+                        cursor.execute(stmt)
+                        conn.commit()
+                        logger.info(f"索引 {index_name} 创建成功")
+                    except sqlite3.Error as e:
+                        logger.error(f"创建索引 {index_name} 失败: {e}")
+                        # 索引创建失败不应该中断整个过程
+                        continue
+                else:
+                    logger.debug(f"索引 {index_name} 已存在，跳过创建")
+    
+    finally:
+        conn.close()
 
 
 class DatabaseConnectionPool:
