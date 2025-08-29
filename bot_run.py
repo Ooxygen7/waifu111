@@ -22,6 +22,7 @@ from bot_core.services.utils.error import BotError
 from utils.logging_utils import setup_logging
 from bot_core.services.utils.error import error_handler
 from bot_core.services.trading.monitor_service import monitor_service
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -170,6 +171,8 @@ def main() -> None:
 
         # 添加错误处理器
         app.add_error_handler(error_handler)
+        
+
         
         # 启动交易监控服务
         async def start_trading_monitor(app_instance: Application) -> None:

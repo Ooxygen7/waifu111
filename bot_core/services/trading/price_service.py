@@ -90,6 +90,54 @@ class PriceService:
             # 从数据库获取历史价格
             return self._get_cached_price(symbol)
 
+    async def get_real_time_price(self, symbol: str) -> Optional[float]:
+        """
+        强制获取实时价格，绕过缓存机制
+        专门用于市价开单和平仓操作，确保价格的实时性
+
+        Args:
+            symbol: 交易对，如'BTC/USDT'
+
+        Returns:
+            当前价格，如果获取失败返回None
+        """
+        try:
+            # 标准化交易对格式
+            if '/' not in symbol:
+                symbol = f"{symbol.upper()}/USDT"
+
+            logger.info(f"强制获取实时价格: {symbol}")
+
+            # 直接从交易所获取最新价格，不使用缓存
+            ticker = await asyncio.get_event_loop().run_in_executor(
+                None, self.exchange.fetch_ticker, symbol
+            )
+
+            price_val = ticker.get('last')
+            if price_val is None:
+                logger.warning(f"获取的ticker中'last'价格为空: {symbol}")
+                # 如果交易所返回空价格，尝试从缓存获取
+                return self._get_cached_price(symbol)
+
+            price = float(price_val)
+
+            # 更新本地缓存
+            now = datetime.now()
+            self.price_cache[symbol] = price
+            self.last_update[symbol] = now
+
+            # 异步更新数据库缓存(不阻塞)
+            asyncio.create_task(self._update_db_cache(symbol, price))
+
+            logger.info(f"获取实时价格成功 {symbol}: {price}")
+            return price
+
+        except Exception as e:
+            logger.error(f"强制获取实时价格失败 {symbol}: {e}")
+            # 如果实时获取失败，降级到缓存价格
+            logger.warning(f"降级使用缓存价格: {symbol}")
+            return self._get_cached_price(symbol)
+
     def _get_cached_price(self, symbol: str) -> Optional[float]:
         """从数据库获取缓存价格"""
         try:

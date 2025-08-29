@@ -89,9 +89,24 @@ class OrderService:
                     "message": f"保证金不足，需要: {margin_required:.2f} USDT，可用余额: {account['balance'] - account['frozen_margin']:.2f} USDT"
                 }
 
-            # 为限价单检查价格合理性
-            if role == 'maker' and price is not None:
-                await self._validate_price(price, symbol, direction)
+            # 为限价单检查价格合理性和币种有效性
+            if role == 'maker':
+                # 检查币种是否存在（通过尝试获取价格验证）
+                current_price = await price_service.get_current_price(symbol)
+                if not current_price:
+                    return {
+                        "success": False,
+                        "message": f"无法获取 {symbol} 价格，该币种可能不存在或暂时无法交易"
+                    }
+                
+                # 如果指定了价格，检查价格合理性
+                if price is not None:
+                    price_valid = await self._validate_price(price, symbol, direction)
+                    if not price_valid:
+                        return {
+                            "success": False,
+                            "message": f"限价单价格不合理，请检查价格设置"
+                        }
 
             # 生成订单ID
             order_id = str(uuid.uuid4())
@@ -116,10 +131,10 @@ class OrderService:
             # 市价单立即执行
             if role == 'taker' and order_type == 'open':
                 logger.info(f"检测到市价单，准备立即执行 - ID:{order_id}, role:{role}, order_type:{order_type}")
-                # 获取当前市场价格
-                current_price = await price_service.get_current_price(symbol)
+                # 获取实时市场价格（市价单必须使用最新价格，不依赖缓存）
+                current_price = await price_service.get_real_time_price(symbol)
                 if current_price:
-                    logger.info(f"获取到当前价格 {current_price}，开始立即执行市价单 - ID:{order_id}")
+                    logger.info(f"获取到实时价格 {current_price}，开始立即执行市价单 - ID:{order_id}")
                     # 立即执行市价单
                     execution_result = await self.execute_order(order_id)
                     if execution_result["success"]:
@@ -133,9 +148,20 @@ class OrderService:
                         }
                     else:
                         logger.error(f"市价单立即执行失败: {execution_result.get('message')} - ID:{order_id}")
-                        # 执行失败，返回挂单状态
+                        # 执行失败，取消订单并解冻保证金
+                        self.cancel_order(order_id)
+                        return {
+                            "success": False,
+                            "message": f"市价单执行失败: {execution_result.get('message')}"
+                        }
                 else:
-                    logger.warning(f"无法获取{symbol}当前价格，市价单转为挂单 - ID:{order_id}")
+                    logger.warning(f"无法获取{symbol}当前价格，市价单创建失败 - ID:{order_id}")
+                    # 无法获取价格，取消订单并解冻保证金
+                    self.cancel_order(order_id)
+                    return {
+                        "success": False,
+                        "message": f"无法获取 {symbol} 价格，该币种可能不存在或暂时无法交易"
+                    }
             else:
                 logger.debug(f"非市价开仓单，跳过立即执行 - ID:{order_id}, role:{role}, order_type:{order_type}")
 
@@ -176,10 +202,15 @@ class OrderService:
             if order["status"] != "pending":
                 return {"success": False, "message": f"订单状态为{order['status']}，无法执行"}
 
-            # 获取当前价格
-            current_price = await price_service.get_current_price(order["symbol"])
-            if not current_price:
-                return {"success": False, "message": "无法获取当前价格"}
+            # 根据订单类型获取价格（市价单使用实时价格，限价单使用缓存价格）
+            if order["role"] == "taker":  # 市价单
+                current_price = await price_service.get_real_time_price(order["symbol"])
+                if not current_price:
+                    return {"success": False, "message": "无法获取实时价格"}
+            else:  # 限价单
+                current_price = await price_service.get_current_price(order["symbol"])
+                if not current_price:
+                    return {"success": False, "message": "无法获取当前价格"}
 
             # 检查价格匹配条件
             if not self._check_price_condition(order, current_price):

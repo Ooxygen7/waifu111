@@ -7,6 +7,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Callable
+import os
 
 from .account_service import account_service
 from .order_service import order_service
@@ -14,6 +15,8 @@ from .position_service import position_service
 from .price_service import price_service
 from bot_core.data_repository.trading_repository import TradingRepository
 from utils.logging_utils import setup_logging
+from utils.db_utils import user_info_get
+from telegram import Bot
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -127,6 +130,9 @@ class MonitorService:
                             logger.info(f"订单 {order['order_id']} 已成功执行")
                             triggered_orders.append(order)
                             
+                            # 发送订单触发通知
+                            await self._send_order_trigger_notification(order, current_price, "限价单")
+                            
                             # 检查是否需要触发止盈止损订单
                             await self._check_and_create_stop_orders(order)
                         else:
@@ -203,8 +209,8 @@ class MonitorService:
                 entry_price = pos['entry_price']
                 liquidation_price = pos['liquidation_price']
 
-                # 获取当前价格
-                current_price = await price_service.get_current_price(symbol)
+                # 获取实时价格（强平检查必须使用最新价格确保风控准确性）
+                current_price = await price_service.get_real_time_price(symbol)
                 if current_price <= 0:
                     continue
 
@@ -344,6 +350,51 @@ class MonitorService:
         """设置强平回调函数"""
         self.on_liquidation_callback = callback
         logger.info("强平回调函数已设置")
+    
+    async def _send_order_trigger_notification(self, order: dict, execution_price: float, order_type_name: str):
+        """发送订单触发通知"""
+        try:
+            user_id = order.get('user_id')
+            group_id = order.get('group_id')
+            symbol = order.get('symbol', '未知')
+            side = order.get('side', '未知')
+            quantity = order.get('quantity', 0)
+            
+            # 获取用户信息以构造正确的用户提及
+            user_info = user_info_get(user_id)
+            if user_info and (user_info.get('first_name') or user_info.get('last_name')):
+                user_display_name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip()
+                user_mention = f"[{user_display_name}](tg://user?id={user_id})"
+            else:
+                user_mention = f"[用户{user_id}](tg://user?id={user_id})"
+            
+            # 构造订单触发通知消息
+            side_text = "做多" if side == "long" else "做空"
+            message = (
+                f"🎯 订单触发通知\n\n"
+                f"{user_mention} 您的{order_type_name}已成功执行！\n\n"
+                f"📊 交易对: {symbol}\n"
+                f"📈 方向: {side_text}\n"
+                f"💰 数量: {quantity:.2f} USDT\n"
+                f"💵 成交价: {execution_price:.4f}\n"
+                f"⏰ 执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            )
+            
+            # 发送通知到群组
+            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+            if bot_token:
+                bot = Bot(token=bot_token)
+                await bot.send_message(
+                    chat_id=group_id,
+                    text=message,
+                    parse_mode='Markdown'
+                )
+                logger.info(f"订单触发通知已发送: 用户{user_id} 群组{group_id} {order_type_name}")
+            else:
+                logger.error("未找到Telegram Bot Token，无法发送订单触发通知")
+                
+        except Exception as e:
+            logger.error(f"发送订单触发通知失败: {e}")
 
     async def update_all_liquidation_prices(self) -> dict:
         """更新所有仓位的强平价格 - 根据实时价格数据动态调整"""
@@ -464,10 +515,10 @@ class MonitorService:
             tp_price = order.get('tp_price')
             sl_price = order.get('sl_price')
             
-            # 获取当前市场价格
-            current_price = await price_service.get_current_price(symbol)
+            # 获取实时市场价格（订单触发检查必须使用最新价格确保准确性）
+            current_price = await price_service.get_real_time_price(symbol)
             if current_price <= 0:
-                logger.debug(f"无法获取 {symbol} 的当前价格")
+                logger.debug(f"无法获取 {symbol} 的实时价格")
                 return False
             
             logger.debug(f"检查订单触发条件: {order['order_id']}, 类型: {order_type}, 方向: {direction}, 角色: {role}, 委托价: {order_price}, 当前价: {current_price}")
@@ -593,6 +644,11 @@ class MonitorService:
                         
                         if result['success']:
                             logger.info(f"止盈止损订单 {order['order_id']} 已成功执行")
+                            
+                            # 发送订单触发通知
+                            order_type_name = "止盈单" if order['order_type'] == "take_profit" else "止损单"
+                            await self._send_order_trigger_notification(order, current_price, order_type_name)
+                            
                         else:
                             logger.debug(f"止盈止损订单 {order['order_id']} 执行失败: {result.get('message', '未知错误')}")
                             

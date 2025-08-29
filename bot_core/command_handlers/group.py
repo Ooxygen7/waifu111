@@ -1151,15 +1151,49 @@ class PositionCommand(BaseCommand):
             tp_orders = [order for order in all_orders if order.get('order_type') == 'tp']
             sl_orders = [order for order in all_orders if order.get('order_type') == 'sl']
             
+            # 计算总未实现盈亏和仓位价值
+            total_unrealized_pnl = 0.0
+            total_position_value = 0.0
+            
+            if positions:
+                for pos in positions:
+                    total_position_value += pos['size']
+                    # 计算未实现盈亏
+                    from bot_core.services.trading.price_service import price_service
+                    current_price = await price_service.get_current_price(pos['symbol'])
+                    if current_price:
+                        if pos['side'] == 'long':
+                            unrealized_pnl = (current_price - pos['entry_price']) * (pos['size'] / pos['entry_price'])
+                        else:
+                            unrealized_pnl = (pos['entry_price'] - current_price) * (pos['size'] / pos['entry_price'])
+                        total_unrealized_pnl += unrealized_pnl
+            
+            # 计算浮动余额和杠杆率
+            floating_balance = account['balance'] + total_unrealized_pnl
+            leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else 0
+            
+            # 计算强平阈值（动态阈值）
+            if leverage_ratio <= 10:
+                threshold_ratio = 0.05  # 5%
+            elif leverage_ratio <= 50:
+                threshold_ratio = 0.03  # 3%
+            else:
+                threshold_ratio = 0.01  # 1%
+            
+            liquidation_threshold = floating_balance * threshold_ratio
+            
             # 构建消息
             message_parts = []
             
-            # 账户信息
-            if account:
-                message_parts.append(f"💰 账户余额: {account['balance']:.2f} USDT")
-                message_parts.append(f"📊 总盈亏: {account.get('total_pnl', 0.0):.2f} USDT")
-                message_parts.append(f"🔒 冻结保证金: {account.get('frozen_margin', 0.0):.2f} USDT")
-                message_parts.append("")
+            # 账户信息（引用块格式）
+            account_info = (
+                f"🏦 浮动余额: {floating_balance:.2f} USDT({account['balance']:.2f}{total_unrealized_pnl:+.2f})\n"
+                f"📊 杠杆率: {leverage_ratio:.2f}x(仓位总价值:{total_position_value:.0f}u)\n"
+                f"⚠️ 强平阈值: {liquidation_threshold:.2f} USDT ({threshold_ratio*100:.1f}%)\n"
+                f"🔒 冻结保证金: {account.get('frozen_margin', 0.0):.2f} USDT"
+            )
+            message_parts.append(f"<blockquote>💼 账户信息\n\n{account_info}</blockquote>")
+            message_parts.append("")
             
             # 持仓信息
             if positions:
@@ -1173,26 +1207,40 @@ class PositionCommand(BaseCommand):
                             unrealized_pnl = (current_price - pos['entry_price']) * (pos['size'] / pos['entry_price'])
                         else:
                             unrealized_pnl = (pos['entry_price'] - current_price) * (pos['size'] / pos['entry_price'])
+                        
+                        # 计算盈亏百分比
+                        margin_used = pos['size'] / 100  # 1%保证金
+                        pnl_percent = (unrealized_pnl / margin_used) * 100 if margin_used > 0 else 0
+                        
+                        # 计算数量
+                        quantity = pos['size'] / pos['entry_price'] if pos['entry_price'] > 0 else 0
                     else:
                         unrealized_pnl = 0.0
+                        pnl_percent = 0.0
+                        quantity = 0.0
                     
-                    pnl_emoji = "🟢" if unrealized_pnl >= 0 else "🔴"
                     side_emoji = "📈" if pos['side'] == 'long' else "📉"
+                    coin_symbol = pos['symbol'].replace('/USDT', '')
+                    formatted_entry_price = f"{pos['entry_price']:.4f}"
+                    formatted_current_price = f"{current_price:.4f}" if current_price else "N/A"
+                    
                     message_parts.append(
-                        f"{side_emoji} {pos['symbol']} | {pos['size']:.4f} | "
-                        f"入场: {pos['entry_price']:.4f} | "
-                        f"PnL: {pnl_emoji}{unrealized_pnl:.2f}"
+                        f"{side_emoji}  {coin_symbol} |数量{quantity:.2f}| {unrealized_pnl:+.2f} USDT ({pnl_percent:+.2f}%)\n"
+                        f"   开仓:{formatted_entry_price} |现价:{formatted_current_price}"
                     )
                 message_parts.append("")
             
             # 挂单信息
             if pending_orders:
-                message_parts.append("⏳ 挂单:")
+                message_parts.append("⏳ 挂单列表:")
                 for order in pending_orders:
                     side_emoji = "📈" if order.get('direction') == 'bid' else "📉"
+                    coin_symbol = order.get('symbol', 'N/A').replace('/USDT', '')
+                    price = order.get('price', 0)
+                    volume = order.get('volume', 0)
+                    
                     message_parts.append(
-                        f"{side_emoji} {order.get('symbol', 'N/A')} | {order.get('volume', 0):.2f} USDT | "
-                        f"价格: {order.get('price', 0):.4f}"
+                        f"{side_emoji} {coin_symbol} | 价格: {price:.4f} | 金额: {volume:.2f} USDT"
                     )
                 message_parts.append("")
             
@@ -1200,19 +1248,23 @@ class PositionCommand(BaseCommand):
             if tp_orders or sl_orders:
                 message_parts.append("🎯 止盈止损:")
                 for order in tp_orders:
+                    coin_symbol = order.get('symbol', 'N/A').replace('/USDT', '')
+                    price = order.get('price', 0)
+                    volume = order.get('volume', 0)
                     message_parts.append(
-                        f"🎯 {order.get('symbol', 'N/A')} TP | 价格: {order.get('price', 0):.4f} | "
-                        f"数量: {order.get('volume', 0):.2f} USDT"
+                        f"🎯 {coin_symbol} TP | 价格: {price:.4f} | 数量: {volume:.2f} USDT"
                     )
                 for order in sl_orders:
+                    coin_symbol = order.get('symbol', 'N/A').replace('/USDT', '')
+                    price = order.get('price', 0)
+                    volume = order.get('volume', 0)
                     message_parts.append(
-                        f"🛡️ {order.get('symbol', 'N/A')} SL | 价格: {order.get('price', 0):.4f} | "
-                        f"数量: {order.get('volume', 0):.2f} USDT"
+                        f"🛡️ {coin_symbol} SL | 价格: {price:.4f} | 数量: {volume:.2f} USDT"
                     )
                 message_parts.append("")
             
             if not positions and not pending_orders and not tp_orders and not sl_orders:
-                message_parts.append("📭 暂无持仓或挂单")
+                message_parts.append("📋 当前无持仓")
             
             return "\n".join(message_parts)
             

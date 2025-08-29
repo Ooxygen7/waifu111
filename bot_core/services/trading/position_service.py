@@ -58,12 +58,12 @@ class PositionService:
             user_id = order["user_id"]
             group_id = order["group_id"]
 
-            # 获取当前价格
-            current_price = await price_service.get_current_price(symbol)
+            # 获取实时价格（市价单必须使用最新价格，不依赖缓存）
+            current_price = await price_service.get_real_time_price(symbol)
             if not current_price:
                 return {
                     "success": False,
-                    "message": f"无法获取 {symbol} 当前价格"
+                    "message": f"无法获取 {symbol} 实时价格"
                 }
 
             # 根据操作类型执行不同逻辑
@@ -673,8 +673,8 @@ class PositionService:
             closed_positions = []
 
             for position in positions:
-                # 获取当前价格
-                current_price = await price_service.get_current_price(position['symbol'])
+                # 获取实时价格（一键全平使用实时价格确保准确性）
+                current_price = await price_service.get_real_time_price(position['symbol'])
                 if not current_price:
                     continue
 
