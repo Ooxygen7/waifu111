@@ -26,6 +26,18 @@ class PositionService:
     def __init__(self):
         logger.info("仓位服务已初始化")
 
+    def _get_price_precision(self, price: float) -> int:
+        """根据价格大小返回小数位数"""
+        if price >= 0.01:
+            return 4  # > 0.01 USDT, 精确到4位小数
+        else:
+            return 8  # < 0.01 USDT, 精确到8位小数
+
+    def _format_price(self, price: float) -> str:
+        """根据价格大小格式化价格显示"""
+        precision = self._get_price_precision(price)
+        return f"{price:.{precision}f}"
+
     async def execute_order_position(self, order: Dict) -> Dict:
         """
         根据订单执行仓位操作
@@ -530,6 +542,17 @@ class PositionService:
         except Exception as e:
             logger.error(f"计算强平价格失败: {e}")
             return entry_price * 0.8 if side == 'long' else entry_price * 1.2
+
+    async def get_positions(self, user_id: int, group_id: int) -> List[Dict]:
+        """获取用户仓位列表"""
+        try:
+            positions_result = TradingRepository.get_positions(user_id, group_id)
+            if not positions_result["success"]:
+                return []
+            return positions_result["positions"]
+        except Exception as e:
+            logger.error(f"获取仓位列表失败: {e}")
+            return []
 
     async def get_positions_summary(self, user_id: int, group_id: int) -> Dict:
         """获取用户仓位摘要"""

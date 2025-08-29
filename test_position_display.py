@@ -6,30 +6,27 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from bot_core.services.trading_service import TradingService
+from bot_core.services.trading.position_service import position_service
 
 def test_price_precision():
     """测试价格精度功能"""
-    service = TradingService()
-
     # 测试高价格 (> 0.01 USDT)
     high_price = 1.23456789
-    formatted = service._format_price(high_price)
+    formatted = position_service._format_price(high_price)
     print(f"高价格 {high_price} -> {formatted} (应为4位小数)")
 
     # 测试低价格 (< 0.01 USDT)
     low_price = 0.0000123456789
-    formatted = service._format_price(low_price)
+    formatted = position_service._format_price(low_price)
     print(f"低价格 {low_price} -> {formatted} (应为8位小数)")
 
     # 测试边界价格 (= 0.01 USDT)
     boundary_price = 0.01
-    formatted = service._format_price(boundary_price)
+    formatted = position_service._format_price(boundary_price)
     print(f"边界价格 {boundary_price} -> {formatted} (应为4位小数)")
 
 def test_position_format():
-    """测试仓位显示格式"""
-    service = TradingService()
+    """测试仓位格式化功能"""
 
     # 模拟仓位数据
     test_positions = [
@@ -65,9 +62,9 @@ def test_position_format():
         coin_symbol = pos['symbol'].replace('/USDT', '')
 
         # 使用动态价格精度
-        formatted_entry_price = service._format_price(pos['entry_price'])
-        formatted_current_price = service._format_price(pos['entry_price'] * 1.01)  # 模拟当前价格
-        formatted_liquidation_price = service._format_price(pos['liquidation_price'])
+        formatted_entry_price = position_service._format_price(pos['entry_price'])
+        formatted_current_price = position_service._format_price(pos['entry_price'] * 1.01)  # 模拟当前价格
+        formatted_liquidation_price = position_service._format_price(pos['liquidation_price'])
 
         position_display = (
             f"{side_emoji} {coin_symbol}\n"
@@ -83,7 +80,6 @@ def test_position_format():
 
 def test_open_position_messages():
     """测试开仓成功消息格式"""
-    service = TradingService()
 
     # 模拟不同的价格和方向
     test_cases = [
@@ -110,14 +106,14 @@ def test_open_position_messages():
         # 使用新的显示格式
         side_emoji = "📈" if case['side'] == 'long' else "📉"
         coin_symbol = case['symbol'].replace('/USDT', '')
-        formatted_entry_price = service._format_price(case['current_price'])
-        formatted_liquidation_price = service._format_price(case['liquidation_price'])
+        formatted_entry_price = position_service._format_price(case['current_price'])
+        formatted_liquidation_price = position_service._format_price(case['liquidation_price'])
 
         # 新开仓位消息格式
         new_position_message = f"开仓成功！\n{side_emoji} {coin_symbol} {case['size']:.2f} USDT\n开仓价: {formatted_entry_price}\n强平价: {formatted_liquidation_price}"
 
         # 加仓消息格式
-        formatted_new_entry_price = service._format_price(case['new_entry'])
+        formatted_new_entry_price = position_service._format_price(case['new_entry'])
         add_position_message = f"加仓成功！\n{side_emoji} {coin_symbol} +{case['size']:.2f} USDT\n平均开仓价: {formatted_new_entry_price}\n总仓位: {case['size']*2:.2f} USDT"
 
         print(f"\n测试用例 {i} ({case['side'].upper()}):")

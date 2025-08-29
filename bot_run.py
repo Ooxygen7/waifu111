@@ -21,7 +21,7 @@ from utils.config_utils import BOT_TOKEN
 from bot_core.services.utils.error import BotError
 from utils.logging_utils import setup_logging
 from bot_core.services.utils.error import error_handler
-from bot_core.services.trading_monitor import get_trading_monitor
+from bot_core.services.trading.monitor_service import monitor_service
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -175,10 +175,8 @@ def main() -> None:
         async def start_trading_monitor(app_instance: Application) -> None:
             """启动交易监控服务"""
             try:
-                monitor = get_trading_monitor(app_instance.bot)
-                if monitor:
-                    await monitor.start_monitoring()
-                    logger.info("交易监控服务已启动")
+                await monitor_service.start_monitoring()
+                logger.info("交易监控服务已启动")
             except Exception as e:
                 logger.error(f"启动交易监控服务失败: {e}")
         
@@ -205,11 +203,9 @@ def main() -> None:
             
             # 停止交易监控服务
             try:
-                monitor = get_trading_monitor()
-                if monitor:
-                    import asyncio
-                    asyncio.create_task(monitor.stop_monitoring())
-                    logger.info("交易监控服务已停止")
+                import asyncio
+                asyncio.create_task(monitor_service.stop_monitoring())
+                logger.info("交易监控服务已停止")
             except Exception as e:
                 logger.error(f"停止交易监控服务失败: {e}")
             

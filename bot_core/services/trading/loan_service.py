@@ -275,6 +275,50 @@ class LoanService:
                 "message": f"还款失败: {str(e)}"
             }
 
+    def begging(self, user_id: int, group_id: int) -> Dict:
+        """
+        救济金功能
+        
+        Args:
+            user_id: 用户ID
+            group_id: 群组ID
+            
+        Returns:
+            救济金发放结果
+        """
+        try:
+            account = account_service.get_or_create_account(user_id, group_id)
+            
+            # 检查余额是否小于100
+            if account['balance'] >= 100:
+                return {'success': False, 'message': f'余额充足({account["balance"]:.2f} USDT)，无需救济金'}
+            
+            # 检查今日是否已领取
+            begging_result = TradingRepository.get_begging_record(user_id, group_id)
+            if not begging_result["success"]:
+                return {'success': False, 'message': '检查救济金记录失败'}
+            
+            today = datetime.now().date()
+            
+            if begging_result["record"]:
+                return {'success': False, 'message': '今日已领取救济金，明天再来吧！'}
+            
+            # 发放救济金
+            balance_result = TradingRepository.update_account_balance(user_id, group_id, 1000.0)
+            if not balance_result["success"]:
+                return {'success': False, 'message': '更新账户余额失败'}
+            
+            # 创建救济金记录
+            begging_create_result = TradingRepository.create_begging_record(user_id, group_id, 1000.0)
+            if not begging_create_result["success"]:
+                return {'success': False, 'message': '创建救济金记录失败'}
+            
+            return {'success': True, 'message': '🎁 救济金发放成功！余额已补充至 1000 USDT'}
+                
+        except Exception as e:
+            logger.error(f"救济金发放失败: {e}")
+            return {'success': False, 'message': '救济金发放失败'}
+
     def get_loan_bill(self, user_id: int, group_id: int) -> Dict:
         """
         获取用户贷款账单

@@ -73,12 +73,17 @@ class OrderService:
             account = account_service.get_or_create_account(user_id, group_id)
 
             # 计算保证金和手续费
-            margin_required = self._calculate_margin_required(volume, symbol)
+            # 止盈止损订单不需要冻结保证金
+            if order_type in ['tp', 'sl']:
+                margin_required = 0.0
+            else:
+                margin_required = self._calculate_margin_required(volume, symbol)
+            
             fee_rate = 0.00035 if role == 'taker' else 0.00015  # 市价单万分之3.5，限价单万分之1.5
             estimated_fee = volume * fee_rate
 
-            # 检查保证金充足性
-            if account['balance'] - account['frozen_margin'] < margin_required:
+            # 检查保证金充足性（止盈止损订单跳过检查）
+            if order_type not in ['tp', 'sl'] and account['balance'] - account['frozen_margin'] < margin_required:
                 return {
                     "success": False,
                     "message": f"保证金不足，需要: {margin_required:.2f} USDT，可用余额: {account['balance'] - account['frozen_margin']:.2f} USDT"
@@ -101,11 +106,12 @@ class OrderService:
             if not result["success"]:
                 return result
 
-            # 冻结保证金
-            margin_result = account_service.update_margin(user_id, group_id, margin_required)
-            if not margin_result["success"]:
-                logger.error(f"冻结保证金失败: {margin_result.get('error')}")
-                # 这里应该考虑回滚订单创建，但暂时先记录错误
+            # 冻结保证金（止盈止损订单不需要冻结）
+            if margin_required > 0:
+                margin_result = account_service.update_margin(user_id, group_id, margin_required)
+                if not margin_result["success"]:
+                    logger.error(f"冻结保证金失败: {margin_result.get('error')}")
+                    # 这里应该考虑回滚订单创建，但暂时先记录错误
 
             # 市价单立即执行
             if role == 'taker' and order_type == 'open':
@@ -298,16 +304,20 @@ class OrderService:
             if not cancel_result["success"] or not cancel_result["cancelled"]:
                 return {"success": False, "message": "取消订单失败"}
 
-            # 解冻保证金
-            margin_result = account_service.update_margin(
-                order["user_id"], order["group_id"], -order["margin_locked"]
-            )
+            # 解冻保证金（止盈止损订单不需要解冻）
+            if order.get('order_type') not in ['tp', 'sl'] and order.get('margin_locked', 0) > 0:
+                margin_result = account_service.update_margin(
+                    order["user_id"], order["group_id"], -order["margin_locked"]
+                )
+                message = f"订单取消成功！\n解冻保证金: {order['margin_locked']:.2f} USDT"
+            else:
+                message = "订单取消成功！"
 
             logger.info(f"订单取消成功 - ID:{order_id}")
 
             return {
                 "success": True,
-                "message": f"订单取消成功！\n解冻保证金: {order['margin_locked']:.2f} USDT"
+                "message": message
             }
 
         except Exception as e:
@@ -328,6 +338,21 @@ class OrderService:
                 "success": False,
                 "error": str(e)
             }
+    
+    async def get_orders_by_type(self, user_id: int, group_id: int, order_type: str, status: Optional[str] = None) -> List[Dict]:
+        """获取指定类型的用户订单列表"""
+        try:
+            result = self.get_orders(user_id, group_id, status)
+            if result["success"]:
+                # 过滤出指定类型的订单
+                filtered_orders = [order for order in result["orders"] if order["order_type"] == order_type]
+                return filtered_orders
+            else:
+                logger.error(f"获取订单失败: {result.get('error')}")
+                return []
+        except Exception as e:
+            logger.error(f"获取{order_type}订单失败: {e}")
+            return []
 
     def _calculate_margin_required(self, volume: float, symbol: str) -> float:
         """计算所需保证金 (100倍杠杆 = 1%)"""

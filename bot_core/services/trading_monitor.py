@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Dict
 from telegram import Bot
 from telegram.error import TelegramError
-from bot_core.services.trading_service import trading_service
+from bot_core.services.trading.monitor_service import monitor_service
 from utils.config_utils import get_config
 from utils.logging_utils import setup_logging
 
@@ -68,7 +68,7 @@ class TradingMonitor:
     async def _update_liquidation_prices(self):
         """更新所有仓位的强平价格"""
         try:
-            result = await trading_service.update_all_liquidation_prices()
+            result = await monitor_service.update_all_liquidation_prices()
             if result["success"]:
                 logger.debug(f"已更新 {result['updated_count']}/{result['total_positions']} 个仓位的强平价格")
             else:
@@ -79,7 +79,7 @@ class TradingMonitor:
     async def _check_liquidations(self):
         """检查并处理强平"""
         try:
-            liquidated_positions = await trading_service.check_liquidations()
+            liquidated_positions = await monitor_service.check_liquidations()
             
             for position in liquidated_positions:
                 await self._send_liquidation_notification(position)

@@ -9,7 +9,7 @@ from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
 from utils.logging_utils import setup_logging
-from bot_core.services.trading_service import trading_service
+from bot_core.services.trading.position_service import position_service
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -314,7 +314,7 @@ class MessageFactory:
 
     async def edit(self, placeholder: Message, text: str, parse_mode: str = "HTML", summary: Optional[str] = None, comment: Optional[str] = None) -> Optional[Message]:
         """编辑一条已存在的消息。"""
-        logger.debug(f"MessageFactory.edit 收到参数: text={repr(text[:100])}, summary={repr(summary)}, comment={repr(comment)}")
+        #logger.debug(f"MessageFactory.edit 收到参数: text={repr(text[:100])}, summary={repr(summary)}, comment={repr(comment)}")
 
         # 使用统一的格式化方法
         extra_content = self.format_extra_content(summary, comment)
@@ -670,16 +670,14 @@ class RealTimePositionService:
                     # 计算剩余时间
                     remaining_seconds = total_duration - (i + 1) * update_interval
 
-                    # 获取最新的仓位信息
-                    result = await trading_service.get_positions(user_id, group_id)
-
-                    if not result['success']:
-                        logger.error(f"获取仓位信息失败: {result.get('message', '未知错误')}")
-                        continue
+                    # 获取最新的仓位信息 - 需要导入group模块来使用_get_enhanced_position_info方法
+                    from bot_core.command_handlers.group import PositionCommand
+                    position_cmd = PositionCommand()
+                    position_data = await position_cmd._get_enhanced_position_info(user_id, group_id)
 
                     # 构建实时更新消息
                     position_message = RealTimePositionService._build_realtime_message(
-                        result['message'],
+                        position_data,
                         remaining_seconds
                     )
 

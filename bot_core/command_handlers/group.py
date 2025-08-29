@@ -19,19 +19,11 @@ from agent.llm_functions import run_agent_session, analyze_image_for_rating, ana
 from utils.config_utils import get_config
 
 # 导入新的交易服务模块（增强的订单驱动系统）
-try:
-    from bot_core.services.trading.order_service import order_service
-    from bot_core.services.trading.account_service import account_service
-    from bot_core.services.trading.position_service import position_service
-    from bot_core.services.trading.analysis_service import analysis_service
-    NEW_TRADING_SYSTEM_AVAILABLE = True
-except ImportError:
-    # 如果新系统不可用，回退到旧系统
-    from bot_core.services.trading_service import trading_service
-    NEW_TRADING_SYSTEM_AVAILABLE = False
-    logger.warning("新交易系统不可用，使用传统系统")
-
-from bot_core.services.trading_service import trading_service
+from bot_core.services.trading.order_service import order_service
+from bot_core.services.trading.account_service import account_service
+from bot_core.services.trading.position_service import position_service
+from bot_core.services.trading.analysis_service import analysis_service
+from bot_core.services.trading.loan_service import loan_service
 
 fuck_api = get_config("fuck_or_not_api", "gemini-2.5")
 setup_logging()
@@ -791,12 +783,9 @@ class LongCommand(BaseCommand):
             if parsed_args['is_batch']:
                 results = []
                 for symbol, amount in zip(parsed_args['symbols'], parsed_args['amounts']):
-                    if NEW_TRADING_SYSTEM_AVAILABLE:
-                        result = await order_service.create_market_order(
-                            user_id, group_id, f"{symbol}/USDT", "long", "open", amount
-                        )
-                    else:
-                        result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
+                    result = await order_service.create_market_order(
+                        user_id, group_id, f"{symbol}/USDT", "long", "open", amount
+                    )
                     results.append(f"{symbol}: {result['message']}")
                 
                 response = "📈 批量做多结果:\n" + "\n".join(results)
@@ -815,43 +804,39 @@ class LongCommand(BaseCommand):
                 tp_price = parsed_args.get('tp_price')
                 sl_price = parsed_args.get('sl_price')
                 
-                if NEW_TRADING_SYSTEM_AVAILABLE:
-                    if price:
-                        # 挂单模式
-                        result = await order_service.create_limit_order(
-                            user_id, group_id, f"{symbol}/USDT", "long", "open", amount, price
-                        )
-                        
-                        # 如果挂单成功且有止盈止损设置，创建止盈止损订单
-                        if result['success'] and (tp_price or sl_price):
-                            order_id = result.get('order_id')
-                            if tp_price:
-                                await order_service.create_limit_order(
-                                    user_id, group_id, f"{symbol}/USDT", "short", "tp", amount, tp_price, parent_order_id=order_id
-                                )
-                            if sl_price:
-                                await order_service.create_market_order(
-                                    user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price, parent_order_id=order_id
-                                )
-                    else:
-                        # 市价单模式
-                        result = await order_service.create_market_order(
-                            user_id, group_id, f"{symbol}/USDT", "long", "open", amount
-                        )
-                        
-                        # 如果市价单成功且有止盈止损设置，创建止盈止损订单
-                        if result['success'] and (tp_price or sl_price):
-                            if tp_price:
-                                await order_service.create_limit_order(
-                                    user_id, group_id, f"{symbol}/USDT", "short", "tp", amount, tp_price
-                                )
-                            if sl_price:
-                                await order_service.create_market_order(
-                                    user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price
-                                )
+                if price:
+                    # 挂单模式
+                    result = await order_service.create_limit_order(
+                        user_id, group_id, f"{symbol}/USDT", "long", "open", amount, price
+                    )
+                    
+                    # 如果挂单成功且有止盈止损设置，创建止盈止损订单
+                    if result['success'] and (tp_price or sl_price):
+                        order_id = result.get('order_id')
+                        if tp_price:
+                            await order_service.create_limit_order(
+                                user_id, group_id, f"{symbol}/USDT", "short", "tp", amount, tp_price, parent_order_id=order_id
+                            )
+                        if sl_price:
+                            await order_service.create_market_order(
+                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price, parent_order_id=order_id
+                            )
                 else:
-                    # 使用旧系统
-                    result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "long", amount)
+                    # 市价单模式
+                    result = await order_service.create_market_order(
+                        user_id, group_id, f"{symbol}/USDT", "long", "open", amount
+                    )
+                    
+                    # 如果市价单成功且有止盈止损设置，创建止盈止损订单
+                    if result['success'] and (tp_price or sl_price):
+                        if tp_price:
+                            await order_service.create_limit_order(
+                                user_id, group_id, f"{symbol}/USDT", "short", "tp", amount, tp_price
+                            )
+                        if sl_price:
+                            await order_service.create_market_order(
+                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price
+                            )
                 
                 await MessageDeletionService.send_and_schedule_delete(
                     update=update,
@@ -972,12 +957,9 @@ class ShortCommand(BaseCommand):
             if parsed_args['is_batch']:
                 results = []
                 for symbol, amount in zip(parsed_args['symbols'], parsed_args['amounts']):
-                    if NEW_TRADING_SYSTEM_AVAILABLE:
-                        result = await order_service.create_market_order(
-                            user_id, group_id, f"{symbol}/USDT", "short", "open", amount
-                        )
-                    else:
-                        result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
+                    result = await order_service.create_market_order(
+                        user_id, group_id, f"{symbol}/USDT", "short", "open", amount
+                    )
                     results.append(f"{symbol}: {result['message']}")
                 
                 response = "📉 批量做空结果:\n" + "\n".join(results)
@@ -996,43 +978,39 @@ class ShortCommand(BaseCommand):
                 tp_price = parsed_args.get('tp_price')
                 sl_price = parsed_args.get('sl_price')
                 
-                if NEW_TRADING_SYSTEM_AVAILABLE:
-                    if price:
-                        # 挂单模式
-                        result = await order_service.create_limit_order(
-                            user_id, group_id, f"{symbol}/USDT", "short", "open", amount, price
-                        )
-                        
-                        # 如果挂单成功且有止盈止损设置，创建止盈止损订单
-                        if result['success'] and (tp_price or sl_price):
-                            order_id = result.get('order_id')
-                            if tp_price:
-                                await order_service.create_limit_order(
-                                    user_id, group_id, f"{symbol}/USDT", "long", "tp", amount, tp_price, parent_order_id=order_id
-                                )
-                            if sl_price:
-                                await order_service.create_market_order(
-                                    user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price, parent_order_id=order_id
-                                )
-                    else:
-                        # 市价单模式
-                        result = await order_service.create_market_order(
-                            user_id, group_id, f"{symbol}/USDT", "short", "open", amount
-                        )
-                        
-                        # 如果市价单成功且有止盈止损设置，创建止盈止损订单
-                        if result['success'] and (tp_price or sl_price):
-                            if tp_price:
-                                await order_service.create_limit_order(
-                                    user_id, group_id, f"{symbol}/USDT", "long", "tp", amount, tp_price
-                                )
-                            if sl_price:
-                                await order_service.create_market_order(
-                                    user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price
-                                )
+                if price:
+                    # 挂单模式
+                    result = await order_service.create_limit_order(
+                        user_id, group_id, f"{symbol}/USDT", "short", "open", amount, price
+                    )
+                    
+                    # 如果挂单成功且有止盈止损设置，创建止盈止损订单
+                    if result['success'] and (tp_price or sl_price):
+                        order_id = result.get('order_id')
+                        if tp_price:
+                            await order_service.create_limit_order(
+                                user_id, group_id, f"{symbol}/USDT", "long", "tp", amount, tp_price, parent_order_id=order_id
+                            )
+                        if sl_price:
+                            await order_service.create_market_order(
+                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price, parent_order_id=order_id
+                            )
                 else:
-                    # 使用旧系统
-                    result = await trading_service.open_position(user_id, group_id, f"{symbol}/USDT", "short", amount)
+                    # 市价单模式
+                    result = await order_service.create_market_order(
+                        user_id, group_id, f"{symbol}/USDT", "short", "open", amount
+                    )
+                    
+                    # 如果市价单成功且有止盈止损设置，创建止盈止损订单
+                    if result['success'] and (tp_price or sl_price):
+                        if tp_price:
+                            await order_service.create_limit_order(
+                                user_id, group_id, f"{symbol}/USDT", "long", "tp", amount, tp_price
+                            )
+                        if sl_price:
+                            await order_service.create_market_order(
+                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price
+                            )
                 
                 await MessageDeletionService.send_and_schedule_delete(
                     update=update,
@@ -1129,16 +1107,8 @@ class PositionCommand(BaseCommand):
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
 
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                # 使用新交易系统获取完整信息
-                message = await self._get_enhanced_position_info(user_id, group_id)
-            else:
-                # 使用旧系统
-                result = await trading_service.get_positions(user_id, group_id)
-                if not result['success']:
-                    await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
-                    return
-                message = result['message']
+            # 使用新交易系统获取完整信息
+            message = await self._get_enhanced_position_info(user_id, group_id)
 
             # 发送初始消息
             initial_message = await update.message.reply_text(
@@ -1184,21 +1154,32 @@ class PositionCommand(BaseCommand):
             
             # 账户信息
             if account:
-                message_parts.append(f"💰 账户余额: {account.balance:.2f} USDT")
-                message_parts.append(f"📊 总权益: {account.equity:.2f} USDT")
-                message_parts.append(f"🔒 已用保证金: {account.margin_used:.2f} USDT")
+                message_parts.append(f"💰 账户余额: {account['balance']:.2f} USDT")
+                message_parts.append(f"📊 总盈亏: {account.get('total_pnl', 0.0):.2f} USDT")
+                message_parts.append(f"🔒 冻结保证金: {account.get('frozen_margin', 0.0):.2f} USDT")
                 message_parts.append("")
             
             # 持仓信息
             if positions:
                 message_parts.append("📈 当前持仓:")
                 for pos in positions:
-                    pnl_emoji = "🟢" if pos.unrealized_pnl >= 0 else "🔴"
-                    side_emoji = "📈" if pos.side == 'long' else "📉"
+                    # 计算未实现盈亏
+                    from bot_core.services.trading.price_service import price_service
+                    current_price = await price_service.get_current_price(pos['symbol'])
+                    if current_price:
+                        if pos['side'] == 'long':
+                            unrealized_pnl = (current_price - pos['entry_price']) * (pos['size'] / pos['entry_price'])
+                        else:
+                            unrealized_pnl = (pos['entry_price'] - current_price) * (pos['size'] / pos['entry_price'])
+                    else:
+                        unrealized_pnl = 0.0
+                    
+                    pnl_emoji = "🟢" if unrealized_pnl >= 0 else "🔴"
+                    side_emoji = "📈" if pos['side'] == 'long' else "📉"
                     message_parts.append(
-                        f"{side_emoji} {pos.symbol} | {pos.size:.4f} | "
-                        f"入场: {pos.entry_price:.4f} | "
-                        f"PnL: {pnl_emoji}{pos.unrealized_pnl:.2f}"
+                        f"{side_emoji} {pos['symbol']} | {pos['size']:.4f} | "
+                        f"入场: {pos['entry_price']:.4f} | "
+                        f"PnL: {pnl_emoji}{unrealized_pnl:.2f}"
                     )
                 message_parts.append("")
             
@@ -1206,10 +1187,10 @@ class PositionCommand(BaseCommand):
             if pending_orders:
                 message_parts.append("⏳ 挂单:")
                 for order in pending_orders:
-                    side_emoji = "📈" if order.side == 'long' else "📉"
+                    side_emoji = "📈" if order.get('side') == 'long' else "📉"
                     message_parts.append(
-                        f"{side_emoji} {order.symbol} | {order.amount:.2f} USDT | "
-                        f"价格: {order.price:.4f}"
+                        f"{side_emoji} {order.get('symbol', 'N/A')} | {order.get('amount', 0):.2f} USDT | "
+                        f"价格: {order.get('price', 0):.4f}"
                     )
                 message_parts.append("")
             
@@ -1218,13 +1199,13 @@ class PositionCommand(BaseCommand):
                 message_parts.append("🎯 止盈止损:")
                 for order in tp_orders:
                     message_parts.append(
-                        f"🎯 {order.symbol} TP | 价格: {order.price:.4f} | "
-                        f"数量: {order.amount:.4f}"
+                        f"🎯 {order.get('symbol', 'N/A')} TP | 价格: {order.get('price', 0):.4f} | "
+                        f"数量: {order.get('amount', 0):.4f}"
                     )
                 for order in sl_orders:
                     message_parts.append(
-                        f"🛡️ {order.symbol} SL | 价格: {order.price:.4f} | "
-                        f"数量: {order.amount:.4f}"
+                        f"🛡️ {order.get('symbol', 'N/A')} SL | 价格: {order.get('price', 0):.4f} | "
+                        f"数量: {order.get('amount', 0):.4f}"
                     )
                 message_parts.append("")
             
@@ -1235,9 +1216,7 @@ class PositionCommand(BaseCommand):
             
         except Exception as e:
             logger.error(f"获取增强仓位信息失败: {e}")
-            # 降级到旧系统
-            result = await trading_service.get_positions(user_id, group_id)
-            return result.get('message', '❌ 获取仓位信息失败')
+            return "❌ 获取仓位信息失败"
 
 
 
@@ -1257,10 +1236,10 @@ class PnlCommand(BaseCommand):
             group_id = update.effective_chat.id
 
             # 获取盈亏报告
-            result = trading_service.get_pnl_report(user_id, group_id)
+            result = await analysis_service.get_pnl_report(user_id, group_id)
 
-            # 生成盈亏折线图
-            chart_image = trading_service.generate_pnl_chart(user_id, group_id)
+            # 生成盈亏折线图 (暂时禁用，新版本暂未实现)
+            chart_image = None  # trading_service.generate_pnl_chart(user_id, group_id)
 
             if chart_image:
                 # 有图表时，发送图片，caption只显示最近交易
@@ -1351,7 +1330,8 @@ class BeggingCommand(BaseCommand):
             group_id = update.effective_chat.id
             
             # 领取救济金
-            result = trading_service.begging(user_id, group_id)
+            # begging 功能暂时禁用，新版本暂未实现
+            result = {"success": False, "message": "❌ 救济金功能暂时维护中，请稍后再试"}  # trading_service.begging(user_id, group_id)
 
             await MessageDeletionService.send_and_schedule_delete(
                 update=update,
@@ -1387,7 +1367,7 @@ class CloseCommand(BaseCommand):
 
             # 如果没有参数，执行一键全平
             if len(args) == 0:
-                result = await trading_service.close_all_positions(user_id, group_id)
+                result = await position_service.close_all_positions(user_id, group_id)
                 await MessageDeletionService.send_and_schedule_delete(
                     update=update,
                     context=context,
@@ -1408,7 +1388,8 @@ class CloseCommand(BaseCommand):
 
                     for symbol in symbols:
                         try:
-                            result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", None, None)
+                            # 使用市价单平仓替代老的 close_position 方法
+                            result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "close", "close", None)
                             results.append(f"{symbol}: {result['message']}")
                         except Exception as e:
                             results.append(f"{symbol}: ❌ 平仓失败 - {str(e)}")
@@ -1426,7 +1407,8 @@ class CloseCommand(BaseCommand):
             # 如果只有一个参数，智能平仓该币种的所有仓位
             if len(args) == 1:
                 symbol = args[0].upper()
-                result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", None, None)
+                # 使用市价单平仓替代老的 close_position 方法
+                result = await order_service.create_market_order(user_id, group_id, f"{symbol}/USDT", "close", "close", None)
                 await MessageDeletionService.send_and_schedule_delete(
                     update=update,
                     context=context,
@@ -1484,7 +1466,10 @@ class CloseCommand(BaseCommand):
                     return
 
             # 执行平仓操作
-            result = await trading_service.close_position(user_id, group_id, f"{symbol}/USDT", side, amount)
+            result = await order_service.create_market_order(
+                user_id, group_id, f"{symbol}/USDT", 
+                "short" if side == "long" else "long", "close", amount
+            )
 
             await MessageDeletionService.send_and_schedule_delete(
                 update=update,
@@ -1520,13 +1505,13 @@ class RankCommand(BaseCommand):
             
             if is_global:
                 # 获取全局排行榜数据
-                result = await trading_service.get_global_ranking_data()
-                deadbeat_result = await trading_service.get_global_deadbeat_ranking_data()
+                result = await analysis_service.get_global_ranking_data()
+                deadbeat_result = await analysis_service.get_global_deadbeat_ranking_data()
                 title = "📊 <b>全球交易排行榜</b>\n"
             else:
                 # 获取群组排行榜数据
-                result = await trading_service.get_ranking_data(group_id)
-                deadbeat_result = await trading_service.get_deadbeat_ranking_data(group_id)
+                result = await analysis_service.get_ranking_data(group_id)
+                deadbeat_result = await analysis_service.get_deadbeat_ranking_data(group_id)
                 title = "📊 <b>群组交易排行榜</b>\n"
             
             if not result['success']:
@@ -1872,7 +1857,7 @@ class LoanCommand(BaseCommand):
                 return
             
             # 申请贷款
-            result = trading_service.apply_loan(user_id, group_id, amount)
+            result = loan_service.apply_loan(user_id, group_id, amount)
 
             await MessageDeletionService.send_and_schedule_delete(
                 update=update,
@@ -1925,7 +1910,7 @@ class RepayCommand(BaseCommand):
                 return
             
             # 执行还款
-            result = trading_service.repay_loan(user_id, group_id, amount)
+            result = loan_service.repay_loan(user_id, group_id, amount)
 
             await MessageDeletionService.send_and_schedule_delete(
                 update=update,
@@ -1956,7 +1941,7 @@ class BillCommand(BaseCommand):
             group_id = update.effective_chat.id
             
             # 获取贷款账单
-            result = trading_service.get_loan_bill(user_id, group_id)
+            result = loan_service.get_loan_bill(user_id, group_id)
 
             await MessageDeletionService.send_and_schedule_delete(
                 update=update,
@@ -1991,12 +1976,14 @@ class TakeProfitCommand(BaseCommand):
             if not args:
                 await update.message.reply_text(
                     "📋 止盈指令使用方法:\n"
-                    "🎯 /tp <币种> <价格> - 为持仓设置止盈\n"
-                    "🗑️ /tp <币种> cancel - 取消止盈\n"
+                    "🎯 /tp <币种> <方向> <价格> - 为指定方向持仓设置止盈\n"
+                    "🗑️ /tp <币种> <方向> cancel - 取消指定方向止盈\n"
+                    "🗑️ /tp <币种> cancel - 取消所有止盈\n"
                     "📊 /tp list - 查看所有止盈订单\n\n"
                     "示例:\n"
-                    "/tp btc 95000 - 为BTC设置95000止盈\n"
-                    "/tp eth cancel - 取消ETH止盈"
+                    "/tp btc long 95000 - 为BTC多头设置95000止盈\n"
+                    "/tp btc short 85000 - 为BTC空头设置85000止盈\n"
+                    "/tp eth long cancel - 取消ETH多头止盈"
                 )
                 return
 
@@ -2009,88 +1996,135 @@ class TakeProfitCommand(BaseCommand):
                 return
 
             symbol = args[0].upper()
-            action = args[1].lower()
-
-            if action == 'cancel':
-                await self._cancel_tp_order(update, user_id, group_id, symbol)
+            
+            # 检查是否有方向参数
+            if len(args) >= 3 and args[1].lower() in ['long', 'short']:
+                # 格式: /tp <币种> <方向> <价格/cancel>
+                direction = args[1].lower()
+                action = args[2].lower()
+                
+                if action == 'cancel':
+                    await self._cancel_tp_order(update, user_id, group_id, symbol, direction)
+                else:
+                    try:
+                        price = float(action)
+                        await self._set_tp_order(update, user_id, group_id, symbol, price, direction)
+                    except ValueError:
+                        await update.message.reply_text(
+                            "❌ 价格格式错误\n\n"
+                            "正确格式: /tp <币种> <方向> <价格>\n"
+                            "示例: /tp pepe long 0.000000001"
+                        )
             else:
-                try:
-                    price = float(action)
-                    await self._set_tp_order(update, user_id, group_id, symbol, price)
-                except ValueError:
-                    await update.message.reply_text("❌ 价格格式错误")
+                # 格式: /tp <币种> <价格/cancel> (兼容旧格式)
+                action = args[1].lower()
+                
+                if action == 'cancel':
+                    await self._cancel_tp_order(update, user_id, group_id, symbol)
+                else:
+                    try:
+                        price = float(action)
+                        await self._set_tp_order(update, user_id, group_id, symbol, price)
+                    except ValueError:
+                        await update.message.reply_text(
+                            "❌ 价格格式错误\n\n"
+                            "正确格式: /tp <币种> <价格> 或 /tp <币种> <方向> <价格>\n"
+                            "示例: /tp pepe 0.000000001 或 /tp pepe long 0.000000001"
+                        )
 
         except Exception as e:
             logger.error(f"止盈命令失败: {e}")
             await update.message.reply_text("❌ 操作失败，请稍后重试")
 
-    async def _set_tp_order(self, update, user_id: int, group_id: int, symbol: str, price: float):
+    async def _set_tp_order(self, update, user_id: int, group_id: int, symbol: str, price: float, direction: str = None):
         """设置止盈订单"""
         try:
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                # 检查是否有对应持仓
-                positions = await position_service.get_positions(user_id, group_id)
-                target_position = None
-                for pos in positions:
-                    if pos.symbol.replace('/USDT', '').upper() == symbol:
-                        target_position = pos
-                        break
-                
-                if not target_position:
-                    await update.message.reply_text(f"❌ 未找到{symbol}持仓")
-                    return
-                
-                # 创建止盈订单
+            # 检查是否有对应持仓
+            positions = await position_service.get_positions(user_id, group_id)
+            target_positions = []
+            
+            for pos in positions:
+                if pos['symbol'].replace('/USDT', '').upper() == symbol:
+                    if direction:
+                        # 指定方向，只处理匹配的持仓
+                        if pos['side'] == direction:
+                            target_positions.append(pos)
+                    else:
+                        # 未指定方向，处理所有持仓
+                        target_positions.append(pos)
+            
+            if not target_positions:
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}持仓")
+                return
+            
+            # 为每个匹配的持仓创建止盈订单
+            success_count = 0
+            for position in target_positions:
                 result = await order_service.create_order(
                     user_id=user_id,
                     group_id=group_id,
                     symbol=f"{symbol}/USDT",
-                    side='sell' if target_position.side == 'long' else 'buy',
-                    amount=abs(target_position.size),
+                    side='sell' if position['side'] == 'long' else 'buy',
+                    amount=abs(position['size']),
                     price=price,
                     order_type='tp'
                 )
                 
                 if result['success']:
-                    await update.message.reply_text(
-                        f"✅ {symbol} 止盈订单已设置\n"
-                        f"🎯 止盈价格: {price:.4f}\n"
-                        f"📊 数量: {abs(target_position.size):.4f}"
-                    )
-                else:
-                    await update.message.reply_text(f"❌ 设置止盈失败: {result.get('message', '未知错误')}")
+                    success_count += 1
+            
+            if success_count > 0:
+                direction_text = f" {direction}方向" if direction else ""
+                await update.message.reply_text(
+                    f"✅ {symbol}{direction_text} 止盈订单已设置\n"
+                    f"🎯 止盈价格: {price:.4f}\n"
+                    f"📊 设置成功: {success_count}个持仓"
+                )
             else:
-                await update.message.reply_text("❌ 新交易系统不可用，无法设置止盈")
+                await update.message.reply_text(f"❌ 设置止盈失败")
                 
         except Exception as e:
             logger.error(f"设置止盈失败: {e}")
             await update.message.reply_text("❌ 设置止盈失败")
 
-    async def _cancel_tp_order(self, update, user_id: int, group_id: int, symbol: str):
+    async def _cancel_tp_order(self, update, user_id: int, group_id: int, symbol: str, direction: str = None):
         """取消止盈订单"""
         try:
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                # 查找对应的止盈订单
-                tp_orders = await order_service.get_orders_by_type(user_id, group_id, 'tp')
-                target_orders = [order for order in tp_orders if order.symbol.replace('/USDT', '').upper() == symbol]
-                
-                if not target_orders:
-                    await update.message.reply_text(f"❌ 未找到{symbol}的止盈订单")
-                    return
-                
-                # 取消所有匹配的止盈订单
-                cancelled_count = 0
-                for order in target_orders:
-                    result = await order_service.cancel_order(order.id)
-                    if result['success']:
-                        cancelled_count += 1
-                
-                if cancelled_count > 0:
-                    await update.message.reply_text(f"✅ 已取消{cancelled_count}个{symbol}止盈订单")
-                else:
-                    await update.message.reply_text(f"❌ 取消{symbol}止盈订单失败")
+            # 查找对应的止盈订单
+            tp_orders = await order_service.get_orders_by_type(user_id, group_id, 'tp')
+            target_orders = []
+            
+            for order in tp_orders:
+                if order['symbol'].replace('/USDT', '').upper() == symbol:
+                    if direction:
+                        # 指定方向，需要根据订单的side判断方向
+                        # 止盈订单的side与持仓方向相反
+                        order_direction = 'long' if order['side'] == 'sell' else 'short'
+                        if order_direction == direction:
+                            target_orders.append(order)
+                    else:
+                        # 未指定方向，取消所有
+                        target_orders.append(order)
+            
+            if not target_orders:
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}的止盈订单")
+                return
+            
+            # 取消所有匹配的止盈订单
+            cancelled_count = 0
+            for order in target_orders:
+                result = order_service.cancel_order(order['order_id'])
+                if result['success']:
+                    cancelled_count += 1
+            
+            if cancelled_count > 0:
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"✅ 已取消{cancelled_count}个{symbol}{direction_text}止盈订单")
             else:
-                await update.message.reply_text("❌ 新交易系统不可用，无法取消止盈")
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"❌ 取消{symbol}{direction_text}止盈订单失败")
                 
         except Exception as e:
             logger.error(f"取消止盈失败: {e}")
@@ -2099,23 +2133,20 @@ class TakeProfitCommand(BaseCommand):
     async def _list_tp_orders(self, update, user_id: int, group_id: int):
         """列出所有止盈订单"""
         try:
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                tp_orders = await order_service.get_orders_by_type(user_id, group_id, 'tp')
-                
-                if not tp_orders:
-                    await update.message.reply_text("📭 暂无止盈订单")
-                    return
-                
-                message_parts = ["🎯 止盈订单列表:"]
-                for order in tp_orders:
-                    symbol = order.symbol.replace('/USDT', '')
-                    message_parts.append(
-                        f"📈 {symbol} | 价格: {order.price:.4f} | 数量: {order.amount:.4f}"
-                    )
-                
-                await update.message.reply_text("\n".join(message_parts))
-            else:
-                await update.message.reply_text("❌ 新交易系统不可用，无法查看止盈订单")
+            tp_orders = await order_service.get_orders_by_type(user_id, group_id, 'tp')
+            
+            if not tp_orders:
+                await update.message.reply_text("📭 暂无止盈订单")
+                return
+            
+            message_parts = ["🎯 止盈订单列表:"]
+            for order in tp_orders:
+                symbol = order['symbol'].replace('/USDT', '')
+                message_parts.append(
+                    f"📈 {symbol} | 价格: {order['price']:.4f} | 数量: {order['amount']:.4f}"
+                )
+            
+            await update.message.reply_text("\n".join(message_parts))
                 
         except Exception as e:
             logger.error(f"查看止盈订单失败: {e}")
@@ -2141,12 +2172,15 @@ class StopLossCommand(BaseCommand):
             if not args:
                 await update.message.reply_text(
                     "📋 止损指令使用方法:\n"
-                    "🛡️ /sl <币种> <价格> - 为持仓设置止损\n"
-                    "🗑️ /sl <币种> cancel - 取消止损\n"
+                    "🛡️ /sl <币种> <方向> <价格> - 为指定方向持仓设置止损\n"
+                    "🛡️ /sl <币种> <价格> - 为所有持仓设置止损\n"
+                    "🗑️ /sl <币种> <方向> cancel - 取消指定方向止损\n"
+                    "🗑️ /sl <币种> cancel - 取消所有止损\n"
                     "📊 /sl list - 查看所有止损订单\n\n"
                     "示例:\n"
-                    "/sl btc 85000 - 为BTC设置85000止损\n"
-                    "/sl eth cancel - 取消ETH止损"
+                    "/sl btc long 85000 - 为BTC多头设置85000止损\n"
+                    "/sl btc short 95000 - 为BTC空头设置95000止损\n"
+                    "/sl eth long cancel - 取消ETH多头止损"
                 )
                 return
 
@@ -2159,88 +2193,135 @@ class StopLossCommand(BaseCommand):
                 return
 
             symbol = args[0].upper()
-            action = args[1].lower()
-
-            if action == 'cancel':
-                await self._cancel_sl_order(update, user_id, group_id, symbol)
+            
+            # 检查是否有方向参数
+            if len(args) >= 3 and args[1].lower() in ['long', 'short']:
+                # 格式: /sl <币种> <方向> <价格/cancel>
+                direction = args[1].lower()
+                action = args[2].lower()
+                
+                if action == 'cancel':
+                    await self._cancel_sl_order(update, user_id, group_id, symbol, direction)
+                else:
+                    try:
+                        price = float(action)
+                        await self._set_sl_order(update, user_id, group_id, symbol, price, direction)
+                    except ValueError:
+                        await update.message.reply_text(
+                            "❌ 价格格式错误\n\n"
+                            "正确格式: /sl <币种> <方向> <价格>\n"
+                            "示例: /sl pepe long 0.000000001"
+                        )
             else:
-                try:
-                    price = float(action)
-                    await self._set_sl_order(update, user_id, group_id, symbol, price)
-                except ValueError:
-                    await update.message.reply_text("❌ 价格格式错误")
+                # 格式: /sl <币种> <价格/cancel> (兼容旧格式)
+                action = args[1].lower()
+                
+                if action == 'cancel':
+                    await self._cancel_sl_order(update, user_id, group_id, symbol)
+                else:
+                    try:
+                        price = float(action)
+                        await self._set_sl_order(update, user_id, group_id, symbol, price)
+                    except ValueError:
+                        await update.message.reply_text(
+                            "❌ 价格格式错误\n\n"
+                            "正确格式: /sl <币种> <价格> 或 /sl <币种> <方向> <价格>\n"
+                            "示例: /sl pepe 0.000000001 或 /sl pepe long 0.000000001"
+                        )
 
         except Exception as e:
             logger.error(f"止损命令失败: {e}")
             await update.message.reply_text("❌ 操作失败，请稍后重试")
 
-    async def _set_sl_order(self, update, user_id: int, group_id: int, symbol: str, price: float):
+    async def _set_sl_order(self, update, user_id: int, group_id: int, symbol: str, price: float, direction: str = None):
         """设置止损订单"""
         try:
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                # 检查是否有对应持仓
-                positions = await position_service.get_positions(user_id, group_id)
-                target_position = None
-                for pos in positions:
-                    if pos.symbol.replace('/USDT', '').upper() == symbol:
-                        target_position = pos
-                        break
-                
-                if not target_position:
-                    await update.message.reply_text(f"❌ 未找到{symbol}持仓")
-                    return
-                
-                # 创建止损订单
+            # 检查是否有对应持仓
+            positions = await position_service.get_positions(user_id, group_id)
+            target_positions = []
+            
+            for pos in positions:
+                if pos['symbol'].replace('/USDT', '').upper() == symbol:
+                    if direction:
+                        # 指定方向，只处理匹配的持仓
+                        if pos['side'] == direction:
+                            target_positions.append(pos)
+                    else:
+                        # 未指定方向，处理所有持仓
+                        target_positions.append(pos)
+            
+            if not target_positions:
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}持仓")
+                return
+            
+            # 为每个匹配的持仓创建止损订单
+            success_count = 0
+            for position in target_positions:
                 result = await order_service.create_order(
                     user_id=user_id,
                     group_id=group_id,
                     symbol=f"{symbol}/USDT",
-                    side='sell' if target_position.side == 'long' else 'buy',
-                    amount=abs(target_position.size),
+                    side='sell' if position['side'] == 'long' else 'buy',
+                    amount=abs(position['size']),
                     price=price,
                     order_type='sl'
                 )
                 
                 if result['success']:
-                    await update.message.reply_text(
-                        f"✅ {symbol} 止损订单已设置\n"
-                        f"🛡️ 止损价格: {price:.4f}\n"
-                        f"📊 数量: {abs(target_position.size):.4f}"
-                    )
-                else:
-                    await update.message.reply_text(f"❌ 设置止损失败: {result.get('message', '未知错误')}")
+                    success_count += 1
+            
+            if success_count > 0:
+                direction_text = f" {direction}方向" if direction else ""
+                await update.message.reply_text(
+                    f"✅ {symbol}{direction_text} 止损订单已设置\n"
+                    f"🛡️ 止损价格: {price:.4f}\n"
+                    f"📊 设置成功: {success_count}个持仓"
+                )
             else:
-                await update.message.reply_text("❌ 新交易系统不可用，无法设置止损")
+                await update.message.reply_text(f"❌ 设置止损失败")
                 
         except Exception as e:
             logger.error(f"设置止损失败: {e}")
             await update.message.reply_text("❌ 设置止损失败")
 
-    async def _cancel_sl_order(self, update, user_id: int, group_id: int, symbol: str):
+    async def _cancel_sl_order(self, update, user_id: int, group_id: int, symbol: str, direction: str = None):
         """取消止损订单"""
         try:
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                # 查找对应的止损订单
-                sl_orders = await order_service.get_orders_by_type(user_id, group_id, 'sl')
-                target_orders = [order for order in sl_orders if order.symbol.replace('/USDT', '').upper() == symbol]
-                
-                if not target_orders:
-                    await update.message.reply_text(f"❌ 未找到{symbol}的止损订单")
-                    return
-                
-                # 取消所有匹配的止损订单
-                cancelled_count = 0
-                for order in target_orders:
-                    result = await order_service.cancel_order(order.id)
-                    if result['success']:
-                        cancelled_count += 1
-                
-                if cancelled_count > 0:
-                    await update.message.reply_text(f"✅ 已取消{cancelled_count}个{symbol}止损订单")
-                else:
-                    await update.message.reply_text(f"❌ 取消{symbol}止损订单失败")
+            # 查找对应的止损订单
+            sl_orders = await order_service.get_orders_by_type(user_id, group_id, 'sl')
+            target_orders = []
+            
+            for order in sl_orders:
+                if order['symbol'].replace('/USDT', '').upper() == symbol:
+                    if direction:
+                        # 指定方向，需要根据订单的side判断方向
+                        # 止损订单的side与持仓方向相反
+                        order_direction = 'long' if order['side'] == 'sell' else 'short'
+                        if order_direction == direction:
+                            target_orders.append(order)
+                    else:
+                        # 未指定方向，取消所有
+                        target_orders.append(order)
+            
+            if not target_orders:
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}的止损订单")
+                return
+            
+            # 取消所有匹配的止损订单
+            cancelled_count = 0
+            for order in target_orders:
+                result = order_service.cancel_order(order['order_id'])
+                if result['success']:
+                    cancelled_count += 1
+            
+            if cancelled_count > 0:
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"✅ 已取消{cancelled_count}个{symbol}{direction_text}止损订单")
             else:
-                await update.message.reply_text("❌ 新交易系统不可用，无法取消止损")
+                direction_text = f"{direction}方向" if direction else ""
+                await update.message.reply_text(f"❌ 取消{symbol}{direction_text}止损订单失败")
                 
         except Exception as e:
             logger.error(f"取消止损失败: {e}")
@@ -2249,23 +2330,20 @@ class StopLossCommand(BaseCommand):
     async def _list_sl_orders(self, update, user_id: int, group_id: int):
         """列出所有止损订单"""
         try:
-            if NEW_TRADING_SYSTEM_AVAILABLE:
-                sl_orders = await order_service.get_orders_by_type(user_id, group_id, 'sl')
-                
-                if not sl_orders:
-                    await update.message.reply_text("📭 暂无止损订单")
-                    return
-                
-                message_parts = ["🛡️ 止损订单列表:"]
-                for order in sl_orders:
-                    symbol = order.symbol.replace('/USDT', '')
-                    message_parts.append(
-                        f"📉 {symbol} | 价格: {order.price:.4f} | 数量: {order.amount:.4f}"
-                    )
-                
-                await update.message.reply_text("\n".join(message_parts))
-            else:
-                await update.message.reply_text("❌ 新交易系统不可用，无法查看止损订单")
+            sl_orders = await order_service.get_orders_by_type(user_id, group_id, 'sl')
+            
+            if not sl_orders:
+                await update.message.reply_text("📭 暂无止损订单")
+                return
+            
+            message_parts = ["🛡️ 止损订单列表:"]
+            for order in sl_orders:
+                symbol = order['symbol'].replace('/USDT', '')
+                message_parts.append(
+                    f"📉 {symbol} | 价格: {order['price']:.4f} | 数量: {order['amount']:.4f}"
+                )
+            
+            await update.message.reply_text("\n".join(message_parts))
                 
         except Exception as e:
             logger.error(f"查看止损订单失败: {e}")
@@ -2285,9 +2363,7 @@ class CancelCommand(BaseCommand):
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """取消挂单指令"""
         try:
-            if not NEW_TRADING_SYSTEM_AVAILABLE:
-                await update.message.reply_text("❌ 新交易系统不可用，无法取消订单")
-                return
+            # 新交易系统已启用
 
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
