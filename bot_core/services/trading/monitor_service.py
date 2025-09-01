@@ -115,12 +115,35 @@ class MonitorService:
             orders = pending_orders_result["orders"]
             logger.debug(f"检查 {len(orders)} 个待成交订单")
 
+            if not orders:
+                return
+
+            # 收集所有需要的交易对
+            symbols = set(order['symbol'] for order in orders)
+            
+            # 批量获取价格
+            prices = {}
+            for symbol in symbols:
+                try:
+                    price = await price_service.get_real_time_price(symbol)
+                    if price > 0:
+                        prices[symbol] = price
+                except Exception as e:
+                    logger.error(f"获取 {symbol} 价格失败: {e}")
+
             triggered_orders = []
             
             for order in orders:
                 try:
+                    symbol = order['symbol']
+                    if symbol not in prices:
+                        logger.debug(f"无法获取 {symbol} 的实时价格，跳过订单 {order['order_id']}")
+                        continue
+                    
+                    current_price = prices[symbol]
+                    
                     # 检查订单是否可以触发
-                    can_trigger = await self._check_order_trigger_condition(order)
+                    can_trigger = await self._check_order_trigger_condition_with_price(order, current_price)
                     
                     if can_trigger:
                         # 执行订单
@@ -198,6 +221,16 @@ class MonitorService:
             account = account_service.get_or_create_account(user_id, group_id)
             initial_balance = 1000.0  # 初始本金
 
+            # 收集所有需要的交易对，避免重复获取价格
+            symbols_needed = set(pos['symbol'] for pos in positions)
+            symbol_prices = {}
+            
+            # 批量获取价格
+            for symbol in symbols_needed:
+                price = await price_service.get_real_time_price(symbol)
+                if price > 0:
+                    symbol_prices[symbol] = price
+
             # 计算总未实现盈亏
             total_unrealized_pnl = 0.0
             position_details = []
@@ -209,8 +242,8 @@ class MonitorService:
                 entry_price = pos['entry_price']
                 liquidation_price = pos['liquidation_price']
 
-                # 获取实时价格（强平检查必须使用最新价格确保风控准确性）
-                current_price = await price_service.get_real_time_price(symbol)
+                # 使用缓存的价格
+                current_price = symbol_prices.get(symbol, 0)
                 if current_price <= 0:
                     continue
 
@@ -505,7 +538,22 @@ class MonitorService:
 
 
     async def _check_order_trigger_condition(self, order: Dict) -> bool:
-        """检查订单是否满足触发条件"""
+        """检查订单是否满足触发条件（获取实时价格版本）"""
+        try:
+            symbol = order['symbol']
+            # 获取实时市场价格（订单触发检查必须使用最新价格确保准确性）
+            current_price = await price_service.get_real_time_price(symbol)
+            if current_price <= 0:
+                logger.debug(f"无法获取 {symbol} 的实时价格")
+                return False
+            
+            return await self._check_order_trigger_condition_with_price(order, current_price)
+        except Exception as e:
+            logger.error(f"检查订单触发条件失败: {e}")
+            return False
+    
+    async def _check_order_trigger_condition_with_price(self, order: Dict, current_price: float) -> bool:
+        """检查订单是否满足触发条件（使用提供的价格）"""
         try:
             symbol = order['symbol']
             order_type = order['order_type']
@@ -514,12 +562,6 @@ class MonitorService:
             order_price = order.get('price')  # 使用正确的字段名
             tp_price = order.get('tp_price')
             sl_price = order.get('sl_price')
-            
-            # 获取实时市场价格（订单触发检查必须使用最新价格确保准确性）
-            current_price = await price_service.get_real_time_price(symbol)
-            if current_price <= 0:
-                logger.debug(f"无法获取 {symbol} 的实时价格")
-                return False
             
             logger.debug(f"检查订单触发条件: {order['order_id']}, 类型: {order_type}, 方向: {direction}, 角色: {role}, 委托价: {order_price}, 当前价: {current_price}")
             
@@ -633,10 +675,33 @@ class MonitorService:
             
             stop_orders = tp_orders_result.get('orders', []) + sl_orders_result.get('orders', [])
             
+            if not stop_orders:
+                return
+            
+            # 收集所有需要的交易对
+            symbols = set(order['symbol'] for order in stop_orders)
+            
+            # 批量获取价格
+            prices = {}
+            for symbol in symbols:
+                try:
+                    price = await price_service.get_real_time_price(symbol)
+                    if price > 0:
+                        prices[symbol] = price
+                except Exception as e:
+                    logger.error(f"获取 {symbol} 价格失败: {e}")
+            
             for order in stop_orders:
                 try:
+                    symbol = order['symbol']
+                    if symbol not in prices:
+                        logger.debug(f"无法获取 {symbol} 的实时价格，跳过订单 {order['order_id']}")
+                        continue
+                    
+                    current_price = prices[symbol]
+                    
                     # 检查止盈止损订单是否可以触发
-                    can_trigger = await self._check_order_trigger_condition(order)
+                    can_trigger = await self._check_order_trigger_condition_with_price(order, current_price)
                     
                     if can_trigger:
                         # 执行止盈止损订单
@@ -646,7 +711,7 @@ class MonitorService:
                             logger.info(f"止盈止损订单 {order['order_id']} 已成功执行")
                             
                             # 发送订单触发通知
-                            order_type_name = "止盈单" if order['order_type'] == "take_profit" else "止损单"
+                            order_type_name = "止盈单" if order['order_type'] == "tp" else "止损单"
                             await self._send_order_trigger_notification(order, current_price, order_type_name)
                             
                         else:

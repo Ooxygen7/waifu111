@@ -390,7 +390,7 @@ class PrivateConv:
                 # 如果是从回调查询触发的，直接发送新消息
                 self.placeholder = await self.context.bot.send_message(chat_id=self.user.id, text="思考中")
             if self.input:
-                logger.info(f"输入：{self.input.text_raw}")
+                logger.debug(f"输入：{self.input.text_raw}")
             _task = asyncio.create_task(self._response_to_user(save))
         else:
             await send_message(self.context, self.user.id, f"你的额度已用尽，\r\n当前额度：{self.user.remain_frequency}，临时额度：{self.user.temporary_frequency}\r\n若有疑问联系 @xi_cuicui")
@@ -487,14 +487,14 @@ class PrivateConv:
                 await asyncio.sleep(0.01)
 
             final_response_text = "".join(response_chunks)
-            logger.info(f"AI原始回复: {final_response_text}")
-            logger.info(f"AI原始回复长度: {len(final_response_text)}")
+            logger.debug(f"AI原始回复: {final_response_text}")
+            logger.debug(f"AI原始回复长度: {len(final_response_text)}")
 
             if self.placeholder:
                 self.output = Message(self.placeholder.message_id, final_response_text, 'output')
-                logger.info(f"处理后的text_processed: {repr(self.output.text_processed)}")
-                logger.info(f"处理后的text_summary: {repr(self.output.text_summary)}")
-                logger.info(f"处理后的text_comment: {repr(self.output.text_comment)}")
+                logger.debug(f"处理后的text_processed: {repr(self.output.text_processed)}")
+                logger.debug(f"处理后的text_summary: {repr(self.output.text_summary)}")
+                logger.debug(f"处理后的text_comment: {repr(self.output.text_comment)}")
 
                 # 使用 MessageFactory.edit 进行最终更新，它会处理长消息分割和格式化
                 await factory.edit(

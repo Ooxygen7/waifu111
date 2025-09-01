@@ -370,6 +370,9 @@ class TradingService:
             if not balance_result["success"]:
                 return {'success': False, 'message': '更新账户余额失败'}
             
+            # 自动取消相关的止盈止损订单
+            await self._cancel_related_stop_orders(user_id, group_id, symbol, target_positions)
+            
             # 构建返回消息
             if len(close_messages) == 1:
                 message = f"平仓成功！\n{close_messages[0]}"
@@ -381,6 +384,100 @@ class TradingService:
         except Exception as e:
             logger.error(f"平仓失败: {e}")
             return {'success': False, 'message': '平仓失败，请稍后重试'}
+    
+    async def _cancel_related_stop_orders(self, user_id: int, group_id: int, symbol: str, closed_positions: List[Dict]):
+        """取消与已平仓位相关的止盈止损订单"""
+        try:
+            # 动态导入order_service以避免循环导入
+            from .order_service import order_service
+            
+            # 获取所有止盈止损订单
+            tp_orders_result = TradingRepository.get_orders_by_type('tp', 'pending')
+            sl_orders_result = TradingRepository.get_orders_by_type('sl', 'pending')
+            
+            if not tp_orders_result.get('success', False) or not sl_orders_result.get('success', False):
+                logger.warning("获取止盈止损订单失败")
+                return
+            
+            stop_orders = tp_orders_result.get('orders', []) + sl_orders_result.get('orders', [])
+            
+            if not stop_orders:
+                return
+            
+            cancelled_count = 0
+            
+            # 遍历所有止盈止损订单，找到与已平仓位相关的订单
+            for order in stop_orders:
+                # 检查订单是否属于该用户和群组
+                if order.get('user_id') != user_id or order.get('group_id') != group_id:
+                    continue
+                
+                # 检查订单是否与平仓的交易对匹配
+                if order.get('symbol') != symbol:
+                    continue
+                
+                # 检查订单方向是否与已平仓位匹配
+                order_side = 'long' if order.get('side') == 'sell' else 'short'  # 止盈止损订单的side与持仓方向相反
+                
+                # 检查是否有匹配的已平仓位
+                for position in closed_positions:
+                    if position['side'] == order_side:
+                        # 取消该订单
+                        cancel_result = order_service.cancel_order(order['order_id'])
+                        if cancel_result.get('success'):
+                            cancelled_count += 1
+                            order_type_name = "止盈" if order['order_type'] == 'tp' else "止损"
+                            logger.info(f"已自动取消{order_type_name}订单 {order['order_id']} (关联仓位: {symbol} {order_side.upper()})")
+                        else:
+                            logger.warning(f"取消{order_type_name}订单 {order['order_id']} 失败: {cancel_result.get('message')}")
+                        break  # 找到匹配的仓位后跳出内层循环
+            
+            if cancelled_count > 0:
+                logger.info(f"平仓操作自动取消了 {cancelled_count} 个相关的止盈止损订单")
+                
+        except Exception as e:
+             logger.error(f"取消相关止盈止损订单失败: {e}")
+    
+    async def _cancel_all_stop_orders(self, user_id: int, group_id: int):
+        """取消用户的所有止盈止损订单（用于一键全平）"""
+        try:
+            # 动态导入order_service以避免循环导入
+            from .order_service import order_service
+            
+            # 获取所有止盈止损订单
+            tp_orders_result = TradingRepository.get_orders_by_type('tp', 'pending')
+            sl_orders_result = TradingRepository.get_orders_by_type('sl', 'pending')
+            
+            if not tp_orders_result.get('success', False) or not sl_orders_result.get('success', False):
+                logger.warning("获取止盈止损订单失败")
+                return
+            
+            stop_orders = tp_orders_result.get('orders', []) + sl_orders_result.get('orders', [])
+            
+            if not stop_orders:
+                return
+            
+            cancelled_count = 0
+            
+            # 遍历所有止盈止损订单，取消属于该用户的订单
+            for order in stop_orders:
+                # 检查订单是否属于该用户和群组
+                if order.get('user_id') == user_id and order.get('group_id') == group_id:
+                    # 取消该订单
+                    cancel_result = order_service.cancel_order(order['order_id'])
+                    if cancel_result.get('success'):
+                        cancelled_count += 1
+                        order_type_name = "止盈" if order['order_type'] == 'tp' else "止损"
+                        symbol = order.get('symbol', '')
+                        logger.info(f"已自动取消{order_type_name}订单 {order['order_id']} ({symbol})")
+                    else:
+                        logger.warning(f"取消{order_type_name}订单 {order['order_id']} 失败: {cancel_result.get('message')}")
+            
+            if cancelled_count > 0:
+                logger.info(f"一键全平操作自动取消了 {cancelled_count} 个止盈止损订单")
+                
+        except Exception as e:
+            logger.error(f"取消所有止盈止损订单失败: {e}")
 
     async def close_all_positions(self, user_id: int, group_id: int) -> Dict:
         """
@@ -448,6 +545,9 @@ class TradingService:
             balance_result = TradingRepository.update_account_balance(user_id, group_id, new_balance, total_pnl)
             if not balance_result["success"]:
                 return {'success': False, 'message': '更新账户余额失败'}
+            
+            # 自动取消所有相关的止盈止损订单
+            await self._cancel_all_stop_orders(user_id, group_id)
             
             # 构建返回消息
             message_lines = ["🔄 一键全平成功！"]
