@@ -16,6 +16,7 @@ from .price_service import price_service
 from bot_core.data_repository.trading_repository import TradingRepository
 from utils.logging_utils import setup_logging
 from utils.db_utils import user_info_get
+from utils.config_utils import BOT_TOKEN
 from telegram import Bot
 
 setup_logging()
@@ -390,8 +391,9 @@ class MonitorService:
             user_id = order.get('user_id')
             group_id = order.get('group_id')
             symbol = order.get('symbol', '未知')
-            side = order.get('side', '未知')
-            quantity = order.get('quantity', 0)
+            direction = order.get('direction', '未知')  # bid/ask
+            order_type = order.get('order_type', '未知')
+            volume = order.get('volume', 0)
             
             # 获取用户信息以构造正确的用户提及
             user_info = user_info_get(user_id)
@@ -401,22 +403,36 @@ class MonitorService:
             else:
                 user_mention = f"[用户{user_id}](tg://user?id={user_id})"
             
-            # 构造订单触发通知消息
-            side_text = "做多" if side == "long" else "做空"
+            # 根据订单类型和方向确定显示的方向
+            if order_type in ['tp', 'sl']:  # 止盈止损订单显示平仓方向
+                # 对于止盈止损，direction是平仓方向，需要反推原持仓方向
+                if direction == 'ask':  # 卖出平仓，说明原来是多头
+                    side_text = "平多"
+                elif direction == 'bid':  # 买入平仓，说明原来是空头
+                    side_text = "平空"
+                else:
+                    side_text = "未知"
+            else:  # 开仓订单显示开仓方向
+                if direction == 'bid':  # 买入开多
+                    side_text = "做多"
+                elif direction == 'ask':  # 卖出开空
+                    side_text = "做空"
+                else:
+                    side_text = "未知"
+            
             message = (
                 f"🎯 订单触发通知\n\n"
                 f"{user_mention} 您的{order_type_name}已成功执行！\n\n"
                 f"📊 交易对: {symbol}\n"
                 f"📈 方向: {side_text}\n"
-                f"💰 数量: {quantity:.2f} USDT\n"
+                f"💰 数量: {volume:.2f} USDT\n"
                 f"💵 成交价: {execution_price:.4f}\n"
                 f"⏰ 执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             )
             
             # 发送通知到群组
-            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-            if bot_token:
-                bot = Bot(token=bot_token)
+            if BOT_TOKEN:
+                bot = Bot(token=BOT_TOKEN)
                 await bot.send_message(
                     chat_id=group_id,
                     text=message,
@@ -584,27 +600,39 @@ class MonitorService:
                 return True
             
             elif order_type == 'sl':  # 止损单
+                # 止损单使用 price 字段作为触发价格
+                trigger_price = order_price
+                if not trigger_price:
+                    logger.debug(f"止损单 {order['order_id']} 缺少触发价格，跳过检查")
+                    return False
+                    
                 if direction == 'bid':  # 多头止损
                     # 多头止损：当前价格 <= 止损价格时触发
-                    triggered = current_price <= sl_price if sl_price else False
-                    logger.debug(f"多头止损触发检查: 当前价 {current_price} <= 止损价 {sl_price} = {triggered}")
+                    triggered = current_price <= trigger_price
+                    logger.debug(f"多头止损触发检查: 当前价 {current_price} <= 止损价 {trigger_price} = {triggered}")
                     return triggered
                 elif direction == 'ask':  # 空头止损
                     # 空头止损：当前价格 >= 止损价格时触发
-                    triggered = current_price >= sl_price if sl_price else False
-                    logger.debug(f"空头止损触发检查: 当前价 {current_price} >= 止损价 {sl_price} = {triggered}")
+                    triggered = current_price >= trigger_price
+                    logger.debug(f"空头止损触发检查: 当前价 {current_price} >= 止损价 {trigger_price} = {triggered}")
                     return triggered
             
             elif order_type == 'tp':  # 止盈单
+                # 止盈单使用 price 字段作为触发价格
+                trigger_price = order_price
+                if not trigger_price:
+                    logger.debug(f"止盈单 {order['order_id']} 缺少触发价格，跳过检查")
+                    return False
+                    
                 if direction == 'bid':  # 多头止盈
                     # 多头止盈：当前价格 >= 止盈价格时触发
-                    triggered = current_price >= tp_price if tp_price else False
-                    logger.debug(f"多头止盈触发检查: 当前价 {current_price} >= 止盈价 {tp_price} = {triggered}")
+                    triggered = current_price >= trigger_price
+                    logger.debug(f"多头止盈触发检查: 当前价 {current_price} >= 止盈价 {trigger_price} = {triggered}")
                     return triggered
                 elif direction == 'ask':  # 空头止盈
                     # 空头止盈：当前价格 <= 止盈价格时触发
-                    triggered = current_price <= tp_price if tp_price else False
-                    logger.debug(f"空头止盈触发检查: 当前价 {current_price} <= 止盈价 {tp_price} = {triggered}")
+                    triggered = current_price <= trigger_price
+                    logger.debug(f"空头止盈触发检查: 当前价 {current_price} <= 止盈价 {trigger_price} = {triggered}")
                     return triggered
             
             logger.debug(f"订单不满足任何触发条件")

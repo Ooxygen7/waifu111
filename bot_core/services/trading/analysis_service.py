@@ -100,7 +100,7 @@ class AnalysisService:
                 symbol_stats = ""
                 if win_data.get('most_profitable_symbol'):
                     most_profitable_coin = win_data['most_profitable_symbol'].replace('/USDT', '')
-                    symbol_stats += f"🏆 最赚钱币种: {most_profitable_coin} (+{win_data['most_profitable_pnl']:.0f} USDT)\n"
+                    symbol_stats += f"🏆 最赚钱币种: {most_profitable_coin} ({win_data['most_profitable_pnl']:+.0f} USDT)\n"
 
                 if win_data.get('most_traded_symbol'):
                     most_traded_coin = win_data['most_traded_symbol'].replace('/USDT', '')
@@ -111,14 +111,14 @@ class AnalysisService:
                 pnl_color = "🟢" if total_pnl >= 0 else "🔴"
 
                 message_parts = [
-                    "📊 盈亏报告\n",
-                    f"<blockquote expandable>💰 累计盈亏\n{pnl_color} {pnl_status}: {total_pnl:+.2f} USDT</blockquote>\n",
-                    f"<blockquote expandable>📋 最近15笔交易\n\n{recent_trades}</blockquote>\n",
+                    "📊 盈亏报告\n\n",
+                    f"<blockquote expandable>💰 累计盈亏\n{pnl_color} {pnl_status}: {total_pnl:+.2f} USDT</blockquote>\n\n",
+                    f"<blockquote expandable>📋 最近15笔交易\n\n{recent_trades}</blockquote>\n\n",
                     f"<blockquote expandable>📈 胜率统计\n\n{win_rate_info}</blockquote>"
                 ]
 
                 if symbol_stats.strip():
-                    message_parts.append(f"\n<blockquote expandable>🎯 币种统计\n\n{symbol_stats}</blockquote>")
+                    message_parts.append(f"\n\n<blockquote expandable>🎯 币种统计\n\n{symbol_stats}</blockquote>")
 
                 return {
                     "success": True,
@@ -179,7 +179,7 @@ class AnalysisService:
             }
 
     async def _get_balance_ranking_with_floating(self, group_id: int, limit: int) -> List[Dict]:
-        """获取包含浮动余额的账户排名"""
+        """获取包含浮动余额的账户排名（优化版：批量获取价格）"""
         try:
             # 获取账户余额信息
             balance_result = TradingRepository.get_group_balance_accounts(group_id)
@@ -187,23 +187,53 @@ class AnalysisService:
                 return []
 
             accounts = balance_result["accounts"]
-
-            # 计算每个用户的浮动余额
-            balance_ranking = []
+            
+            # 收集所有需要的交易对
+            all_symbols = set()
+            user_positions = {}
+            
+            # 第一遍遍历：收集所有仓位信息和交易对
             for account in accounts:
                 user_id = account["user_id"]
-                balance = account["balance"]
-
-                # 获取用户所有仓位计算未实现盈亏
+                
                 positions_result = TradingRepository.get_positions(user_id, group_id)
-                total_unrealized_pnl = 0.0
-
                 if positions_result["success"] and positions_result["positions"]:
+                    user_positions[user_id] = {
+                        "account": account,
+                        "positions": positions_result["positions"]
+                    }
+                    
+                    # 收集所有交易对
                     for pos in positions_result["positions"]:
-                        current_price = await price_service.get_current_price(pos['symbol'])
-                        if current_price:
-                            pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
-                            total_unrealized_pnl += pnl
+                        all_symbols.add(pos['symbol'])
+                else:
+                    # 没有仓位的用户也要记录
+                    user_positions[user_id] = {
+                        "account": account,
+                        "positions": []
+                    }
+            
+            # 批量获取所有需要的价格（关键优化点！）
+            logger.info(f"群组 {group_id} 批量获取 {len(all_symbols)} 个交易对的价格")
+            symbol_prices = {}
+            if all_symbols:
+                symbol_prices = await price_service.get_multiple_prices(list(all_symbols))
+                logger.info(f"群组 {group_id} 成功获取 {len([p for p in symbol_prices.values() if p is not None])} 个有效价格")
+
+            # 第二遍遍历：计算浮动余额
+            balance_ranking = []
+            for user_id, data in user_positions.items():
+                account = data["account"]
+                positions = data["positions"]
+                balance = account["balance"]
+                
+                total_unrealized_pnl = 0.0
+                for pos in positions:
+                    symbol = pos['symbol']
+                    current_price = symbol_prices.get(symbol)
+                    if current_price:
+                        pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
+                        total_unrealized_pnl += pnl
 
                 floating_balance = balance + total_unrealized_pnl
                 balance_ranking.append({
@@ -215,6 +245,7 @@ class AnalysisService:
 
             # 按浮动余额排序
             balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
+            logger.info(f"群组 {group_id} 浮动余额排名计算完成，共 {len(balance_ranking)} 个用户")
             return balance_ranking[:limit]
 
         except Exception as e:
@@ -261,7 +292,7 @@ class AnalysisService:
             }
 
     async def _get_global_balance_ranking_with_floating(self, limit: int) -> List[Dict]:
-        """获取跨群包含浮动余额的账户排名"""
+        """获取跨群包含浮动余额的账户排名（优化版：批量获取价格）"""
         try:
             # 获取跨群账户余额信息
             balance_result = TradingRepository.get_global_balance_accounts()
@@ -269,24 +300,58 @@ class AnalysisService:
                 return []
 
             accounts = balance_result["accounts"]
-
-            # 按用户分组计算最优表现
-            user_best_balance = {}
+            
+            # 收集所有需要的交易对
+            all_symbols = set()
+            user_positions = {}
+            
+            # 第一遍遍历：收集所有仓位信息和交易对
             for account in accounts:
                 user_id = account["user_id"]
                 group_id = account["group_id"]
-                balance = account["balance"]
-
-                # 获取用户在该群的所有仓位计算未实现盈亏
+                
                 positions_result = TradingRepository.get_positions(user_id, group_id)
-                total_unrealized_pnl = 0.0
-
                 if positions_result["success"] and positions_result["positions"]:
+                    key = f"{user_id}_{group_id}"
+                    user_positions[key] = {
+                        "account": account,
+                        "positions": positions_result["positions"]
+                    }
+                    
+                    # 收集所有交易对
                     for pos in positions_result["positions"]:
-                        current_price = await price_service.get_current_price(pos['symbol'])
-                        if current_price:
-                            pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
-                            total_unrealized_pnl += pnl
+                        all_symbols.add(pos['symbol'])
+                else:
+                    # 没有仓位的用户也要记录
+                    key = f"{user_id}_{group_id}"
+                    user_positions[key] = {
+                        "account": account,
+                        "positions": []
+                    }
+            
+            # 批量获取所有需要的价格（关键优化点！）
+            logger.info(f"批量获取 {len(all_symbols)} 个交易对的价格")
+            symbol_prices = {}
+            if all_symbols:
+                symbol_prices = await price_service.get_multiple_prices(list(all_symbols))
+                logger.info(f"成功获取 {len([p for p in symbol_prices.values() if p is not None])} 个有效价格")
+
+            # 第二遍遍历：计算浮动余额
+            user_best_balance = {}
+            for key, data in user_positions.items():
+                account = data["account"]
+                positions = data["positions"]
+                user_id = account["user_id"]
+                group_id = account["group_id"]
+                balance = account["balance"]
+                
+                total_unrealized_pnl = 0.0
+                for pos in positions:
+                    symbol = pos['symbol']
+                    current_price = symbol_prices.get(symbol)
+                    if current_price:
+                        pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
+                        total_unrealized_pnl += pnl
 
                 floating_balance = balance + total_unrealized_pnl
 
@@ -303,6 +368,7 @@ class AnalysisService:
             # 转换为列表并排序
             balance_ranking = list(user_best_balance.values())
             balance_ranking.sort(key=lambda x: x["floating_balance"], reverse=True)
+            logger.info(f"全局浮动余额排名计算完成，共 {len(balance_ranking)} 个用户")
             return balance_ranking[:limit]
 
         except Exception as e:

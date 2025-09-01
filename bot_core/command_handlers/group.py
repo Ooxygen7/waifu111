@@ -821,7 +821,7 @@ class LongCommand(BaseCommand):
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount
+                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price
                             )
                 else:
                     # 市价单模式
@@ -837,7 +837,7 @@ class LongCommand(BaseCommand):
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount
+                                user_id, group_id, f"{symbol}/USDT", "short", "sl", amount, trigger_price=sl_price
                             )
                 
                 await MessageDeletionService.send_and_schedule_delete(
@@ -995,7 +995,7 @@ class ShortCommand(BaseCommand):
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount
+                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price
                             )
                 else:
                     # 市价单模式
@@ -1011,7 +1011,7 @@ class ShortCommand(BaseCommand):
                             )
                         if sl_price:
                             await order_service.create_market_order(
-                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount
+                                user_id, group_id, f"{symbol}/USDT", "long", "sl", amount, trigger_price=sl_price
                             )
                 
                 await MessageDeletionService.send_and_schedule_delete(
@@ -1161,7 +1161,7 @@ class PositionCommand(BaseCommand):
                     # 计算未实现盈亏
                     from bot_core.services.trading.price_service import price_service
                     current_price = await price_service.get_current_price(pos['symbol'])
-                    if current_price:
+                    if current_price and current_price > 0:
                         if pos['side'] == 'long':
                             unrealized_pnl = (current_price - pos['entry_price']) * (pos['size'] / pos['entry_price'])
                         else:
@@ -1202,7 +1202,7 @@ class PositionCommand(BaseCommand):
                     # 计算未实现盈亏
                     from bot_core.services.trading.price_service import price_service
                     current_price = await price_service.get_current_price(pos['symbol'])
-                    if current_price:
+                    if current_price and current_price > 0:
                         if pos['side'] == 'long':
                             unrealized_pnl = (current_price - pos['entry_price']) * (pos['size'] / pos['entry_price'])
                         else:
@@ -1214,15 +1214,17 @@ class PositionCommand(BaseCommand):
                         
                         # 计算数量
                         quantity = pos['size'] / pos['entry_price'] if pos['entry_price'] > 0 else 0
+                        
+                        formatted_current_price = f"{current_price:.4f}"
                     else:
                         unrealized_pnl = 0.0
                         pnl_percent = 0.0
-                        quantity = 0.0
+                        quantity = pos['size'] / pos['entry_price'] if pos['entry_price'] > 0 else 0
+                        formatted_current_price = "N/A"
                     
                     side_emoji = "📈" if pos['side'] == 'long' else "📉"
                     coin_symbol = pos['symbol'].replace('/USDT', '')
                     formatted_entry_price = f"{pos['entry_price']:.4f}"
-                    formatted_current_price = f"{current_price:.4f}" if current_price else "N/A"
                     
                     message_parts.append(
                         f"{side_emoji}  {coin_symbol} |数量{quantity:.2f}| {unrealized_pnl:+.2f} USDT ({pnl_percent:+.2f}%)\n"
@@ -1238,9 +1240,10 @@ class PositionCommand(BaseCommand):
                     coin_symbol = order.get('symbol', 'N/A').replace('/USDT', '')
                     price = order.get('price', 0)
                     volume = order.get('volume', 0)
+                    formatted_price = f"{price:.4f}" if price and price > 0 else "N/A"
                     
                     message_parts.append(
-                        f"{side_emoji} {coin_symbol} | 价格: {price:.4f} | 金额: {volume:.2f} USDT"
+                        f"{side_emoji} {coin_symbol} | 价格: {formatted_price} | 金额: {volume:.2f} USDT"
                     )
                 message_parts.append("")
             
@@ -1251,15 +1254,17 @@ class PositionCommand(BaseCommand):
                     coin_symbol = order.get('symbol', 'N/A').replace('/USDT', '')
                     price = order.get('price', 0)
                     volume = order.get('volume', 0)
+                    formatted_price = f"{price:.4f}" if price and price > 0 else "N/A"
                     message_parts.append(
-                        f"🎯 {coin_symbol} TP | 价格: {price:.4f} | 数量: {volume:.2f} USDT"
+                        f"🎯 {coin_symbol} TP | 价格: {formatted_price} | 数量: {volume:.2f} USDT"
                     )
                 for order in sl_orders:
                     coin_symbol = order.get('symbol', 'N/A').replace('/USDT', '')
                     price = order.get('price', 0)
                     volume = order.get('volume', 0)
+                    formatted_price = f"{price:.4f}" if price and price > 0 else "N/A"
                     message_parts.append(
-                        f"🛡️ {coin_symbol} SL | 价格: {price:.4f} | 数量: {volume:.2f} USDT"
+                        f"🛡️ {coin_symbol} SL | 价格: {formatted_price} | 数量: {volume:.2f} USDT"
                     )
                 message_parts.append("")
             
@@ -1292,7 +1297,7 @@ class PnlCommand(BaseCommand):
             # 获取盈亏报告
             result = await analysis_service.get_pnl_report(user_id, group_id)
 
-            # 生成盈亏折线图 (暂时禁用，新版本暂未实现)
+            # 生成盈亏折线图
             chart_image = analysis_service.generate_pnl_chart(user_id, group_id)
 
             if chart_image:
@@ -1340,8 +1345,13 @@ class PnlCommand(BaseCommand):
                 # 找到最近交易的开始位置
                 start = full_message.find("📋 最近15笔交易")
                 if start != -1:
-                    # 只取最近5笔交易来缩短caption
-                    trades_section = full_message[start:start+800]  # 限制长度
+                    # 找到blockquote结束位置，避免包含HTML标签
+                    end = full_message.find("</blockquote>", start)
+                    if end != -1:
+                        trades_section = full_message[start:end]
+                    else:
+                        trades_section = full_message[start:start+800]  # 限制长度
+                    
                     lines = trades_section.split('\n')
 
                     # 提取最近5笔交易记录
@@ -1665,12 +1675,12 @@ class RankCommand(BaseCommand):
             is_global = len(args) > 0 and args[0].lower() == 'all'
             
             if is_global:
-                # 获取全局排行榜数据
+                # 获取全局排行榜数据（已优化批量价格获取）
                 result = await analysis_service.get_global_ranking_data()
                 deadbeat_result = await analysis_service.get_global_deadbeat_ranking_data()
                 title = "📊 <b>全球交易排行榜</b>\n"
             else:
-                # 获取群组排行榜数据
+                # 获取群组排行榜数据（已优化批量价格获取）
                 result = await analysis_service.get_ranking_data(group_id)
                 deadbeat_result = await analysis_service.get_deadbeat_ranking_data(group_id)
                 title = "📊 <b>群组交易排行榜</b>\n"
@@ -2261,9 +2271,9 @@ class TakeProfitCommand(BaseCommand):
             for order in tp_orders:
                 if order['symbol'].replace('/USDT', '').upper() == symbol:
                     if direction:
-                        # 指定方向，需要根据订单的side判断方向
-                        # 止盈订单的side与持仓方向相反
-                        order_direction = 'long' if order['side'] == 'sell' else 'short'
+                        # 指定方向，需要根据订单的direction判断方向
+                        # 止盈订单的direction与持仓方向相反
+                        order_direction = 'long' if order['direction'] == 'ask' else 'short'
                         if order_direction == direction:
                             target_orders.append(order)
                     else:
@@ -2306,7 +2316,7 @@ class TakeProfitCommand(BaseCommand):
             for order in tp_orders:
                 symbol = order['symbol'].replace('/USDT', '')
                 message_parts.append(
-                    f"📈 {symbol} | 价格: {order['price']:.4f} | 数量: {order['amount']:.4f}"
+                    f"📈 {symbol} | 价格: {order['price']:.4f} | 数量: {order['volume']:.4f}"
                 )
             
             await update.message.reply_text("\n".join(message_parts))
@@ -2460,9 +2470,9 @@ class StopLossCommand(BaseCommand):
             for order in sl_orders:
                 if order['symbol'].replace('/USDT', '').upper() == symbol:
                     if direction:
-                        # 指定方向，需要根据订单的side判断方向
-                        # 止损订单的side与持仓方向相反
-                        order_direction = 'long' if order['side'] == 'sell' else 'short'
+                        # 指定方向，需要根据订单的direction判断方向
+                        # 止损订单的direction与持仓方向相反
+                        order_direction = 'long' if order['direction'] == 'ask' else 'short'
                         if order_direction == direction:
                             target_orders.append(order)
                     else:
@@ -2505,7 +2515,7 @@ class StopLossCommand(BaseCommand):
             for order in sl_orders:
                 symbol = order['symbol'].replace('/USDT', '')
                 message_parts.append(
-                    f"📉 {symbol} | 价格: {order['price']:.4f} | 数量: {order['amount']:.4f}"
+                    f"📉 {symbol} | 价格: {order['price']:.4f} | 数量: {order['volume']:.4f}"
                 )
             
             await update.message.reply_text("\n".join(message_parts))

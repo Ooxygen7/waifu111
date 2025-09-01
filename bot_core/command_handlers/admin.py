@@ -144,7 +144,7 @@ class DatabaseCommand(BaseCommand):
         prompt_text = DatabaseSuperToolRegistry.get_prompt_text()
 
         # 1. 创建 Agent 会话生成器
-        q_command_api = get_config('q_command_api', 'default-fallback-api')
+        q_command_api = get_config('q_command_api', 'gemini-2.5')
         agent_session = run_agent_session(
             user_input=user_input,
             prompt_text=prompt_text,

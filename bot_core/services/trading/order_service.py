@@ -272,6 +272,24 @@ class OrderService:
                     # 注意：这里不返回失败，因为订单已经执行成功，仓位操作失败不应该影响订单状态
                 else:
                     logger.info(f"仓位操作成功 - 订单ID:{order['order_id']}")
+            elif order["order_type"] in ["tp", "sl"]:
+                # 止盈止损订单需要执行平仓操作
+                user_id = order["user_id"]
+                group_id = order["group_id"]
+                symbol = order["symbol"]
+                
+                # 确定平仓方向：止盈止损订单的direction是平仓方向
+                close_direction = order["direction"]  # ask或bid
+                
+                # 执行平仓操作 - 平掉该交易对的所有仓位
+                close_result = await position_service._reduce_position(
+                    user_id, group_id, symbol, close_direction, order["volume"], execution_price
+                )
+                
+                if not close_result["success"]:
+                    logger.error(f"止盈止损平仓失败: {close_result.get('message')} - 订单ID:{order['order_id']}")
+                else:
+                    logger.info(f"止盈止损平仓成功 - 订单ID:{order['order_id']}, 平仓方向:{close_direction}")
 
             # 从账户余额中扣除手续费
             account = account_service.get_or_create_account(order["user_id"], order["group_id"])
