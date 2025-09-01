@@ -2153,7 +2153,7 @@ class TakeProfitCommand(BaseCommand):
                 return
 
             if args[0].lower() == 'list':
-                await self._list_tp_orders(update, user_id, group_id)
+                await self._list_tp_orders(update, context, user_id, group_id)
                 return
 
             if len(args) < 2:
@@ -2169,11 +2169,11 @@ class TakeProfitCommand(BaseCommand):
                 action = args[2].lower()
                 
                 if action == 'cancel':
-                    await self._cancel_tp_order(update, user_id, group_id, symbol, direction)
+                    await self._cancel_tp_order(update, context, user_id, group_id, symbol, direction)
                 else:
                     try:
                         price = float(action)
-                        await self._set_tp_order(update, user_id, group_id, symbol, price, direction)
+                        await self._set_tp_order(update, context, user_id, group_id, symbol, price, direction)
                     except ValueError:
                         await update.message.reply_text(
                             "❌ 价格格式错误\n\n"
@@ -2185,11 +2185,11 @@ class TakeProfitCommand(BaseCommand):
                 action = args[1].lower()
                 
                 if action == 'cancel':
-                    await self._cancel_tp_order(update, user_id, group_id, symbol)
+                    await self._cancel_tp_order(update, context, user_id, group_id, symbol)
                 else:
                     try:
                         price = float(action)
-                        await self._set_tp_order(update, user_id, group_id, symbol, price)
+                        await self._set_tp_order(update, context, user_id, group_id, symbol, price)
                     except ValueError:
                         await update.message.reply_text(
                             "❌ 价格格式错误\n\n"
@@ -2201,7 +2201,7 @@ class TakeProfitCommand(BaseCommand):
             logger.error(f"止盈命令失败: {e}")
             await update.message.reply_text("❌ 操作失败，请稍后重试")
 
-    async def _set_tp_order(self, update, user_id: int, group_id: int, symbol: str, price: float, direction: str = None):
+    async def _set_tp_order(self, update, context, user_id: int, group_id: int, symbol: str, price: float, direction: str = None):
         """设置止盈价格"""
         try:
             # 检查是否有对应持仓
@@ -2218,41 +2218,51 @@ class TakeProfitCommand(BaseCommand):
                         # 未指定方向，处理所有持仓
                         target_positions.append(pos)
             
+            # 构造最终消息
             if not target_positions:
                 direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}持仓")
-                return
-            
-            # 为每个匹配的持仓设置止盈价格
-            success_count = 0
-            for position in target_positions:
-                result = await position_service.set_position_tp_sl(
-                    user_id=user_id,
-                    group_id=group_id,
-                    symbol=position['symbol'],
-                    side=position['side'],
-                    tp_price=price,
-                    sl_price=None  # 只设置止盈价格
-                )
-                
-                if result['success']:
-                    success_count += 1
-            
-            if success_count > 0:
-                direction_text = f" {direction}方向" if direction else ""
-                await update.message.reply_text(
-                    f"✅ {symbol}{direction_text} 止盈价格已设置\n"
-                    f"🎯 止盈价格: {price:.4f}\n"
-                    f"📊 设置成功: {success_count}个持仓"
-                )
+                final_message = f"❌ 未找到{symbol}{direction_text}持仓"
             else:
-                await update.message.reply_text(f"❌ 设置止盈失败")
+                # 为每个匹配的持仓设置止盈价格
+                success_count = 0
+                for position in target_positions:
+                    result = await position_service.set_position_tp_sl(
+                        user_id=user_id,
+                        group_id=group_id,
+                        symbol=position['symbol'],
+                        side=position['side'],
+                        tp_price=price,
+                        sl_price=None  # 只设置止盈价格
+                    )
+                    
+                    if result['success']:
+                        success_count += 1
+                
+                # 根据执行结果构造消息
+                if success_count > 0:
+                    direction_text = f" {direction}方向" if direction else ""
+                    final_message = (
+                        f"✅ {symbol}{direction_text} 止盈价格已设置\n"
+                        f"🎯 止盈价格: {price:.4f}\n"
+                        f"📊 设置成功: {success_count}个持仓"
+                    )
+                else:
+                    final_message = "❌ 设置止盈失败"
                 
         except Exception as e:
             logger.error(f"设置止盈失败: {e}")
-            await update.message.reply_text("❌ 设置止盈失败")
+            final_message = "❌ 设置止盈失败"
+        
+        # 统一发送消息
+        await MessageDeletionService.send_and_schedule_delete(
+            update=update,
+            context=context,
+            text=final_message,
+            delay_seconds=15,
+            delete_user_message=True
+        )
 
-    async def _cancel_tp_order(self, update, user_id: int, group_id: int, symbol: str, direction: str = None):
+    async def _cancel_tp_order(self, update, context, user_id: int, group_id: int, symbol: str, direction: str = None):
         """取消止盈价格"""
         try:
             # 检查是否有对应持仓
@@ -2269,60 +2279,78 @@ class TakeProfitCommand(BaseCommand):
                         # 未指定方向，处理所有持仓
                         target_positions.append(pos)
             
+            # 构造最终消息
             if not target_positions:
                 direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}持仓")
-                return
-            
-            # 为每个匹配的持仓清除止盈价格
-            success_count = 0
-            for position in target_positions:
-                result = await position_service.set_position_tp_sl(
-                    user_id=user_id,
-                    group_id=group_id,
-                    symbol=position['symbol'],
-                    side=position['side'],
-                    tp_price=0,  # 清除止盈价格
-                    sl_price=None  # 保持止损价格不变
-                )
-                
-                if result['success']:
-                    success_count += 1
-            
-            if success_count > 0:
-                direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"✅ 已清除{success_count}个{symbol}{direction_text}止盈价格")
+                final_message = f"❌ 未找到{symbol}{direction_text}持仓"
             else:
-                direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"❌ 清除{symbol}{direction_text}止盈价格失败")
+                # 为每个匹配的持仓清除止盈价格
+                success_count = 0
+                for position in target_positions:
+                    result = await position_service.set_position_tp_sl(
+                        user_id=user_id,
+                        group_id=group_id,
+                        symbol=position['symbol'],
+                        side=position['side'],
+                        tp_price=0,  # 清除止盈价格
+                        sl_price=None  # 保持止损价格不变
+                    )
+                    
+                    if result['success']:
+                        success_count += 1
+                
+                # 根据执行结果构造消息
+                if success_count > 0:
+                    direction_text = f"{direction}方向" if direction else ""
+                    final_message = f"✅ 已清除{success_count}个{symbol}{direction_text}止盈价格"
+                else:
+                    direction_text = f"{direction}方向" if direction else ""
+                    final_message = f"❌ 清除{symbol}{direction_text}止盈价格失败"
                 
         except Exception as e:
             logger.error(f"取消止盈失败: {e}")
-            await update.message.reply_text("❌ 取消止盈失败")
+            final_message = "❌ 取消止盈失败"
+        
+        # 统一发送消息
+        await MessageDeletionService.send_and_schedule_delete(
+            update=update,
+            context=context,
+            text=final_message,
+            delay_seconds=15,
+            delete_user_message=True
+        )
 
-    async def _list_tp_orders(self, update, user_id: int, group_id: int):
+    async def _list_tp_orders(self, update, context, user_id: int, group_id: int):
         """列出所有止盈价格"""
         try:
             positions = await position_service.get_positions(user_id, group_id)
             tp_positions = [pos for pos in positions if pos.get('tp_price') and pos.get('tp_price') > 0]
             
+            # 构造最终消息
             if not tp_positions:
-                await update.message.reply_text("📭 暂无设置止盈价格的持仓")
-                return
-            
-            message_parts = ["🎯 止盈价格列表:"]
-            for pos in tp_positions:
-                symbol = pos['symbol'].replace('/USDT', '')
-                side_emoji = '📈' if pos['side'] == 'long' else '📉'
-                message_parts.append(
-                    f"{side_emoji} {symbol} {pos['side'].upper()} | 止盈价格: {pos['tp_price']:.4f} | 持仓: {abs(pos['size']):.4f}"
-                )
-            
-            await update.message.reply_text("\n".join(message_parts))
+                final_message = "📭 暂无设置止盈价格的持仓"
+            else:
+                message_parts = ["🎯 止盈价格列表:"]
+                for pos in tp_positions:
+                    symbol = pos['symbol'].replace('/USDT', '')
+                    side_emoji = '📈' if pos['side'] == 'long' else '📉'
+                    message_parts.append(
+                        f"{side_emoji} {symbol} {pos['side'].upper()} | 止盈价格: {pos['tp_price']:.4f} | 持仓: {abs(pos['size']):.4f}"
+                    )
+                final_message = "\n".join(message_parts)
                 
         except Exception as e:
             logger.error(f"查看止盈价格失败: {e}")
-            await update.message.reply_text("❌ 查看止盈价格失败")
+            final_message = "❌ 查看止盈价格失败"
+        
+        # 统一发送消息
+        await MessageDeletionService.send_and_schedule_delete(
+            update=update,
+            context=context,
+            text=final_message,
+            delay_seconds=15,
+            delete_user_message=True
+        )
 
 
 class StopLossCommand(BaseCommand):
@@ -2357,7 +2385,7 @@ class StopLossCommand(BaseCommand):
                 return
 
             if args[0].lower() == 'list':
-                await self._list_sl_orders(update, user_id, group_id)
+                await self._list_sl_orders(update, context, user_id, group_id)
                 return
 
             if len(args) < 2:
@@ -2373,11 +2401,11 @@ class StopLossCommand(BaseCommand):
                 action = args[2].lower()
                 
                 if action == 'cancel':
-                    await self._cancel_sl_order(update, user_id, group_id, symbol, direction)
+                    await self._cancel_sl_order(update, context, user_id, group_id, symbol, direction)
                 else:
                     try:
                         price = float(action)
-                        await self._set_sl_order(update, user_id, group_id, symbol, price, direction)
+                        await self._set_sl_order(update, context, user_id, group_id, symbol, price, direction)
                     except ValueError:
                         await update.message.reply_text(
                             "❌ 价格格式错误\n\n"
@@ -2389,11 +2417,11 @@ class StopLossCommand(BaseCommand):
                 action = args[1].lower()
                 
                 if action == 'cancel':
-                    await self._cancel_sl_order(update, user_id, group_id, symbol)
+                    await self._cancel_sl_order(update, context, user_id, group_id, symbol)
                 else:
                     try:
                         price = float(action)
-                        await self._set_sl_order(update, user_id, group_id, symbol, price)
+                        await self._set_sl_order(update, context, user_id, group_id, symbol, price)
                     except ValueError:
                         await update.message.reply_text(
                             "❌ 价格格式错误\n\n"
@@ -2405,7 +2433,7 @@ class StopLossCommand(BaseCommand):
             logger.error(f"止损命令失败: {e}")
             await update.message.reply_text("❌ 操作失败，请稍后重试")
 
-    async def _set_sl_order(self, update, user_id: int, group_id: int, symbol: str, price: float, direction: str = None):
+    async def _set_sl_order(self, update, context, user_id: int, group_id: int, symbol: str, price: float, direction: str = None):
         """设置止损价格"""
         try:
             # 检查是否有对应持仓
@@ -2422,41 +2450,51 @@ class StopLossCommand(BaseCommand):
                         # 未指定方向，处理所有持仓
                         target_positions.append(pos)
             
+            # 构造最终消息
             if not target_positions:
                 direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}持仓")
-                return
-            
-            # 为每个匹配的持仓设置止损价格
-            success_count = 0
-            for position in target_positions:
-                result = await position_service.set_position_tp_sl(
-                    user_id=user_id,
-                    group_id=group_id,
-                    symbol=position['symbol'],
-                    side=position['side'],
-                    tp_price=None,  # 只设置止损价格
-                    sl_price=price
-                )
-                
-                if result['success']:
-                    success_count += 1
-            
-            if success_count > 0:
-                direction_text = f" {direction}方向" if direction else ""
-                await update.message.reply_text(
-                    f"✅ {symbol}{direction_text} 止损价格已设置\n"
-                    f"🛡️ 止损价格: {price:.4f}\n"
-                    f"📊 设置成功: {success_count}个持仓"
-                )
+                final_message = f"❌ 未找到{symbol}{direction_text}持仓"
             else:
-                await update.message.reply_text(f"❌ 设置止损失败")
+                # 为每个匹配的持仓设置止损价格
+                success_count = 0
+                for position in target_positions:
+                    result = await position_service.set_position_tp_sl(
+                        user_id=user_id,
+                        group_id=group_id,
+                        symbol=position['symbol'],
+                        side=position['side'],
+                        tp_price=None,  # 只设置止损价格
+                        sl_price=price
+                    )
+                    
+                    if result['success']:
+                        success_count += 1
+                
+                # 根据执行结果构造消息
+                if success_count > 0:
+                    direction_text = f" {direction}方向" if direction else ""
+                    final_message = (
+                        f"✅ {symbol}{direction_text} 止损价格已设置\n"
+                        f"🛡️ 止损价格: {price:.4f}\n"
+                        f"📊 设置成功: {success_count}个持仓"
+                    )
+                else:
+                    final_message = "❌ 设置止损失败"
                 
         except Exception as e:
             logger.error(f"设置止损失败: {e}")
-            await update.message.reply_text("❌ 设置止损失败")
+            final_message = "❌ 设置止损失败"
+        
+        # 统一发送消息
+        await MessageDeletionService.send_and_schedule_delete(
+            update=update,
+            context=context,
+            text=final_message,
+            delay_seconds=15,
+            delete_user_message=True
+        )
 
-    async def _cancel_sl_order(self, update, user_id: int, group_id: int, symbol: str, direction: str = None):
+    async def _cancel_sl_order(self, update, context, user_id: int, group_id: int, symbol: str, direction: str = None):
         """取消止损价格"""
         try:
             # 检查是否有对应持仓
@@ -2473,60 +2511,78 @@ class StopLossCommand(BaseCommand):
                         # 未指定方向，处理所有持仓
                         target_positions.append(pos)
             
+            # 构造最终消息
             if not target_positions:
                 direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"❌ 未找到{symbol}{direction_text}持仓")
-                return
-            
-            # 为每个匹配的持仓清除止损价格
-            success_count = 0
-            for position in target_positions:
-                result = await position_service.set_position_tp_sl(
-                    user_id=user_id,
-                    group_id=group_id,
-                    symbol=position['symbol'],
-                    side=position['side'],
-                    tp_price=None,  # 保持止盈价格不变
-                    sl_price=0  # 清除止损价格
-                )
-                
-                if result['success']:
-                    success_count += 1
-            
-            if success_count > 0:
-                direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"✅ 已清除{success_count}个{symbol}{direction_text}止损价格")
+                final_message = f"❌ 未找到{symbol}{direction_text}持仓"
             else:
-                direction_text = f"{direction}方向" if direction else ""
-                await update.message.reply_text(f"❌ 清除{symbol}{direction_text}止损价格失败")
+                # 为每个匹配的持仓清除止损价格
+                success_count = 0
+                for position in target_positions:
+                    result = await position_service.set_position_tp_sl(
+                        user_id=user_id,
+                        group_id=group_id,
+                        symbol=position['symbol'],
+                        side=position['side'],
+                        tp_price=None,  # 保持止盈价格不变
+                        sl_price=0  # 清除止损价格
+                    )
+                    
+                    if result['success']:
+                        success_count += 1
+                
+                # 根据执行结果构造消息
+                if success_count > 0:
+                    direction_text = f"{direction}方向" if direction else ""
+                    final_message = f"✅ 已清除{success_count}个{symbol}{direction_text}止损价格"
+                else:
+                    direction_text = f"{direction}方向" if direction else ""
+                    final_message = f"❌ 清除{symbol}{direction_text}止损价格失败"
                 
         except Exception as e:
             logger.error(f"取消止损失败: {e}")
-            await update.message.reply_text("❌ 取消止损失败")
+            final_message = "❌ 取消止损失败"
+        
+        # 统一发送消息
+        await MessageDeletionService.send_and_schedule_delete(
+            update=update,
+            context=context,
+            text=final_message,
+            delay_seconds=15,
+            delete_user_message=True
+        )
 
-    async def _list_sl_orders(self, update, user_id: int, group_id: int):
+    async def _list_sl_orders(self, update, context, user_id: int, group_id: int):
         """列出所有止损价格"""
         try:
             positions = await position_service.get_positions(user_id, group_id)
             sl_positions = [pos for pos in positions if pos.get('sl_price') and pos.get('sl_price') > 0]
             
+            # 构造最终消息
             if not sl_positions:
-                await update.message.reply_text("📭 暂无设置止损价格的持仓")
-                return
-            
-            message_parts = ["🛡️ 止损价格列表:"]
-            for pos in sl_positions:
-                symbol = pos['symbol'].replace('/USDT', '')
-                side_emoji = '📈' if pos['side'] == 'long' else '📉'
-                message_parts.append(
-                    f"{side_emoji} {symbol} {pos['side'].upper()} | 止损价格: {pos['sl_price']:.4f} | 持仓: {abs(pos['size']):.4f}"
-                )
-            
-            await update.message.reply_text("\n".join(message_parts))
+                final_message = "📭 暂无设置止损价格的持仓"
+            else:
+                message_parts = ["🛡️ 止损价格列表:"]
+                for pos in sl_positions:
+                    symbol = pos['symbol'].replace('/USDT', '')
+                    side_emoji = '📈' if pos['side'] == 'long' else '📉'
+                    message_parts.append(
+                        f"{side_emoji} {symbol} {pos['side'].upper()} | 止损价格: {pos['sl_price']:.4f} | 持仓: {abs(pos['size']):.4f}"
+                    )
+                final_message = "\n".join(message_parts)
                 
         except Exception as e:
             logger.error(f"查看止损价格失败: {e}")
-            await update.message.reply_text("❌ 查看止损价格失败")
+            final_message = "❌ 查看止损价格失败"
+        
+        # 统一发送消息
+        await MessageDeletionService.send_and_schedule_delete(
+            update=update,
+            context=context,
+            text=final_message,
+            delay_seconds=15,
+            delete_user_message=True
+        )
 
 
 class CancelCommand(BaseCommand):
