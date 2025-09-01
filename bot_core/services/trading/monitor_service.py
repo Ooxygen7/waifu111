@@ -79,10 +79,11 @@ class MonitorService:
                     self.liquidation_counter += 1
                     self.interest_counter += 1
 
-                    # 每10秒检查订单触发条件
+                    # 每10秒检查订单触发条件和止盈止损
                     if self.price_counter >= 1:
                         self.price_counter = 0
                         await self._check_pending_orders()
+                        await self._check_stop_loss_take_profit_orders()
 
                     # 每30秒检查一次强平条件
                     if self.liquidation_counter >= 3:
@@ -403,6 +404,46 @@ class MonitorService:
             else:
                 user_mention = f"[用户{user_id}](tg://user?id={user_id})"
             
+            # 计算实际币种数量
+            quantity = order.get('quantity', 0)
+            if quantity == 0 and volume > 0:
+                quantity = volume / execution_price
+            
+            # 提取币种名称（去掉/USDT后缀）
+            base_currency = symbol.replace('/USDT', '') if '/USDT' in symbol else symbol.split('/')[0]
+            
+            # 获取仓位信息以计算盈亏
+            pnl_info = ""
+            try:
+                if order_type in ['tp', 'sl']:
+                    # 查询该用户的仓位信息来计算盈亏
+                    positions_result = self.trading_repo.get_user_positions(user_id, group_id)
+                    if positions_result.get('success', False):
+                        positions = positions_result.get('positions', [])
+                        position = next((p for p in positions if p['symbol'] == symbol), None)
+                        
+                        if position:
+                            entry_price = position.get('entry_price', 0)
+                            if entry_price > 0:
+                                # 计算盈亏
+                                if direction == 'ask':  # 平多仓
+                                    pnl = (execution_price - entry_price) * quantity
+                                else:  # 平空仓
+                                    pnl = (entry_price - execution_price) * quantity
+                                
+                                # 计算手续费（假设0.1%）
+                                fee = volume * 0.001
+                                net_pnl = pnl - fee
+                                
+                                pnl_symbol = "📈" if net_pnl >= 0 else "📉"
+                                pnl_info = (
+                                    f"\n💹 盈亏: {pnl:.2f} USDT"
+                                    f"\n💸 手续费: {fee:.2f} USDT"
+                                    f"\n{pnl_symbol} 净盈亏: {net_pnl:.2f} USDT"
+                                )
+            except Exception as e:
+                logger.warning(f"计算盈亏信息失败: {e}")
+            
             # 根据订单类型和方向确定显示的方向
             if order_type in ['tp', 'sl']:  # 止盈止损订单显示平仓方向
                 # 对于止盈止损，direction是平仓方向，需要反推原持仓方向
@@ -425,8 +466,10 @@ class MonitorService:
                 f"{user_mention} 您的{order_type_name}已成功执行！\n\n"
                 f"📊 交易对: {symbol}\n"
                 f"📈 方向: {side_text}\n"
-                f"💰 数量: {volume:.2f} USDT\n"
+                f"💰 数量: {quantity:.4f} {base_currency}\n"
                 f"💵 成交价: {execution_price:.4f}\n"
+                f"💎 成交额: {volume:.2f} USDT"
+                f"{pnl_info}\n"
                 f"⏰ 执行时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             )
             
@@ -643,71 +686,61 @@ class MonitorService:
             return False
     
     async def _check_and_create_stop_orders(self, executed_order: Dict):
-        """检查并创建止盈止损订单"""
+        """检查并同步止盈止损价格到仓位表"""
         try:
-            # 如果执行的订单有止盈止损设置，创建相应的止盈止损订单
-            stop_loss_price = executed_order.get('stop_loss_price')
-            take_profit_price = executed_order.get('take_profit_price')
+            # 如果执行的订单有止盈止损设置，将其同步到仓位表
+            sl_price = executed_order.get('sl_price')
+            tp_price = executed_order.get('tp_price')
             
-            if stop_loss_price or take_profit_price:
+            if sl_price or tp_price:
                 user_id = executed_order['user_id']
                 group_id = executed_order['group_id']
                 symbol = executed_order['symbol']
-                side = executed_order['side']
-                size = executed_order['size']
+                # 根据订单方向确定仓位方向
+                order_direction = executed_order['direction']  # bid/ask
+                position_direction = 'long' if order_direction == 'bid' else 'short'
                 
-                # 创建止损订单
-                if stop_loss_price:
-                    stop_loss_result = await order_service.create_order(
-                        user_id=user_id,
-                        group_id=group_id,
-                        symbol=symbol,
-                        side='short' if side == 'long' else 'long',  # 反向平仓
-                        order_type='stop_loss',
-                        size=size,
-                        trigger_price=stop_loss_price,
-                        order_attribute='close_position'
-                    )
-                    
-                    if stop_loss_result['success']:
-                        logger.info(f"为订单 {executed_order['order_id']} 创建止损订单成功")
+                # 同步止盈止损价格到仓位表
+                result = await position_service.set_position_tp_sl(
+                    user_id=user_id,
+                    group_id=group_id,
+                    symbol=symbol,
+                    side=position_direction,
+                    tp_price=tp_price,
+                    sl_price=sl_price
+                )
                 
-                # 创建止盈订单
-                if take_profit_price:
-                    take_profit_result = await order_service.create_order(
-                        user_id=user_id,
-                        group_id=group_id,
-                        symbol=symbol,
-                        side='short' if side == 'long' else 'long',  # 反向平仓
-                        order_type='take_profit',
-                        size=size,
-                        trigger_price=take_profit_price,
-                        order_attribute='close_position'
-                    )
-                    
-                    if take_profit_result['success']:
-                        logger.info(f"为订单 {executed_order['order_id']} 创建止盈订单成功")
+                if result.get('success', False):
+                    logger.info(f"订单 {executed_order['order_id']} 的止盈止损价格已同步到仓位表: TP:{tp_price} SL:{sl_price}")
+                else:
+                    logger.warning(f"同步订单 {executed_order['order_id']} 的止盈止损价格失败: {result.get('message', '未知错误')}")
                         
         except Exception as e:
-            logger.error(f"创建止盈止损订单失败: {e}")
+            logger.error(f"同步止盈止损价格失败: {e}")
     
     async def _check_stop_loss_take_profit_orders(self):
-        """检查现有仓位的止盈止损订单"""
+        """检查现有仓位的止盈止损价格触发条件"""
         try:
-            # 获取所有止盈止损订单
-            tp_orders_result = TradingRepository.get_orders_by_type('tp', 'pending')
-            sl_orders_result = TradingRepository.get_orders_by_type('sl', 'pending')
-            
-            if not tp_orders_result.get('success', False) or not sl_orders_result.get('success', False):
+            # 获取所有有止盈止损价格的仓位
+            positions_result = TradingRepository.get_all_positions()
+            if not positions_result.get('success', False):
                 return
             
-            stop_orders = tp_orders_result.get('orders', []) + sl_orders_result.get('orders', [])
+            positions = positions_result.get('positions', [])
+            if not positions:
+                return
             
-            if not stop_orders:
+            # 筛选出有止盈止损价格的仓位
+            positions_with_tp_sl = []
+            for pos in positions:
+                if pos.get('tp_price') or pos.get('sl_price'):
+                    positions_with_tp_sl.append(pos)
+            
+            if not positions_with_tp_sl:
                 return
             
             # 收集所有需要的交易对
-            symbols = set(order['symbol'] for order in stop_orders)
+            symbols = set(pos['symbol'] for pos in positions_with_tp_sl)
             
             # 批量获取价格
             prices = {}
@@ -719,38 +752,94 @@ class MonitorService:
                 except Exception as e:
                     logger.error(f"获取 {symbol} 价格失败: {e}")
             
-            for order in stop_orders:
+            for position in positions_with_tp_sl:
                 try:
-                    symbol = order['symbol']
+                    symbol = position['symbol']
                     if symbol not in prices:
-                        logger.debug(f"无法获取 {symbol} 的实时价格，跳过订单 {order['order_id']}")
+                        logger.debug(f"无法获取 {symbol} 的实时价格，跳过仓位检查")
                         continue
                     
                     current_price = prices[symbol]
+                    direction = position['side']
+                    tp_price = position.get('tp_price')
+                    sl_price = position.get('sl_price')
                     
-                    # 检查止盈止损订单是否可以触发
-                    can_trigger = await self._check_order_trigger_condition_with_price(order, current_price)
+                    logger.debug(f"检查仓位 {symbol} {direction}: 当前价格={current_price}, TP={tp_price}, SL={sl_price}")
                     
-                    if can_trigger:
-                        # 执行止盈止损订单
-                        result = await order_service.execute_order(order['order_id'])
+                    # 检查止盈触发条件
+                    if tp_price and self._check_tp_trigger(current_price, tp_price, direction):
+                        logger.info(f"止盈触发: {symbol} {direction} 当前价格{current_price} >= 止盈价{tp_price}")
+                        await self._execute_tp_sl_trigger(position, current_price, 'tp')
+                    
+                    # 检查止损触发条件
+                    elif sl_price and self._check_sl_trigger(current_price, sl_price, direction):
+                        logger.info(f"止损触发: {symbol} {direction} 当前价格{current_price} <= 止损价{sl_price}")
+                        await self._execute_tp_sl_trigger(position, current_price, 'sl')
                         
-                        if result['success']:
-                            logger.info(f"止盈止损订单 {order['order_id']} 已成功执行")
-                            
-                            # 发送订单触发通知
-                            order_type_name = "止盈单" if order['order_type'] == "tp" else "止损单"
-                            await self._send_order_trigger_notification(order, current_price, order_type_name)
-                            
-                        else:
-                            logger.debug(f"止盈止损订单 {order['order_id']} 执行失败: {result.get('message', '未知错误')}")
-                            
                 except Exception as e:
-                    logger.error(f"检查止盈止损订单 {order['order_id']} 失败: {e}")
+                    logger.error(f"检查仓位止盈止损失败: {e}")
                     continue
                     
         except Exception as e:
-            logger.error(f"检查止盈止损订单失败: {e}")
+            logger.error(f"检查仓位止盈止损失败: {e}")
+    
+    def _check_tp_trigger(self, current_price: float, tp_price: float, direction: str) -> bool:
+        """检查止盈触发条件"""
+        if direction == 'long':
+            return current_price >= tp_price
+        else:  # short
+            return current_price <= tp_price
+    
+    def _check_sl_trigger(self, current_price: float, sl_price: float, direction: str) -> bool:
+        """检查止损触发条件"""
+        if direction == 'long':
+            return current_price <= sl_price
+        else:  # short
+            return current_price >= sl_price
+    
+    async def _execute_tp_sl_trigger(self, position: dict, trigger_price: float, trigger_type: str):
+        """执行止盈止损触发"""
+        try:
+            user_id = position['user_id']
+            group_id = position['group_id']
+            symbol = position['symbol']
+            direction = position['side']
+            quantity = position['size']
+            
+            # 确定平仓方向：long仓位用ask(卖出)平仓，short仓位用bid(买入)平仓
+            close_direction = 'ask' if direction == 'long' else 'bid'
+            
+            # 使用position_service平仓
+            result = await position_service._reduce_position(
+                user_id=user_id,
+                group_id=group_id,
+                symbol=symbol,
+                direction=close_direction,
+                volume=quantity,
+                exit_price=trigger_price
+            )
+            
+            if result.get('success', False):
+                logger.info(f"{'止盈' if trigger_type == 'tp' else '止损'}触发成功: {symbol} {direction} {quantity}@{trigger_price}")
+                
+                # 发送触发通知
+                order_type_name = "止盈单" if trigger_type == 'tp' else "止损单"
+                fake_order = {
+                    'user_id': user_id,
+                    'group_id': group_id,
+                    'symbol': symbol,
+                    'direction': close_direction,
+                    'quantity': quantity,  # 实际币种数量
+                    'volume': quantity * trigger_price,  # USDT价值
+                    'order_type': trigger_type
+                }
+                await self._send_order_trigger_notification(fake_order, trigger_price, order_type_name)
+                
+            else:
+                logger.error(f"{'止盈' if trigger_type == 'tp' else '止损'}触发失败: {result.get('message', '未知错误')}")
+                
+        except Exception as e:
+            logger.error(f"执行{'止盈' if trigger_type == 'tp' else '止损'}触发失败: {e}")
 
 
 # 全局监控服务实例

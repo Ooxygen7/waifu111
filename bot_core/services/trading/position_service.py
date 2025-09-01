@@ -848,5 +848,55 @@ class PositionService:
             }
 
 
+    async def set_position_tp_sl(self, user_id: int, group_id: int, symbol: str, side: str,
+                                 tp_price: float = None, sl_price: float = None) -> Dict:
+        """设置仓位的止盈止损价格"""
+        try:
+            # 检查仓位是否存在
+            position_result = TradingRepository.get_position(user_id, group_id, symbol, side)
+            if not position_result["success"] or not position_result["position"]:
+                return {
+                    "success": False,
+                    "message": f"没有找到 {symbol} {side.upper()} 仓位"
+                }
+            
+            # 更新仓位的止盈止损价格
+            update_result = TradingRepository.update_position_tp_sl(
+                user_id, group_id, symbol, side, tp_price, sl_price
+            )
+            
+            if not update_result["success"]:
+                return {
+                    "success": False,
+                    "message": "更新止盈止损价格失败"
+                }
+            
+            # 构建返回消息
+            coin_symbol = symbol.replace('/USDT', '')
+            direction_emoji = "📈" if side == 'long' else "📉"
+            
+            message_parts = [f"{direction_emoji} {coin_symbol} {side.upper()} 仓位"]
+            
+            if tp_price is not None:
+                message_parts.append(f"止盈价: {tp_price:.4f}")
+            
+            if sl_price is not None:
+                message_parts.append(f"止损价: {sl_price:.4f}")
+            
+            message = "设置成功！\n" + "\n".join(message_parts)
+            
+            return {
+                "success": True,
+                "message": message
+            }
+            
+        except Exception as e:
+            logger.error(f"设置仓位止盈止损价格失败: {e}")
+            return {
+                "success": False,
+                "message": f"设置失败: {str(e)}"
+            }
+
+
 # 全局仓位服务实例
 position_service = PositionService()

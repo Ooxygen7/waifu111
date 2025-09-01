@@ -217,6 +217,8 @@ create table trading_positions
     current_price    REAL,                 -- 当前价格
     pnl              REAL default 0.0,     -- 未实现盈亏
     liquidation_price REAL,                -- 强平价格
+    tp_price         REAL,                 -- 止盈价格
+    sl_price         REAL,                 -- 止损价格
     created_at       TEXT not null,
     updated_at       TEXT,
     FOREIGN KEY (user_id, group_id) REFERENCES trading_accounts(user_id, group_id)

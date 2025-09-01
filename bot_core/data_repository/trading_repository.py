@@ -1092,8 +1092,10 @@ class TradingRepository:
                     "current_price": float(row[7]) if row[7] else 0.0,
                     "pnl": float(row[8]) if row[8] else 0.0,
                     "liquidation_price": float(row[9]) if row[9] else 0.0,
-                    "created_at": row[10],
-                    "updated_at": row[11]
+                    "tp_price": float(row[10]) if row[10] else None,
+                    "sl_price": float(row[11]) if row[11] else None,
+                    "created_at": row[12],
+                    "updated_at": row[13]
                 })
             
             return {
@@ -1127,8 +1129,10 @@ class TradingRepository:
                     "current_price": float(row[7]) if row[7] else 0.0,
                     "pnl": float(row[8]) if row[8] else 0.0,
                     "liquidation_price": float(row[9]) if row[9] else 0.0,
-                    "created_at": row[10],
-                    "updated_at": row[11]
+                    "tp_price": float(row[10]) if row[10] else None,
+                    "sl_price": float(row[11]) if row[11] else None,
+                    "created_at": row[12],
+                    "updated_at": row[13]
                 }
                 return {
                     "success": True,
@@ -1204,6 +1208,88 @@ class TradingRepository:
             }
 
     @staticmethod
+    def update_position_tp_sl(user_id: int, group_id: int, symbol: str, side: str, 
+                             tp_price: float = None, sl_price: float = None) -> dict:
+        """更新仓位的止盈止损价格"""
+        try:
+            now = datetime.datetime.now()
+            
+            # 动态构建SQL语句，只更新传入的非None字段
+            set_clauses = []
+            params = []
+            
+            if tp_price is not None:
+                set_clauses.append("tp_price = ?")
+                params.append(tp_price)
+            
+            if sl_price is not None:
+                set_clauses.append("sl_price = ?")
+                params.append(sl_price)
+            
+            if not set_clauses:
+                return {
+                    "success": False,
+                    "error": "没有提供要更新的字段"
+                }
+            
+            # 添加updated_at字段
+            set_clauses.append("updated_at = ?")
+            params.append(now)
+            
+            # 添加WHERE条件参数
+            params.extend([user_id, group_id, symbol, side])
+            
+            command = f"""
+                UPDATE trading_positions 
+                SET {', '.join(set_clauses)}
+                WHERE user_id = ? AND group_id = ? AND symbol = ? AND side = ?
+            """
+            
+            revise_db(command, tuple(params))
+            
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"更新仓位止盈止损价格失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def update_order_tp_sl(order_id: str, tp_price: float = None, sl_price: float = None) -> dict:
+        """更新订单的止盈止损价格"""
+        try:
+            # 构建动态更新语句
+            update_fields = []
+            params = []
+            
+            if tp_price is not None:
+                update_fields.append("tp_price = ?")
+                params.append(tp_price)
+            
+            if sl_price is not None:
+                update_fields.append("sl_price = ?")
+                params.append(sl_price)
+            
+            if not update_fields:
+                return {"success": False, "error": "没有提供要更新的字段"}
+            
+            # 添加订单ID到参数列表
+            params.append(order_id)
+            
+            command = f"UPDATE trading_orders SET {', '.join(update_fields)} WHERE order_id = ?"
+            revise_db(command, params)
+            
+            logger.info(f"订单 {order_id} 止盈止损价格更新成功")
+            return {"success": True}
+        except Exception as e:
+            logger.error(f"更新订单止盈止损价格失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
     def get_all_positions() -> dict:
         """获取所有持仓用于强平检查"""
         try:
@@ -1223,8 +1309,10 @@ class TradingRepository:
                     "current_price": float(row[7]) if row[7] else 0.0,
                     "pnl": float(row[8]) if row[8] else 0.0,
                     "liquidation_price": float(row[9]) if row[9] else 0.0,
-                    "created_at": row[10],
-                    "updated_at": row[11]
+                    "tp_price": float(row[10]) if row[10] else None,
+                    "sl_price": float(row[11]) if row[11] else None,
+                    "created_at": row[12],
+                    "updated_at": row[13]
                 })
             
             return {
