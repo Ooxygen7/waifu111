@@ -324,9 +324,15 @@ class PositionService:
                 pnl = close_result.get("pnl", 0.0)
                 fee = close_result.get("fee", 0.0)
                 net_pnl = pnl - fee
+                
+                # 计算当前仓位的实际价值（考虑价格变动）
+                # 开仓时的币种数量 = 开仓时的USDT价值 / 开仓价格
+                coin_quantity = close_size / position['entry_price']
+                # 当前仓位的实际价值 = 币种数量 * 当前价格
+                current_position_value = coin_quantity * exit_price
 
                 TradingRepository.add_trading_history(
-                    user_id, group_id, 'close', symbol, side, close_size, exit_price, net_pnl
+                    user_id, group_id, 'close', symbol, side, current_position_value, exit_price, net_pnl
                 )
 
             return close_result
@@ -805,10 +811,16 @@ class PositionService:
                         'net_pnl': net_pnl
                     })
 
-                    # 记录交易历史
+                    # 计算当前仓位的实际价值（考虑价格变动）
+                    # 开仓时的币种数量 = 开仓时的USDT价值 / 开仓价格
+                    coin_quantity = position['size'] / position['entry_price']
+                    # 当前仓位的实际价值 = 币种数量 * 当前价格
+                    current_position_value = coin_quantity * current_price
+                    
+                    # 记录交易历史（记录当前仓位的实际价值，而非开仓时的价值）
                     TradingRepository.add_trading_history(
                         user_id, group_id, 'close', position['symbol'], position['side'],
-                        position['size'], current_price, net_pnl
+                        current_position_value, current_price, net_pnl
                     )
 
             if not closed_positions:

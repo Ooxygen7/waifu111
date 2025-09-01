@@ -404,19 +404,21 @@ class MonitorService:
             else:
                 user_mention = f"[用户{user_id}](tg://user?id={user_id})"
             
-            # 计算实际币种数量
+            # 获取实际币种数量
             quantity = order.get('quantity', 0)
-            if quantity == 0 and volume > 0:
+            # 对于止盈止损订单，quantity已经是正确的币种数量，不需要重新计算
+            # 只有当quantity为0且不是止盈止损订单时才重新计算
+            if quantity == 0 and volume > 0 and order_type not in ['tp', 'sl']:
                 quantity = volume / execution_price
             
             # 提取币种名称（去掉/USDT后缀）
             base_currency = symbol.replace('/USDT', '') if '/USDT' in symbol else symbol.split('/')[0]
             
-            # 获取仓位信息以计算盈亏
-            pnl_info = ""
-            try:
-                if order_type in ['tp', 'sl']:
-                    # 查询该用户的仓位信息来计算盈亏
+            # 获取盈亏信息
+            pnl_info = order.get('pnl_info', '')
+            if not pnl_info and order_type in ['tp', 'sl']:
+                # 如果没有预计算的盈亏信息，尝试查询仓位信息来计算
+                try:
                     positions_result = self.trading_repo.get_user_positions(user_id, group_id)
                     if positions_result.get('success', False):
                         positions = positions_result.get('positions', [])
@@ -424,11 +426,12 @@ class MonitorService:
                         
                         if position:
                             entry_price = position.get('entry_price', 0)
+                            position_side = position.get('side', '')
                             if entry_price > 0:
-                                # 计算盈亏
-                                if direction == 'ask':  # 平多仓
+                                # 根据原始仓位方向计算盈亏
+                                if position_side == 'long':  # 多仓平仓
                                     pnl = (execution_price - entry_price) * quantity
-                                else:  # 平空仓
+                                else:  # 空仓平仓
                                     pnl = (entry_price - execution_price) * quantity
                                 
                                 # 计算手续费（假设0.1%）
@@ -441,8 +444,8 @@ class MonitorService:
                                     f"\n💸 手续费: {fee:.2f} USDT"
                                     f"\n{pnl_symbol} 净盈亏: {net_pnl:.2f} USDT"
                                 )
-            except Exception as e:
-                logger.warning(f"计算盈亏信息失败: {e}")
+                except Exception as e:
+                    logger.warning(f"计算盈亏信息失败: {e}")
             
             # 根据订单类型和方向确定显示的方向
             if order_type in ['tp', 'sl']:  # 止盈止损订单显示平仓方向
@@ -805,9 +808,35 @@ class MonitorService:
             symbol = position['symbol']
             direction = position['side']
             quantity = position['size']
+            entry_price = position.get('entry_price', 0)
             
             # 确定平仓方向：long仓位用ask(卖出)平仓，short仓位用bid(买入)平仓
             close_direction = 'ask' if direction == 'long' else 'bid'
+            
+            # 在平仓前计算盈亏信息
+            # 计算实际币种数量：开仓时的USDT价值 / 开仓价格
+            actual_coin_quantity = quantity / entry_price
+            # 计算当前仓位的实际价值：币种数量 * 当前价格
+            current_position_value = actual_coin_quantity * trigger_price
+            
+            pnl_info = ""
+            if entry_price > 0:
+                # 根据原始仓位方向计算盈亏
+                if direction == 'long':  # 多仓平仓
+                    pnl = (trigger_price - entry_price) * actual_coin_quantity
+                else:  # 空仓平仓
+                    pnl = (entry_price - trigger_price) * actual_coin_quantity
+                
+                # 计算手续费（基于当前仓位价值，万分之3.5）
+                fee = current_position_value * 0.00035
+                net_pnl = pnl - fee
+                
+                pnl_symbol = "📈" if net_pnl >= 0 else "📉"
+                pnl_info = (
+                    f"\n💹 盈亏: {pnl:.2f} USDT"
+                    f"\n💸 手续费: {fee:.2f} USDT"
+                    f"\n{pnl_symbol} 净盈亏: {net_pnl:.2f} USDT"
+                )
             
             # 使用position_service平仓
             result = await position_service._reduce_position(
@@ -829,9 +858,10 @@ class MonitorService:
                     'group_id': group_id,
                     'symbol': symbol,
                     'direction': close_direction,
-                    'quantity': quantity,  # 实际币种数量
-                    'volume': quantity * trigger_price,  # USDT价值
-                    'order_type': trigger_type
+                    'quantity': actual_coin_quantity,  # 实际币种数量
+                    'volume': current_position_value,  # 当前仓位的实际价值
+                    'order_type': trigger_type,
+                    'pnl_info': pnl_info  # 预计算的盈亏信息
                 }
                 await self._send_order_trigger_notification(fake_order, trigger_price, order_type_name)
                 

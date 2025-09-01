@@ -357,9 +357,15 @@ class TradingService:
                         return {'success': False, 'message': f'更新 {pos_side.upper()} 仓位失败'}
                     close_messages.append(f"{symbol} {pos_side.upper()} -{close_size:.2f} USDT (剩余: {new_size:.2f} USDT, 盈亏: {pnl_before_fee:+.2f} USDT, 手续费: -{close_fee:.2f} USDT, 净盈亏: {net_pnl:+.2f} USDT)")
                 
-                # 记录交易历史（记录净盈亏，包含手续费）
+                # 计算当前仓位的实际价值（考虑价格变动）
+                # 开仓时的币种数量 = 开仓时的USDT价值 / 开仓价格
+                coin_quantity = close_size / position['entry_price']
+                # 当前仓位的实际价值 = 币种数量 * 当前价格
+                current_position_value = coin_quantity * current_price
+                
+                # 记录交易历史（记录当前仓位的实际价值，而非开仓时的价值）
                 TradingRepository.add_trading_history(
-                    user_id, group_id, 'close', symbol, pos_side, close_size, current_price, net_pnl
+                    user_id, group_id, 'close', symbol, pos_side, current_position_value, current_price, net_pnl
                 )
             
             # 更新账户余额和总盈亏
