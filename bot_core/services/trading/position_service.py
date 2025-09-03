@@ -156,18 +156,23 @@ class PositionService:
                 total_unrealized_pnl = 0.0
 
                 for pos in positions_result["positions"]:
-                    pos_size = pos['size'] if pos['symbol'] == symbol and pos['side'] == side else pos['size']
-                    total_position_value += pos_size
-
-                    # 计算其他仓位的未实现盈亏
-                    if pos['symbol'] != symbol or pos['side'] != side:
+                    # 对于当前正在加仓的仓位，使用加仓后的新大小
+                    if pos['symbol'] == symbol and pos['side'] == side:
+                        pos_size = new_size  # 使用加仓后的新大小
+                        # 计算当前仓位的未实现盈亏（基于新的平均开仓价）
+                        current_price = await price_service.get_current_price(pos['symbol'])
+                        if current_price:
+                            pnl = self._calculate_pnl(new_entry_price, current_price, new_size, pos['side'])
+                            total_unrealized_pnl += pnl
+                    else:
+                        pos_size = pos['size']
+                        # 计算其他仓位的未实现盈亏
                         current_price = await price_service.get_current_price(pos['symbol'])
                         if current_price:
                             pnl = self._calculate_pnl(pos['entry_price'], current_price, pos['size'], pos['side'])
                             total_unrealized_pnl += pnl
-
-                # 新仓位价值
-                total_position_value += volume
+                    
+                    total_position_value += pos_size
 
                 # 计算浮动余额
                 floating_balance = account['balance'] + total_unrealized_pnl
@@ -724,6 +729,9 @@ class PositionService:
             floating_balance = account['balance'] + total_unrealized_pnl
             dynamic_threshold_ratio = self._calculate_dynamic_liquidation_threshold(leverage_ratio)
             liquidation_threshold = account['balance'] * dynamic_threshold_ratio
+            
+            # 调试信息
+            logger.info(f"杠杆率: {leverage_ratio:.2f}x, 动态阈值比例: {dynamic_threshold_ratio:.4f}, 强平阈值: {liquidation_threshold:.2f} USDT")
 
             # 风险警告
             risk_warning = ""

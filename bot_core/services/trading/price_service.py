@@ -106,7 +106,7 @@ class PriceService:
             if '/' not in symbol:
                 symbol = f"{symbol.upper()}/USDT"
 
-            logger.info(f"强制获取实时价格: {symbol}")
+            logger.debug(f"强制获取实时价格: {symbol}")
 
             # 直接从交易所获取最新价格，不使用缓存
             ticker = await asyncio.get_event_loop().run_in_executor(
@@ -129,7 +129,7 @@ class PriceService:
             # 异步更新数据库缓存(不阻塞)
             asyncio.create_task(self._update_db_cache(symbol, price))
 
-            logger.info(f"获取实时价格成功 {symbol}: {price}")
+            logger.debug(f"获取实时价格成功 {symbol}: {price}")
             return price
 
         except Exception as e:

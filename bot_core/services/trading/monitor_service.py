@@ -295,6 +295,12 @@ class MonitorService:
                     'total_position_value': total_position_value
                 })
 
+                # 格式化并发送强平通知
+                notification_message = self._format_liquidation_message(
+                    user_id, positions, floating_balance, liquidation_threshold, leverage_ratio
+                )
+                await self._send_liquidation_notification(user_id, group_id, notification_message)
+
                 # 执行强平清算
                 await self._execute_liquidation(user_id, group_id, positions, floating_balance)
 
@@ -304,11 +310,68 @@ class MonitorService:
             logger.error(f"检查用户强平失败 {user_id}: {e}")
             return []
 
+    def _format_liquidation_message(self, user_id: int, positions: List[Dict], floating_balance: float, threshold: float, leverage_ratio: float) -> str:
+        """格式化强平通知消息"""
+        try:
+            from utils.db_utils import user_info_get
+            
+            # 获取用户信息以构造正确的用户提及
+            user_info = user_info_get(user_id)
+            if user_info and (user_info.get('first_name') or user_info.get('last_name')):
+                user_display_name = f"{user_info.get('first_name', '')} {user_info.get('last_name', '')}".strip()
+                user_mention = f"[{user_display_name}](tg://user?id={user_id})"
+            else:
+                user_mention = f"[用户{user_id}](tg://user?id={user_id})"
+
+            # 获取触发强平的第一个仓位信息
+            trigger_position = positions[0] if positions else None
+            position_info = ""
+            if trigger_position:
+                position_info = (
+                    f"📊 触发仓位: {trigger_position['symbol']}/USDT {trigger_position['side'].upper()}\n"
+                    f"💰 仓位大小: {trigger_position['size']:.2f} USDT\n"
+                )
+
+            # 构造强平通知消息
+            message = (
+                f"🚨 强平通知 🚨\n\n"
+                f"{user_mention} 您的所有仓位已被强制平仓！\n\n"
+                f"{position_info}"
+                f"📉 浮动余额: {floating_balance:.2f} USDT\n"
+                f"⚖️ 杠杆倍数: {leverage_ratio:.2f}x\n"
+                f"⚠️ 强平阈值: {threshold:.2f} USDT (本金的{threshold/floating_balance*100:.1f}%)\n\n"
+                f"💔 您的账户余额已清零，所有仓位已被清空。\n"
+                f"🆘 请使用 /begging 领取救济金重新开始交易。"
+            )
+            
+            return message
+        except Exception as e:
+            logger.error(f"格式化强平通知消息失败: {e}")
+            return "🚨 强平通知：您的账户已被强平，所有仓位已清空。"
+
+    async def _send_liquidation_notification(self, user_id: int, group_id: int, message: str):
+        """发送强平通知到群组"""
+        try:
+            if BOT_TOKEN:
+                bot = Bot(token=BOT_TOKEN)
+                await bot.send_message(
+                    chat_id=group_id,
+                    text=message,
+                    parse_mode='Markdown'
+                )
+                logger.info(f"强平通知已发送: 用户{user_id} 群组{group_id}")
+            else:
+                logger.error("未找到Telegram Bot Token，无法发送强平通知")
+        except Exception as e:
+            logger.error(f"发送强平通知失败: {e}")
+
     async def _execute_liquidation(self, user_id: int, group_id: int, positions: List[Dict], final_balance: float):
         """执行强平清算"""
         try:
-            # 删除所有仓位并记录损失
-            total_loss = -abs(final_balance)  # 将正余额清零的损失
+            # 获取账户当前实际余额
+            account = account_service.get_or_create_account(user_id, group_id)
+            actual_balance = account['balance']
+            total_loss = -abs(actual_balance)  # 使用实际余额计算损失
 
             for pos in positions:
                 try:

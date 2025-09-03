@@ -1178,14 +1178,8 @@ class PositionCommand(BaseCommand):
             floating_balance = account['balance'] + total_unrealized_pnl
             leverage_ratio = total_position_value / account['balance'] if account['balance'] > 0 else 0
             
-            # 计算强平阈值（动态阈值）
-            if leverage_ratio <= 10:
-                threshold_ratio = 0.05  # 5%
-            elif leverage_ratio <= 50:
-                threshold_ratio = 0.03  # 3%
-            else:
-                threshold_ratio = 0.01  # 1%
-            
+            # 计算强平阈值（使用动态阈值）
+            threshold_ratio = position_service._calculate_dynamic_liquidation_threshold(leverage_ratio)
             liquidation_threshold = floating_balance * threshold_ratio
             
             # 构建消息

@@ -269,7 +269,23 @@ class OrderService:
                 position_result = await position_service.execute_order_position(order)
                 if not position_result["success"]:
                     logger.error(f"仓位操作失败: {position_result.get('message')}")
-                    # 注意：这里不返回失败，因为订单已经执行成功，仓位操作失败不应该影响订单状态
+                    # 仓位操作失败，需要回滚订单状态
+                    rollback_result = TradingRepository.rollback_order_execution(order["order_id"])
+                    if not rollback_result["success"]:
+                        logger.error(f"回滚订单状态失败: {rollback_result.get('message')}")
+                    
+                    # 重新冻结保证金（因为之前已经解冻了）
+                    if order["margin_locked"] > 0:
+                        margin_rollback = account_service.update_margin(
+                            order["user_id"], order["group_id"], order["margin_locked"]
+                        )
+                        if not margin_rollback["success"]:
+                            logger.error(f"回滚保证金失败: {margin_rollback.get('message')}")
+                    
+                    return {
+                        "success": False,
+                        "message": f"订单执行失败: {position_result.get('message')}"
+                    }
                 else:
                     logger.info(f"仓位操作成功 - 订单ID:{order['order_id']}")
             elif order["order_type"] in ["tp", "sl"]:

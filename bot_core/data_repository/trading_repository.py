@@ -235,6 +235,23 @@ class TradingRepository:
             }
 
     @staticmethod
+    def rollback_order_execution(order_id: str) -> dict:
+        """回滚订单执行状态"""
+        try:
+            command = "UPDATE trading_orders SET status = 'pending', executed_at = NULL, execution_price = NULL WHERE order_id = ?"
+            revise_db(command, (order_id,))
+            return {
+                "success": True,
+                "rollback": True
+            }
+        except Exception as e:
+            logger.error(f"回滚订单执行状态失败: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    @staticmethod
     def create_loan(user_id: int, group_id: int, principal: float) -> dict:
         """创建新贷款记录"""
         try:
