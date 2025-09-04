@@ -233,6 +233,7 @@ def api_config_list():
             "characters": "characters",
             "config": "config",
             "prompts": "prompts",
+            "agent_docs": "agent/docs",
         }
         result = {}
         for category, rel_dir_path in config_dirs.items():
@@ -280,7 +281,7 @@ def api_config_read():
 
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
-        allowed_dirs = ["characters/", "config/", "prompts/"]
+        allowed_dirs = ["characters/", "config/", "prompts/", "agent/docs/"]
         if not any(rel_path.startswith(d) for d in allowed_dirs):
             return jsonify({"error": "不允许访问此路径"}), 403
 
@@ -321,7 +322,7 @@ def api_config_save():
 
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
-        allowed_dirs = ["characters/", "config/", "prompts/"]
+        allowed_dirs = ["characters/", "config/", "prompts/", "agent/docs/"]
         if not any(rel_path.startswith(d) for d in allowed_dirs):
             return jsonify({"error": "不允许访问此路径"}), 403
 
@@ -364,11 +365,15 @@ def api_config_create():
         filename = re.sub(r'[\\/*?:"<>|]', "", filename)
 
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        allowed_categories = ["characters", "config", "prompts"]
+        allowed_categories = ["characters", "config", "prompts", "agent_docs"]
         if category not in allowed_categories:
             return jsonify({"error": "无效的分类"}), 400
         
-        dir_path = os.path.join(base_path, category)
+        # 处理agent_docs特殊路径
+        if category == "agent_docs":
+            dir_path = os.path.join(base_path, "agent", "docs")
+        else:
+            dir_path = os.path.join(base_path, category)
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
@@ -386,7 +391,11 @@ def api_config_create():
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(content, f, ensure_ascii=False, indent=2)
         
-        rel_path = f"{category}/{filename}".replace('\\', '/')
+        # 生成正确的相对路径
+        if category == "agent_docs":
+            rel_path = f"agent/docs/{filename}".replace('\\', '/')
+        else:
+            rel_path = f"{category}/{filename}".replace('\\', '/')
         return jsonify({"success": True, "message": "文件创建成功", "path": rel_path})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -408,7 +417,7 @@ def api_config_delete():
 
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
-        allowed_dirs = ["characters/", "config/", "prompts/"]
+        allowed_dirs = ["characters/", "config/", "prompts/", "agent/docs/"]
         if not any(rel_path.startswith(d) for d in allowed_dirs):
             return jsonify({"error": "不允许访问此路径"}), 403
 
