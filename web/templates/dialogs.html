@@ -334,7 +334,7 @@
     // 安全地将后端数据传递给前端
     window.conversationData = {{ conversation | tojson | safe }};
     window.dialogsData = {{ dialogs | tojson | safe }};
-    window.dialogsUrl = "{{ url_for('admin.dialogs', conv_id=conversation.conv_id) }}";
+    window.dialogsUrl = "{{ request.url_root.rstrip('/') }}";
 </script>
 <script src="{{ url_for('static', filename='js/dialogs.js') }}" defer></script>
 <!-- The conflicting modal-dialog.js script has been removed to prevent issues. -->
