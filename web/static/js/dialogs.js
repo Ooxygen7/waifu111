@@ -300,20 +300,36 @@ document.addEventListener('DOMContentLoaded', function () {
     /**
      * 导出当前对话为 JSON 文件
      */
-    function exportConversation() {
-        const dataStr = JSON.stringify({
-            conversation_details: conversation,
-            dialogs: dialogs
-        }, null, 4);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `conversation_${conversation.conv_id}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    async function exportConversation() {
+        try {
+            showToast('正在导出完整对话数据...', 'info');
+            
+            const response = await fetch(`${baseUrl}/api/export_dialogs/${conversation.conv_id}`);
+            const result = await response.json();
+            
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || '导出失败');
+            }
+            
+            const exportData = {
+                conversation: result.conversation,
+                dialogs: result.dialogs
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `conversation_${conversation.conv_id}_${new Date().toISOString().slice(0, 10)}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(link.href);
+            showToast(`成功导出 ${result.dialogs.length} 条对话记录`, 'success');
+        } catch (error) {
+            console.error('导出对话失败:', error);
+            showToast('导出对话失败: ' + error.message, 'error');
+        }
     }
 
     // --- 事件绑定 ---

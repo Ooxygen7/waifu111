@@ -477,6 +477,90 @@ def api_generate_summary():
         return jsonify({"error": f"生成摘要时发生错误: {str(e)}"}), 500
 
 
+@api_bp.route("/export_dialogs/<int:conv_id>")
+@viewer_or_admin_required
+def export_dialogs(conv_id):
+    """导出完整的私聊对话数据"""
+    try:
+        # 权限检查
+        user_role = session.get("user_role")
+        if user_role == "viewer":
+            admin_ids = get_admin_ids()
+            if admin_ids:
+                admin_ids_str = ",".join(map(str, admin_ids))
+                conv_check = db.query_db(
+                    f"SELECT user_id FROM conversations WHERE conv_id = ? AND user_id NOT IN ({admin_ids_str})",
+                    (conv_id,),
+                )
+                if not conv_check:
+                    return jsonify({"error": "对话不存在或您没有权限查看"}), 403
+        
+        # 获取对话信息
+        conversation_data = db.query_db(
+            """
+            SELECT c.*, u.first_name, u.last_name, u.user_name
+            FROM conversations c
+            LEFT JOIN users u ON c.user_id = u.uid
+            WHERE c.conv_id = ?
+            """,
+            (conv_id,),
+        )
+        if not conversation_data:
+            return jsonify({"error": "对话不存在"}), 404
+
+        conv_columns = [
+            "id",
+            "conv_id",
+            "user_id",
+            "character",
+            "preset",
+            "summary",
+            "create_at",
+            "update_at",
+            "delete_mark",
+            "turns",
+            "first_name",
+            "last_name",
+            "user_name",
+        ]
+        conversation = {
+            conv_columns[i]: conversation_data[0][i] for i in range(len(conv_columns))
+        }
+
+        # 获取完整的对话数据（不分页）
+        dialogs_data = db.query_db(
+            "SELECT * FROM dialogs WHERE conv_id = ? AND turn_order != 0 ORDER BY turn_order ASC",
+            (conv_id,),
+        )
+
+        dialogs_list = []
+        if dialogs_data:
+            dialog_columns = [
+                "id",
+                "conv_id",
+                "role",
+                "raw_content",
+                "turn_order",
+                "created_at",
+                "processed_content",
+                "msg_id",
+            ]
+            for row in dialogs_data:
+                dialog_dict = {
+                    dialog_columns[i]: row[i] for i in range(len(dialog_columns))
+                }
+                dialogs_list.append(dialog_dict)
+
+        return jsonify({
+            "success": True,
+            "conversation": conversation,
+            "dialogs": dialogs_list
+        })
+    except Exception as e:
+        app_logger.error(f"导出对话数据失败: {str(e)}")
+        return jsonify({"error": f"导出对话数据失败: {str(e)}"}), 500
+
+
 @api_bp.route("/conversation/<int:conv_id>/summary", methods=["GET"])
 @admin_required
 def get_conversation_summary(conv_id):
