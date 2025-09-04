@@ -145,12 +145,17 @@ class DatabaseCommand(BaseCommand):
 
         # 1. 创建 Agent 会话生成器
         q_command_api = get_config('q_command_api', 'gemini-2.5')
+        # 生成会话ID（基于用户ID和时间戳）
+        session_id = f"q_cmd_{update.effective_user.id}_{int(update.message.date.timestamp())}"
+        
         agent_session = run_agent_session(
             user_input=user_input,
             prompt_text=prompt_text,
             character_prompt=character_prompt,
             llm_api=q_command_api,
-            max_iterations=15
+            max_iterations=15,
+            enable_memory=True,
+            session_id=session_id
         )
 
         # 2. 将会话处理委托给消息函数

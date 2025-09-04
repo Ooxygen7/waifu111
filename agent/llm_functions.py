@@ -20,7 +20,9 @@ async def run_agent_session(
     character_prompt: str = "",
     bias_prompt: str = "",
     llm_api: str = 'gemini-2.5',
-    max_iterations: int = 15
+    max_iterations: int = 15,
+    enable_memory: bool = False,
+    session_id: str = None
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     运行一个多轮 Agent 会话，在每一步中通过 yield 返回状态更新。
@@ -33,6 +35,8 @@ async def run_agent_session(
         bias_prompt: LLM 的偏向提示。
         llm_api: 要使用的 LLM API。
         max_iterations: 最大迭代次数。
+        enable_memory: 是否启用记忆功能。
+        session_id: 会话ID，用于记忆管理。
 
     Yields:
         一个字典，表示 Agent 在每一步的状态。
@@ -43,7 +47,96 @@ async def run_agent_session(
         yield {"status": "initializing", "message": "正在初始化 LLM 客户端..."}
         client = LLM(api=llm_api)
 
-        system_prompt = f"{prompt_text}\n\n{character_prompt}{bias_prompt}"
+        # 读取记忆和经验库
+        memory_context = ""
+        experience_context = ""
+        
+        if enable_memory:
+            # 读取记忆库
+            try:
+                with open("agent/docs/mem.json", 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:
+                        memories = json.loads(content)
+                        # 清理过期记忆
+                        current_time = datetime.datetime.now()
+                        valid_memories = {}
+                        for key, mem in memories.items():
+                            try:
+                                expires_at = datetime.datetime.fromisoformat(mem.get('expires_at', ''))
+                                if current_time <= expires_at:
+                                    valid_memories[key] = mem
+                                    # 如果是当前会话，刷新过期时间
+                                    if session_id and key == session_id:
+                                        mem['expires_at'] = (current_time + datetime.timedelta(minutes=10)).isoformat()
+                                        mem['last_updated'] = current_time.isoformat()
+                            except (ValueError, TypeError):
+                                continue
+                        
+                        # 保存清理后的记忆
+                        if valid_memories != memories:
+                            with open("agent/docs/mem.json", 'w', encoding='utf-8') as f:
+                                json.dump(valid_memories, f, ensure_ascii=False, indent=2)
+                        
+                        # 获取10分钟内的记忆作为上下文
+                        if valid_memories:
+                            # 筛选10分钟内的记忆
+                            recent_memories = []
+                            ten_minutes_ago = current_time - datetime.timedelta(minutes=10)
+                            
+                            for mem_id, mem_data in valid_memories.items():
+                                try:
+                                    mem_timestamp = datetime.datetime.fromisoformat(mem_data.get('timestamp', ''))
+                                    if mem_timestamp >= ten_minutes_ago:
+                                        recent_memories.append((mem_id, mem_data))
+                                except (ValueError, TypeError):
+                                    continue
+                            
+                            # 按时间戳排序，最新的在前
+                            recent_memories.sort(key=lambda x: x[1].get('timestamp', ''), reverse=True)
+                            
+                            if recent_memories:
+                                memory_summaries = []
+                                for mem_id, mem_data in recent_memories:
+                                    summary = mem_data.get('summary', {})
+                                    # 提取关键信息
+                                    session_info = {
+                                        "session_id": mem_id,
+                                        "timestamp": mem_data.get('timestamp', ''),
+                                        "user_request": summary.get('session_summary', {}).get('user_request', ''),
+                                        "completed_tasks": summary.get('session_summary', {}).get('completed_tasks', []),
+                                        "important_info": summary.get('cached_data', {}).get('important_info', []),
+                                        "user_preferences": summary.get('cached_data', {}).get('user_preferences', {}),
+                                        "pending_tasks": summary.get('cached_data', {}).get('pending_tasks', [])
+                                    }
+                                    memory_summaries.append(session_info)
+                                
+                                memory_context = f"\n\n=== 近期会话记忆（10分钟内） ===\n{json.dumps(memory_summaries, ensure_ascii=False, indent=2)}\n"
+                                logger.info(f"已加载 {len(memory_summaries)} 条近期记忆（10分钟内）")
+                            
+                            # 如果当前会话ID存在，刷新其过期时间
+                            if session_id and session_id in valid_memories:
+                                valid_memories[session_id]['expires_at'] = (current_time + datetime.timedelta(minutes=10)).isoformat()
+                                valid_memories[session_id]['last_updated'] = current_time.isoformat()
+                                logger.info(f"已刷新当前会话记忆过期时间: {session_id}")
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                logger.info(f"无法读取记忆库: {e}")
+            
+            # 读取经验库
+            try:
+                with open("agent/docs/exp.json", 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:
+                        experiences = json.loads(content)
+                        if experiences:
+                            # 只取最近的5条经验
+                            recent_experiences = experiences[-5:] if len(experiences) > 5 else experiences
+                            experience_context = f"\n\n=== 经验库 ===\n{json.dumps(recent_experiences, ensure_ascii=False, indent=2)}\n"
+                            logger.info(f"已加载 {len(recent_experiences)} 条经验")
+            except (FileNotFoundError, json.JSONDecodeError) as e:
+                logger.info(f"无法读取经验库: {e}")
+
+        system_prompt = f"{prompt_text}\n\n{character_prompt}{bias_prompt}{memory_context}{experience_context}"
         current_messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"用户输入: {user_input}"}
@@ -64,6 +157,14 @@ async def run_agent_session(
             llm_text_part, display_results, llm_feedback, had_tool_calls = await parse_and_invoke_tool(ai_response)
 
             if had_tool_calls:
+                # 检查工具调用是否有错误
+                has_tool_errors = any(
+                    "error" in str(res.get('result', '')).lower() or 
+                    "failed" in str(res.get('result', '')).lower() or
+                    "exception" in str(res.get('result', '')).lower()
+                    for res in llm_feedback
+                )
+                
                 # 如果有工具调用，则 yield tool_call 状态并准备下一次迭代
                 yield {
                     "status": "tool_call",
@@ -71,8 +172,18 @@ async def run_agent_session(
                     "llm_text": llm_text_part,
                     "tool_results": display_results,
                     "had_tool_calls": True,
+                    "has_tool_errors": has_tool_errors,
                     "raw_ai_response": ai_response
                 }
+                
+                # 如果检测到工具调用错误且启用记忆，进行失败模式分析
+                if has_tool_errors and enable_memory:
+                    try:
+                        failure_result = await analyze_failure_patterns(current_messages + [{"role": "assistant", "content": ai_response}])
+                        if failure_result.get("success") and failure_result.get("has_errors"):
+                            logger.info("检测到工具调用错误，已分析并保存失败模式经验")
+                    except Exception as analysis_e:
+                        logger.error(f"工具调用错误分析过程中发生错误: {analysis_e}")
                 
                 # 为下一次迭代更新消息历史
                 current_messages.append({"role": "assistant", "content": ai_response})
@@ -85,14 +196,60 @@ async def run_agent_session(
                 # 如果没有工具调用，这被视为最终回复
                 logger.debug(f"第{iteration}轮未调用工具，给出最终回复: {llm_text_part}")
                 yield {"status": "final_response", "content": llm_text_part}
+                
+                # 会话正常结束，进行记忆总结
+                if enable_memory:
+                    logger.info(f"会话正常结束，开始记忆总结，session_id: {session_id}")
+                    try:
+                        # 添加最终的AI回复到消息历史中
+                        final_messages = current_messages + [{"role": "assistant", "content": llm_text_part}]
+                        memory_result = await summarize_memory(final_messages, session_id)
+                        if memory_result.get("success"):
+                            logger.info(f"记忆总结完成: {memory_result.get('session_id')}")
+                        else:
+                            logger.error(f"记忆总结失败: {memory_result.get('error')}")
+                    except Exception as mem_e:
+                        logger.error(f"记忆总结过程中发生错误: {mem_e}")
+                else:
+                    logger.debug("记忆功能未启用，跳过记忆总结")
+                
                 return
 
         # 如果循环结束，说明已达到最大迭代次数
         logger.warning(f"分析轮次已达上限 ({max_iterations})")
         yield {"status": "max_iterations_reached", "max_iterations": max_iterations}
+        
+        # 达到最大迭代次数，可能存在问题，进行失败模式分析
+        if enable_memory:
+            try:
+                failure_result = await analyze_failure_patterns(current_messages)
+                if failure_result.get("success") and failure_result.get("has_errors"):
+                    logger.info("已分析并保存失败模式经验")
+                
+                # 同时进行记忆总结
+                memory_result = await summarize_memory(current_messages, session_id)
+                if memory_result.get("success"):
+                    logger.info(f"记忆总结完成: {memory_result.get('session_id')}")
+            except Exception as analysis_e:
+                logger.error(f"失败模式分析过程中发生错误: {analysis_e}")
 
     except Exception as e:
         logger.error(f"处理 Agent 会话时发生错误: {str(e)}", exc_info=True)
+        
+        # 发生异常，进行失败模式分析
+        if enable_memory:
+            try:
+                failure_result = await analyze_failure_patterns(current_messages)
+                if failure_result.get("success") and failure_result.get("has_errors"):
+                    logger.info("已分析并保存异常失败模式经验")
+                
+                # 同时进行记忆总结
+                memory_result = await summarize_memory(current_messages, session_id)
+                if memory_result.get("success"):
+                    logger.info(f"异常情况下记忆总结完成: {memory_result.get('session_id')}")
+            except Exception as analysis_e:
+                logger.error(f"异常情况下失败模式分析过程中发生错误: {analysis_e}")
+        
         yield {"status": "error", "message": str(e)}
 
 async def analyze_image_for_rating(
@@ -312,7 +469,6 @@ async def generate_summary(conversation_id: int,summary_type:str = 'save',start:
             except Exception as e:
                 raise ValueError(f"生成总结失败: {str(e)}")
 
-
 async def generate_char(character_description: str) -> str:
         """
         根据用户输入生成角色描述文档
@@ -349,6 +505,7 @@ async def generate_char(character_description: str) -> str:
                 raise ValueError(f"生成角色失败: {str(e)}")
 
 async def generate_user_profile(group_id: int) -> str:
+
     """
     分析群组聊天记录，为最活跃的用户生成JSON格式的画像。
 
@@ -420,6 +577,7 @@ async def generate_user_profile(group_id: int) -> str:
     except Exception as e:
         logger.error(f"为群组 {group_id} 生成用户画像时发生错误: {e}", exc_info=True)
         return json.dumps({"error": "An internal error occurred while generating user profiles."}, ensure_ascii=False, indent=2)
+
 async def analyze_database(sql: str, prompts: str) -> str:
     """
     分析数据库参数，接受sql语句和prompts，将sql语句查询到的数据，拼接prompts内容发送给llm获取返回
@@ -460,3 +618,274 @@ async def analyze_database(sql: str, prompts: str) -> str:
     except Exception as e:
         logger.error(f"分析数据库时发生错误: {e}", exc_info=True)
         return json.dumps({"error": "分析数据库时发生内部错误。"}, ensure_ascii=False, indent=2)
+
+
+async def analyze_failure_patterns(conversation_messages: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    失败模式总结函数
+    
+    Args:
+        conversation_messages: 完整对话列表
+    
+    Returns:
+        Dict[str, Any]: 包含成功/失败状态和失败原因的字典
+    """
+    try:
+        # 读取现有的经验数据
+        exp_file_path = "agent/docs/exp.json"
+        existing_experiences = []
+        
+        try:
+            with open(exp_file_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    existing_experiences = json.loads(content)
+        except (FileNotFoundError, json.JSONDecodeError):
+            logger.info("exp.json文件不存在或为空，将创建新的经验库")
+            existing_experiences = []
+        
+        # 构建分析提示词
+        system_prompt = """
+你是一个专业的AI助手经验总结专家。请分析以下对话，提取简洁的执行经验。
+
+请重点关注：
+1. 任务类型和执行顺序
+2. 关键函数的正确调用方法
+3. 需要注意的事项
+
+请以JSON格式返回简洁的经验：
+{
+  "has_experience": true/false,
+  "experiences": [
+    {
+      "task_type": "任务类型",
+      "execution_order": "执行顺序说明",
+      "key_points": "关键注意事项",
+      "function_usage": "重要函数调用方法"
+    }
+  ]
+}
+        """
+        
+        # 格式化对话历史
+        conversation_text = "\n".join([
+            f"{msg.get('role', 'unknown')}: {str(msg.get('content', ''))[:500]}..."
+            for msg in conversation_messages
+        ])
+        
+        # 添加现有经验作为参考
+        existing_exp_text = "\n\n现有经验库：\n" + json.dumps(existing_experiences, ensure_ascii=False, indent=2) if existing_experiences else ""
+        
+        user_prompt = f"请分析以下对话中的工具调用错误：\n\n{conversation_text}{existing_exp_text}"
+        
+        # 调用LLM进行分析
+        client = LLM(api=get_config("analysis.default_api", "gemini-2.5"))
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        client.set_messages(messages)
+        
+        logger.info("正在分析失败模式...")
+        response = await client.final_response()
+        
+        # 解析LLM响应
+        try:
+            # 尝试提取JSON
+            match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
+            if match:
+                analysis_result = json.loads(match.group(1))
+            else:
+                analysis_result = json.loads(response)
+            
+            # 如果提取到了经验，将新经验添加到经验库
+            if analysis_result.get("has_experience", False):
+                for exp in analysis_result.get("experiences", []):
+                    new_experience = {
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "task_type": exp.get("task_type", ""),
+                        "execution_order": exp.get("execution_order", ""),
+                        "key_points": exp.get("key_points", ""),
+                        "function_usage": exp.get("function_usage", "")
+                    }
+                    existing_experiences.append(new_experience)
+                
+                # 保持经验库大小合理（最多保留50条）
+                if len(existing_experiences) > 50:
+                    existing_experiences = existing_experiences[-50:]
+                
+                # 保存更新后的经验库
+                with open(exp_file_path, 'w', encoding='utf-8') as f:
+                    json.dump(existing_experiences, f, ensure_ascii=False, indent=2)
+                
+                logger.info(f"已保存新的失败经验到 {exp_file_path}")
+            
+            return {
+                "success": True,
+                "has_experience": analysis_result.get("has_experience", False),
+                "experiences_count": len(analysis_result.get("experiences", []))
+            }
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"解析LLM分析结果失败: {e}")
+            return {
+                "success": False,
+                "error": f"解析分析结果失败: {str(e)}"
+            }
+    
+    except Exception as e:
+        logger.error(f"分析失败模式时发生错误: {e}", exc_info=True)
+        return {
+             "success": False,
+             "error": f"分析失败: {str(e)}"
+         }
+
+
+async def summarize_memory(conversation_messages: List[Dict[str, Any]], session_id: str = None) -> Dict[str, Any]:
+    """
+    记忆总结函数
+    
+    Args:
+        conversation_messages: 完整对话列表
+        session_id: 会话ID，用于标识不同的会话
+    
+    Returns:
+        Dict[str, Any]: 包含成功/失败状态和失败原因的字典
+    """
+    try:
+        # 读取现有的记忆数据
+        mem_file_path = "agent/docs/mem.json"
+        existing_memories = {}
+        
+        try:
+            with open(mem_file_path, 'r', encoding='utf-8') as f:
+                content = f.read().strip()
+                if content:
+                    existing_memories = json.loads(content)
+        except (FileNotFoundError, json.JSONDecodeError):
+            logger.info("mem.json文件不存在或为空，将创建新的记忆库")
+            existing_memories = {}
+        
+        # 构建记忆总结提示词
+        system_prompt = """
+你是一个专业的AI助手记忆管理专家。请对这一轮agent工作进行总结，重点关注：
+
+1. 用户的核心需求是什么
+2. AI助手完成了哪些任务
+3. 哪些信息和数据可能在后续对话中有用
+4. 用户的偏好和习惯
+5. 未完成的任务或需要跟进的事项
+
+请以JSON格式返回总结结果：
+{
+  "session_summary": {
+    "user_request": "用户的主要需求",
+    "completed_tasks": ["已完成的任务列表"],
+    "ai_achievements": "AI助手的主要成就",
+    "user_satisfaction": "用户满意度评估"
+  },
+  "cached_data": {
+    "important_info": ["重要信息列表"],
+    "user_preferences": {"偏好类型": "偏好内容"},
+    "context_data": {"上下文键": "上下文值"},
+    "pending_tasks": ["待完成任务"]
+  },
+  "insights": {
+    "user_behavior": "用户行为分析",
+    "interaction_patterns": "交互模式",
+    "improvement_areas": ["可改进领域"]
+  }
+}
+        """
+        
+        # 格式化对话历史
+        conversation_text = "\n".join([
+            f"{msg.get('role', 'unknown')}: {str(msg.get('content', ''))[:800]}..."
+            for msg in conversation_messages
+        ])
+        
+        # 添加现有记忆作为参考
+        existing_mem_text = ""
+        if session_id and session_id in existing_memories:
+            existing_mem_text = "\n\n现有会话记忆：\n" + json.dumps(
+                existing_memories[session_id], ensure_ascii=False, indent=2
+            )
+        
+        user_prompt = f"请总结以下对话中的agent工作：\n\n{conversation_text}{existing_mem_text}"
+        
+        # 调用LLM进行总结
+        client = LLM(api=get_config("analysis.default_api", "gemini-2.5"))
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        client.set_messages(messages)
+        
+        logger.info("正在生成记忆总结...")
+        response = await client.final_response()
+        
+        # 解析LLM响应
+        try:
+            # 尝试提取JSON
+            match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
+            if match:
+                memory_result = json.loads(match.group(1))
+            else:
+                memory_result = json.loads(response)
+            
+            # 准备保存的记忆数据
+            session_key = session_id or f"session_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            
+            memory_entry = {
+                "timestamp": datetime.datetime.now().isoformat(),
+                "last_updated": datetime.datetime.now().isoformat(),
+                "expires_at": (datetime.datetime.now() + datetime.timedelta(minutes=10)).isoformat(),
+                "summary": memory_result,
+                "conversation_length": len(conversation_messages)
+            }
+            
+            # 更新记忆库
+            existing_memories[session_key] = memory_entry
+            
+            # 清理过期的记忆（超过10分钟）
+            current_time = datetime.datetime.now()
+            expired_sessions = []
+            for key, mem in existing_memories.items():
+                try:
+                    expires_at = datetime.datetime.fromisoformat(mem.get('expires_at', ''))
+                    if current_time > expires_at:
+                        expired_sessions.append(key)
+                except (ValueError, TypeError):
+                    # 如果时间格式有问题，也标记为过期
+                    expired_sessions.append(key)
+            
+            for expired_key in expired_sessions:
+                del existing_memories[expired_key]
+                logger.info(f"已清理过期记忆: {expired_key}")
+            
+            # 保存更新后的记忆库
+            with open(mem_file_path, 'w', encoding='utf-8') as f:
+                json.dump(existing_memories, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"已保存会话记忆到 {mem_file_path}, 会话ID: {session_key}")
+            
+            return {
+                "success": True,
+                "session_id": session_key,
+                "memory_summary": memory_result,
+                "expires_at": memory_entry["expires_at"]
+            }
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"解析LLM记忆总结结果失败: {e}")
+            return {
+                "success": False,
+                "error": f"解析记忆总结结果失败: {str(e)}"
+            }
+    
+    except Exception as e:
+        logger.error(f"生成记忆总结时发生错误: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": f"记忆总结失败: {str(e)}"
+        }
