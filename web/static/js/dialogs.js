@@ -304,7 +304,12 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             showToast('正在导出完整对话数据...', 'info');
             
-            const response = await fetch(`${baseUrl}/api/export_dialogs/${conversation.conv_id}`);
+            // 根据当前页面协议构建API URL，确保HTTPS兼容性
+            const protocol = window.location.protocol;
+            const host = window.location.host;
+            const apiUrl = `${protocol}//${host}/api/export_dialogs/${conversation.conv_id}`;
+            
+            const response = await fetch(apiUrl);
             const result = await response.json();
             
             if (!response.ok || !result.success) {
