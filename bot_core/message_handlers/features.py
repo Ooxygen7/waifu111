@@ -9,7 +9,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 # Local application imports
-from agent.llm_functions import analyze_image_for_rating
+from plugins.fuck_plugin import analyze_image_for_rating
 import bot_core.services.utils.usage as fm
 from bot_core.services import messages
 from bot_core.data_repository.conv_repo import UserRepository

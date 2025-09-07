@@ -1,9 +1,12 @@
+import asyncio
 import os
 import time
-import asyncio
+import base64
+import json
+import re
 import logging
+from typing import Tuple, List, Dict, Any
 from PIL import Image
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -14,11 +17,100 @@ from bot_core.services.plugin_service import BasePlugin, PluginMeta
 
 # 导入必要的依赖
 import bot_core.services.utils.usage as fm
-from agent.llm_functions import analyze_image_for_rating
 from utils.logging_utils import setup_logging
+from utils.config_utils import get_config
+from utils import file_utils, LLM_utils
 
 setup_logging()
 logger = logging.getLogger(__name__)
+
+
+async def analyze_image_for_rating(
+    base64_data: str,
+    mime_type: str,
+    hard_mode: bool = False,
+    parse_mode: str = "markdown",
+) -> Tuple[str, List[Dict[str, Any]]]:
+    """
+    分析图像的base64数据，并返回分析结果和消息历史。
+
+    Args:
+        base64_data (str): 图像的base64编码数据。
+        mime_type (str): 图像的MIME类型。
+        hard_mode (bool): 是否启用更激进的评价模式。
+        parse_mode (str): 输出格式，可以是 'markdown' 或 'html'。
+
+    Returns:
+        Tuple[str, List[Dict[str, Any]]]: 包含格式化响应和发送给LLM的消息列表的元组。
+
+    Raises:
+        ValueError: 如果缺少必要的 prompt 或数据。
+    """
+
+
+    prompt_name = "fuck_or_not_group" if parse_mode == "html" else "fuck_or_not"
+    system_prompt = file_utils.load_single_prompt(prompt_name)
+    if not system_prompt:
+        raise ValueError(f"无法加载 '{prompt_name}' prompt。")
+
+    if hard_mode:
+        hard_supplement = file_utils.load_single_prompt("fuck_or_not_hard_mode_supplement")
+        if hard_supplement:
+            system_prompt += hard_supplement
+
+    user_text = "兄弟看看这个，你想不想操？"
+    if hard_mode:
+        user_text += "（请使用最极端和粗俗的语言进行评价）"
+
+    llm_messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": user_text},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime_type};base64,{base64_data}"},
+                },
+            ],
+        },
+    ]
+
+    fuck_api = get_config("fuck_or_not_api", "gemini-2.5")
+    llm = LLM_utils.LLM(api=fuck_api)
+    llm.set_messages(llm_messages)
+    response = await llm.final_response()
+
+    try:
+        match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
+        json_str = match.group(1) if match else response
+        data = json.loads(json_str)
+
+        if parse_mode == "html":
+            score = data.get("score", "N/A")
+            reason_short = data.get("reason_short", "N/A")
+            reason_detail = data.get("reason_detail", "N/A")
+            fantasy_short = data.get("fantasy_short", "N/A")
+            fantasy_detail = data.get("fantasy_detail", "N/A")
+            formatted_response = (
+                " <b>分析结果</b> \n\n"
+                f"<b>评分</b>: {score}/10\n\n"
+                f"<b>理由</b>: {reason_short}\n"
+                f"<blockquote expandable>{reason_detail}</blockquote>\n\n"
+                f"<b>评价</b>: {fantasy_short}\n"
+                f"<blockquote expandable>{fantasy_detail}</blockquote>"
+            )
+        else:  # markdown
+            score = data.get("score", "N/A")
+            reason = data.get("reason", "N/A")
+            fantasy = data.get("fantasy", "N/A")
+            formatted_response = f"```\n分数：{score}\n```\n\n理由：{reason}\n\n评价：{fantasy}"
+        
+        return formatted_response, llm_messages
+        
+    except (json.JSONDecodeError, AttributeError) as e:
+        logger.warning(f"解析LLM JSON响应失败: {e}。将使用原始响应。")
+        return response, llm_messages
 
 
 class FuckPlugin(BasePlugin):

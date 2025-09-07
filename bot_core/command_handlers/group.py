@@ -15,7 +15,7 @@ from utils.logging_utils import setup_logging
 from bot_core.command_handlers.base import BaseCommand, CommandMeta
 from agent.tools_registry import MarketToolRegistry
 from bot_core.services.messages import handle_agent_session, MessageDeletionService, RealTimePositionService
-from agent.llm_functions import run_agent_session, analyze_image_for_rating, analyze_image_for_kao
+from agent.llm_functions import run_agent_session
 from utils.config_utils import get_config
 
 # 导入新的交易服务模块（增强的订单驱动系统）
