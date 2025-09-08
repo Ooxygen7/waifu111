@@ -3,7 +3,7 @@ import sys
 import importlib
 import inspect
 import logging
-from typing import Dict, List, Optional, Any, Type
+from typing import Dict, List, Optional, Any, Type, Callable
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from telegram import Update
@@ -40,6 +40,7 @@ class BasePlugin(ABC):
     def __init__(self):
         self.meta: PluginMeta = None
         self._initialized = False
+        self._trading_services = {}  # 存储交易相关服务的引用
     
     @abstractmethod
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -54,6 +55,15 @@ class BasePlugin(ABC):
     async def cleanup(self) -> None:
         """插件清理方法，可以被子类重写"""
         pass
+    
+    def register_trading_service(self, service_name: str, service_instance: Any) -> None:
+        """注册交易服务实例"""
+        self._trading_services[service_name] = service_instance
+        logger.debug(f"插件 {self.meta.name if self.meta else 'Unknown'} 注册交易服务: {service_name}")
+    
+    def get_trading_service(self, service_name: str) -> Optional[Any]:
+        """获取交易服务实例"""
+        return self._trading_services.get(service_name)
     
     @property
     def is_initialized(self) -> bool:
@@ -191,6 +201,94 @@ class PluginManager:
         plugin = self.plugins.get(plugin_name)
         return plugin.meta if plugin else None
     
+    def register_trading_service(self, service_name: str, service_instance: Any) -> None:
+        """注册全局交易服务"""
+        self._trading_services[service_name] = service_instance
+        logger.info(f"交易服务 {service_name} 已注册到插件系统")
+        
+        # 为所有已加载的插件注册该服务
+        for plugin in self.plugins.values():
+            plugin.register_trading_service(service_name, service_instance)
+    
+    def get_trading_service(self, service_name: str) -> Optional[Any]:
+        """获取交易服务实例"""
+        return self._trading_services.get(service_name)
+    
+    async def _register_trading_services(self) -> None:
+        """注册所有交易相关服务"""
+        try:
+                # 导入并注册交易服务
+            from plugins.trading_services.order_service import order_service
+            from plugins.trading_services.account_service import account_service
+            from plugins.trading_services.position_service import position_service
+            from plugins.trading_services.analysis_service import analysis_service
+            from plugins.trading_services.loan_service import loan_service
+            from plugins.trading_services.price_service import price_service
+            from bot_core.data_repository.trading_repository import TradingRepository
+            from plugins.trading_services.monitor_service import monitor_service
+            
+            # 注册服务
+            self.register_trading_service('order_service', order_service)
+            self.register_trading_service('account_service', account_service)
+            self.register_trading_service('position_service', position_service)
+            self.register_trading_service('analysis_service', analysis_service)
+            self.register_trading_service('loan_service', loan_service)
+            self.register_trading_service('price_service', price_service)
+            self.register_trading_service('trading_repository', TradingRepository)
+            self.register_trading_service('monitor_service', monitor_service)
+            
+            logger.info("所有交易服务已注册到插件系统")
+            
+        except ImportError as e:
+            logger.error(f"导入交易服务失败: {e}")
+        except Exception as e:
+            logger.error(f"注册交易服务失败: {e}")
+    
+    def get_available_trading_services(self) -> List[str]:
+        """获取可用的交易服务列表"""
+        return list(self._trading_services.keys())
+    
+    async def execute_trading_command(self, command_type: str, **kwargs) -> Dict[str, Any]:
+        """执行交易命令的统一接口"""
+        try:
+            if command_type == 'create_order':
+                order_service = self.get_trading_service('order_service')
+                if not order_service:
+                    return {'success': False, 'message': '订单服务不可用'}
+                
+                order_type = kwargs.get('order_type', 'market')
+                if order_type == 'market':
+                    return await order_service.create_market_order(**kwargs)
+                elif order_type == 'limit':
+                    return await order_service.create_limit_order(**kwargs)
+                else:
+                    return {'success': False, 'message': f'不支持的订单类型: {order_type}'}
+            
+            elif command_type == 'close_position':
+                position_service = self.get_trading_service('position_service')
+                if not position_service:
+                    return {'success': False, 'message': '仓位服务不可用'}
+                return await position_service.close_position(**kwargs)
+            
+            elif command_type == 'get_positions':
+                position_service = self.get_trading_service('position_service')
+                if not position_service:
+                    return {'success': False, 'message': '仓位服务不可用'}
+                return await position_service.get_positions(**kwargs)
+            
+            elif command_type == 'get_account_info':
+                account_service = self.get_trading_service('account_service')
+                if not account_service:
+                    return {'success': False, 'message': '账户服务不可用'}
+                return await account_service.get_account_info(**kwargs)
+            
+            else:
+                return {'success': False, 'message': f'不支持的交易命令: {command_type}'}
+                
+        except Exception as e:
+            logger.error(f"执行交易命令失败 {command_type}: {e}")
+            return {'success': False, 'message': f'执行失败: {str(e)}'}
+    
     def list_plugins(self) -> List[PluginMeta]:
         """列出所有插件"""
         return [plugin.meta for plugin in self.plugins.values()]
@@ -277,6 +375,7 @@ class PluginService:
     def __init__(self):
         self.plugins: Dict[str, BasePlugin] = {}
         self._loaded_modules = set()
+        self._trading_services = {}  # 全局交易服务注册表
     
     def register_plugin(self, plugin: BasePlugin) -> None:
         """注册插件"""
@@ -305,6 +404,7 @@ class PluginService:
     async def initialize(self) -> None:
         """初始化插件系统"""
         await plugin_manager.load_plugins()
+        await self._register_trading_services()
     
     async def execute_command(self, trigger: str, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """执行插件命令"""

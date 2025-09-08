@@ -19,12 +19,12 @@ from agent.llm_functions import run_agent_session
 from utils.config_utils import get_config
 
 # 导入新的交易服务模块（增强的订单驱动系统）
-from bot_core.services.trading.order_service import order_service
-from bot_core.services.trading.account_service import account_service
-from bot_core.services.trading.position_service import position_service
-from bot_core.services.trading.analysis_service import analysis_service
-from bot_core.services.trading.loan_service import loan_service
-from bot_core.services.trading.price_service import price_service
+from plugins.trading_services.order_service import order_service
+from plugins.trading_services.account_service import account_service
+from plugins.trading_services.position_service import position_service
+from plugins.trading_services.analysis_service import analysis_service
+from plugins.trading_services.loan_service import loan_service
+from plugins.trading_services.price_service import price_service
 from bot_core.data_repository.trading_repository import TradingRepository
 
 fuck_api = get_config("fuck_or_not_api", "gemini-2.5")
@@ -358,195 +358,40 @@ class ForwardCommand(BaseCommand):
 
 
 # 模拟盘交易命令
-class LongCommand(BaseCommand):
-    meta = CommandMeta(
-        name="long",
-        command_type="group",
-        trigger="long",
-        menu_text="做多 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=30,
-    )
+# 交易命令已迁移到插件系统 - TradingPlugin
+# class LongCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="long",
+#         command_type="group",
+#         trigger="long",
+#         menu_text="做多 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=30,
+#     )
 
-    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        try:
-            user_id = update.effective_user.id
-            group_id = update.effective_chat.id
-
-            # 解析命令参数
-            args = context.args
-            if len(args) < 2:
-                await update.message.reply_text(
-                    "❌ 用法错误！\n正确格式: \n"
-                    "市价开仓: /long <交易对> <金额>\n"
-                    "挂单开仓: /long <交易对> <金额>@<价格>\n"
-                    "带止盈止损: /long <交易对> <金额>@<价格> tp@<止盈价> sl@<止损价>\n"
-                    "批量开仓: /long <币种1> <币种2> <币种3> <金额>\n"
-                    "例如: /long btc 100 或 /long btc 4000@100000 tp@120000 sl@90000"
-                )
-                return
-
-            # 解析参数，支持新的订单格式
-            parsed_args = self._parse_trading_args(args)
-            
-            if not parsed_args['success']:
-                await update.message.reply_text(f"❌ {parsed_args['error']}")
-                return
-            
-            # 检查是否为批量开仓（简化版，只支持市价）
-            if parsed_args['is_batch']:
-                results = []
-                for symbol, amount in zip(parsed_args['symbols'], parsed_args['amounts']):
-                    result = await order_service.create_market_order(
-                        user_id, group_id, f"{symbol}/USDT", "long", "open", amount
-                    )
-                    results.append(f"{symbol}: {result['message']}")
-
-                response = "📈 批量做多结果:\n" + "\n".join(results)
-                await MessageDeletionService.send_and_schedule_delete(
-                    update=update,
-                    context=context,
-                    text=response,
-                    delay_seconds=30,
-                    delete_user_message=True
-                )
-            else:
-                # 单个开仓模式
-                symbol = parsed_args['symbol']
-                amount = parsed_args['amount']
-                price = parsed_args.get('price')
-                tp_price = parsed_args.get('tp_price')
-                sl_price = parsed_args.get('sl_price')
-                
-                if price:
-                    # 挂单模式
-                    result = await order_service.create_limit_order(
-                        user_id, group_id, f"{symbol}/USDT", "long", "open", amount, price
-                    )
-                    
-                    # 如果挂单成功且有止盈止损设置，将止盈止损信息存储到订单中
-                    if result['success'] and (tp_price or sl_price):
-                        order_id = result.get('order_id')
-                        # 为挂单添加止盈止损价格信息，当挂单触发时会自动同步到仓位表
-                        if order_id:
-                            from bot_core.data_repository.trading_repository import TradingRepository
-                            tp_sl_result = TradingRepository.update_order_tp_sl(order_id, tp_price, sl_price)
-                            if tp_sl_result.get('success'):
-                                logger.info(f"挂单止盈止损价格已设置: 订单{order_id} TP:{tp_price} SL:{sl_price}")
-                            else:
-                                logger.warning(f"设置挂单止盈止损价格失败: {tp_sl_result.get('error')}")
-                else:
-                    # 市价单模式
-                    result = await order_service.create_market_order(
-                        user_id, group_id, f"{symbol}/USDT", "long", "open", amount
-                    )
-                    
-                    # 如果市价单成功且有止盈止损设置，将止盈止损价格存储到仓位表
-                    if result['success'] and (tp_price or sl_price):
-                        tp_sl_result = await position_service.set_position_tp_sl(
-                            user_id=user_id,
-                            group_id=group_id,
-                            symbol=f"{symbol}/USDT",
-                            side="long",
-                            tp_price=tp_price,
-                            sl_price=sl_price
-                        )
-                        if tp_sl_result.get('success'):
-                            logger.info(f"止盈止损价格已设置: {symbol} long TP:{tp_price} SL:{sl_price}")
-                        else:
-                            logger.warning(f"设置止盈止损价格失败: {tp_sl_result.get('message')}")
-                
-                await MessageDeletionService.send_and_schedule_delete(
-                    update=update,
-                    context=context,
-                    text=result['message'],
-                    delay_seconds=10,
-                    delete_user_message=True
-                )
-
-        except Exception as e:
-            logger.error(f"做多命令失败: {e}")
-            await update.message.reply_text("❌ 操作失败，请稍后重试")
+#     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#         # 交易命令已迁移到插件系统 - TradingPlugin
+#         pass
     
-    def _parse_trading_args(self, args):
-        """解析交易参数，支持新的订单格式"""
-        try:
-            # 检查是否为批量模式（简化判断）
-            if len(args) >= 3 and not '@' in ' '.join(args):
-                # 批量模式：/long btc eth xrp 5000
-                try:
-                    last_amount = float(args[-1].replace('u', '').replace('U', ''))
-                    if last_amount > 0:
-                        symbols = [arg.upper() for arg in args[:-1]]
-                        amounts = [last_amount] * len(symbols)
-                        return {
-                            'success': True,
-                            'is_batch': True,
-                            'symbols': symbols,
-                            'amounts': amounts
-                        }
-                except ValueError:
-                    pass
-            
-            # 单个订单模式
-            if len(args) < 2:
-                return {'success': False, 'error': '参数不足'}
-            
-            symbol = args[0].upper()
-            amount_str = args[1]
-            
-            # 解析金额和价格
-            if '@' in amount_str:
-                # 挂单模式：btc 4000@100000
-                amount_part, price_part = amount_str.split('@', 1)
-                amount = float(amount_part.replace('u', '').replace('U', ''))
-                price = float(price_part)
-            else:
-                # 市价模式：btc 4000
-                amount = float(amount_str.replace('u', '').replace('U', ''))
-                price = None
-            
-            if amount <= 0:
-                return {'success': False, 'error': '金额必须大于0'}
-            
-            # 解析止盈止损
-            tp_price = None
-            sl_price = None
-            
-            for arg in args[2:]:
-                if arg.startswith('tp@'):
-                    tp_price = float(arg[3:])
-                elif arg.startswith('sl@'):
-                    sl_price = float(arg[3:])
-            
-            return {
-                'success': True,
-                'is_batch': False,
-                'symbol': symbol,
-                'amount': amount,
-                'price': price,
-                'tp_price': tp_price,
-                'sl_price': sl_price
-            }
-            
-        except ValueError as e:
-            return {'success': False, 'error': f'参数格式错误: {str(e)}'}
-        except Exception as e:
-            return {'success': False, 'error': f'解析失败: {str(e)}'}
+#     def _parse_trading_args(self, args):
+#         # 交易命令已迁移到插件系统 - TradingPlugin
+#         pass
 
 
+# 交易命令已迁移到插件系统 - TradingPlugin
+# class ShortCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="short",
+#         command_type="group",
+#         trigger="short",
+#         menu_text="做空 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=31,
+#     )
 
-class ShortCommand(BaseCommand):
-    meta = CommandMeta(
-        name="short",
-        command_type="group",
-        trigger="short",
-        menu_text="做空 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=31,
-    )
-
-    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#         # 交易命令已迁移到插件系统 - TradingPlugin
+#         pass
         try:
             user_id = update.effective_user.id
             group_id = update.effective_chat.id
@@ -714,70 +559,30 @@ class ShortCommand(BaseCommand):
 
 
 
-class PositionCommand(BaseCommand):
-    meta = CommandMeta(
-        name="position",
-        command_type="group",
-        trigger="position",
-        menu_text="查看仓位 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=32,
-    )
+# 交易命令已迁移到插件系统 - TradingPlugin
+# class PositionCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="position",
+#         command_type="group",
+#         trigger="position",
+#         menu_text="查看仓位 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=32,
+#     )
 
+    # 交易命令已迁移到TradingPlugin插件系统
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        try:
-            user_id = update.effective_user.id
-            group_id = update.effective_chat.id
-
-            # 使用新交易系统获取完整信息
-            message = await self._get_enhanced_position_info(user_id, group_id)
-
-            # 发送初始消息
-            initial_message = await update.message.reply_text(
-                RealTimePositionService._build_realtime_message(message, 120),
-                parse_mode='HTML'
-            )
-
-            # 启动实时更新
-            context.application.create_task(
-                RealTimePositionService.start_realtime_update(
-                    update=update,
-                    context=context,
-                    user_id=user_id,
-                    group_id=group_id,
-                    initial_message=initial_message
-                )
-            )
-
-        except Exception as e:
-            logger.error(f"查看仓位失败: {e}")
-            await update.message.reply_text("❌ 获取仓位信息失败，请稍后重试")
+        pass
     
+    # 交易命令已迁移到TradingPlugin插件系统
     async def _get_enhanced_position_info(self, user_id: int, group_id: int) -> str:
-        """获取增强的仓位信息，包括挂单和止盈止损"""
-        try:
-            # 获取账户信息
-            account = account_service.get_or_create_account(user_id, group_id)
-            
-            # 获取持仓
-            positions = await position_service.get_positions(user_id, group_id)
-            
-            # 获取所有挂单
-            orders_result = order_service.get_orders(user_id, group_id, 'pending')
-            all_orders = orders_result.get('orders', []) if orders_result.get('success') else []
-            
-            # 分类订单（只获取开仓挂单）
-            pending_orders = [order for order in all_orders if order.get('order_type') == 'open']
-            
-            # 计算总未实现盈亏和仓位价值
-            total_unrealized_pnl = 0.0
-            total_position_value = 0.0
+        pass
             
             if positions:
                 for pos in positions:
                     total_position_value += pos['size']
                     # 计算未实现盈亏
-                    from bot_core.services.trading.price_service import price_service
+                    from plugins.trading_services.price_service import price_service
                     current_price = await price_service.get_current_price(pos['symbol'])
                     if current_price and current_price > 0:
                         if pos['side'] == 'long':
@@ -812,7 +617,7 @@ class PositionCommand(BaseCommand):
                 message_parts.append("📈 当前持仓:")
                 for pos in positions:
                     # 计算未实现盈亏
-                    from bot_core.services.trading.price_service import price_service
+                    from plugins.trading_services.price_service import price_service
                     current_price = await price_service.get_current_price(pos['symbol'])
                     if current_price and current_price > 0:
                         if pos['side'] == 'long':
@@ -879,63 +684,19 @@ class PositionCommand(BaseCommand):
 
 
 
-class PnlCommand(BaseCommand):
-    meta = CommandMeta(
-        name="pnl",
-        command_type="group",
-        trigger="pnl",
-        menu_text="盈亏报告 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=33,
-    )
+# 交易命令已迁移到TradingPlugin插件系统
+# class PnlCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="pnl",
+#         command_type="group",
+#         trigger="pnl",
+#         menu_text="盈亏报告 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=33,
+#     )
 
-    async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        try:
-            user_id = update.effective_user.id
-            group_id = update.effective_chat.id
-
-            # 获取盈亏报告
-            result = await analysis_service.get_pnl_report(user_id, group_id)
-
-            # 生成盈亏折线图
-            chart_image = analysis_service.generate_pnl_chart(user_id, group_id)
-
-            if chart_image:
-                # 有图表时，发送图片，caption只显示最近交易
-                # 解析盈亏报告，提取最近交易部分
-                recent_trades = self._extract_recent_trades(result['message'])
-
-                # 构建简短caption
-                caption = f"📊 Trading PnL Chart\n\n{recent_trades}"
-
-                # 确保caption不超过Telegram限制
-                if len(caption) > 1024:
-                    caption = caption[:1020] + "..."
-
-                # 发送图片和定时删除
-                await MessageDeletionService.send_photo_and_schedule_delete(
-                    update=update,
-                    context=context,
-                    photo=chart_image,
-                    caption=caption,
-                    parse_mode='HTML',
-                    delay_seconds=180,  # 盈亏报告保留5分钟
-                    delete_user_message=True
-                )
-            else:
-                # 没有图表时，只发送文本报告
-                await MessageDeletionService.send_and_schedule_delete(
-                    update=update,
-                    context=context,
-                    text=result['message'],
-                    parse_mode='HTML',
-                    delay_seconds=180,  # 盈亏报告保留5分钟
-                    delete_user_message=True
-                )
-
-        except Exception as e:
-            logger.error(f"盈亏报告命令失败: {e}")
-            await update.message.reply_text("❌ 获取盈亏报告失败，请稍后重试")
+#     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#         pass
 
     def _extract_recent_trades(self, full_message: str) -> str:
         """从完整消息中提取最近交易部分（精简版）"""
@@ -978,15 +739,16 @@ class PnlCommand(BaseCommand):
 
 
 
-class BeggingCommand(BaseCommand):
-    meta = CommandMeta(
-        name="begging",
-        command_type="group",
-        trigger="begging",
-        menu_text="领取救济金 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=34,
-    )
+# 交易命令已迁移到TradingPlugin插件系统
+# class BeggingCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="begging",
+#         command_type="group",
+#         trigger="begging",
+#         menu_text="领取救济金 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=34,
+#     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
@@ -1010,15 +772,16 @@ class BeggingCommand(BaseCommand):
 
 
 
-class CloseCommand(BaseCommand):
-    meta = CommandMeta(
-        name="close",
-        command_type="group",
-        trigger="close",
-        menu_text="平仓 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=35,
-    )
+# 交易命令已迁移到TradingPlugin插件系统
+# class CloseCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="close",
+#         command_type="group",
+#         trigger="close",
+#         menu_text="平仓 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=35,
+#     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:
@@ -1256,15 +1019,16 @@ class CloseCommand(BaseCommand):
 
 
 
-class RankCommand(BaseCommand):
-    meta = CommandMeta(
-        name="rank",
-        command_type="group",
-        trigger="rank",
-        menu_text="查看排行榜 (模拟盘)",
-        show_in_menu=True,
-        menu_weight=36,
-    )
+# 交易命令已迁移到TradingPlugin插件系统
+# class RankCommand(BaseCommand):
+#     meta = CommandMeta(
+#         name="rank",
+#         command_type="group",
+#         trigger="rank",
+#         menu_text="查看排行榜 (模拟盘)",
+#         show_in_menu=True,
+#         menu_weight=36,
+#     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         try:

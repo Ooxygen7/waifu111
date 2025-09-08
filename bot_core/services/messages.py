@@ -9,7 +9,7 @@ from telegram.error import BadRequest, TelegramError
 from telegram.ext import ContextTypes
 
 from utils.logging_utils import setup_logging
-from bot_core.services.trading.position_service import position_service
+from plugins.trading_services.position_service import position_service
 
 setup_logging()
 logger = logging.getLogger(__name__)
