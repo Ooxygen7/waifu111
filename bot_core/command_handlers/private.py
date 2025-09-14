@@ -258,7 +258,7 @@ class SaveCommand(BaseCommand):
         name="save",
         command_type="private",
         trigger="save",
-        menu_text="保存当前对话",
+        menu_text="保存当前对话 (可选: nosummary)",
         show_in_menu=True,
         menu_weight=5,
     )
@@ -270,6 +270,10 @@ class SaveCommand(BaseCommand):
         if not config:
             return
         
+        # 检查是否包含nosummary参数
+        message_text = update.message.text or ""
+        no_summary = "nosummary" in message_text.lower()
+        
         conv_id = config.get("conv_id")
         char = config.get("char")
         preset = config.get("preset")
@@ -277,6 +281,12 @@ class SaveCommand(BaseCommand):
         update_result = ConversationsRepository.conversation_private_update(conv_id, char, preset)
         save_result = ConversationsRepository.conversation_private_save(conv_id)
         if conv_id and char and preset and update_result["success"] and save_result["success"]:
+            if no_summary:
+                # 简单保存，不生成总结
+                await update.message.reply_text("保存成功")
+                logger.info(f"简单保存对话, conv_id: {conv_id}")
+                return
+            
             placeholder_message = await update.message.reply_text("保存中...")
 
             async def create_summary(current_conv_id, placeholder):
