@@ -3,6 +3,7 @@ import logging
 from typing import Optional, AsyncGenerator, Dict, Any, Union
 from enum import Enum
 import html
+import re
 import telegram
 from telegram import Update, Message
 from telegram.error import BadRequest, TelegramError
@@ -38,7 +39,25 @@ class MessageErrorHandler:
     ) -> Optional[Message]:
         """处理消息发送错误，包含回退逻辑"""
         if isinstance(error, BadRequest):
+            error_msg = str(error)
             logger.warning(f"消息解析失败: {error}，尝试回退模式")
+            
+            # 检查是否是HTML解析错误
+            if "Can't parse entities" in error_msg or "unsupported start tag" in error_msg:
+                # 对于HTML解析错误，尝试清理文本并使用无解析模式
+                cleaned_text = MessageErrorHandler._clean_problematic_text(text)
+                try:
+                    if placeholder:
+                        result = await placeholder.edit_text(text=cleaned_text, parse_mode=None)
+                        return result if not isinstance(result, bool) else placeholder
+                    else:
+                        return await bot.send_message(chat_id=chat_id, text=cleaned_text, parse_mode=None)
+                except Exception as fallback_error:
+                    logger.error(f"清理文本后仍然失败: {fallback_error}")
+                    # 最后的回退：发送简化的错误消息
+                    return await MessageErrorHandler._send_error_message(chat_id, bot, placeholder, "消息包含无法解析的内容")
+            
+            # 其他BadRequest错误的处理
             if fallback_parse_mode is not None:
                 try:
                     if placeholder:
@@ -63,6 +82,33 @@ class MessageErrorHandler:
         else:
             logger.error(f"未知错误: {error}", exc_info=True)
             return await MessageErrorHandler._send_error_message(chat_id, bot, placeholder, "发送消息时发生未知错误")
+    
+    @staticmethod
+    def _clean_problematic_text(text: str) -> str:
+        """清理可能导致Telegram解析错误的文本"""
+        # 转义HTML特殊字符
+        cleaned_text = html.escape(text)
+        
+        # 移除或替换可能导致解析错误的特殊字符
+        # 移除不可见的Unicode字符和控制字符
+        cleaned_text = re.sub(r'[\u200b-\u200f\u2028-\u202f\u205f-\u206f\ufeff]', '', cleaned_text)
+        
+        # 替换可能导致问题的特殊标点符号
+        problematic_chars = {
+            '｡': '。',  # 全角句号替换为中文句号
+            '｢': '「',  # 全角左引号
+            '｣': '」',  # 全角右引号
+            '､': '、',  # 全角顿号
+            '･': '·',   # 全角中点
+        }
+        
+        for old_char, new_char in problematic_chars.items():
+            cleaned_text = cleaned_text.replace(old_char, new_char)
+        
+        # 移除可能导致HTML解析错误的特殊符号组合
+        cleaned_text = re.sub(r'[<>](?![a-zA-Z/])', '', cleaned_text)  # 移除不是HTML标签的尖括号
+        
+        return cleaned_text
     
     @staticmethod
     async def _send_error_message(
@@ -197,14 +243,15 @@ class MessageFactory:
                     photo=photo if is_first_part else None # 只有第一部分带图片
                 )
             except Exception as e:
-                # 使用统一错误处理器
+                # 使用统一错误处理器，为HTML解析失败提供回退模式
+                fallback_mode = None if parse_mode != "HTML" else None  # 如果是HTML模式失败，回退到无解析模式
                 sent_message = await self.error_handler.handle_send_error(
                     error=e,
                     chat_id=resolved_chat_id,
                     text=part,
                     bot=self.bot,
                     placeholder=target_message,
-                    fallback_parse_mode=None
+                    fallback_parse_mode=fallback_mode
                 )
                 
                 if not sent_message:
