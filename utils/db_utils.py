@@ -1329,7 +1329,7 @@ def group_rate_get(group_id: int) -> float:
     Returns:
         float: 回复频率，如果未设置或查询失败则返回配置中的默认值
     """
-    command = f"SELECT rate from groups where group_id = ?"
+    command = "SELECT rate from groups where group_id = ?"
     result = query_db(command, (group_id,))
     default_rate = get_config("group.default_rate", 0.05)
     return (
@@ -1371,7 +1371,7 @@ def user_sign_info_get(user_id: int) -> dict:
         dict: 用户签到信息字典，包含user_id、last_sign、sign_count、frequency字段
     """
     command = (
-        f"SELECT user_id,last_sign,sign_count,frequency from user_sign where user_id =?"
+        "SELECT user_id,last_sign,sign_count,frequency from user_sign where user_id =?"
     )
     result = query_db(command, (user_id,))
     if result:

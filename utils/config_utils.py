@@ -8,7 +8,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 # 获取项目根目录的绝对路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -219,7 +219,7 @@ init_config()
 # 导出常用配置常量，方便其他模块直接导入
 BOT_TOKEN = get_config("TG_TOKEN", "")
 ADMIN_LIST = get_config("ADMIN", [])
-DEFAULT_API = get_config("api.default_api", "gemini-2")
+DEFAULT_API = get_config("api.default_api", "gemini-2.5")
 DEFAULT_CHAR = get_config("user.default_char", "cuicuishark_public")
 DEFAULT_PRESET = get_config("user.default_preset", "Default_meeting")
 DEFAULT_STREAM = get_config("user.default_stream", "no")

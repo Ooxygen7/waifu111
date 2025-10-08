@@ -28,7 +28,7 @@ class CommandHandlers:
 
         logger.info("正在初始化命令映射表...")
         cls._command_maps = {"private": {}, "group": {}}
-        module_names = ["private", "group", "admin"]
+        module_names = ["private", "group", "admin", "trading"]
         for module_name in module_names:
             try:
                 module = importlib.import_module(f"bot_core.command_handlers.{module_name}")

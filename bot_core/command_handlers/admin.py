@@ -102,7 +102,7 @@ class DatabaseCommand(BaseCommand):
     meta = CommandMeta(
         name='database',
         command_type='admin',
-        trigger='q',  # 模拟 /q 命令
+        trigger='q',
         menu_text='',
         bot_admin_required=True,
         show_in_menu=False,

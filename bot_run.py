@@ -16,7 +16,6 @@ import bot_core.message_handlers.group as group_handler
 import bot_core.message_handlers.private as private_handler
 from bot_core.callback_handlers.callback import create_callback_handler  # 修改导入路径
 from bot_core.command_handlers.regist import CommandHandlers
-# from bot_core.inline_handlers.inline import InlineQueryHandlers  # 注释掉内联相关
 from utils.config_utils import BOT_TOKEN
 from bot_core.services.utils.error import BotError
 from utils.logging_utils import setup_logging
@@ -40,10 +39,6 @@ def setup_handlers(app: Application) -> None:
 
     # 定义所有需要加载的命令模块
 
-    # 获取所有命令处理器
-    # Command handlers are now managed by the message handlers
-    command_handlers = []
-
     # 消息处理器
     message_handlers = [
         MessageHandler(
@@ -58,23 +53,12 @@ def setup_handlers(app: Application) -> None:
         ),
     ]
 
-    # 注册所有命令处理器
-    # Command handlers are now managed by the message handlers
-    # for handler in command_handlers:
-    #     app.add_handler(handler)
 
     # 创建并添加回调处理器
     callback_handler = create_callback_handler(["bot_core.callback_handlers"])
     app.add_handler(CallbackQueryHandler(callback_handler.handle_callback_query))
 
-    # 创建并添加内联查询处理器
-    # try:
-    #     inline_query_handler = InlineQueryHandler(InlineQueryHandlers.handle_inline_query)
-    #     app.add_handler(inline_query_handler)
-    #     logger.info("内联查询处理器已注册")
-    # except Exception as e:
-    #     logger.error(f"注册内联查询处理器失败: {e}", exc_info=True)
-    #     # 不中断启动过程，只记录错误
+
 
     # 添加消息处理器
     for handler in message_handlers:
@@ -136,7 +120,7 @@ def main() -> None:
             """
             try:
                 command_menus = CommandHandlers.get_command_definitions(
-                    ["private", "group", "admin"]
+                    ["private", "group", "admin", "trading"]
                 )
 
                 # 设置私聊命令菜单
