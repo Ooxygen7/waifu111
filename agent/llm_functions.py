@@ -610,7 +610,7 @@ async def analyze_database(sql: str, prompts: str) -> str:
         ]
         client.set_messages(messages)
         
-        logger.info(f"正在分析数据库...")
+        logger.info("正在分析数据库...")
         response_data_str = await client.final_response()
 
         return response_data_str

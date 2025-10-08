@@ -615,9 +615,6 @@ def user_stream_get(userid: int) -> Optional[bool]:
 
 
 
-    return result > 0
-
-
 def user_config_arg_update(user_id: int, field: str, value: Any) -> bool:
     """
     更新用户配置表中的指定字段。
@@ -1521,8 +1518,7 @@ def get_table_data(
         else:
             if conn:
                 conn.close()
-    result = query_db(command)
-    return [row[0] for row in result] if result else []
+
 
 # 应用退出时关闭所有数据库连接
 def close_all_connections():
