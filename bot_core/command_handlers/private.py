@@ -462,6 +462,12 @@ class DoneCommand(BaseCommand):
         if not info:
             return
         user_id = info["user_id"]
+        
+        # 解析命令参数，检查是否包含sfw参数
+        message_text = update.message.text or ""
+        args = message_text.split()[1:] if len(message_text.split()) > 1 else []
+        is_sfw = "sfw" in args
+        
         state = context.bot_data.get("newchar_state", {}).get(user_id)
         if not state:
             await update.message.reply_text(
@@ -480,14 +486,15 @@ class DoneCommand(BaseCommand):
             return
         desc = "\n".join(state["desc_chunks"])
         try:
-            placeholder_message = await update.message.reply_text("正在生成...")
+            mode_text = "SFW" if is_sfw else "NSFW"
+            placeholder_message = await update.message.reply_text(f"正在生成{mode_text}角色...")
 
             async def _generate_char(
-                placeholder, char_description, save_to, name_char, uid, tg_context
+                placeholder, char_description, save_to, name_char, uid, tg_context, nsfw_mode
             ):
                 generated_content = None
                 try:
-                    generated_content = await generate_char(char_description)
+                    generated_content = await generate_char(char_description, nsfw=nsfw_mode)
                     if not generated_content:
                         await placeholder.edit_text(f"角色 {name_char} 生成失败，LLM未返回任何内容。")
                         return
@@ -499,21 +506,24 @@ class DoneCommand(BaseCommand):
                     if match:
                         json_str = next(group for group in match.groups() if group)
                         char_data = json.loads(json_str)
-                        save_path = os.path.join(save_to, f"{name_char}_{uid}.json")
+                        mode_suffix = "_sfw" if not nsfw_mode else ""
+                        save_path = os.path.join(save_to, f"{name_char}_{uid}{mode_suffix}.json")
                         with open(save_path, "w", encoding="utf-8") as f:
                             json.dump(char_data, f, ensure_ascii=False, indent=2)
                         await placeholder.edit_text(
                             f"角色 {name_char} 已保存到 {save_path}"
                         )
                     else:
-                        save_path = os.path.join(save_to, f"{name_char}_{uid}.txt")
+                        mode_suffix = "_sfw" if not nsfw_mode else ""
+                        save_path = os.path.join(save_to, f"{name_char}_{uid}{mode_suffix}.txt")
                         with open(save_path, "w", encoding="utf-8") as f:
                             f.write(generated_content)
                         await placeholder.edit_text(
                             f"警告：未能从生成内容中提取 JSON 数据，保存原始内容到 {save_path}。"
                         )
                 except json.JSONDecodeError as error:
-                    save_path = os.path.join(save_to, f"{name_char}_{uid}.txt")
+                    mode_suffix = "_sfw" if not nsfw_mode else ""
+                    save_path = os.path.join(save_to, f"{name_char}_{uid}{mode_suffix}.txt")
                     with open(save_path, "w", encoding="utf-8") as f:
                         f.write(generated_content or "")
                     await placeholder.edit_text(
@@ -535,6 +545,7 @@ class DoneCommand(BaseCommand):
                     char_name,
                     user_id,
                     context,
+                    not is_sfw  # nsfw参数：如果是sfw模式则传False，否则传True
                 )
             )
         except Exception as e:

@@ -469,12 +469,13 @@ async def generate_summary(conversation_id: int,summary_type:str = 'save',start:
             except Exception as e:
                 raise ValueError(f"生成总结失败: {str(e)}")
 
-async def generate_char(character_description: str) -> str:
+async def generate_char(character_description: str,nsfw:bool=True) -> str:
         """
         根据用户输入生成角色描述文档
 
         Args:
             character_description: 用户提供的角色描述文本
+            nsfw: 是否生成NSFW内容，默认为True
 
         Returns:
             str: 生成的JSON格式角色描述文档
@@ -484,10 +485,11 @@ async def generate_char(character_description: str) -> str:
         """
         async with llm_client_manager.semaphore:
             try:
-                # 构建系统提示词
-                system_prompt = file_utils.load_single_prompt("generate_char_prompt")
+                # 根据nsfw参数选择对应的prompt
+                prompt_key = "generate_char_prompt" if nsfw else "generate_char_prompt_sfw"
+                system_prompt = file_utils.load_single_prompt(prompt_key)
                 if not system_prompt:
-                    raise ValueError("无法加载 'generate_char_prompt' prompt。")
+                    raise ValueError(f"无法加载 '{prompt_key}' prompt。")
 
                 # 构建对话历史
                 history = [
