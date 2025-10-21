@@ -149,39 +149,84 @@ class Inline:
             raise BotError(f"获取用户对话列表失败: {str(e)}")
 
     @staticmethod
-    def print_char_list(operate_type: str, chat_type: str, _id: int) -> Union[str, InlineKeyboardMarkup]:
+    def print_char_list(operate_type: str, chat_type: str, _id: int, page: int = 1) -> Union[str, InlineKeyboardMarkup]:
         """
-        筛选角色列表。
+        筛选角色列表，支持分页显示。
 
         Args:
             operate_type (str): 操作类型，load或delete。
             chat_type (str): 消息类型，私聊或群聊。
             _id (int): 私聊或群聊id。
+            page (int): 页码，从1开始。
 
         Returns:
             Union[str, InlineKeyboardMarkup]: 筛选后的inline按钮或提示字符串。
         """
         try:
             char_list = file.list_all_characters()
-            keyboard = []
+            filtered_chars = []
+            
+            # 筛选符合条件的角色
             for char in char_list:
                 if operate_type == 'load' and chat_type == 'private':
                     if char.endswith("_public") or char.endswith(f"_{_id}"):
-                        keyboard.append([InlineKeyboardButton(char.split('_')[0], callback_data=f"set_char_{char}")])
+                        filtered_chars.append(char)
                 elif operate_type == 'del' and chat_type == 'private':
                     if char.endswith(f"_{_id}"):
-                        keyboard.append([InlineKeyboardButton(char.split('_')[0], callback_data=f"del_char_{char}")])
+                        filtered_chars.append(char)
                 elif operate_type == 'load' and chat_type == 'group':
                     if char.endswith("_public") or char.endswith(f"_{_id}"):
-                        keyboard.append(
-                            [InlineKeyboardButton(char.split('_')[0], callback_data=f"group_char_{char}_{_id}")])
+                        filtered_chars.append(char)
                 elif operate_type == 'del' and chat_type == 'group':
                     if char.endswith(f"_{_id}"):
-                        keyboard.append(
-                            [InlineKeyboardButton(char.split('_')[0], callback_data=f"group_delchar_{char}_{_id}")])
+                        filtered_chars.append(char)
 
-            if not keyboard:
+            if not filtered_chars:
                 return "没有可操作的角色。"
+
+            # 分页设置
+            chars_per_page = 6
+            total_chars = len(filtered_chars)
+            total_pages = (total_chars + chars_per_page - 1) // chars_per_page
+            
+            # 确保页码在有效范围内
+            page = max(1, min(page, total_pages))
+            
+            # 计算当前页的角色范围
+            start_idx = (page - 1) * chars_per_page
+            end_idx = min(start_idx + chars_per_page, total_chars)
+            current_page_chars = filtered_chars[start_idx:end_idx]
+            
+            # 构建角色按钮
+            keyboard = []
+            for char in current_page_chars:
+                if operate_type == 'load' and chat_type == 'private':
+                    keyboard.append([InlineKeyboardButton(char.split('_')[0], callback_data=f"set_char_{char}")])
+                elif operate_type == 'del' and chat_type == 'private':
+                    keyboard.append([InlineKeyboardButton(char.split('_')[0], callback_data=f"del_char_{char}")])
+                elif operate_type == 'load' and chat_type == 'group':
+                    keyboard.append([InlineKeyboardButton(char.split('_')[0], callback_data=f"group_char_{char}_{_id}")])
+                elif operate_type == 'del' and chat_type == 'group':
+                    keyboard.append([InlineKeyboardButton(char.split('_')[0], callback_data=f"group_delchar_{char}_{_id}")])
+
+            # 添加分页导航按钮
+            if total_pages > 1:
+                nav_buttons = []
+                
+                # 上一页按钮
+                if page > 1:
+                    prev_callback = f"char_page_{operate_type}_{chat_type}_{_id}_{page-1}"
+                    nav_buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=prev_callback))
+                
+                # 页码显示
+                nav_buttons.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
+                
+                # 下一页按钮
+                if page < total_pages:
+                    next_callback = f"char_page_{operate_type}_{chat_type}_{_id}_{page+1}"
+                    nav_buttons.append(InlineKeyboardButton("下一页 ➡️", callback_data=next_callback))
+                
+                keyboard.append(nav_buttons)
 
             return InlineKeyboardMarkup(keyboard)
         except Exception as e:

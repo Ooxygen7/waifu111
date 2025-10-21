@@ -21,7 +21,7 @@ from bot_core.services.utils.error import BotError
 from utils.logging_utils import setup_logging
 from bot_core.services.utils.error import error_handler
 from bot_core.services.trading.monitor_service import monitor_service
-
+from bot_core.services.trading.monitor_service import monitor_service
 setup_logging()
 logger = logging.getLogger(__name__)
 

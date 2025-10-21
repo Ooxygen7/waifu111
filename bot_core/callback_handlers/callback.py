@@ -766,6 +766,51 @@ class GroupKeywordSubmitDeleteCallback(BaseCallback):
         user_data.clear()
 
 
+class CharPageCallback(BaseCallback):
+    meta = CallbackMeta(
+        name='char_page',
+        callback_type='both',
+        trigger='char_page_',
+        enabled=True
+    )
+
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+        """
+        处理角色列表分页回调。
+        data格式: operate_type_chat_type_id_page
+        """
+        try:
+            query = update.callback_query
+            if not query or not query.message:
+                return
+
+            # 解析回调数据
+            parts = data.split('_')
+            if len(parts) < 4:
+                await safe_edit_message(query.message, "分页数据格式错误。")
+                return
+
+            operate_type = parts[0]  # load 或 del
+            chat_type = parts[1]     # private 或 group
+            _id = int(parts[2])      # 用户或群组ID
+            page = int(parts[3])     # 页码
+
+            # 生成新的角色列表
+            markup = Inline.print_char_list(operate_type, chat_type, _id, page)
+            
+            if isinstance(markup, str):
+                await safe_edit_message(query.message, markup)
+            else:
+                await safe_edit_message(query.message, "请选择一个角色：", reply_markup=markup)
+
+        except (ValueError, IndexError) as e:
+            logger.error(f"解析分页回调数据失败: {str(e)}")
+            await safe_edit_message(query.message, "分页操作失败，请重试。")
+        except Exception as e:
+            logger.error(f"处理角色分页回调失败: {str(e)}")
+            await safe_edit_message(query.message, "操作失败，请重试。")
+
+
 class SettingsCallback(BaseCallback):
     meta = CallbackMeta(
         name='settings',
