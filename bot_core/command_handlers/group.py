@@ -25,6 +25,10 @@ from plugins.trading_services.position_service import position_service
 from plugins.trading_services.analysis_service import analysis_service
 from plugins.trading_services.loan_service import loan_service
 from plugins.trading_services.price_service import price_service
+
+# 日志记录器
+logger = logging.getLogger(__name__)
+
 class RemakeCommand(BaseCommand):
     meta = CommandMeta(
         name="remake",
@@ -80,13 +84,16 @@ class RateCommand(BaseCommand):
         if len(args) < 1:
             await update.message.reply_text("请输入一个0-1的小数")
             return
-        rate_value = float(args[0])
-        if not 0 <= rate_value <= 1:
-            await update.message.reply_text("请输入一个0-1的小数")
-            return
-        result = GroupsRepository.group_info_update(update.message.chat.id, "rate", rate_value)
-        if result["success"]:
-            await update.message.reply_text(f"已设置触发频率: {rate_value}")
+        try:
+            rate_value = float(args[0])
+            if not 0 <= rate_value <= 1:
+                await update.message.reply_text("请输入一个0-1的小数")
+                return
+            result = GroupsRepository.group_info_update(update.message.chat.id, "rate", rate_value)
+            if result["success"]:
+                await update.message.reply_text(f"已设置触发频率: {rate_value}")
+        except ValueError:
+            await update.message.reply_text("请输入一个有效的数字。")
 
 
 class KeywordCommand(BaseCommand):
@@ -235,14 +242,8 @@ class ApiCommand(BaseCommand):
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
         Handle the /api command to show available APIs for group (only group=0 APIs).
-        Args:
-            update: The Telegram Update object containing the user input.
-            context: The Telegram ContextTypes object for bot interaction.
         """
-        # 获取群组信息
         group_id = update.message.chat.id
-
-        # 创建群组专用的 API 列表（只显示 group=0 的 API）
         markup = self._get_group_api_list(group_id)
 
         if isinstance(markup, str):
@@ -250,7 +251,6 @@ class ApiCommand(BaseCommand):
         else:
             await update.message.reply_text("请选择一个API：", reply_markup=markup)
 
-        # 删除命令消息
         try:
             await update.message.delete()
         except Exception as e:
@@ -259,18 +259,13 @@ class ApiCommand(BaseCommand):
     def _get_group_api_list(self, group_id):
         """
         获取群组可用的 API 列表（只返回 group=0 的 API）
-
-        Args:
-            group_id: 群组ID
         """
         try:
             api_list = file.load_config()["api"]
             if not api_list:
                 return "没有可用的API。"
 
-            # 过滤API列表，只保留group=0的API
-            filtered_api_list = [
-                api for api in api_list if api.get("group", 0) == 0]
+            filtered_api_list = [api for api in api_list if api.get("group", 0) == 0]
 
             if not filtered_api_list:
                 return "没有适用于群组的API。"
@@ -290,38 +285,32 @@ class ApiCommand(BaseCommand):
             return "获取API列表失败，请稍后重试。"
 
 
-class CryptoCommand(BaseCommand):
-    """加密货币分析命令类。
-
-    该命令用于分析加密货币的实时行情，可以根据用户输入的内容和偏好(多头/空头/中性)
-    提供相应的市场分析和交易建议。支持通过工具查询实时市场数据，并由AI进行综合分析。
-
-    命令格式:
-        menu_weight=20,
-        bot_admin_required=True,
+class ForwardCommand(BaseCommand):
+    meta = CommandMeta(
+        name="forward",
+        command_type="group",
+        trigger=["forward", "fw"],
+        menu_text="转发消息",
+        show_in_menu=False,
+        group_admin_required=True,
     )
 
     async def handle(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
         处理 /forward 或 /fw 命令，将指定消息转发到当前聊天。
-        命令格式: /forward <源聊天ID> <消息ID>
         """
-        # context.args 会自动解析命令后的参数列表
-        # 例如，如果用户输入 "/fw -1001234567890 123"
-        # context.args 将是 ['-1001234567890', '123']
         args = context.args
-        # 1. 参数校验
         if not args or len(args) != 2:
             await update.message.reply_text(
                 "❌ 用法错误！请提供源聊天ID和消息ID。\n"
-                "或简写：`/fw <源聊天ID> <消息ID>`\n\n"
+                "用法：`/fw <源聊天ID> <消息ID>`\n\n"
                 "💡 源聊天ID可以是用户ID、群组ID或频道ID（需要有访问权限）。\n"
                 "注意：频道ID通常以 `-100` 开头。",
                 parse_mode="Markdown",
             )
             return
+
         try:
-            # 尝试将参数转换为整数
             source_chat_id = int(args[0])
             message_id = int(args[1])
         except ValueError:
@@ -331,30 +320,37 @@ class CryptoCommand(BaseCommand):
                 parse_mode="Markdown",
             )
             return
-        # 2. 获取目标聊天ID (通常是用户发起命令的聊天)
+
         target_chat_id = update.effective_chat.id
-        # 3. 执行消息转发操作
         try:
             await context.bot.forward_message(
                 chat_id=target_chat_id,
                 from_chat_id=source_chat_id,
                 message_id=message_id,
             )
-            # await update.message.reply_text("✅ 消息已成功转发！")
-
         except Exception as e:
-            # 捕获其他非 Telegram API 的意外错误
             escaped_error = escape_markdown(str(e), version=1)
             await update.message.reply_text(
-                f"❌ 发生错误：`{type(e).__name__}: {escaped_error}`", parse_mode="Markdown"
+                f"❌ 转发失败: `{type(e).__name__}: {escaped_error}`", parse_mode="Markdown"
             )
 
 
-class FuckCommand(BaseCommand):
-    """处理 /fuck 命令的类。
+class CryptoCommand(BaseCommand):
+    """
+    加密货币分析命令类。
+    该命令用于分析加密货币的实时行情，可以根据用户输入的内容和偏好(多头/空头/中性)
+    提供相应的市场分析和交易建议。支持通过工具查询实时市场数据，并由AI进行综合分析。
+    """
+    # 目前是占位符，等待未来实现
+    pass
 
+
+class FuckCommand(BaseCommand):
+    """
+    处理 /fuck 命令的类。
     该命令用于分析用户回复的图片消息，并生成一个包含评分和评价的回复。
     支持分析图片、贴纸和GIF，可以通过添加 'hard' 参数启用更激进的评价模式。
     """
-
     # 交易命令已迁移到TradingPlugin插件系统
+    # 目前是占位符，等待未来实现
+    pass
