@@ -57,11 +57,11 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
 
 def init_config() -> None:
     """
-    初始化配置，优先从环境变量加载，然后回退到配置文件。
+    初始化配置，加载默认配置和用户配置
     """
     global _config, _default_config, _user_config
 
-    # 1. 加载默认配置
+    # 加载默认配置
     try:
         _default_config = load_json_file(DEFAULT_CONFIG_PATH)
         logger.info("默认配置加载成功")
@@ -69,53 +69,36 @@ def init_config() -> None:
         logger.error(f"加载默认配置失败: {str(e)}")
         _default_config = {}
 
-    # 2. 加载用户配置文件（如果存在）
-    _user_config = {}
+    # 加载用户配置
     try:
+        # 优先尝试加载本地配置
         if os.path.exists(CONFIG_LOCAL_PATH):
             _user_config = load_json_file(CONFIG_LOCAL_PATH)
-            logger.info("本地 config_local.json 配置加载成功")
-        elif os.path.exists(CONFIG_PATH):
+            logger.info("本地配置加载成功")
+        else:
             _user_config = load_json_file(CONFIG_PATH)
-            logger.info("标准 config.json 配置加载成功")
+            logger.info("标准配置加载成功")
     except Exception as e:
-        logger.warning(f"加载用户配置文件失败: {str(e)}")
+        logger.error(f"加载用户配置失败: {str(e)}")
+        _user_config = {}
 
-    # 3. 合并默认和用户配置
+    # 合并配置
     _config = _default_config.copy()
     _deep_update(_config, _user_config)
 
-    # 4. 从环境变量覆盖敏感信息 (Render部署的关键!)
-    env_vars = {
-        'TG_TOKEN': os.environ.get('TG_TOKEN'),
-        'ADMIN': os.environ.get('ADMIN'),
-        'WEB_PW': os.environ.get('WEB_PW'),
-        'VIEWER_PW': os.environ.get('VIEWER_PW')
-    }
-
-    if env_vars['TG_TOKEN']:
-        _config['TG_TOKEN'] = env_vars['TG_TOKEN']
-        logger.info("从环境变量加载 TG_TOKEN")
-    if env_vars['ADMIN']:
-        # ADMIN 环境变量通常是逗号分隔的字符串，需要转换成列表
-        try:
-            _config['ADMIN'] = [int(admin_id.strip()) for admin_id in env_vars['ADMIN'].split(',')]
-            logger.info("从环境变量加载 ADMIN IDs")
-        except ValueError:
-            logger.error("环境变量中的 ADMIN 格式不正确，应为逗号分隔的数字ID。")
-    if env_vars['WEB_PW']:
-        _config['WEB_PW'] = env_vars['WEB_PW']
-        logger.info("从环境变量加载 WEB_PW")
-    if env_vars['VIEWER_PW']:
-        _config['VIEWER_PW'] = env_vars['VIEWER_PW']
-        logger.info("从环境变量加载 VIEWER_PW")
-
-    # 5. 验证必要的配置项
+    # 验证必要的配置项
     if not _config.get("TG_TOKEN"):
-        logger.warning("！！！警告：未找到 TG_TOKEN 配置。机器人将无法启动。")
+        if _user_config.get("TG_TOKEN"):
+            _config["TG_TOKEN"] = _user_config["TG_TOKEN"]
+        else:
+            logger.warning("未找到TG_TOKEN配置")
+
     if not _config.get("ADMIN"):
-        logger.warning("未找到 ADMIN 配置，将使用空列表。")
-        _config["ADMIN"] = []
+        if _user_config.get("ADMIN"):
+            _config["ADMIN"] = _user_config["ADMIN"]
+        else:
+            logger.warning("未找到ADMIN配置")
+            _config["ADMIN"] = []
 
 
 def _deep_update(target: Dict[str, Any], source: Dict[str, Any]) -> None:
