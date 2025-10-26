@@ -2,7 +2,7 @@
     "api_list": [
     {
       "name": "gemini-2",
-      "key": "",
+      "key": "AIzaSyDAvFHBvunQqUKNVdR2EmChLhBf59Invhs",
       "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
       "model": "gemini-2.0-flash",
       "group":0,
@@ -27,9 +27,10 @@
       "multiple": 1
     }
   ],
-  "TG_TOKEN" : "",
-  "ADMIN":[],
-  "WEB_PW": "123456",
-  "VIEWER_PW": "654321",
+  "TG_TOKEN" : "8378563733:AAEnVkJZ-aZBU19kSt195HhSrvFsHyqD0cE",
+  "ADMIN":[7876882550],
+  "WEB_PW": "250280",
+  "VIEWER_PW": "250280",
   "fuck_or_not_api": "gemini-2"
+
 }
