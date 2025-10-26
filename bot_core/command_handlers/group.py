@@ -19,12 +19,12 @@ from agent.llm_functions import run_agent_session
 from utils.config_utils import get_config
 
 
-from plugins.trading_services.order_service import order_service
-from plugins.trading_services.account_service import account_service
-from plugins.trading_services.position_service import position_service
-from plugins.trading_services.analysis_service import analysis_service
-from plugins.trading_services.loan_service import loan_service
-from plugins.trading_services.price_service import price_service
+# from plugins.trading_services.order_service import order_service
+# from plugins.trading_services.account_service import account_service
+# from plugins.trading_services.position_service import position_service
+# from plugins.trading_services.analysis_service import analysis_service
+# from plugins.trading_services.loan_service import loan_service
+# from plugins.trading_services.price_service import price_service
 
 # 日志记录器
 logger = logging.getLogger(__name__)
